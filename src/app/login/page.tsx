@@ -19,7 +19,6 @@ function LoginForm() {
   async function signInWithGitHub() {
     await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: `${location.origin}/auth/callback` },
     })
   }
 

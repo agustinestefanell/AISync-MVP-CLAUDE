@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createDemoProject } from '@/lib/db/projects'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -12,18 +13,25 @@ export async function GET(request: Request) {
     if (!error && data.user) {
       const user = data.user
 
-      // Crear account si es la primera vez (upsert no duplica)
-      await supabase.from('accounts').upsert(
-        {
+      // ¿Ya existe la cuenta? → primer login vs. logins posteriores
+      const { data: existing } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      if (!existing) {
+        // Primera vez: crear cuenta y proyecto demo
+        await supabase.from('accounts').insert({
           id: user.id,
           email: user.email!,
           name:
             user.user_metadata?.full_name ??
             user.user_metadata?.name ??
             user.email!.split('@')[0],
-        },
-        { onConflict: 'id', ignoreDuplicates: true }
-      )
+        })
+        await createDemoProject(user.id)
+      }
 
       return NextResponse.redirect(`${origin}/`)
     }

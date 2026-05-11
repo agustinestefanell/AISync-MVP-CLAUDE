@@ -1,0 +1,12 @@
+import { createClient } from '@/lib/supabase/server'
+import type { WorkspaceWithAgents } from './types'
+
+export async function getWorkspaceWithAgents(workspaceId: string): Promise<WorkspaceWithAgents | null> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('workspaces')
+    .select('*, agent_sessions(*)')
+    .eq('id', workspaceId)
+    .single()
+  return (data as WorkspaceWithAgents) ?? null
+}
