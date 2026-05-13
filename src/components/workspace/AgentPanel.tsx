@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
+import { Fragment, forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import type { AgentSession, Message } from '@/lib/db/types'
 import type { ChatMessage } from '@/lib/providers/types'
 
@@ -78,6 +78,27 @@ const GUIDE_PROMPTS: Record<string, { label: string; prompt: string }[]> = {
   ],
 }
 
+// Internal message type — preserves created_at for day markers without touching the shared ChatMessage type
+interface DisplayMessage extends ChatMessage {
+  created_at?: string
+}
+
+function formatDayMarker(date: Date): string {
+  const today     = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  if (date.toDateString() === today.toDateString())     return 'Today'
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month:   'long',
+    day:     'numeric',
+    ...(date.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}),
+  })
+}
+
 export interface AgentPanelHandle {
   getLastAssistantMessage(): string | undefined
   appendUserMessage(content: string): void
@@ -104,8 +125,8 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     const guide     = GUIDE_META[session.agent_role]    ?? GUIDE_META.worker1
     const guideBtns = GUIDE_PROMPTS[session.agent_role] ?? GUIDE_PROMPTS.worker1
 
-    const [messages, setMessages] = useState<ChatMessage[]>(
-      initialMessages.map(m => ({ role: m.role, content: m.content }))
+    const [messages, setMessages] = useState<DisplayMessage[]>(
+      initialMessages.map(m => ({ role: m.role, content: m.content, created_at: m.created_at }))
     )
     const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
     const [input, setInput]                     = useState('')
@@ -127,7 +148,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       getLastAssistantMessage: () =>
         [...messages].reverse().find(m => m.role === 'assistant')?.content,
       appendUserMessage: (content: string) =>
-        setMessages(prev => [...prev, { role: 'user', content }]),
+        setMessages(prev => [...prev, { role: 'user', content, created_at: new Date().toISOString() }]),
       getAllMessages: () => messages,
       restoreMessages: (msgs: ChatMessage[]) => {
         setMessages(msgs)
@@ -165,7 +186,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     async function sendPrompt(content: string) {
       if (!content || streaming || workspaceLocked) return
 
-      const userMsg: ChatMessage = { role: 'user', content }
+      const userMsg: DisplayMessage = { role: 'user', content, created_at: new Date().toISOString() }
       const nextMessages = [...messages, userMsg]
       setMessages(nextMessages)
       setStreaming(true)
@@ -182,7 +203,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            messages:  nextMessages,
+            messages:  nextMessages.map(({ role, content }) => ({ role, content })),
             provider:  session.provider,
             model:     session.model,
             agentRole,
@@ -206,7 +227,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
           scrollToBottom()
         }
 
-        const assistantMsg: ChatMessage = { role: 'assistant', content: fullContent }
+        const assistantMsg: DisplayMessage = { role: 'assistant', content: fullContent, created_at: new Date().toISOString() }
         setMessages(prev => [...prev, assistantMsg])
 
         await fetch('/api/messages', {
@@ -285,28 +306,46 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
 
           {messages.map((msg, i) => {
             const isSelected = selectedIndices.has(i)
+
+            const showDayMarker = !!msg.created_at && (
+              i === 0 ||
+              !messages[i - 1]?.created_at ||
+              new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at!).toDateString()
+            )
+
             return (
-              <div key={i} className="group flex items-start gap-1.5">
-                {/* Checkbox — oculto por defecto, visible al hover o cuando está chequeado */}
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleSelection(i)}
-                  className={`mt-2 shrink-0 w-3.5 h-3.5 accent-indigo-500 cursor-pointer transition-opacity ${
-                    isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'
-                  }`}
-                />
-                {/* Burbuja — empuja el mensaje a la derecha si es del usuario */}
-                <div className={`flex-1 flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap transition-all ${
-                      msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-200'
-                    } ${isSelected ? 'ring-2 ring-indigo-400/60' : ''}`}
-                  >
-                    {msg.content}
+              <Fragment key={i}>
+                {showDayMarker && (
+                  <div className="flex items-center gap-3 my-3 px-2">
+                    <div className="flex-1 h-px bg-gray-700/50" />
+                    <span className="text-xs text-gray-500 font-medium px-2 py-1 bg-gray-800/50 rounded-full border border-gray-700/30 shrink-0" suppressHydrationWarning>
+                      {formatDayMarker(new Date(msg.created_at!))}
+                    </span>
+                    <div className="flex-1 h-px bg-gray-700/50" />
+                  </div>
+                )}
+                <div className="group flex items-start gap-1.5">
+                  {/* Checkbox — oculto por defecto, visible al hover o cuando está chequeado */}
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelection(i)}
+                    className={`mt-2 shrink-0 w-3.5 h-3.5 accent-indigo-500 cursor-pointer transition-opacity ${
+                      isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'
+                    }`}
+                  />
+                  {/* Burbuja — empuja el mensaje a la derecha si es del usuario */}
+                  <div className={`flex-1 flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap transition-all ${
+                        msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-200'
+                      } ${isSelected ? 'ring-2 ring-indigo-400/60' : ''}`}
+                    >
+                      {msg.content}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Fragment>
             )
           })}
 
