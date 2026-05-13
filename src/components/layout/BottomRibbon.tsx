@@ -1,0 +1,54 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+const NAV_ITEMS = [
+  { label: 'Teams Map',          href: '/teams',         future: false },
+  { label: 'Audit Log',          href: '/audit',         future: false },
+  { label: 'Main Workspace',     href: '/',              future: false },
+  { label: 'Cross Verification', href: '#',              future: true  },
+  { label: 'Documentation Mode', href: '/documentation', future: false },
+  { label: 'Prompts Library',    href: '#',              future: true  },
+  { label: 'Settings',           href: '/settings',      future: false },
+  { label: 'Advanced',           href: '#',              future: true  },
+] as const
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/' || pathname.startsWith('/workspace')
+  return pathname === href || pathname.startsWith(href + '/')
+}
+
+export default function BottomRibbon() {
+  const pathname = usePathname()
+
+  return (
+    <nav className="sticky bottom-0 z-50 h-10 bg-gray-900 border-t border-gray-800 flex items-center justify-center shrink-0">
+      {NAV_ITEMS.map((item, i) => (
+        <div key={item.label} className="flex items-center">
+          {i > 0 && <span className="text-gray-700 text-xs select-none">|</span>}
+
+          {item.future ? (
+            <span className="relative group cursor-default text-gray-500 text-xs px-3 select-none">
+              {item.label}
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 bg-gray-700 text-gray-300 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                Coming soon
+              </span>
+            </span>
+          ) : (
+            <Link
+              href={item.href}
+              className={`text-xs px-3 transition-colors ${
+                isActive(pathname, item.href)
+                  ? 'text-white font-medium'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {item.label}
+            </Link>
+          )}
+        </div>
+      ))}
+    </nav>
+  )
+}

@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import AuditClient from '@/components/audit/AuditClient'
 import { getAuditEvents } from '@/lib/db/audit'
+import AppLayout from '@/components/layout/AppLayout'
 
 export default async function AuditPage() {
   const supabase = createClient()
@@ -19,22 +19,16 @@ export default async function AuditPage() {
   const checkpoints     = (rawCheckpoints    ?? []) as { id: string; name: string }[]
 
   return (
-    <div className="h-screen bg-gray-950 text-white flex flex-col">
-      <header className="shrink-0 border-b border-gray-800 px-6 py-3 flex items-center gap-3">
-        <Link href="/" className="text-gray-500 hover:text-gray-300 text-sm transition-colors">
-          ← Dashboard
-        </Link>
-        <span className="text-gray-700">|</span>
-        <span className="text-base font-bold tracking-tight">AISync</span>
-        <span className="text-gray-700">·</span>
-        <span className="text-gray-400 text-sm">Audit Log</span>
-      </header>
-
+    <AppLayout
+      pageName="AUDIT LOG"
+      pageSubtitle="How to use Audit Log (click here)"
+      scrollable={false}
+    >
       <AuditClient
         events={events}
         customProviders={customProviders}
         checkpoints={checkpoints}
       />
-    </div>
+    </AppLayout>
   )
 }

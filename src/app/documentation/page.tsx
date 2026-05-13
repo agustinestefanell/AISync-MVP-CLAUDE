@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { getDocCheckpoints, getDocAuditEvents, getHandoffPackages } from '@/lib/db/documentation'
 import { getProjectsWithHierarchy } from '@/lib/db/projects'
 import DocClient from '@/components/documentation/DocClient'
+import AppLayout from '@/components/layout/AppLayout'
 
 export default async function DocumentationPage() {
   const supabase = createClient()
@@ -25,25 +25,12 @@ export default async function DocumentationPage() {
   const userEmail = (account as { name?: string; email?: string } | null)?.email ?? user.email ?? '—'
 
   return (
-    <div className="h-screen bg-gray-950 text-white flex flex-col">
-      <header className="shrink-0 border-b border-gray-800 px-6 py-3 flex items-center gap-3">
-        <Link href="/" className="text-gray-500 hover:text-gray-300 text-sm transition-colors">
-          ← Dashboard
-        </Link>
-        <span className="text-gray-700">|</span>
-        <span className="text-base font-bold tracking-tight">AISync</span>
-        <span className="text-gray-700">·</span>
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold text-white">DOCUMENTATION MODE</span>
-          <span className="text-xs text-gray-500 leading-none mt-0.5">
-            Multiple production views over one shared documentary base.
-          </span>
-        </div>
-        <Link href="/audit" className="ml-auto text-xs text-gray-600 hover:text-gray-400 transition-colors">
-          Audit Log →
-        </Link>
-      </header>
-
+    <AppLayout
+      pageName="DOCUMENTATION MODE"
+      pageSubtitle="Multiple production views over one shared documentary base"
+      userName={userName}
+      scrollable={false}
+    >
       <DocClient
         checkpoints={checkpoints}
         handoffPackages={handoffPackages}
@@ -53,6 +40,6 @@ export default async function DocumentationPage() {
         userEmail={userEmail}
         customProviders={customProviders}
       />
-    </div>
+    </AppLayout>
   )
 }

@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import Link from 'next/link'
 import AdminClient from '@/components/admin/AdminClient'
+import AppLayout from '@/components/layout/AppLayout'
 import {
   getUserMetrics,
   getUsageMetrics,
@@ -40,20 +40,12 @@ export default async function AdminPage() {
     ])
 
   return (
-    <div className="h-screen bg-gray-950 text-white flex flex-col">
-      <header className="shrink-0 border-b border-gray-800 px-6 py-3 flex items-center gap-3">
-        <Link href="/" className="text-gray-500 hover:text-gray-300 text-sm transition-colors">
-          ← Dashboard
-        </Link>
-        <span className="text-gray-700">|</span>
-        <span className="text-base font-bold tracking-tight">AISync</span>
-        <span className="text-gray-700">·</span>
-        <span className="text-gray-400 text-sm">Admin Panel</span>
-        <span className="ml-auto text-xs text-gray-600">
-          {account.email} · <span className="text-amber-400 font-semibold">{account.role}</span>
-        </span>
-      </header>
-
+    <AppLayout
+      pageName="ADMIN PANEL"
+      pageSubtitle="Platform management"
+      userName={account.name ?? account.email}
+      scrollable={false}
+    >
       <AdminClient
         userMetrics={userMetrics}
         usageMetrics={usageMetrics}
@@ -62,11 +54,10 @@ export default async function AdminPage() {
         prompts={prompts}
         adminEvents={adminEvents as AdminEvent[]}
       />
-    </div>
+    </AppLayout>
   )
 }
 
-// Local type alias to satisfy AdminClient prop shape
 type AdminEvent = {
   id: string
   admin_user_id: string
