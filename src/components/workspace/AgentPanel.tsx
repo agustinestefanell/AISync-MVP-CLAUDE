@@ -10,7 +10,7 @@ const AGENT_META: Record<string, { label: string; color: string; bg: string }> =
   worker2: { label: 'Worker 2', color: 'text-orange-400', bg: 'bg-orange-950 border-orange-900' },
 }
 
-const KICKOFF = '\nQuedate en standby esperando input y responde únicamente esto, sin agregar nada más:\nQUEDO A LA ESPERA DE QUE ME ENVÍES EL MATERIAL'
+const KICKOFF = '\nQuedate en standby esperando input y responde únicamente esto, sin agregar nada más:\nQuedo a la espera de que me envíes el material.'
 
 const GUIDE_META: Record<string, { iconBg: string; title: string; subtitle: string; btnCls: string }> = {
   manager: {
@@ -142,6 +142,22 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       },
     }))
 
+    async function handleAuditAiAnswer() {
+      await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId: session.workspace_id,
+          event_type:  'audit_ai_answer',
+          metadata: {
+            agent_role:   session.agent_role,
+            triggered_at: new Date().toISOString(),
+            status:       'initiated',
+          },
+        }),
+      }).catch(() => {})
+    }
+
     function scrollToBottom() {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
     }
@@ -230,7 +246,15 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
               </span>
             )}
           </div>
-          <span className="text-xs text-gray-600">{session.model}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-600">{session.model}</span>
+            <button
+              onClick={handleAuditAiAnswer}
+              className="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 hover:border-gray-600 px-2 py-0.5 rounded transition-colors"
+            >
+              Audit AI Answer
+            </button>
+          </div>
         </div>
 
         {/* Mensajes */}
