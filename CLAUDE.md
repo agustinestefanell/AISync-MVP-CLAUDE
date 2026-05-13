@@ -69,3 +69,9 @@ Comunicación con el developer: español simple.
 3. git branch --show-current → confirmar rama main
 4. git status --short → ver cambios pendientes
 5. git log --oneline -5 → ver últimos commits
+
+## Referencia doctrinal
+Ver DOCTRINE.md en la raíz del proyecto para definiciones
+normativas de objetos canónicos, eventos, capas de log y
+reglas de prevalencia. Ese documento tiene autoridad sobre
+cualquier decisión de arquitectura del sistema documental.
