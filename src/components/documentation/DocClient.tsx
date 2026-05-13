@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import type { DocCheckpoint, DocAuditEvent } from '@/lib/db/documentation'
+import type { DocCheckpoint, DocAuditEvent, DocHandoffPackage } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import RepositoryView from './RepositoryView'
 import StructureView from './StructureView'
@@ -97,6 +97,7 @@ const MAX_CONTEXT = 100
 
 interface DocClientProps {
   checkpoints:     DocCheckpoint[]
+  handoffPackages: DocHandoffPackage[]
   auditEvents:     DocAuditEvent[]
   projects:        ProjectWithTeams[]
   userName:        string
@@ -104,7 +105,7 @@ interface DocClientProps {
   customProviders: CustomProvider[]
 }
 
-export default function DocClient({ checkpoints, auditEvents, projects, userName, userEmail, customProviders }: DocClientProps) {
+export default function DocClient({ checkpoints, handoffPackages, auditEvents, projects, userName, userEmail, customProviders }: DocClientProps) {
   const [tab,                  setTab]                  = useState<Tab>('repository')
   const [helpTab,              setHelpTab]              = useState<Tab | null>(null)
   const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null)
@@ -190,7 +191,7 @@ export default function DocClient({ checkpoints, auditEvents, projects, userName
 
         {/* View */}
         <div className="flex-1 min-h-0 overflow-hidden">
-          {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} />}
+          {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} />}
           {tab === 'structure'   && <StructureView   checkpoints={checkpoints} projects={projects} userName={userName} userEmail={userEmail} />}
           {tab === 'audit'       && <AuditView        checkpoints={checkpoints} auditEvents={auditEvents} />}
           {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} projects={projects} userEmail={userEmail} />}

@@ -94,6 +94,53 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
   }))
 }
 
+export interface DocHandoffPackage {
+  id: string
+  name: string
+  from_agent: string
+  to_agent: string
+  status: string
+  context: string | null
+  workspace_id: string
+  workspace_name: string
+  message_count: number
+  created_at: string
+}
+
+interface RawHandoffPackage {
+  id: string
+  name: string
+  from_agent: string
+  to_agent: string
+  status: string
+  context: string | null
+  messages: unknown[]
+  workspace_id: string
+  created_at: string
+  workspaces: { name: string } | null
+}
+
+export async function getHandoffPackages(): Promise<DocHandoffPackage[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('handoff_packages')
+    .select('id, name, from_agent, to_agent, status, context, messages, workspace_id, created_at, workspaces(name)')
+    .order('created_at', { ascending: false })
+
+  return ((data ?? []) as unknown as RawHandoffPackage[]).map(r => ({
+    id:             r.id,
+    name:           r.name,
+    from_agent:     r.from_agent,
+    to_agent:       r.to_agent,
+    status:         r.status,
+    context:        r.context ?? null,
+    workspace_id:   r.workspace_id,
+    workspace_name: r.workspaces?.name ?? '—',
+    message_count:  Array.isArray(r.messages) ? r.messages.length : 0,
+    created_at:     r.created_at,
+  }))
+}
+
 export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
   const supabase = createClient()
   const { data } = await supabase

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import AgentPanel, { type AgentPanelHandle } from './AgentPanel'
+import HandoffPackageModal from './HandoffPackageModal'
 import type { Checkpoint, WorkspaceWithAgents, Message } from '@/lib/db/types'
 import type { ChatMessage } from '@/lib/providers/types'
 
@@ -48,7 +49,8 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const [showCheckpoints, setShowCheckpoints] = useState(false)
   const [saveStatus, setSaveStatus]     = useState<SaveStatus>('idle')
   const [resumingId, setResumingId]     = useState<string | null>(null)
-  const [totalSelected, setTotalSelected] = useState(0)
+  const [totalSelected, setTotalSelected]         = useState(0)
+  const [showHandoffModal, setShowHandoffModal]   = useState(false)
 
   // Modal de Save Version
   const [showSaveModal, setShowSaveModal]   = useState(false)
@@ -67,6 +69,10 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       .then(setCheckpoints)
       .catch(() => {})
   }, [workspace.id])
+
+  function getAgentMessages(sessionId: string) {
+    return panelRefs.current[sessionId]?.getAllMessages() ?? []
+  }
 
   // ── Lock / Unlock ─────────────────────────────────────────────────────────
   async function handleLockToggle() {
@@ -466,6 +472,14 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           ⬇ Session Backup
         </button>
 
+        {/* Create Handoff Package */}
+        <button
+          onClick={() => setShowHandoffModal(true)}
+          className="flex items-center gap-1.5 bg-gray-800 border border-purple-900 hover:bg-purple-950 hover:border-purple-700 text-purple-400 hover:text-purple-300 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+        >
+          ↗ Create Handoff Package
+        </button>
+
         {/* Indicador de estado */}
         <span className={`ml-auto text-xs px-2.5 py-1 rounded-full border ${
           locked
@@ -475,6 +489,16 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           {locked ? 'workspace bloqueado' : 'workspace activo'}
         </span>
       </div>
+
+      {/* ── Modal de Handoff Package ── */}
+      {showHandoffModal && (
+        <HandoffPackageModal
+          workspace={workspace}
+          getAgentMessages={getAgentMessages}
+          onClose={() => setShowHandoffModal(false)}
+          onCreated={() => setShowHandoffModal(false)}
+        />
+      )}
 
       {/* ── Modal de Save Version ── */}
       {showSaveModal && (
