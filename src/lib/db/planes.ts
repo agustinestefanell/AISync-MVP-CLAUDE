@@ -25,9 +25,13 @@ export const CONTROL_PLANE_TABLES = [
   'workspaces',
   'agent_sessions',
   'audit_log',
+  'system_log',
+  'provenance_log',
   'user_api_keys',
   'user_custom_providers',
   'team_connections',
+  'admin_events',
+  'system_prompts',
 ] as const
 
 export const CONTENT_PLANE_TABLES = [

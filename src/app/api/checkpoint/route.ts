@@ -3,6 +3,7 @@
 // See src/lib/db/planes.ts
 
 import { createClient } from '@/lib/supabase/server'
+import { logProvenanceEvent } from '@/lib/db/log-layers'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,7 +47,17 @@ export async function POST(req: Request) {
     if (msgErr) return Response.json({ error: msgErr.message }, { status: 500 })
   }
 
-  // 3. Audit log
+  // 3. Provenance log (Capa 3)
+  logProvenanceEvent({
+    object_id:   checkpoint.id,
+    object_type: 'checkpoint',
+    event_type:  'object.created',
+    agent_type:  'user',
+    agent_id:    user.id,
+    payload:     { name: checkpoint.name, workspace_id: workspaceId },
+  })
+
+  // 4. Audit log (Capa 1)
   await supabase.from('audit_log').insert({
     account_id:   user.id,
     workspace_id: workspaceId,

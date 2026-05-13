@@ -52,10 +52,10 @@ Referencia: src/lib/db/planes.ts
 006_api_keys, 007_custom_providers, 008_team_connections,
 009_documentation_metadata, 010_content_plane,
 011_system_prompts, 011b_system_prompts_seed,
-012_admin_roles, 013_handoff_packages
+012_admin_roles, 013_handoff_packages, 014_log_layers
 
 ## Estado de bloques
-Completados: 1 al 18 (Bloque 17 = Audit AI Answer, Bloque 18 = Handoff Package canónico)
+Completados: 1 al 20 (Bloque 19 = Day Markers, Bloque 20 = Tres capas de log)
 Fase 3 (UI/UX): post-albañilería
 Referencia visual: aisync-demo-mvp.vercel.app
 

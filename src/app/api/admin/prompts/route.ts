@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logSystemEvent } from '@/lib/db/log-layers'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,12 @@ export async function POST(req: Request) {
     .single()
 
   if (!account || !['owner', 'admin'].includes(account.role)) {
+    logSystemEvent({
+      event_type: 'unauthorized_access',
+      severity:   'warning',
+      user_id:    user?.id,
+      payload:    { path: '/api/admin/prompts', method: 'POST' },
+    })
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
