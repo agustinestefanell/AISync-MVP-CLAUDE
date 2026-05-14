@@ -4,18 +4,20 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV_ITEMS = [
-  { label: 'Teams Map',          href: '/teams',         future: false },
-  { label: 'Audit Log',          href: '/audit',         future: false },
-  { label: 'Main Workspace',     href: '/',              future: false },
-  { label: 'Cross Verification', href: '#',              future: true  },
-  { label: 'Documentation Mode', href: '/documentation', future: false },
-  { label: 'Prompts Library',    href: '#',              future: true  },
-  { label: 'Settings',           href: '/settings',      future: false },
-  { label: 'Advanced',           href: '#',              future: true  },
+  { label: 'Dashboard',          href: '/',              match: 'exact',     future: false },
+  { label: 'Teams Map',          href: '/teams',         match: 'prefix',    future: false },
+  { label: 'Audit Log',          href: '/audit',         match: 'prefix',    future: false },
+  { label: 'Main Workspace',     href: '/',              match: 'workspace', future: false },
+  { label: 'Cross Verification', href: '#',              match: 'prefix',    future: true  },
+  { label: 'Documentation Mode', href: '/documentation', match: 'prefix',    future: false },
+  { label: 'Prompts Library',    href: '#',              match: 'prefix',    future: true  },
+  { label: 'Settings',           href: '/settings',      match: 'prefix',    future: false },
+  { label: 'Advanced',           href: '#',              match: 'prefix',    future: true  },
 ] as const
 
-function isActive(pathname: string, href: string): boolean {
-  if (href === '/') return pathname === '/' || pathname.startsWith('/workspace')
+function isActive(pathname: string, href: string, match: string): boolean {
+  if (match === 'exact')     return pathname === href
+  if (match === 'workspace') return pathname.startsWith('/workspace')
   return pathname === href || pathname.startsWith(href + '/')
 }
 
@@ -39,7 +41,7 @@ export default function BottomRibbon() {
             <Link
               href={item.href}
               className={`text-xs px-3 transition-colors ${
-                isActive(pathname, item.href)
+                isActive(pathname, item.href, item.match)
                   ? 'text-white font-medium'
                   : 'text-gray-400 hover:text-white'
               }`}
