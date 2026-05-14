@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import AgentPanel, { type AgentPanelHandle } from './AgentPanel'
 import HandoffPackageModal from './HandoffPackageModal'
-import type { Checkpoint, WorkspaceWithAgents, Message } from '@/lib/db/types'
+import type { AgentSession, Checkpoint, WorkspaceWithAgents, Message } from '@/lib/db/types'
 import type { ChatMessage } from '@/lib/providers/types'
 
 const AGENT_LABEL: Record<string, string> = {
@@ -43,10 +43,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 export default function WorkspaceShell({ workspace, initialMessages, initialCheckpointId }: Props) {
   const [lockState, setLockState]       = useState(workspace.lock_state)
   const [lockLoading, setLockLoading]   = useState(false)
-  const [showForward, setShowForward]   = useState(false)
-  const [fwdTo, setFwdTo]               = useState(workspace.agent_sessions[1]?.id ?? '')
   const [checkpoints, setCheckpoints]   = useState<Checkpoint[]>([])
-  const [showCheckpoints, setShowCheckpoints] = useState(false)
   const [saveStatus, setSaveStatus]     = useState<SaveStatus>('idle')
   const [resumingId, setResumingId]     = useState<string | null>(null)
   const [totalSelected, setTotalSelected]         = useState(0)
@@ -100,40 +97,32 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     }
   }
 
-  // ── Review & Forward ──────────────────────────────────────────────────────
-  function handleForward() {
-    const toRef = panelRefs.current[fwdTo]
-    if (!toRef) return
+  // ── Panel-level Review & Forward ─────────────────────────────────────────
+  function handlePanelForward(fromSession: AgentSession, messages: ChatMessage[], targetRole: string) {
+    const targetSession = workspace.agent_sessions.find(s => s.agent_role === targetRole)
+    if (!targetSession) return
+    const targetRef = panelRefs.current[targetSession.id]
+    if (!targetRef) return
 
-    // Recolectar mensajes seleccionados de todos los paneles, con su etiqueta
-    const parts: string[] = []
-    for (const session of workspace.agent_sessions) {
-      const ref = panelRefs.current[session.id]
-      if (!ref) continue
-      const selected = ref.getSelectedMessages()
-      if (selected.length === 0) continue
-      const label = AGENT_LABEL[session.agent_role] ?? session.agent_role
-      parts.push(`[${label} — ${session.provider}]:`)
-      for (const msg of selected) {
-        parts.push(`${msg.role === 'user' ? 'Usuario' : 'Agente'}: ${msg.content}`)
-      }
-    }
+    const label     = AGENT_LABEL[fromSession.agent_role] ?? fromSession.agent_role
+    const forwarded = messages
+      .map(m => `${m.role === 'user' ? 'User' : label}: ${m.content}`)
+      .join('\n\n')
 
-    if (parts.length === 0) return
+    targetRef.appendUserMessage(`[Forwarded from ${label}]\n\n${forwarded}`)
+    panelRefs.current[fromSession.id]?.clearSelection()
 
-    toRef.appendUserMessage(parts.join('\n'))
-    clearAllSelections()
-    setShowForward(false)
-
-    // Audit log (fire and forget)
-    const toLabel = AGENT_LABEL[workspace.agent_sessions.find(s => s.id === fwdTo)?.agent_role ?? ''] ?? fwdTo
     fetch('/api/audit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         workspaceId: workspace.id,
         event_type:  'review_forward',
-        metadata:    { to_agent: toLabel, message_count: totalSelected },
+        metadata:    {
+          from_agent:    fromSession.agent_role,
+          to_agent:      targetRole,
+          message_count: messages.length,
+        },
       }),
     }).catch(() => {})
   }
@@ -231,7 +220,6 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
         }),
       })
 
-      setShowCheckpoints(false)
     } finally {
       setResumingId(null)
     }
@@ -287,10 +275,13 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 p-4 gap-4">
+    <div className="h-full flex flex-col overflow-hidden p-4 gap-4" style={{ background: 'var(--color-app-bg)' }}>
 
-      {/* Paneles de agentes */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 min-h-0">
+      {/* Agent panels */}
+      <div
+        className="flex-1 grid min-h-0 overflow-hidden gap-4"
+        style={{ gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1fr' }}
+      >
         {workspace.agent_sessions.map(session => (
           <AgentPanel
             key={session.id}
@@ -299,195 +290,15 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
             initialMessages={initialMessages[session.id] ?? []}
             workspaceLocked={locked}
             onSelectionChange={count => handleSelectionChange(session.id, count)}
+            forwardTargets={workspace.agent_sessions
+              .filter(s => s.id !== session.id)
+              .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
+            }
+            onForward={(messages, targetRole) => handlePanelForward(session, messages, targetRole)}
+            onCreateHandoff={() => setShowHandoffModal(true)}
+            onSaveVersion={openSaveModal}
           />
         ))}
-      </div>
-
-      {/* ── Review & Forward UI ── */}
-      {showForward && (
-        <div className="shrink-0 bg-gray-900 border border-indigo-800 rounded-xl p-4 flex flex-wrap items-center gap-3">
-          {totalSelected === 0 ? (
-            <p className="text-sm text-gray-500 flex-1">
-              Pasá el cursor sobre los mensajes y tildá los checkboxes para seleccionarlos.
-            </p>
-          ) : (
-            <>
-              <span className="text-sm text-indigo-300 font-medium">
-                {totalSelected} mensaje{totalSelected !== 1 ? 's' : ''} seleccionado{totalSelected !== 1 ? 's' : ''}
-              </span>
-              <span className="text-gray-500">→ reenviar a</span>
-              <select
-                value={fwdTo}
-                onChange={e => setFwdTo(e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-indigo-500"
-              >
-                {workspace.agent_sessions.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {AGENT_LABEL[s.agent_role] ?? s.agent_role} ({s.provider})
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handleForward}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
-              >
-                Reenviar {totalSelected}
-              </button>
-              <button
-                onClick={clearAllSelections}
-                className="text-gray-500 hover:text-gray-300 text-xs px-2 transition-colors"
-              >
-                Limpiar selección ✕
-              </button>
-            </>
-          )}
-          <button
-            onClick={() => setShowForward(false)}
-            className="ml-auto text-gray-600 hover:text-gray-400 text-xs transition-colors"
-          >
-            Cerrar ✕
-          </button>
-        </div>
-      )}
-
-      {/* ── Panel de Checkpoints ── */}
-      {showCheckpoints && (
-        <div className="shrink-0 bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-            <span className="text-sm font-semibold text-white">Checkpoints guardados</span>
-            <button
-              onClick={() => setShowCheckpoints(false)}
-              className="text-gray-600 hover:text-gray-400 text-xs"
-            >
-              Cerrar ✕
-            </button>
-          </div>
-
-          {checkpoints.length === 0 ? (
-            <p className="text-center text-xs text-gray-600 py-6">
-              No hay checkpoints guardados para este workspace.
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray-800 max-h-52 overflow-y-auto">
-              {checkpoints.map(cp => (
-                <li key={cp.id} className="px-4 py-3 flex items-center justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-white truncate">{cp.name}</p>
-                      <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full border ${
-                        PURPOSE_COLORS[cp.purpose] ?? 'text-gray-400 bg-gray-800 border-gray-700'
-                      }`}>
-                        {cp.purpose}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {new Date(cp.created_at).toLocaleString('es-AR', {
-                        day:    '2-digit',
-                        month:  '2-digit',
-                        year:   'numeric',
-                        hour:   '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleResume(cp.id, cp.name)}
-                    disabled={resumingId === cp.id}
-                    className="shrink-0 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    {resumingId === cp.id ? 'Cargando…' : 'Retomar →'}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {/* ── Toolbar operativo ── */}
-      <div className="shrink-0 flex flex-wrap items-center gap-2 border-t border-gray-800 pt-3">
-        {/* Lock / Unlock */}
-        <button
-          onClick={handleLockToggle}
-          disabled={lockLoading}
-          className={`flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 ${
-            locked
-              ? 'bg-red-950 border border-red-900 text-red-400 hover:bg-red-900'
-              : 'bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700'
-          }`}
-        >
-          {locked ? '🔒 Bloqueado' : '🔓 Libre'}
-        </button>
-
-        {/* Review & Forward */}
-        <button
-          onClick={() => { setShowForward(v => !v); setShowCheckpoints(false) }}
-          className={`flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
-            totalSelected > 0
-              ? 'bg-indigo-950 border border-indigo-700 text-indigo-300 hover:bg-indigo-900'
-              : 'bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700'
-          }`}
-        >
-          ↪ Review & Forward
-          {totalSelected > 0 && (
-            <span className="bg-indigo-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
-              {totalSelected}
-            </span>
-          )}
-        </button>
-
-        {/* Save Version */}
-        <button
-          onClick={openSaveModal}
-          disabled={saveStatus === 'saving'}
-          className={`flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-60 ${
-            saveStatus === 'saved'
-              ? 'bg-green-950 border border-green-900 text-green-400'
-              : saveStatus === 'error'
-              ? 'bg-red-950 border border-red-900 text-red-400'
-              : 'bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700'
-          }`}
-        >
-          {saveLabel[saveStatus]}
-        </button>
-
-        {/* Checkpoints */}
-        <button
-          onClick={() => { setShowCheckpoints(v => !v); setShowForward(false) }}
-          className="flex items-center gap-1.5 bg-gray-800 border border-gray-700 hover:bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          🕐 Checkpoints
-          {checkpoints.length > 0 && (
-            <span className="bg-indigo-600 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
-              {checkpoints.length}
-            </span>
-          )}
-        </button>
-
-        {/* Session Backup */}
-        <button
-          onClick={handleBackup}
-          className="flex items-center gap-1.5 bg-gray-800 border border-gray-700 hover:bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          ⬇ Session Backup
-        </button>
-
-        {/* Create Handoff Package */}
-        <button
-          onClick={() => setShowHandoffModal(true)}
-          className="flex items-center gap-1.5 bg-gray-800 border border-purple-900 hover:bg-purple-950 hover:border-purple-700 text-purple-400 hover:text-purple-300 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          ↗ Create Handoff Package
-        </button>
-
-        {/* Indicador de estado */}
-        <span className={`ml-auto text-xs px-2.5 py-1 rounded-full border ${
-          locked
-            ? 'text-red-400 bg-red-950 border-red-900'
-            : 'text-green-400 bg-green-950 border-green-900'
-        }`}>
-          {locked ? 'workspace bloqueado' : 'workspace activo'}
-        </span>
       </div>
 
       {/* ── Modal de Handoff Package ── */}

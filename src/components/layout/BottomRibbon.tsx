@@ -1,13 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 
-const NAV_ITEMS = [
+const STATIC_NAV_ITEMS = [
   { label: 'Dashboard',          href: '/',              match: 'exact',     future: false },
   { label: 'Teams Map',          href: '/teams',         match: 'prefix',    future: false },
   { label: 'Audit Log',          href: '/audit',         match: 'prefix',    future: false },
-  { label: 'Main Workspace',     href: '/',              match: 'workspace', future: false },
   { label: 'Cross Verification', href: '#',              match: 'prefix',    future: true  },
   { label: 'Documentation Mode', href: '/documentation', match: 'prefix',    future: false },
   { label: 'Prompts Library',    href: '#',              match: 'prefix',    future: true  },
@@ -23,6 +23,24 @@ function isActive(pathname: string, href: string, match: string): boolean {
 
 export default function BottomRibbon() {
   const pathname = usePathname()
+  const [workspaceHref, setWorkspaceHref] = useState<string>('/')
+
+  useEffect(() => {
+    fetch('/api/active-workspace')
+      .then(r => r.json())
+      .then(({ workspaceId }: { workspaceId: string | null }) => {
+        if (workspaceId) setWorkspaceHref(`/workspace/${workspaceId}`)
+      })
+      .catch(() => {})
+  }, [])
+
+  const NAV_ITEMS = [
+    STATIC_NAV_ITEMS[0],                                                            // Dashboard
+    STATIC_NAV_ITEMS[1],                                                            // Teams Map
+    STATIC_NAV_ITEMS[2],                                                            // Audit Log
+    { label: 'Main Workspace', href: workspaceHref, match: 'workspace', future: false } as const,
+    ...STATIC_NAV_ITEMS.slice(3),                                                   // rest
+  ]
 
   return (
     <nav className="sticky bottom-0 z-50 h-10 bg-gray-900 border-t border-gray-800 flex items-center justify-center shrink-0">

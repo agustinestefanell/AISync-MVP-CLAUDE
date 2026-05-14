@@ -22,7 +22,10 @@ export default function AppLayout({
   scrollable = true,
 }: AppLayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div
+      className={scrollable ? 'min-h-screen flex flex-col' : 'h-screen flex flex-col overflow-hidden'}
+      style={{ background: 'var(--color-app-bg)' }}
+    >
       <TopRibbon
         pageName={pageName}
         pageSubtitle={pageSubtitle}
@@ -33,7 +36,7 @@ export default function AppLayout({
       <main className={
         scrollable
           ? 'flex-1 overflow-auto'
-          : 'flex-1 min-h-0 flex flex-col overflow-hidden'
+          : 'flex-1 overflow-hidden min-h-0'
       }>
         {children}
       </main>
