@@ -7,7 +7,15 @@
       "Bash(npx next *)",
       "Bash(git push *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\proyectos\\\\AISync\\\\MVP\\\\src\" -Recurse -File)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(findstr /i \"dagre\\\\|elkjs\\\\|d3-hierarchy\")",
+      "Bash(npm list *)",
+      "Bash(Start-Sleep -Seconds 8)",
+      "Bash(Get-Content \"C:\\\\Users\\\\Agustin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--proyectos-AISync-aisync-mvp-claude\\\\2632d618-e7a2-4d29-8b45-37588d480d8c\\\\tasks\\\\bhm509tz1.output\" -Tail 20)",
+      "Bash(Get-ChildItem -Path \"C:\\\\proyectos\\\\AISync\\\\aisync-mvp-claude\\\\src\" -Recurse -Include \"*page.tsx\", \"*page.ts\")",
+      "Bash(Find-ChildItem -Path \"C:\\\\proyectos\\\\AISync\\\\aisync-mvp-claude\\\\src\\\\components\" -Recurse -Name \"*Client*\" -Type f)"
     ]
   }
 }

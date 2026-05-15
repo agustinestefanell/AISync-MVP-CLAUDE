@@ -4,16 +4,10 @@ import Link from 'next/link'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 import type { ExternalConnection } from './TeamsClient'
 
-const PROVIDER_COLOR: Record<string, string> = {
-  Anthropic: 'text-orange-400',
-  OpenAI:    'text-green-400',
-  Google:    'text-blue-400',
-}
-
-const AGENT_LABEL: Record<string, string> = {
-  manager: 'Manager',
-  worker1: 'Worker 1',
-  worker2: 'Worker 2',
+const ROLE_RIBBON: Record<string, string> = {
+  manager:    '#314155',
+  submanager: '#314155',
+  worker:     '#0f6b68',
 }
 
 interface TreeNode {
@@ -38,84 +32,115 @@ function buildTree(teams: TeamWithWorkspaces[]): TreeNode[] {
 }
 
 function TeamRow({
-  node, depth, connectedTeamIds, onEdit, onDelete,
+  node, depth, connectedTeamIds, onEdit,
 }: {
   node: TreeNode
   depth: number
   connectedTeamIds: Set<string>
   onEdit: (team: TeamWithWorkspaces) => void
-  onDelete: (team: TeamWithWorkspaces) => void
 }) {
   const { team } = node
   const workspace = team.workspaces[0] ?? null
-  const agents    = workspace?.agent_sessions ?? []
   const connected = connectedTeamIds.has(team.id)
-
-  const satClass = team.type === 'SAT'
-    ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
-    : 'bg-purple-950 text-purple-400 border-purple-800'
+  const ribbon    = ROLE_RIBBON[team.lead_role ?? 'worker'] ?? '#52647a'
 
   return (
     <>
       <div
-        className="flex items-start gap-4 py-4 px-4 rounded-xl hover:bg-gray-900/50 transition-colors border border-transparent hover:border-gray-800"
-        style={{ marginLeft: depth * 28 }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: `6px 12px 6px ${12 + depth * 20}px`,
+          borderRadius: '6px',
+          borderLeft: depth > 0 ? '1px solid #e2e8f0' : 'none',
+          marginLeft: depth > 0 ? '12px' : 0,
+          cursor: 'default',
+        }}
+        className="hover:bg-[#f1f5f9] transition-colors"
       >
-        {depth > 0 && (
-          <div className="shrink-0 w-4 h-5 mt-0.5 border-l-2 border-b-2 border-gray-700 rounded-bl-lg" />
-        )}
+        {/* Role dot */}
+        <div style={{
+          width: '8px',
+          height: '8px',
+          borderRadius: '50%',
+          background: ribbon,
+          flexShrink: 0,
+        }} />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-sm font-bold text-white">{team.name}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full border font-bold tracking-wide ${satClass}`}>
-              {team.type}
+        {/* Name */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            fontSize: '13px',
+            fontWeight: 500,
+            color: '#1e293b',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {team.name}
+          </span>
+          {connected && (
+            <span style={{
+              fontSize: '10px',
+              color: '#0f766e',
+              background: 'rgba(15,118,110,0.08)',
+              border: '1px solid rgba(15,118,110,0.20)',
+              borderRadius: '20px',
+              padding: '0 6px',
+              height: '18px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              fontWeight: 500,
+              flexShrink: 0,
+            }}>
+              ↔
             </span>
-            {connected && (
-              <span className="text-xs text-teal-400 bg-teal-950 border border-teal-800 px-2 py-0.5 rounded-full font-medium">
-                ↔ Connected
-              </span>
-            )}
-          </div>
-
-          {agents.length > 0 && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              {agents.map(agent => (
-                <div key={agent.id} className="flex items-center gap-1.5">
-                  <span className="text-xs text-gray-600">
-                    {AGENT_LABEL[agent.agent_role] ?? agent.agent_role}:
-                  </span>
-                  <span className={`text-xs font-semibold ${PROVIDER_COLOR[agent.provider] ?? 'text-gray-400'}`}>
-                    {agent.provider}
-                  </span>
-                  <span className="text-xs text-gray-600">{agent.model}</span>
-                </div>
-              ))}
-            </div>
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
           {workspace && (
             <Link
               href={`/workspace/${workspace.id}`}
-              className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors font-semibold"
+              style={{
+                height: '26px',
+                padding: '0 10px',
+                fontSize: '11px',
+                fontWeight: 500,
+                color: '#fff',
+                background: '#1e293b',
+                borderRadius: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                textDecoration: 'none',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#334155')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#1e293b')}
             >
               Open
             </Link>
           )}
           <button
             onClick={() => onEdit(team)}
-            className="text-xs border border-gray-700 hover:border-gray-500 text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-lg transition-colors"
+            style={{
+              height: '26px',
+              padding: '0 10px',
+              fontSize: '11px',
+              fontWeight: 400,
+              color: '#475569',
+              background: '#fff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
           >
             Edit
-          </button>
-          <button
-            onClick={() => onDelete(team)}
-            className="text-xs text-red-600 hover:text-red-400 px-2 py-1.5 transition-colors"
-            title="Delete team"
-          >
-            ✕
           </button>
         </div>
       </div>
@@ -127,7 +152,6 @@ function TeamRow({
           depth={depth + 1}
           connectedTeamIds={connectedTeamIds}
           onEdit={onEdit}
-          onDelete={onDelete}
         />
       ))}
     </>
@@ -142,54 +166,82 @@ interface TreeViewProps {
   onDelete: (team: TeamWithWorkspaces) => void
 }
 
-export default function TreeView({ teams, connectedTeamIds, externalConnections, onEdit, onDelete }: TreeViewProps) {
+export default function TreeView({ teams, connectedTeamIds, externalConnections, onEdit }: TreeViewProps) {
   const roots = buildTree(teams)
 
   if (roots.length === 0 && externalConnections.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-center">
-        <p className="text-gray-500 text-sm">No teams in this project.</p>
-        <p className="text-gray-700 text-xs mt-1">Use &quot;+ Add Team&quot; to create the first one.</p>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '256px', textAlign: 'center' }}>
+        <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>No teams in this project.</p>
+        <p style={{ fontSize: '12px', color: '#cbd5e1', marginTop: '4px' }}>Use &quot;+ Add Team&quot; to create the first one.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-1 max-w-4xl mx-auto">
-      {roots.map(node => (
-        <TeamRow
-          key={node.team.id}
-          node={node}
-          depth={0}
-          connectedTeamIds={connectedTeamIds}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
-      ))}
+    <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        {roots.map(node => (
+          <TeamRow
+            key={node.team.id}
+            node={node}
+            depth={0}
+            connectedTeamIds={connectedTeamIds}
+            onEdit={onEdit}
+          />
+        ))}
+      </div>
 
       {externalConnections.length > 0 && (
-        <div className={roots.length > 0 ? 'pt-6 mt-4 border-t border-gray-800' : ''}>
-          <p className="text-xs font-medium text-gray-500 mb-3 px-4">
+        <div style={{
+          marginTop: roots.length > 0 ? '20px' : 0,
+          paddingTop: roots.length > 0 ? '16px' : 0,
+          borderTop: roots.length > 0 ? '1px solid #e2e8f0' : 'none',
+        }}>
+          <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', marginBottom: '8px', padding: '0 12px' }}>
             External connections ({externalConnections.length})
           </p>
-          <div className="space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {externalConnections.map(ec => {
               const myTeam = teams.find(t => t.id === ec.myTeamId)
               return (
-                <div key={ec.connectionId} className="flex items-center gap-3 bg-teal-950/20 border border-teal-800/50 rounded-xl px-4 py-3">
-                  <div className="w-2 h-2 rounded-full bg-teal-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-semibold text-white truncate">{ec.externalTeamName}</span>
-                      <span className="text-xs text-teal-400 bg-teal-950 border border-teal-700 px-2 py-0.5 rounded-full font-bold shrink-0">
-                        ↔ EXTERNAL
+                <div
+                  key={ec.connectionId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    background: '#f0fdf9',
+                    border: '1px solid #99f6e4',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                  }}
+                >
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0f766e', flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ec.externalTeamName}
+                      </span>
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: '#0f766e',
+                        background: 'rgba(15,118,110,0.10)',
+                        border: '1px solid rgba(15,118,110,0.25)',
+                        borderRadius: '20px',
+                        padding: '0 6px',
+                        height: '18px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        flexShrink: 0,
+                      }}>
+                        ↔ EXT
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {ec.externalEmail}
-                      {myTeam && (
-                        <span className="text-gray-600"> · connected to {myTeam.name}</span>
-                      )}
+                      {myTeam && <span style={{ color: '#94a3b8' }}> · via {myTeam.name}</span>}
                     </p>
                   </div>
                 </div>

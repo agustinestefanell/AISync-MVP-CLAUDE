@@ -1,24 +1,44 @@
 'use client'
 
-import { useMemo } from 'react'
-import { useRouter } from 'next/navigation'
-import CanvasViewport from './CanvasViewport'
-import AgentCard from './map/AgentCard'
-import { deriveAgentNodesFromTeams } from '@/lib/db/agent-map'
-import { agentNodesToMapNodes, buildAgentLayout } from '@/lib/map/buildAgentLayout'
-import type { TeamWithWorkspaces } from '@/lib/db/types'
-import type { ExternalConnection } from './TeamsClient'
+import { useMemo }     from 'react'
+import { useRouter }   from 'next/navigation'
+import CanvasViewport  from './map/CanvasViewport'
+import TeamAgentCard   from './map/TeamAgentCard'
+import { deriveAgentNodesFromTeams }        from '@/lib/db/agent-map'
+import { agentNodesToMapNodes }             from '@/lib/map/buildAgentLayout'
+import {
+  buildTreeLayout,
+  MAP_CANVAS_PADDING_X,
+  MAP_CANVAS_PADDING_Y,
+  GAP_BETWEEN_ROOT_TREES,
+  type TreeLayoutPlacement,
+  type TreeLayoutConnector,
+} from '@/lib/map/buildTreeLayout'
+import type { TeamWithWorkspaces }  from '@/lib/db/types'
+import type { ExternalConnection }  from './TeamsClient'
+import type { MapAgentNode }        from '@/lib/map/buildAgentLayout'
 
 interface MapViewProps {
-  teams: TeamWithWorkspaces[]
-  projectId: string
-  activeProjectId: string
-  connectedTeamIds: Set<string>
+  teams:              TeamWithWorkspaces[]
+  projectId:          string
+  activeProjectId:    string
+  connectedTeamIds:   Set<string>
   externalConnections: ExternalConnection[]
-  onEdit: (teamId: string) => void
-  zoomInSignal?: number
-  zoomOutSignal?: number
-  resetSignal?: number
+  onEdit:             (teamId: string) => void
+  zoomInSignal?:      number
+  zoomOutSignal?:     number
+  resetSignal?:       number
+}
+
+function getSubtreeNodes(rootId: string, all: MapAgentNode[]): MapAgentNode[] {
+  const ids   = new Set<string>()
+  const queue = [rootId]
+  while (queue.length) {
+    const id = queue.shift()!
+    ids.add(id)
+    for (const n of all) if (n.parentId === id) queue.push(n.id)
+  }
+  return all.filter(n => ids.has(n.id))
 }
 
 export default function MapView({
@@ -33,15 +53,51 @@ export default function MapView({
   const router = useRouter()
 
   const agentNodes = useMemo(() => deriveAgentNodesFromTeams(teams), [teams])
-
-  const mapNodes = useMemo(
+  const mapNodes   = useMemo(
     () => agentNodesToMapNodes(agentNodes, connectedTeamIds),
     [agentNodes, connectedTeamIds],
   )
 
-  const layout = useMemo(() => buildAgentLayout(mapNodes), [mapNodes])
+  const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
 
-  if (agentNodes.length === 0) {
+  // Build layout for all root trees, accumulate into flat lists with X offset
+  const { allPlacements, allConnectors, totalWidth, totalHeight } = useMemo(() => {
+    if (!roots.length) {
+      return { allPlacements: [], allConnectors: [], totalWidth: 0, totalHeight: 0 }
+    }
+
+    type PlacementExt = TreeLayoutPlacement & { projectId: string }
+    type ConnectorExt = TreeLayoutConnector & { projectId: string }
+
+    const placements: PlacementExt[] = []
+    const connectors: ConnectorExt[] = []
+    let   xOffset   = 0
+    let   maxHeight = 0
+
+    for (const root of roots) {
+      const subtree = getSubtreeNodes(root.id, mapNodes)
+      const layout  = buildTreeLayout(root, subtree)
+
+      for (const p of layout.placements) {
+        placements.push({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset, projectId: root.projectId })
+      }
+      for (const c of layout.connectors) {
+        connectors.push({ ...c, fromX: c.fromX + xOffset, toX: c.toX + xOffset, projectId: root.projectId })
+      }
+
+      xOffset   += layout.width + GAP_BETWEEN_ROOT_TREES
+      maxHeight  = Math.max(maxHeight, layout.height)
+    }
+
+    return {
+      allPlacements: placements,
+      allConnectors: connectors,
+      totalWidth:    xOffset - GAP_BETWEEN_ROOT_TREES + 2 * MAP_CANVAS_PADDING_X,
+      totalHeight:   maxHeight + 2 * MAP_CANVAS_PADDING_Y,
+    }
+  }, [roots, mapNodes])
+
+  if (!roots.length) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center">
         <p className="text-sm" style={{ color: '#64748b' }}>No agents in this project yet.</p>
@@ -52,8 +108,6 @@ export default function MapView({
     )
   }
 
-  const { placements, connectors, trees, totalWidth, totalHeight } = layout
-
   return (
     <div className="w-full h-full">
       <CanvasViewport
@@ -62,6 +116,7 @@ export default function MapView({
         maxZoom={1.12}
         fitFloor={0.5}
         alignTopOnFit
+        contentWidthClass="inline-flex w-max flex-col items-center"
         zoomInSignal={zoomInSignal}
         zoomOutSignal={zoomOutSignal}
         resetSignal={resetSignal}
@@ -70,28 +125,6 @@ export default function MapView({
           className="relative"
           style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }}
         >
-          {/* Background highlight for active project trees */}
-          {trees
-            .filter(t => t.projectId === activeProjectId)
-            .map(t => {
-              const pad = 24
-              return (
-                <div
-                  key={t.rootId}
-                  className="pointer-events-none absolute"
-                  style={{
-                    left:         `${t.left   - pad}px`,
-                    top:          `${t.top    - pad}px`,
-                    width:        `${t.right  - t.left + pad * 2}px`,
-                    height:       `${t.bottom - t.top  + pad * 2}px`,
-                    background:   'rgba(255,255,255,0.6)',
-                    border:       '1px solid rgba(0,0,0,0.08)',
-                    borderRadius: '16px',
-                  }}
-                />
-              )
-            })}
-
           {/* L-shaped connectors */}
           <svg
             className="pointer-events-none absolute inset-0 overflow-visible"
@@ -100,9 +133,13 @@ export default function MapView({
             viewBox={`0 0 ${totalWidth} ${totalHeight}`}
             aria-hidden="true"
           >
-            {connectors.map((c, i) => {
-              const midY = c.fromY + (c.toY - c.fromY) / 2
-              const d    = `M ${c.fromX} ${c.fromY} V ${midY} H ${c.toX} V ${c.toY}`
+            {allConnectors.map((c, i) => {
+              const fx   = c.fromX + MAP_CANVAS_PADDING_X
+              const fy   = c.fromY + MAP_CANVAS_PADDING_Y
+              const tx   = c.toX   + MAP_CANVAS_PADDING_X
+              const ty   = c.toY   + MAP_CANVAS_PADDING_Y
+              const midY = fy + (ty - fy) / 2
+              const d    = `M ${fx} ${fy} V ${midY} H ${tx} V ${ty}`
               return (
                 <path
                   key={i}
@@ -112,28 +149,28 @@ export default function MapView({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={1.8}
-                  opacity={c.projectId === activeProjectId ? 1 : 0.45}
+                  opacity={c.projectId === activeProjectId ? 1 : 0.4}
                 />
               )
             })}
           </svg>
 
           {/* Agent cards */}
-          {placements.map((p) => (
+          {allPlacements.map(p => (
             <div
               key={p.node.id}
               className="absolute"
               style={{
-                left:    `${p.x}px`,
-                top:     `${p.y}px`,
+                left:    `${p.x    + MAP_CANVAS_PADDING_X}px`,
+                top:     `${p.topY + MAP_CANVAS_PADDING_Y}px`,
                 width:   `${p.width}px`,
                 height:  `${p.height}px`,
-                opacity: p.node.projectId === activeProjectId ? 1 : 0.45,
+                opacity: p.projectId === activeProjectId ? 1 : 0.4,
               }}
             >
-              <AgentCard
+              <TeamAgentCard
                 node={p.node}
-                onOpen={(wsId) => router.push(`/workspace/${wsId}`)}
+                onOpen={wsId => router.push(`/workspace/${wsId}`)}
                 onEdit={onEdit}
               />
             </div>

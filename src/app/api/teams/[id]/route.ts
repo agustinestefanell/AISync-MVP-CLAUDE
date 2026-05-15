@@ -14,9 +14,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { name, parentId, agents } = body as {
+  const { name, parentId, agents, description, lead_role } = body as {
     name: string
     parentId: string | null
+    description?: string | null
+    lead_role?: 'manager' | 'submanager' | 'worker'
     agents: Array<{ id: string; provider: string; model: string; config?: Record<string, unknown> | null }>
   }
 
@@ -24,7 +26,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const { error: teamErr } = await supabase
     .from('teams')
-    .update({ name: name.trim(), parent_id: parentId ?? null, type: teamType })
+    .update({
+      name:        name.trim(),
+      parent_id:   parentId ?? null,
+      type:        teamType,
+      description: description ?? null,
+      lead_role:   lead_role ?? 'worker',
+    })
     .eq('id', params.id)
   if (teamErr) return NextResponse.json({ error: teamErr.message }, { status: 500 })
 

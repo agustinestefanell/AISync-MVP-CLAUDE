@@ -18,6 +18,9 @@ export interface Team {
   type: TeamType
   parent_id: string | null
   created_at: string
+  description: string | null
+  lead_role: 'manager' | 'submanager' | 'worker'
+  tags: string[]
 }
 
 export interface Workspace {
