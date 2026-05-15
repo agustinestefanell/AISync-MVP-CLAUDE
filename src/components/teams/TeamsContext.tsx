@@ -1,11 +1,10 @@
 'use client'
 
 import { createContext, useContext } from 'react'
-import type { TeamWithWorkspaces } from '@/lib/db/types'
 
 interface TeamsContextValue {
   onOpen: (workspaceId: string) => void
-  onEdit: (team: TeamWithWorkspaces) => void
+  onEdit: (teamId: string) => void
 }
 
 export const TeamsContext = createContext<TeamsContextValue>({

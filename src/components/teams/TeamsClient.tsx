@@ -128,7 +128,7 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
   ).length
 
   return (
-    <>
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Toolbar */}
       <div className="shrink-0 px-6 py-4 border-b border-gray-800 flex items-center gap-3">
         {/* View toggle */}
@@ -191,9 +191,13 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
         {view === 'map' ? (
           <MapView
             teams={teams}
+            projectId={projectId}
             connectedTeamIds={connectedTeamIds}
             externalConnections={externalConnections}
-            onEdit={t => setEditingTeam(t)}
+            onEdit={teamId => {
+              const team = teams.find(t => t.id === teamId)
+              if (team) setEditingTeam(team)
+            }}
           />
         ) : (
           <div className="h-full overflow-y-auto px-6 py-6">
@@ -245,6 +249,6 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
           onRejected={handleRejected}
         />
       )}
-    </>
+    </div>
   )
 }
