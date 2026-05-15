@@ -52,7 +52,7 @@ const LEVEL_GAP        = 140
 const SIBLING_GAP      = 92
 const INTER_TEAM_GAP         = Math.round(316 / 3)  // 105 — rule of thirds
 const FAMILY_BREAK_GAP       = INTER_TEAM_GAP        // gap between different-type siblings
-const GAP_BETWEEN_ROOT_TREES = Math.round(316 / 3)   // 105 — exactly 1/3 of worker card width
+const GAP_BETWEEN_ROOT_TREES = Math.round(316 * 0.3)  // 95 — 0.3× worker card width
 const PAD_X            = 128
 const PAD_Y            = 40
 
