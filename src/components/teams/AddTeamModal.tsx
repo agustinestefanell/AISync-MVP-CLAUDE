@@ -87,7 +87,7 @@ export default function AddTeamModal({ projectId, teams, onClose, onCreated }: A
   }
 
   async function handleSubmit() {
-    if (!name.trim()) { setError('Name is required.'); return }
+    if (!name.trim()) { setError('Team name is required.'); return }
     for (const a of agents) {
       if (isLocal(a.provider) && !a.endpoint.trim()) {
         setError(`Missing endpoint for agent ${a.role}.`); return

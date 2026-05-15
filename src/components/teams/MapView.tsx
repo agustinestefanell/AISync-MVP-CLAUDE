@@ -25,9 +25,48 @@ interface MapViewProps {
   connectedTeamIds:   Set<string>
   externalConnections: ExternalConnection[]
   onEdit:             (teamId: string) => void
+  onConnect:          () => void
   zoomInSignal?:      number
   zoomOutSignal?:     number
   resetSignal?:       number
+}
+
+function ConnectTeamAnchor({ onConnect }: { onConnect: () => void }) {
+  return (
+    <div
+      data-pan-block="true"
+      className="absolute"
+      style={{ left: 'calc(100% + 84px)', top: '28px', width: '356px' }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute"
+        style={{
+          left: '-84px', top: '96px', width: '84px',
+          borderTop: '2px dashed rgba(100,116,139,0.52)',
+        }}
+      />
+      <button
+        type="button"
+        data-pan-block="true"
+        className="flex min-h-[188px] w-full flex-col items-center justify-center rounded-[22px] border-2 border-dashed px-6 py-6 text-center transition-colors hover:border-neutral-500 hover:bg-white/90"
+        style={{
+          borderColor: 'rgba(100,116,139,0.45)',
+          background:  'linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(241,245,249,0.92) 100%)',
+          boxShadow:   'inset 0 1px 0 rgba(255,255,255,0.78), 0 12px 24px rgba(15,23,42,0.05)',
+        }}
+        onPointerDown={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => { e.preventDefault(); e.stopPropagation(); onConnect() }}
+      >
+        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-neutral-400 bg-white/85 text-[28px] font-semibold leading-none text-neutral-700">
+          +
+        </div>
+        <div className="mt-4 text-[14px] font-semibold text-neutral-900">Connect Team</div>
+        <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-neutral-500">Link External User</div>
+      </button>
+    </div>
+  )
 }
 
 function getSubtreeNodes(rootId: string, all: MapAgentNode[]): MapAgentNode[] {
@@ -46,6 +85,7 @@ export default function MapView({
   activeProjectId,
   connectedTeamIds,
   onEdit,
+  onConnect,
   zoomInSignal,
   zoomOutSignal,
   resetSignal,
@@ -173,6 +213,9 @@ export default function MapView({
                 onOpen={wsId => router.push(`/workspace/${wsId}`)}
                 onEdit={onEdit}
               />
+              {p.node.type === 'general_manager' && p.projectId === activeProjectId && (
+                <ConnectTeamAnchor onConnect={onConnect} />
+              )}
             </div>
           ))}
         </div>

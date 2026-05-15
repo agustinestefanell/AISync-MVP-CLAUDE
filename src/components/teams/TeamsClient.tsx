@@ -283,6 +283,7 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
               const team = teams.find(t => t.id === teamId)
               if (team) setEditingTeam(team)
             }}
+            onConnect={() => setShowConnect(true)}
           />
         ) : (
           <div className="h-full overflow-y-auto px-6 py-6">
