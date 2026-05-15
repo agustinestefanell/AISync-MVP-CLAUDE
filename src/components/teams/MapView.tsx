@@ -75,7 +75,7 @@ export default function MapView({
           edges={edges}
           nodeTypes={NODE_TYPES}
           fitView
-          fitViewOptions={{ padding: 0.3 }}
+          fitViewOptions={{ padding: 0.15 }}
           minZoom={0.2}
           maxZoom={1.5}
           nodesDraggable={false}

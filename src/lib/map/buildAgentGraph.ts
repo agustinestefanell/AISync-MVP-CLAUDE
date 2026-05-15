@@ -28,9 +28,39 @@ const TEAM_PALETTE = [
 ]
 
 const NODE_SIZE: Record<string, { width: number; height: number }> = {
-  gm_node:     { width: 300, height: 165 },
-  sm_node:     { width: 260, height: 160 },
-  worker_node: { width: 220, height: 130 },
+  gm_node:     { width: 300, height: 160 },
+  sm_node:     { width: 260, height: 150 },
+  worker_node: { width: 220, height: 110 },
+}
+
+const WORKER_W   = 220
+const WORKER_GAP = 30
+const RANK_GAP   = 60
+
+function enforceWorkerSymmetry(nodes: Node[], edges: Edge[]): Node[] {
+  nodes.forEach(manager => {
+    if (manager.type !== 'gm_node' && manager.type !== 'sm_node') return
+
+    const workers = nodes.filter(n =>
+      n.type === 'worker_node' &&
+      edges.some(e => e.source === manager.id && e.target === n.id)
+    )
+    if (!workers.length) return
+
+    const managerSize = NODE_SIZE[manager.type]
+    const managerCenterX = manager.position.x + managerSize.width / 2
+    const totalW  = workers.length * WORKER_W + (workers.length - 1) * WORKER_GAP
+    const startX  = managerCenterX - totalW / 2
+    const workerY = manager.position.y + managerSize.height + RANK_GAP
+
+    workers.forEach((worker, i) => {
+      worker.position = {
+        x: startX + i * (WORKER_W + WORKER_GAP),
+        y: workerY,
+      }
+    })
+  })
+  return nodes
 }
 
 export function buildAgentGraph(
@@ -80,7 +110,7 @@ export function buildAgentGraph(
   // Dagre layout
   const g = new dagre.graphlib.Graph()
   g.setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: 'TB', nodesep: 40, ranksep: 80 })
+  g.setGraph({ rankdir: 'TB', nodesep: 30, ranksep: 60, marginx: 20, marginy: 20 })
 
   for (const a of graphAgents) {
     g.setNode(a.agentId, NODE_SIZE[a.nodeType])
@@ -129,6 +159,9 @@ export function buildAgentGraph(
       draggable: false,
     }
   })
+
+  // Post-process: force worker symmetry under each manager
+  enforceWorkerSymmetry(nodes, edges)
 
   return { nodes, edges }
 }
