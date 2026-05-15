@@ -50,8 +50,9 @@ const SM_W  = 356,  SM_H  = 364
 const WK_W  = 316,  WK_H  = 312
 const LEVEL_GAP        = 140
 const SIBLING_GAP      = 92
-const FAMILY_BREAK_GAP = 176   // extra gap when adjacent siblings differ in type
-const ROOT_GAP         = 200   // horizontal gap between disconnected root trees
+const INTER_TEAM_GAP   = Math.round(316 / 3)  // 105 — rule of thirds
+const FAMILY_BREAK_GAP = INTER_TEAM_GAP        // gap between different-type siblings
+const ROOT_GAP         = INTER_TEAM_GAP        // gap between disconnected root trees
 const PAD_X            = 128
 const PAD_Y            = 40
 

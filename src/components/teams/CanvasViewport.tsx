@@ -10,6 +10,9 @@ interface Props {
   fitFloor?: number
   fitTopOffset?: number
   alignTopOnFit?: boolean
+  zoomInSignal?: number
+  zoomOutSignal?: number
+  resetSignal?: number
   children: ReactNode
 }
 
@@ -20,6 +23,9 @@ export default function CanvasViewport({
   fitFloor,
   fitTopOffset,
   alignTopOnFit,
+  zoomInSignal,
+  zoomOutSignal,
+  resetSignal,
   children,
 }: Props) {
   const [zoom, setZoom]           = useState(initialZoom)
@@ -80,6 +86,13 @@ export default function CanvasViewport({
     setZoom(cz)
   }
 
+  const updateZoom = (nextZ: number, manual = false) => {
+    const vp = viewportRef.current
+    if (!vp) { setZoom(clamp(nextZ)); return }
+    const rect = vp.getBoundingClientRect()
+    zoomAt(nextZ, rect.left + rect.width / 2, rect.top + rect.height / 2, manual)
+  }
+
   const fitViewport = () => {
     const vp = viewportRef.current
     const ct = contentRef.current
@@ -112,6 +125,13 @@ export default function CanvasViewport({
   }
 
   useEffect(() => { applyTransform() }, [zoom])
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (zoomInSignal)  updateZoom(zoom + 0.14, true) }, [zoomInSignal])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (zoomOutSignal) updateZoom(zoom - 0.14, true) }, [zoomOutSignal])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (resetSignal)   fitViewport()                 }, [resetSignal])
 
   useEffect(() => {
     const vp = viewportRef.current

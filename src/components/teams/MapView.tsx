@@ -15,12 +15,18 @@ interface MapViewProps {
   connectedTeamIds: Set<string>
   externalConnections: ExternalConnection[]
   onEdit: (teamId: string) => void
+  zoomInSignal?: number
+  zoomOutSignal?: number
+  resetSignal?: number
 }
 
 export default function MapView({
   teams,
   connectedTeamIds,
   onEdit,
+  zoomInSignal,
+  zoomOutSignal,
+  resetSignal,
 }: MapViewProps) {
   const router = useRouter()
 
@@ -54,6 +60,9 @@ export default function MapView({
         maxZoom={1.12}
         fitFloor={0.5}
         alignTopOnFit
+        zoomInSignal={zoomInSignal}
+        zoomOutSignal={zoomOutSignal}
+        resetSignal={resetSignal}
       >
         <div
           className="relative"

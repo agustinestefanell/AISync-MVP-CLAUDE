@@ -35,6 +35,9 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
   const [showConnect, setShowConnect] = useState(false)
   const [showIncoming, setShowIncoming] = useState(false)
   const [editingTeam, setEditingTeam] = useState<TeamWithWorkspaces | null>(null)
+  const [zoomIn, setZoomIn]   = useState(0)
+  const [zoomOut, setZoomOut] = useState(0)
+  const [zoomReset, setZoomReset] = useState(0)
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -127,63 +130,141 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
     c => c.direction === 'incoming' && c.status === 'pending'
   ).length
 
+  // Team / Worker counts for ribbon
+  const workerCount = teams.reduce((sum, t) => {
+    const ws = t.workspaces[0]
+    if (!ws) return sum
+    return sum + (ws.agent_sessions ?? []).filter(a => a.agent_role !== 'manager').length
+  }, 0)
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Toolbar */}
-      <div className="shrink-0 px-6 py-4 border-b border-gray-800 flex items-center gap-3">
-        {/* View toggle */}
-        <div className="flex items-center bg-gray-800 rounded-lg p-0.5 gap-0.5">
-          <button
-            onClick={() => setView('map')}
-            className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
-              view === 'map' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            MAP
-          </button>
-          <button
-            onClick={() => setView('tree')}
-            className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
-              view === 'tree' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            TREE
+
+      {/* ── Ribbon ───────────────────────────────────────────────────────────── */}
+      <div
+        className="shrink-0 grid items-center gap-3 px-4 py-3
+          sm:grid-cols-[auto_auto_1fr_auto]"
+        style={{
+          borderBottom: '1px solid rgba(15,23,42,0.10)',
+          background: 'linear-gradient(180deg, rgba(250,252,254,0.98) 0%, rgba(240,245,249,0.98) 100%)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 4px 12px rgba(15,23,42,0.05)',
+        }}
+      >
+        {/* Column 1 — Title */}
+        <div className="min-w-0">
+          <h1 className="text-[17px] font-bold uppercase tracking-[0.10em] text-neutral-900 leading-none">
+            Teams Map
+          </h1>
+          <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500" style={{ fontVariant: 'small-caps' }}>
+            Operational Elasticity View
+          </div>
+          <div className="mt-1.5 flex flex-col gap-0.5">
+            <button className="text-left text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2">
+              How to use Teams Map
+            </button>
+            <button className="text-left text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2">
+              How to create Teams
+            </button>
+          </div>
+        </div>
+
+        {/* Column 2 — SAT/MAT legend */}
+        <div
+          className="shrink-0 rounded-[12px] border px-3 py-2 text-[11px] leading-[1.5] text-neutral-600"
+          style={{
+            borderColor: 'rgba(15,23,42,0.10)',
+            background: 'rgba(255,255,255,0.88)',
+          }}
+        >
+          <div>SAT = Single Agent Team</div>
+          <div>MAT = Multiple Agent Team</div>
+          <button className="mt-0.5 text-[10px] text-teal-600 hover:underline underline-offset-2">
+            Differences and uses
           </button>
         </div>
 
-        <span className="text-xs text-gray-700">{teams.length} team{teams.length !== 1 ? 's' : ''}</span>
+        {/* Column 3 — spacer on mobile, empty on desktop */}
+        <div className="hidden sm:block" />
 
-        <div className="flex-1" />
+        {/* Column 4 — Controls */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
 
-        {/* Requests — always visible */}
-        <button
-          onClick={() => setShowIncoming(true)}
-          className="relative flex items-center gap-1.5 text-xs text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-gray-200 px-3 py-2 rounded-lg transition-colors"
-        >
-          <span>Requests</span>
-          {incomingPending > 0 && (
-            <span className="bg-indigo-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none">
-              {incomingPending}
-            </span>
-          )}
-        </button>
+          {/* Map / Tree toggle */}
+          <div
+            className="flex rounded-full border p-1"
+            style={{ borderColor: 'rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.86)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72)' }}
+          >
+            {(['map', 'tree'] as ViewMode[]).map(mode => (
+              <button
+                key={mode}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  view === mode ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+                onClick={() => setView(mode)}
+              >
+                {mode === 'map' ? 'Map' : 'Tree'}
+              </button>
+            ))}
+          </div>
 
-        {/* Connect Team */}
-        <button
-          onClick={() => setShowConnect(true)}
-          className="flex items-center gap-1.5 text-xs text-teal-300 border border-teal-800 hover:border-teal-600 px-4 py-2 rounded-lg transition-colors"
-        >
-          ↔ Connect
-        </button>
+          {/* Teams / Workers count */}
+          <div
+            className="rounded-[10px] border px-3 py-2 text-xs text-neutral-700"
+            style={{ borderColor: 'rgba(15,23,42,0.10)', background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(244,247,250,0.95) 100%)' }}
+          >
+            Teams {teams.length} / Workers {workerCount}
+          </div>
 
-        {/* Add Team */}
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
-        >
-          <span className="text-base leading-none">+</span>
-          Add Team
-        </button>
+          {/* Zoom buttons */}
+          <div
+            className="flex items-center gap-1 rounded-full border p-1"
+            style={{ borderColor: 'rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.86)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72)' }}
+          >
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
+              title="Zoom In"
+              onClick={() => setZoomIn(n => n + 1)}
+            >+</button>
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
+              title="Zoom Out"
+              onClick={() => setZoomOut(n => n + 1)}
+            >−</button>
+            <button
+              className="h-8 rounded-full px-3 text-xs text-neutral-700 hover:bg-neutral-100"
+              onClick={() => setZoomReset(n => n + 1)}
+            >Reset</button>
+          </div>
+
+          {/* Requests */}
+          <button
+            onClick={() => setShowIncoming(true)}
+            className="relative flex h-9 items-center gap-1.5 rounded-[10px] border border-neutral-200 bg-white px-3 text-xs text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+          >
+            Requests
+            {incomingPending > 0 && (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold leading-none text-white">
+                {incomingPending}
+              </span>
+            )}
+          </button>
+
+          {/* Connect */}
+          <button
+            onClick={() => setShowConnect(true)}
+            className="flex h-9 items-center gap-1.5 rounded-[10px] border border-teal-200 bg-teal-50 px-3 text-xs font-medium text-teal-700 hover:bg-teal-100 transition-colors"
+          >
+            ↔ Connect
+          </button>
+
+          {/* Add Team */}
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex h-9 items-center gap-1.5 rounded-[10px] bg-neutral-900 px-4 text-xs font-semibold text-white hover:bg-neutral-700 transition-colors"
+          >
+            + Add Team
+          </button>
+        </div>
       </div>
 
       {/* Main view */}
@@ -194,6 +275,9 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
             projectId={projectId}
             connectedTeamIds={connectedTeamIds}
             externalConnections={externalConnections}
+            zoomInSignal={zoomIn}
+            zoomOutSignal={zoomOut}
+            resetSignal={zoomReset}
             onEdit={teamId => {
               const team = teams.find(t => t.id === teamId)
               if (team) setEditingTeam(team)
