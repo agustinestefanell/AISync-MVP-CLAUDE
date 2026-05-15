@@ -50,9 +50,9 @@ const SM_W  = 356,  SM_H  = 364
 const WK_W  = 316,  WK_H  = 312
 const LEVEL_GAP        = 140
 const SIBLING_GAP      = 92
-const INTER_TEAM_GAP   = Math.round(316 / 3)  // 105 — rule of thirds
-const FAMILY_BREAK_GAP = INTER_TEAM_GAP        // gap between different-type siblings
-const ROOT_GAP         = INTER_TEAM_GAP        // gap between disconnected root trees
+const INTER_TEAM_GAP         = Math.round(316 / 3)  // 105 — rule of thirds
+const FAMILY_BREAK_GAP       = INTER_TEAM_GAP        // gap between different-type siblings
+const GAP_BETWEEN_ROOT_TREES = Math.round(316 / 3)   // 105 — exactly 1/3 of worker card width
 const PAD_X            = 128
 const PAD_Y            = 40
 
@@ -323,14 +323,14 @@ export function buildAgentLayout(mapNodes: MapAgentNode[]): AgentLayoutResult {
       allConnectors.push({ fromX: c.fromX + xOffset, fromY: c.fromY, toX: c.toX + xOffset, toY: c.toY })
     }
 
-    xOffset   += width + ROOT_GAP
+    xOffset   += width + GAP_BETWEEN_ROOT_TREES
     maxHeight  = Math.max(maxHeight, height)
   }
 
   return {
     placements:  allPlacements,
     connectors:  allConnectors,
-    totalWidth:  xOffset - ROOT_GAP + PAD_X,
+    totalWidth:  xOffset - GAP_BETWEEN_ROOT_TREES + PAD_X,
     totalHeight: maxHeight + PAD_Y * 2,
   }
 }
