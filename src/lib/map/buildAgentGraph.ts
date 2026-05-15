@@ -1,4 +1,3 @@
-import * as dagre from '@dagrejs/dagre'
 import type { Node, Edge } from '@xyflow/react'
 import type { AgentNode } from '@/lib/db/agent-map'
 
@@ -33,35 +32,55 @@ const NODE_SIZE: Record<string, { width: number; height: number }> = {
   worker_node: { width: 220, height: 110 },
 }
 
-const WORKER_W   = 220
-const WORKER_GAP = 30
-const RANK_GAP   = 60
+const H_GAP   = 30   // horizontal gap between sibling subtrees
+const V_GAP   = 60   // vertical gap between parent and children row
+const ROOT_GAP = 80  // horizontal gap between disconnected root trees
 
-function enforceWorkerSymmetry(nodes: Node[], edges: Edge[]): Node[] {
-  nodes.forEach(manager => {
-    if (manager.type !== 'gm_node' && manager.type !== 'sm_node') return
+// --- Custom recursive tree layout (no dagre) ---
 
-    const workers = nodes.filter(n =>
-      n.type === 'worker_node' &&
-      edges.some(e => e.source === manager.id && e.target === n.id)
-    )
-    if (!workers.length) return
-
-    const managerSize = NODE_SIZE[manager.type]
-    const managerCenterX = manager.position.x + managerSize.width / 2
-    const totalW  = workers.length * WORKER_W + (workers.length - 1) * WORKER_GAP
-    const startX  = managerCenterX - totalW / 2
-    const workerY = manager.position.y + managerSize.height + RANK_GAP
-
-    workers.forEach((worker, i) => {
-      worker.position = {
-        x: startX + i * (WORKER_W + WORKER_GAP),
-        y: workerY,
-      }
-    })
-  })
-  return nodes
+function subtreeWidth(
+  id: string,
+  children: Record<string, string[]>,
+  types: Record<string, string>,
+  cache: Record<string, number>,
+): number {
+  if (cache[id] !== undefined) return cache[id]
+  const kids = children[id] ?? []
+  const nodeW = NODE_SIZE[types[id]]?.width ?? 220
+  if (!kids.length) { cache[id] = nodeW; return nodeW }
+  const kidsTotal = kids.reduce((s, k) => s + subtreeWidth(k, children, types, cache), 0)
+                  + H_GAP * (kids.length - 1)
+  cache[id] = Math.max(nodeW, kidsTotal)
+  return cache[id]
 }
+
+function assignPositions(
+  id: string,
+  centerX: number,
+  y: number,
+  children: Record<string, string[]>,
+  types: Record<string, string>,
+  cache: Record<string, number>,
+  out: Record<string, { x: number; y: number }>,
+) {
+  const nodeW = NODE_SIZE[types[id]]?.width  ?? 220
+  const nodeH = NODE_SIZE[types[id]]?.height ?? 110
+  out[id] = { x: centerX - nodeW / 2, y }
+
+  const kids = children[id] ?? []
+  if (!kids.length) return
+
+  const kidsTotal = kids.reduce((s, k) => s + subtreeWidth(k, children, types, cache), 0)
+                  + H_GAP * (kids.length - 1)
+  let cx = centerX - kidsTotal / 2
+  for (const kid of kids) {
+    const kw = subtreeWidth(kid, children, types, cache)
+    assignPositions(kid, cx + kw / 2, y + nodeH + V_GAP, children, types, cache, out)
+    cx += kw + H_GAP
+  }
+}
+
+// ------------------------------------------------
 
 export function buildAgentGraph(
   agentNodes: AgentNode[],
@@ -69,15 +88,13 @@ export function buildAgentGraph(
 ): { nodes: Node[]; edges: Edge[] } {
   if (!agentNodes.length) return { nodes: [], edges: [] }
 
-  // Assign palette per team in order of first appearance
+  // Palette per team (order of first appearance)
   const teamOrder: string[] = []
   for (const a of agentNodes) {
     if (!teamOrder.includes(a.teamId)) teamOrder.push(a.teamId)
   }
   const paletteMap: Record<string, { ribbon: string; soft: string }> = {}
-  teamOrder.forEach((tid, i) => {
-    paletteMap[tid] = TEAM_PALETTE[i % TEAM_PALETTE.length]
-  })
+  teamOrder.forEach((tid, i) => { paletteMap[tid] = TEAM_PALETTE[i % TEAM_PALETTE.length] })
 
   // managerMap: teamId → agentId of that team's manager
   const managerMap: Record<string, string> = {}
@@ -107,35 +124,52 @@ export function buildAgentGraph(
     return { ...a, nodeType, parentAgentId }
   })
 
-  // Dagre layout
-  const g = new dagre.graphlib.Graph()
-  g.setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: 'TB', nodesep: 30, ranksep: 60, marginx: 20, marginy: 20 })
+  // Build children map and type map
+  const childrenMap: Record<string, string[]> = {}
+  const typeMap: Record<string, string> = {}
+  const roots: string[] = []
 
   for (const a of graphAgents) {
-    g.setNode(a.agentId, NODE_SIZE[a.nodeType])
-  }
-
-  const edges: Edge[] = []
-  for (const a of graphAgents) {
+    typeMap[a.agentId] = a.nodeType
+    if (!childrenMap[a.agentId]) childrenMap[a.agentId] = []
     if (a.parentAgentId) {
-      g.setEdge(a.parentAgentId, a.agentId)
-      edges.push({
-        id:     `e-${a.parentAgentId}-${a.agentId}`,
-        source: a.parentAgentId,
-        target: a.agentId,
-        type:   'smoothstep',
-        style:  { stroke: '#94a3b8', strokeWidth: 1.5 },
-      })
+      if (!childrenMap[a.parentAgentId]) childrenMap[a.parentAgentId] = []
+      childrenMap[a.parentAgentId].push(a.agentId)
+    } else {
+      roots.push(a.agentId)
     }
   }
 
-  dagre.layout(g)
+  // Compute subtree widths
+  const swCache: Record<string, number> = {}
+  roots.forEach(r => subtreeWidth(r, childrenMap, typeMap, swCache))
 
+  // Assign positions — place root trees side by side
+  const positions: Record<string, { x: number; y: number }> = {}
+  const totalRootsW = roots.reduce((s, r) => s + (swCache[r] ?? 0), 0)
+                    + ROOT_GAP * (roots.length - 1)
+  let rx = -totalRootsW / 2
+  for (const r of roots) {
+    const rw = swCache[r] ?? 0
+    assignPositions(r, rx + rw / 2, 0, childrenMap, typeMap, swCache, positions)
+    rx += rw + ROOT_GAP
+  }
+
+  // Build ReactFlow edges
+  const edges: Edge[] = graphAgents
+    .filter(a => a.parentAgentId)
+    .map(a => ({
+      id:     `e-${a.parentAgentId}-${a.agentId}`,
+      source: a.parentAgentId!,
+      target: a.agentId,
+      type:   'smoothstep',
+      style:  { stroke: '#94a3b8', strokeWidth: 1.5 },
+    }))
+
+  // Build ReactFlow nodes
   const nodes: Node[] = graphAgents.map(a => {
-    const { x, y } = g.node(a.agentId)
-    const size      = NODE_SIZE[a.nodeType]
-    const palette   = paletteMap[a.teamId] ?? TEAM_PALETTE[0]
+    const pos     = positions[a.agentId] ?? { x: 0, y: 0 }
+    const palette = paletteMap[a.teamId] ?? TEAM_PALETTE[0]
 
     const data: AgentNodeData = {
       agentId:         a.agentId,
@@ -154,14 +188,11 @@ export function buildAgentGraph(
     return {
       id:        a.agentId,
       type:      a.nodeType,
-      position:  { x: x - size.width / 2, y: y - size.height / 2 },
+      position:  pos,
       data,
       draggable: false,
     }
   })
-
-  // Post-process: force worker symmetry under each manager
-  enforceWorkerSymmetry(nodes, edges)
 
   return { nodes, edges }
 }
