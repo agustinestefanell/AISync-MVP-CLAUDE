@@ -273,6 +273,7 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
           <MapView
             teams={teams}
             projectId={projectId}
+            activeProjectId={projectId}
             connectedTeamIds={connectedTeamIds}
             externalConnections={externalConnections}
             zoomInSignal={zoomIn}

@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { getActiveProjectId, getTeamsForProject } from '@/lib/db/teams'
+import { getActiveProjectId } from '@/lib/db/teams'
 import { getProjectsWithHierarchy } from '@/lib/db/projects'
 import TeamsClient from '@/components/teams/TeamsClient'
 import AppLayout from '@/components/layout/AppLayout'
+import type { TeamWithWorkspaces } from '@/lib/db/types'
 
 export default async function TeamsPage() {
   const supabase = createClient()
@@ -13,11 +14,10 @@ export default async function TeamsPage() {
   const projectId = await getActiveProjectId()
   if (!projectId) redirect('/')
 
-  const [projects, teams] = await Promise.all([
-    getProjectsWithHierarchy(),
-    getTeamsForProject(projectId),
-  ])
+  const projects = await getProjectsWithHierarchy()
 
+  // All projects in a single map; active project is highlighted.
+  const allTeams = projects.flatMap(p => p.teams as TeamWithWorkspaces[])
   const activeProject = projects.find(p => p.id === projectId)
 
   return (
@@ -27,7 +27,7 @@ export default async function TeamsPage() {
       projectName={activeProject?.name}
       scrollable={false}
     >
-      <TeamsClient projectId={projectId} initialTeams={teams} />
+      <TeamsClient projectId={projectId} initialTeams={allTeams} />
     </AppLayout>
   )
 }

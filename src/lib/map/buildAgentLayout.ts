@@ -17,6 +17,7 @@ export interface MapAgentNode {
   ribbon: string
   soft: string
   connected: boolean
+  projectId: string
 }
 
 export interface AgentPlacement {
@@ -34,12 +35,23 @@ export interface AgentConnector {
   fromY: number
   toX: number
   toY: number
+  projectId: string
+}
+
+export interface RootTreeMeta {
+  rootId:    string
+  projectId: string
+  left:      number
+  top:       number
+  right:     number
+  bottom:    number
 }
 
 export interface AgentLayoutResult {
-  placements: AgentPlacement[]
-  connectors: AgentConnector[]
-  totalWidth: number
+  placements:  AgentPlacement[]
+  connectors:  AgentConnector[]
+  trees:       RootTreeMeta[]
+  totalWidth:  number
   totalHeight: number
 }
 
@@ -51,8 +63,8 @@ const WK_W  = 316,  WK_H  = 312
 const LEVEL_GAP        = 140
 const SIBLING_GAP      = 92
 const INTER_TEAM_GAP         = Math.round(316 / 3)  // 105 — rule of thirds
-const FAMILY_BREAK_GAP       = INTER_TEAM_GAP        // gap between different-type siblings
-const GAP_BETWEEN_ROOT_TREES = Math.round(316 * 0.3)  // 95 — 0.3× worker card width
+const FAMILY_BREAK_GAP       = 176                   // demo value: wider gap between different node types
+const GAP_BETWEEN_ROOT_TREES = Math.round(316 * 0.3) // 95 — 0.3× worker card width
 const PAD_X            = 128
 const PAD_Y            = 40
 
@@ -101,10 +113,12 @@ function getSubtreeIds(rootId: string, all: MapAgentNode[]): Set<string> {
 
 // ─── Single-tree layout  (direct port of demo's buildTreeLayout) ──────────────
 
+type RawConnector = Omit<AgentConnector, 'projectId'>
+
 function buildSingleTree(
   rootId: string,
   nodes: MapAgentNode[],
-): { placements: AgentPlacement[]; connectors: AgentConnector[]; width: number; height: number } {
+): { placements: AgentPlacement[]; connectors: RawConnector[]; width: number; height: number } {
 
   const byId   = new Map(nodes.map(n => [n.id, n]))
   const depths = new Map<string, number>()
@@ -189,8 +203,8 @@ function buildSingleTree(
   measure(rootId)
 
   // 3. Place subtrees top-down
-  const placements: AgentPlacement[] = []
-  const connectors: AgentConnector[] = []
+  const placements: AgentPlacement[]  = []
+  const connectors: RawConnector[]    = []
   const placed:     Record<string, AgentPlacement> = {}
 
   const place = (id: string, left: number) => {
@@ -296,18 +310,23 @@ export function agentNodesToMapNodes(
       ribbon:    palette.ribbon,
       soft:      palette.soft,
       connected: connectedTeamIds.has(a.teamId),
+      projectId: a.projectId,
     }
   })
 }
 
 // ─── Public: full layout for multiple root trees ──────────────────────────────
 
+// Single Teams Map showing all projects.
+// Active project: full opacity. Inactive: opacity 0.45.
+// User decision: one map, simpler UX.
 export function buildAgentLayout(mapNodes: MapAgentNode[]): AgentLayoutResult {
   const roots = mapNodes.filter(n => n.parentId === null)
-  if (!roots.length) return { placements: [], connectors: [], totalWidth: 0, totalHeight: 0 }
+  if (!roots.length) return { placements: [], connectors: [], trees: [], totalWidth: 0, totalHeight: 0 }
 
   const allPlacements: AgentPlacement[] = []
   const allConnectors: AgentConnector[] = []
+  const allTrees:      RootTreeMeta[]   = []
   let   xOffset   = PAD_X
   let   maxHeight = 0
 
@@ -316,11 +335,19 @@ export function buildAgentLayout(mapNodes: MapAgentNode[]): AgentLayoutResult {
     const subtree = mapNodes.filter(n => ids.has(n.id))
     const { placements, connectors, width, height } = buildSingleTree(root.id, subtree)
 
-    for (const p of placements) {
-      allPlacements.push({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset })
+    const shifted = placements.map(p => ({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset }))
+
+    if (shifted.length) {
+      const left   = shifted.reduce((m, p) => Math.min(m, p.x),            Infinity)
+      const top    = shifted.reduce((m, p) => Math.min(m, p.y),            Infinity)
+      const right  = shifted.reduce((m, p) => Math.max(m, p.x + p.width), -Infinity)
+      const bottom = shifted.reduce((m, p) => Math.max(m, p.y + p.height),-Infinity)
+      allTrees.push({ rootId: root.id, projectId: root.projectId, left, top, right, bottom })
     }
+
+    allPlacements.push(...shifted)
     for (const c of connectors) {
-      allConnectors.push({ fromX: c.fromX + xOffset, fromY: c.fromY, toX: c.toX + xOffset, toY: c.toY })
+      allConnectors.push({ fromX: c.fromX + xOffset, fromY: c.fromY, toX: c.toX + xOffset, toY: c.toY, projectId: root.projectId })
     }
 
     xOffset   += width + GAP_BETWEEN_ROOT_TREES
@@ -330,6 +357,7 @@ export function buildAgentLayout(mapNodes: MapAgentNode[]): AgentLayoutResult {
   return {
     placements:  allPlacements,
     connectors:  allConnectors,
+    trees:       allTrees,
     totalWidth:  xOffset - GAP_BETWEEN_ROOT_TREES + PAD_X,
     totalHeight: maxHeight + PAD_Y * 2,
   }

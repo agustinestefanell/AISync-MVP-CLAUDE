@@ -12,6 +12,7 @@ export interface AgentNode {
   teamParentId: string | null
   teamType: 'SAT' | 'MAT'
   teamDescription: string | null
+  projectId: string
 }
 
 export function deriveAgentNodesFromTeams(teams: TeamWithWorkspaces[]): AgentNode[] {
@@ -32,6 +33,7 @@ export function deriveAgentNodesFromTeams(teams: TeamWithWorkspaces[]): AgentNod
         teamParentId: team.parent_id,
         teamType:     team.type,
         teamDescription: team.description,
+        projectId:    team.project_id,
       })
     }
   }

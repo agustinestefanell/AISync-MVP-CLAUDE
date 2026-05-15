@@ -12,6 +12,7 @@ import type { ExternalConnection } from './TeamsClient'
 interface MapViewProps {
   teams: TeamWithWorkspaces[]
   projectId: string
+  activeProjectId: string
   connectedTeamIds: Set<string>
   externalConnections: ExternalConnection[]
   onEdit: (teamId: string) => void
@@ -22,6 +23,7 @@ interface MapViewProps {
 
 export default function MapView({
   teams,
+  activeProjectId,
   connectedTeamIds,
   onEdit,
   zoomInSignal,
@@ -50,7 +52,7 @@ export default function MapView({
     )
   }
 
-  const { placements, connectors, totalWidth, totalHeight } = layout
+  const { placements, connectors, trees, totalWidth, totalHeight } = layout
 
   return (
     <div className="w-full h-full">
@@ -68,6 +70,28 @@ export default function MapView({
           className="relative"
           style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }}
         >
+          {/* Background highlight for active project trees */}
+          {trees
+            .filter(t => t.projectId === activeProjectId)
+            .map(t => {
+              const pad = 24
+              return (
+                <div
+                  key={t.rootId}
+                  className="pointer-events-none absolute"
+                  style={{
+                    left:         `${t.left   - pad}px`,
+                    top:          `${t.top    - pad}px`,
+                    width:        `${t.right  - t.left + pad * 2}px`,
+                    height:       `${t.bottom - t.top  + pad * 2}px`,
+                    background:   'rgba(255,255,255,0.6)',
+                    border:       '1px solid rgba(0,0,0,0.08)',
+                    borderRadius: '16px',
+                  }}
+                />
+              )
+            })}
+
           {/* L-shaped connectors */}
           <svg
             className="pointer-events-none absolute inset-0 overflow-visible"
@@ -88,6 +112,7 @@ export default function MapView({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={1.8}
+                  opacity={c.projectId === activeProjectId ? 1 : 0.45}
                 />
               )
             })}
@@ -99,10 +124,11 @@ export default function MapView({
               key={p.node.id}
               className="absolute"
               style={{
-                left:   `${p.x}px`,
-                top:    `${p.y}px`,
-                width:  `${p.width}px`,
-                height: `${p.height}px`,
+                left:    `${p.x}px`,
+                top:     `${p.y}px`,
+                width:   `${p.width}px`,
+                height:  `${p.height}px`,
+                opacity: p.node.projectId === activeProjectId ? 1 : 0.45,
               }}
             >
               <AgentCard
