@@ -1,5 +1,16 @@
 # AISync MVP — Claude Code Reference
 
+## REGLA CRÍTICA — Demo first
+
+Si una funcionalidad existe en C:\proyectos\AISync\MVP (la demo):
+1. LEER el código de la demo primero
+2. PORTAR directamente — no recrear, no "mejorar", no usar
+   librerías alternativas
+3. Solo después de que funcione igual que en la demo, se refina
+
+Ignorar esta regla genera rework, errores ya resueltos y
+costo innecesario de tokens. Esta regla no tiene excepciones.
+
 ## Proyecto
 AISync es una control layer para trabajo asistido por IA.
 Repo activo: AISync-MVP-CLAUDE
