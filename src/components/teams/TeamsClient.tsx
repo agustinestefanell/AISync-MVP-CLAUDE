@@ -143,7 +143,7 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
       {/* ── Ribbon ───────────────────────────────────────────────────────────── */}
       <div
         className="shrink-0 grid items-center gap-3 px-4 py-3
-          sm:grid-cols-[auto_auto_1fr_auto]"
+          sm:grid-cols-[auto_1fr_auto]"
         style={{
           borderBottom: '1px solid rgba(15,23,42,0.10)',
           background: 'linear-gradient(180deg, rgba(250,252,254,0.98) 0%, rgba(240,245,249,0.98) 100%)',
@@ -168,25 +168,10 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
           </div>
         </div>
 
-        {/* Column 2 — SAT/MAT legend */}
-        <div
-          className="shrink-0 rounded-[12px] border px-3 py-2 text-[11px] leading-[1.5] text-neutral-600"
-          style={{
-            borderColor: 'rgba(15,23,42,0.10)',
-            background: 'rgba(255,255,255,0.88)',
-          }}
-        >
-          <div>SAT = Single Agent Team</div>
-          <div>MAT = Multiple Agent Team</div>
-          <button className="mt-0.5 text-[10px] text-teal-600 hover:underline underline-offset-2">
-            Differences and uses
-          </button>
-        </div>
-
-        {/* Column 3 — spacer on mobile, empty on desktop */}
+        {/* Column 2 — spacer */}
         <div className="hidden sm:block" />
 
-        {/* Column 4 — Controls */}
+        {/* Column 3 — Controls + SAT/MAT at far right */}
         <div className="flex flex-wrap items-center justify-end gap-2">
 
           {/* Map / Tree toggle */}
@@ -264,6 +249,24 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
           >
             + Add Team
           </button>
+
+          {/* Separator */}
+          <div className="hidden sm:block h-8 w-px bg-neutral-200 mx-1" />
+
+          {/* SAT/MAT legend */}
+          <div
+            className="shrink-0 rounded-[12px] border px-3 py-2 text-[11px] leading-[1.5] text-neutral-600"
+            style={{
+              borderColor: 'rgba(15,23,42,0.10)',
+              background: 'rgba(255,255,255,0.88)',
+            }}
+          >
+            <div>SAT = Single Agent Team</div>
+            <div>MAT = Multiple Agent Team</div>
+            <button className="mt-0.5 text-[10px] text-teal-600 hover:underline underline-offset-2">
+              Differences and uses
+            </button>
+          </div>
         </div>
       </div>
 
