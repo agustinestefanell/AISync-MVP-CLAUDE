@@ -41,8 +41,8 @@ const MAP_SUB_MANAGER_HEIGHT = 364
 const MAP_WORKER_WIDTH      = 316
 const MAP_WORKER_HEIGHT     = 312
 const MAP_LEVEL_GAP         = 140
-const MAP_SIBLING_GAP       = 92
-const MAP_FAMILY_BREAK_GAP  = 176
+const MAP_SIBLING_GAP       = 30
+const MAP_FAMILY_BREAK_GAP  = 50
 
 export const MAP_CANVAS_PADDING_X   = 128
 export const MAP_CANVAS_PADDING_Y   = 40
