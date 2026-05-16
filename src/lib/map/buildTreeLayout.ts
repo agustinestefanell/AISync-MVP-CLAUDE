@@ -46,7 +46,7 @@ const MAP_FAMILY_BREAK_GAP  = 176
 
 export const MAP_CANVAS_PADDING_X   = 128
 export const MAP_CANVAS_PADDING_Y   = 40
-export const GAP_BETWEEN_ROOT_TREES = Math.round(316 / 3) // G = W/3, W = worker card width
+export const GAP_BETWEEN_ROOT_TREES = 20 // logical gap; visual card-to-card max ≈ 56px (20 + 2×18 slack)
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
