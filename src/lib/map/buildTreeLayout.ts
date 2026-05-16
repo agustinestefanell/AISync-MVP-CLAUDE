@@ -34,15 +34,15 @@ export type TreeLayoutResult = {
 
 // ─── Constants (exact demo values, MAP mode) ──────────────────────────────────
 
-const MAP_ROOT_WIDTH        = 760
-const MAP_ROOT_HEIGHT       = 212
-const MAP_NODE_WIDTH        = 356
-const MAP_SUB_MANAGER_HEIGHT = 364
-const MAP_WORKER_WIDTH      = 316
-const MAP_WORKER_HEIGHT     = 312
-const MAP_LEVEL_GAP         = 140
-const MAP_SIBLING_GAP       = 5
-const MAP_FAMILY_BREAK_GAP  = 10
+const MAP_ROOT_WIDTH        = 640
+const MAP_ROOT_HEIGHT       = 180
+const MAP_NODE_WIDTH        = 300
+const MAP_SUB_MANAGER_HEIGHT = 308
+const MAP_WORKER_WIDTH      = 265
+const MAP_WORKER_HEIGHT     = 265
+const MAP_LEVEL_GAP         = 100
+const MAP_SIBLING_GAP       = 20
+const MAP_FAMILY_BREAK_GAP  = 40
 
 export const MAP_CANVAS_PADDING_X   = 128
 export const MAP_CANVAS_PADDING_Y   = 40
