@@ -56,7 +56,7 @@ function TreeWorkspaceCard({
 }) {
   const shellBackground = outlineOnly ? '#ffffff' : ribbonColor
   const shellColor      = outlineOnly ? accentColor : '#ffffff'
-  const cardWidth       = compact ? 316 : 356
+  const cardWidth       = compact ? 265 : 300
 
   return (
     <div

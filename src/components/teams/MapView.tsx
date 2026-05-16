@@ -36,7 +36,7 @@ function ConnectTeamAnchor({ onConnect }: { onConnect: () => void }) {
     <div
       data-pan-block="true"
       className="absolute"
-      style={{ left: 'calc(100% + 84px)', top: '28px', width: '356px' }}
+      style={{ left: 'calc(100% + 84px)', top: '28px', width: '300px' }}
     >
       <div
         aria-hidden="true"
@@ -100,6 +100,10 @@ export default function MapView({
 
   const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
 
+  // [DIAG] PASO 1
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  if (typeof window !== 'undefined') console.log('[MAP ROOTS]', roots.map(r => r.teamName || r.id))
+
   // Build layout for all root trees, accumulate into flat lists with X offset
   const { allPlacements, allConnectors, totalWidth, totalHeight } = useMemo(() => {
     if (!roots.length) {
@@ -118,6 +122,9 @@ export default function MapView({
       const subtree = getSubtreeNodes(root.id, mapNodes)
       const layout  = buildTreeLayout(root, subtree)
 
+      // [DIAG] PASO 2
+      console.log('[MAP WIDTHS]', { name: root.teamName, subtreeWidth: layout.width, GAP: GAP_BETWEEN_ROOT_TREES, xOffsetBefore: xOffset })
+
       for (const p of layout.placements) {
         placements.push({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset, projectId: root.projectId })
       }
@@ -128,6 +135,15 @@ export default function MapView({
       xOffset   += layout.width + GAP_BETWEEN_ROOT_TREES
       maxHeight  = Math.max(maxHeight, layout.height)
     }
+
+    // [DIAG] PASO 3
+    console.log('[MAP POSITIONS]', placements.slice(0, 8).map(p => ({
+      name: p.node.teamName,
+      type: p.node.type,
+      x: p.x,
+      centerX: p.centerX,
+      subtreeWidth: p.subtreeWidth,
+    })))
 
     return {
       allPlacements: placements,
