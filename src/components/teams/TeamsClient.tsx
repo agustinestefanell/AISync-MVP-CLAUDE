@@ -140,38 +140,55 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
   return (
     <div className="h-full flex flex-col overflow-hidden">
 
-      {/* ── Ribbon ───────────────────────────────────────────────────────────── */}
+      {/* ── Ribbon operativo ─────────────────────────────────────────────────── */}
       <div
-        className="shrink-0 grid items-center gap-3 px-4 py-3
-          sm:grid-cols-[auto_1fr_auto]"
+        className="shrink-0 grid items-center gap-x-4 gap-y-2 px-4 py-2
+          sm:grid-cols-[auto_auto_auto_1fr_auto]"
         style={{
           borderBottom: '1px solid rgba(15,23,42,0.10)',
           background: 'linear-gradient(180deg, rgba(250,252,254,0.98) 0%, rgba(240,245,249,0.98) 100%)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 4px 12px rgba(15,23,42,0.05)',
         }}
       >
-        {/* Column 1 — Title */}
+        {/* Col 1 — Identidad del módulo */}
         <div className="min-w-0">
-          <h1 className="text-[17px] font-bold uppercase tracking-[0.10em] text-neutral-900 leading-none">
+          <h2 className="text-[13px] font-bold uppercase tracking-[0.12em] text-neutral-900 leading-none">
             Teams Map
-          </h1>
-          <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500" style={{ fontVariant: 'small-caps' }}>
+          </h2>
+          <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
             Operational Elasticity View
-          </div>
-          <div className="mt-1.5 flex flex-col gap-0.5">
-            <button className="text-left text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2">
-              How to use Teams Map
-            </button>
-            <button className="text-left text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2">
-              How to create Teams
-            </button>
           </div>
         </div>
 
-        {/* Column 2 — spacer */}
+        {/* Col 2 — Links de ayuda */}
+        <div className="hidden sm:flex flex-col gap-0.5">
+          <button className="text-left text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2">
+            How to use Teams Map
+          </button>
+          <button className="text-left text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2">
+            How to create Teams
+          </button>
+        </div>
+
+        {/* Col 3 — Leyenda SAT/MAT */}
+        <div
+          className="hidden sm:block shrink-0 rounded-[10px] border px-2.5 py-1.5 text-[10px] leading-[1.5] text-neutral-600"
+          style={{
+            borderColor: 'rgba(15,23,42,0.10)',
+            background: 'rgba(255,255,255,0.88)',
+          }}
+        >
+          <div>SAT = Single Agent Team</div>
+          <div>MAT = Multiple Agent Team</div>
+          <button className="mt-0.5 text-[9px] text-teal-600 hover:underline underline-offset-2">
+            Differences and uses
+          </button>
+        </div>
+
+        {/* Col 4 — spacer */}
         <div className="hidden sm:block" />
 
-        {/* Column 3 — Controls + SAT/MAT at far right */}
+        {/* Col 5 — Controles */}
         <div className="flex flex-wrap items-center justify-end gap-2">
 
           {/* Map / Tree toggle */}
@@ -249,24 +266,6 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
           >
             + Add Team
           </button>
-
-          {/* Separator */}
-          <div className="hidden sm:block h-8 w-px bg-neutral-200 mx-1" />
-
-          {/* SAT/MAT legend */}
-          <div
-            className="shrink-0 rounded-[12px] border px-3 py-2 text-[11px] leading-[1.5] text-neutral-600"
-            style={{
-              borderColor: 'rgba(15,23,42,0.10)',
-              background: 'rgba(255,255,255,0.88)',
-            }}
-          >
-            <div>SAT = Single Agent Team</div>
-            <div>MAT = Multiple Agent Team</div>
-            <button className="mt-0.5 text-[10px] text-teal-600 hover:underline underline-offset-2">
-              Differences and uses
-            </button>
-          </div>
         </div>
       </div>
 
