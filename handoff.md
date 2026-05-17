@@ -164,3 +164,36 @@ El archivo se vuelve inútil si se llena de ruido. Mantener disciplina de regist
 
 ### Próximo paso recomendado
 Revisar este archivo al inicio de cada sesión importante o relevo.
+
+---
+
+## [2026-05-17 ~15:00] — Numeración jerárquica de teams en MAP cards
+
+### Contexto
+Las cards en Teams Map no mostraban ningún código de identificación. La demo usa códigos estáticos hardcodeados. Se requería un sistema dinámico y jerárquico basado en la estructura real de teams.
+
+### Decisión / Estado cerrado
+Implementación client-side pura. Sin cambios en DB ni schema.
+
+- `src/lib/teams/computeTeamCodes.ts`: función pura nueva.
+  - Formato: root = `A-00`, hijos = `A-01`/`A-02`, nietos = `A-01-01`
+  - Orden: siempre por `created_at` ASC. Nunca alfabético.
+  - Múltiples roots: A-00, B-00, C-00 (hasta ZZ)
+- `MapView.tsx`: `useMemo(() => computeTeamCodes(teams), [teams])` → pasa `teamCode` prop a `TeamAgentCard`
+- `TeamAgentCard.tsx`:
+  - GMCard: badge pequeño junto al label "General Manager"
+  - TreeWorkspaceCard: título prefijado `${teamCode} · ${node.teamName}`
+
+### Razón
+Demo first — la demo muestra códigos en las cards. El MVP necesita versión dinámica porque la demo es estática.
+
+### Archivos / superficies afectadas
+- `src/lib/teams/computeTeamCodes.ts` (nuevo)
+- `src/components/teams/MapView.tsx`
+- `src/components/teams/map/TeamAgentCard.tsx`
+
+### Riesgos o pendientes
+Si se implementan team codes en TreeView también, reutilizar `computeTeamCodes` — no duplicar la lógica.
+
+### Próximo paso recomendado
+Evaluar si TreeView debe mostrar los mismos códigos (OE separada).
