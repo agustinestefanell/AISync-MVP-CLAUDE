@@ -288,15 +288,17 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
             onConnect={() => setShowConnect(true)}
           />
         ) : (
-          <div className="h-full overflow-y-auto px-6 py-6">
-            <TreeView
-              teams={teams}
-              connectedTeamIds={connectedTeamIds}
-              externalConnections={externalConnections}
-              onEdit={t => setEditingTeam(t)}
-              onDelete={t => setEditingTeam(t)}
-            />
-          </div>
+          <TreeView
+            teams={teams}
+            connectedTeamIds={connectedTeamIds}
+            externalConnections={externalConnections}
+            onEdit={t => setEditingTeam(t)}
+            onDelete={t => setEditingTeam(t)}
+            onConnect={() => setShowConnect(true)}
+            zoomInSignal={zoomIn}
+            zoomOutSignal={zoomOut}
+            resetSignal={zoomReset}
+          />
         )}
       </div>
 

@@ -1,255 +1,324 @@
 'use client'
 
-import Link from 'next/link'
+import { useMemo }    from 'react'
+import CanvasViewport from './map/CanvasViewport'
+import { deriveAgentNodesFromTeams }    from '@/lib/db/agent-map'
+import { agentNodesToMapNodes }         from '@/lib/map/buildAgentLayout'
+import {
+  buildTreeLayout,
+  TREE_CANVAS_PADDING_X,
+  TREE_CANVAS_PADDING_Y,
+  type TreeLayoutPlacement,
+  type TreeLayoutConnector,
+} from '@/lib/map/buildTreeLayout'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
-import type { ExternalConnection } from './TeamsClient'
+import type { ExternalConnection }  from './TeamsClient'
+import type { MapAgentNode }        from '@/lib/map/buildAgentLayout'
 
-const ROLE_RIBBON: Record<string, string> = {
-  manager:    '#314155',
-  submanager: '#314155',
-  worker:     '#0f6b68',
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getFamilyColor(color: string, alpha: number): string {
+  const normalized = color.replace('#', '').trim()
+  if (![3, 6].includes(normalized.length)) return color
+  const expanded = normalized.length === 3
+    ? normalized.split('').map(c => `${c}${c}`).join('')
+    : normalized
+  const r = parseInt(expanded.slice(0, 2), 16)
+  const g = parseInt(expanded.slice(2, 4), 16)
+  const b = parseInt(expanded.slice(4, 6), 16)
+  return `rgba(${r},${g},${b},${alpha})`
 }
 
-interface TreeNode {
-  team: TeamWithWorkspaces
-  children: TreeNode[]
-}
-
-function buildTree(teams: TeamWithWorkspaces[]): TreeNode[] {
-  const idSet = new Set(teams.map(t => t.id))
-  const map: Record<string, TreeNode> = {}
-  for (const t of teams) map[t.id] = { team: t, children: [] }
-
-  const roots: TreeNode[] = []
-  for (const t of teams) {
-    if (t.parent_id && idSet.has(t.parent_id)) {
-      map[t.parent_id].children.push(map[t.id])
-    } else {
-      roots.push(map[t.id])
-    }
+function getSubtreeNodes(rootId: string, all: MapAgentNode[]): MapAgentNode[] {
+  const ids   = new Set<string>()
+  const queue = [rootId]
+  while (queue.length) {
+    const id = queue.shift()!
+    ids.add(id)
+    for (const n of all) if (n.parentId === id) queue.push(n.id)
   }
-  return roots
+  return all.filter(n => ids.has(n.id))
 }
 
-function TeamRow({
-  node, depth, connectedTeamIds, onEdit,
+// ─── Compact node card (port of demo TreeOverviewView inline renderer) ────────
+
+function TreeNode({
+  p,
+  onOpen,
+  onEdit,
+  onConnect,
 }: {
-  node: TreeNode
-  depth: number
-  connectedTeamIds: Set<string>
-  onEdit: (team: TeamWithWorkspaces) => void
+  p:         TreeLayoutPlacement
+  onOpen:    (wsId: string) => void
+  onEdit:    (teamId: string) => void
+  onConnect: () => void
 }) {
-  const { team } = node
-  const workspace = team.workspaces[0] ?? null
-  const connected = connectedTeamIds.has(team.id)
-  const ribbon    = ROLE_RIBBON[team.lead_role ?? 'worker'] ?? '#52647a'
+  const { node } = p
+
+  if (node.type === 'general_manager') {
+    return (
+      <div
+        className="relative flex h-full w-full flex-col items-center justify-center overflow-visible rounded-[16px] border px-2 py-2 text-center text-white"
+        style={{
+          borderColor: 'rgba(15,23,42,0.18)',
+          background:  'linear-gradient(180deg, #0f172a 0%, #172235 100%)',
+          boxShadow:   '0 10px 22px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.08)',
+        }}
+      >
+        <div className="text-[8px] uppercase tracking-[0.18em] text-white/55">Main</div>
+        <div className="mt-1 line-clamp-2 text-[11px] font-semibold leading-[1.2]">{node.teamName}</div>
+
+        {/* Connect Team anchor */}
+        <div
+          data-pan-block="true"
+          className="absolute"
+          style={{ left: 'calc(100% + 56px)', top: '50%', width: '116px', height: '96px', transform: 'translateY(-50%)' }}
+        >
+          <div
+            aria-hidden="true"
+            className="absolute"
+            style={{ left: '-56px', top: '50%', width: '56px', borderTop: '2px dashed rgba(100,116,139,0.52)', transform: 'translateY(-50%)' }}
+          />
+          <button
+            type="button"
+            data-pan-block="true"
+            className="flex h-full w-full flex-col items-center justify-center rounded-[16px] border-2 border-dashed px-2 py-2 text-center transition-colors hover:border-neutral-500 hover:bg-white/90"
+            style={{
+              borderColor: 'rgba(100,116,139,0.45)',
+              background:  'linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(241,245,249,0.96) 100%)',
+              boxShadow:   'inset 0 1px 0 rgba(255,255,255,0.75), 0 6px 14px rgba(15,23,42,0.05)',
+            }}
+            onPointerDown={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.preventDefault(); e.stopPropagation(); onConnect() }}
+          >
+            <div className="text-[18px] font-semibold leading-none text-neutral-700">+</div>
+            <div className="mt-1.5 line-clamp-2 text-[10px] font-semibold leading-[1.15] text-neutral-900">Connect Team</div>
+            <div className="mt-1 text-[7px] uppercase tracking-[0.16em] text-neutral-500">Link External</div>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const ribbon    = node.ribbon
+  const soft      = node.soft
+  const accent    = getFamilyColor(ribbon, 0.85)
+  const isSM      = node.type === 'senior_manager'
+  const roleLabel = isSM ? 'Team' : 'Worker'
+  const boxBorder = isSM ? getFamilyColor(ribbon, 0.35) : getFamilyColor(accent, 0.28)
+  const boxBg     = isSM
+    ? `linear-gradient(180deg, ${getFamilyColor(ribbon, 0.2)} 0%, ${getFamilyColor(ribbon, 0.2)} 34%, rgba(255,255,255,0.96) 34%, rgba(255,255,255,0.96) 100%)`
+    : `linear-gradient(180deg, ${getFamilyColor(ribbon, 0.18)} 0%, ${getFamilyColor(ribbon, 0.18)} 32%, rgba(255,255,255,0.97) 32%, rgba(255,255,255,0.97) 100%)`
 
   return (
-    <>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          padding: `6px 12px 6px ${12 + depth * 20}px`,
-          borderRadius: '6px',
-          borderLeft: depth > 0 ? '1px solid #e2e8f0' : 'none',
-          marginLeft: depth > 0 ? '12px' : 0,
-          cursor: 'default',
-        }}
-        className="hover:bg-[#f1f5f9] transition-colors"
-      >
-        {/* Role dot */}
-        <div style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          background: ribbon,
-          flexShrink: 0,
-        }} />
-
-        {/* Name */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{
-            fontSize: '13px',
-            fontWeight: 500,
-            color: '#1e293b',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}>
-            {team.name}
-          </span>
-          {connected && (
-            <span style={{
-              fontSize: '10px',
-              color: '#0f766e',
-              background: 'rgba(15,118,110,0.08)',
-              border: '1px solid rgba(15,118,110,0.20)',
-              borderRadius: '20px',
-              padding: '0 6px',
-              height: '18px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              fontWeight: 500,
-              flexShrink: 0,
-            }}>
-              ↔
-            </span>
-          )}
+    <div
+      className={`relative flex h-full w-full flex-col items-center justify-center overflow-hidden text-center ${isSM ? 'rounded-[18px]' : 'rounded-[16px]'}`}
+      style={{
+        border:     `1px solid ${boxBorder}`,
+        background: boxBg,
+        boxShadow:  isSM
+          ? `0 10px 22px rgba(15,23,42,0.08), inset 0 3px 0 ${accent}, inset 0 1px 0 rgba(255,255,255,0.75)`
+          : `0 8px 18px rgba(15,23,42,0.07), inset 0 3px 0 ${accent}, inset 0 1px 0 rgba(255,255,255,0.75)`,
+      }}
+    >
+      {node.teamType === 'SAT' && (
+        <div
+          className="absolute right-1.5 top-1.5 rounded-[7px] border px-1.5 py-0.5 text-[8px] font-semibold leading-none text-neutral-700"
+          style={{ borderColor: 'rgba(15,23,42,0.16)', background: 'rgba(255,255,255,0.96)', boxShadow: '0 2px 6px rgba(15,23,42,0.08)' }}
+        >
+          SAT
         </div>
-
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
-          {workspace && (
-            <Link
-              href={`/workspace/${workspace.id}`}
-              style={{
-                height: '26px',
-                padding: '0 10px',
-                fontSize: '11px',
-                fontWeight: 500,
-                color: '#fff',
-                background: '#1e293b',
-                borderRadius: '6px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                textDecoration: 'none',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#334155')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#1e293b')}
-            >
-              Open
-            </Link>
-          )}
+      )}
+      <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 px-2 py-2">
+        <div
+          className="rounded-full px-2 py-1 text-[8px] uppercase tracking-[0.14em]"
+          style={{ color: accent, background: getFamilyColor(soft, 0.92), border: `1px solid ${getFamilyColor(accent, 0.2)}` }}
+        >
+          {roleLabel}
+        </div>
+        <div className="line-clamp-3 text-[11px] font-semibold leading-[1.2] text-neutral-900">
+          {node.teamName}
+        </div>
+        <div className="flex items-center gap-1 pt-0.5">
           <button
-            onClick={() => onEdit(team)}
-            style={{
-              height: '26px',
-              padding: '0 10px',
-              fontSize: '11px',
-              fontWeight: 400,
-              color: '#475569',
-              background: '#fff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
-            onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+            type="button"
+            data-pan-block="true"
+            className="rounded-full border px-2 py-[3px] text-[9px] font-medium leading-none text-neutral-700 transition-colors hover:text-neutral-900"
+            style={{ borderColor: getFamilyColor(accent, 0.24), background: 'rgba(255,255,255,0.82)' }}
+            onPointerDown={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.preventDefault(); e.stopPropagation(); onOpen(node.workspaceId) }}
+          >
+            Open
+          </button>
+          <button
+            type="button"
+            data-pan-block="true"
+            className="rounded-full border px-2 py-[3px] text-[9px] font-medium leading-none text-neutral-600 transition-colors hover:text-neutral-800"
+            style={{ borderColor: getFamilyColor(accent, 0.18), background: getFamilyColor(soft, 0.44) }}
+            onPointerDown={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.preventDefault(); e.stopPropagation(); onEdit(node.teamId) }}
           >
             Edit
           </button>
         </div>
       </div>
-
-      {node.children.map(child => (
-        <TeamRow
-          key={child.team.id}
-          node={child}
-          depth={depth + 1}
-          connectedTeamIds={connectedTeamIds}
-          onEdit={onEdit}
-        />
-      ))}
-    </>
+    </div>
   )
 }
 
+// ─── Public: TreeView ─────────────────────────────────────────────────────────
+
 interface TreeViewProps {
-  teams: TeamWithWorkspaces[]
-  connectedTeamIds: Set<string>
+  teams:               TeamWithWorkspaces[]
+  connectedTeamIds:    Set<string>
   externalConnections: ExternalConnection[]
-  onEdit: (team: TeamWithWorkspaces) => void
-  onDelete: (team: TeamWithWorkspaces) => void
+  onEdit:              (team: TeamWithWorkspaces) => void
+  onDelete:            (team: TeamWithWorkspaces) => void
+  onConnect:           () => void
+  zoomInSignal?:       number
+  zoomOutSignal?:      number
+  resetSignal?:        number
 }
 
-export default function TreeView({ teams, connectedTeamIds, externalConnections, onEdit }: TreeViewProps) {
-  const roots = buildTree(teams)
+export default function TreeView({
+  teams,
+  connectedTeamIds,
+  onEdit,
+  onConnect,
+  zoomInSignal,
+  zoomOutSignal,
+  resetSignal,
+}: TreeViewProps) {
+  const agentNodes = useMemo(() => deriveAgentNodesFromTeams(teams), [teams])
+  const mapNodes   = useMemo(
+    () => agentNodesToMapNodes(agentNodes, connectedTeamIds),
+    [agentNodes, connectedTeamIds],
+  )
+  const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
 
-  if (roots.length === 0 && externalConnections.length === 0) {
+  const { allPlacements, allConnectors, totalWidth, totalHeight } = useMemo(() => {
+    if (!roots.length) {
+      return { allPlacements: [], allConnectors: [], totalWidth: 0, totalHeight: 0 }
+    }
+
+    type PlacementExt = TreeLayoutPlacement & { projectId: string }
+    type ConnectorExt = TreeLayoutConnector & { projectId: string }
+
+    const placements: PlacementExt[] = []
+    const connectors: ConnectorExt[] = []
+    let   xOffset   = 0
+    let   maxHeight = 0
+
+    for (const root of roots) {
+      const subtree = getSubtreeNodes(root.id, mapNodes)
+      const layout  = buildTreeLayout(root, subtree, 'tree')
+
+      for (const p of layout.placements) {
+        placements.push({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset, projectId: root.projectId })
+      }
+      for (const c of layout.connectors) {
+        connectors.push({ ...c, fromX: c.fromX + xOffset, toX: c.toX + xOffset, projectId: root.projectId })
+      }
+
+      xOffset   += layout.width + 20
+      maxHeight  = Math.max(maxHeight, layout.height)
+    }
+
+    return {
+      allPlacements: placements,
+      allConnectors: connectors,
+      totalWidth:    xOffset - 20 + 2 * TREE_CANVAS_PADDING_X,
+      totalHeight:   maxHeight + 2 * TREE_CANVAS_PADDING_Y,
+    }
+  }, [roots, mapNodes])
+
+  const handleEdit = (teamId: string) => {
+    const team = teams.find(t => t.id === teamId)
+    if (team) onEdit(team)
+  }
+
+  if (!roots.length) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '256px', textAlign: 'center' }}>
-        <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>No teams in this project.</p>
-        <p style={{ fontSize: '12px', color: '#cbd5e1', marginTop: '4px' }}>Use &quot;+ Add Team&quot; to create the first one.</p>
+      <div className="flex flex-col items-center justify-center h-full text-center">
+        <p className="text-sm" style={{ color: '#64748b' }}>No agents in this project yet.</p>
+        <p className="text-xs mt-1" style={{ color: '#94a3b8' }}>
+          Add teams with workspaces and agents to see the tree.
+        </p>
       </div>
     )
   }
 
   return (
-    <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        {roots.map(node => (
-          <TeamRow
-            key={node.team.id}
-            node={node}
-            depth={0}
-            connectedTeamIds={connectedTeamIds}
-            onEdit={onEdit}
-          />
-        ))}
-      </div>
-
-      {externalConnections.length > 0 && (
-        <div style={{
-          marginTop: roots.length > 0 ? '20px' : 0,
-          paddingTop: roots.length > 0 ? '16px' : 0,
-          borderTop: roots.length > 0 ? '1px solid #e2e8f0' : 'none',
-        }}>
-          <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', marginBottom: '8px', padding: '0 12px' }}>
-            External connections ({externalConnections.length})
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {externalConnections.map(ec => {
-              const myTeam = teams.find(t => t.id === ec.myTeamId)
+    <div className="w-full h-full">
+      <CanvasViewport
+        initialZoom={1}
+        minZoom={0.05}
+        maxZoom={1.18}
+        fitFloor={0.5}
+        alignTopOnFit
+        contentWidthClass="inline-flex w-max flex-col items-center"
+        zoomInSignal={zoomInSignal}
+        zoomOutSignal={zoomOutSignal}
+        resetSignal={resetSignal}
+      >
+        <div
+          className="relative"
+          style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }}
+        >
+          {/* L-shaped connectors */}
+          <svg
+            className="pointer-events-none absolute inset-0 overflow-visible"
+            width={totalWidth}
+            height={totalHeight}
+            viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+            aria-hidden="true"
+          >
+            {allConnectors.map((c, i) => {
+              const fx   = c.fromX + TREE_CANVAS_PADDING_X
+              const fy   = c.fromY + TREE_CANVAS_PADDING_Y
+              const tx   = c.toX   + TREE_CANVAS_PADDING_X
+              const ty   = c.toY   + TREE_CANVAS_PADDING_Y
+              const midY = fy + (ty - fy) / 2
+              const d    = `M ${fx} ${fy} V ${midY} H ${tx} V ${ty}`
               return (
-                <div
-                  key={ec.connectionId}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    background: '#f0fdf9',
-                    border: '1px solid #99f6e4',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                  }}
-                >
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0f766e', flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 500, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {ec.externalTeamName}
-                      </span>
-                      <span style={{
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        color: '#0f766e',
-                        background: 'rgba(15,118,110,0.10)',
-                        border: '1px solid rgba(15,118,110,0.25)',
-                        borderRadius: '20px',
-                        padding: '0 6px',
-                        height: '18px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        flexShrink: 0,
-                      }}>
-                        ↔ EXT
-                      </span>
-                    </div>
-                    <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {ec.externalEmail}
-                      {myTeam && <span style={{ color: '#94a3b8' }}> · via {myTeam.name}</span>}
-                    </p>
-                  </div>
-                </div>
+                <path
+                  key={i}
+                  d={d}
+                  fill="none"
+                  stroke="rgba(71,85,105,0.56)"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.45}
+                />
               )
             })}
-          </div>
+          </svg>
+
+          {/* Compact nodes */}
+          {allPlacements.map(p => (
+            <div
+              key={p.node.id}
+              className="absolute"
+              style={{
+                left:   `${p.x    + TREE_CANVAS_PADDING_X}px`,
+                top:    `${p.topY + TREE_CANVAS_PADDING_Y}px`,
+                width:  `${p.width}px`,
+                height: `${p.height}px`,
+              }}
+            >
+              <TreeNode
+                p={p}
+                onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
+                onEdit={handleEdit}
+                onConnect={onConnect}
+              />
+            </div>
+          ))}
         </div>
-      )}
+      </CanvasViewport>
     </div>
   )
 }

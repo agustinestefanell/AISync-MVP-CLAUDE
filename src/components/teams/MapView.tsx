@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo }     from 'react'
-import { useRouter }   from 'next/navigation'
 import CanvasViewport  from './map/CanvasViewport'
 import TeamAgentCard   from './map/TeamAgentCard'
 import { deriveAgentNodesFromTeams }        from '@/lib/db/agent-map'
@@ -90,8 +89,6 @@ export default function MapView({
   zoomOutSignal,
   resetSignal,
 }: MapViewProps) {
-  const router = useRouter()
-
   const agentNodes = useMemo(() => deriveAgentNodesFromTeams(teams), [teams])
   const mapNodes   = useMemo(
     () => agentNodesToMapNodes(agentNodes, connectedTeamIds),
@@ -99,10 +96,6 @@ export default function MapView({
   )
 
   const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
-
-  // [DIAG] PASO 1
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  if (typeof window !== 'undefined') console.log('[MAP ROOTS]', roots.map(r => r.teamName || r.id))
 
   // Build layout for all root trees, accumulate into flat lists with X offset
   const { allPlacements, allConnectors, totalWidth, totalHeight } = useMemo(() => {
@@ -122,9 +115,6 @@ export default function MapView({
       const subtree = getSubtreeNodes(root.id, mapNodes)
       const layout  = buildTreeLayout(root, subtree)
 
-      // [DIAG] PASO 2
-      console.log('[MAP WIDTHS]', { name: root.teamName, subtreeWidth: layout.width, GAP: GAP_BETWEEN_ROOT_TREES, xOffsetBefore: xOffset })
-
       for (const p of layout.placements) {
         placements.push({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset, projectId: root.projectId })
       }
@@ -135,15 +125,6 @@ export default function MapView({
       xOffset   += layout.width + GAP_BETWEEN_ROOT_TREES
       maxHeight  = Math.max(maxHeight, layout.height)
     }
-
-    // [DIAG] PASO 3
-    console.log('[MAP POSITIONS]', placements.slice(0, 8).map(p => ({
-      name: p.node.teamName,
-      type: p.node.type,
-      x: p.x,
-      centerX: p.centerX,
-      subtreeWidth: p.subtreeWidth,
-    })))
 
     return {
       allPlacements: placements,
@@ -204,7 +185,7 @@ export default function MapView({
                   stroke="rgba(51,65,85,0.62)"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={1.8}
+                  strokeWidth={2.5}
                   opacity={c.projectId === activeProjectId ? 1 : 0.4}
                 />
               )
@@ -226,7 +207,7 @@ export default function MapView({
             >
               <TeamAgentCard
                 node={p.node}
-                onOpen={wsId => router.push(`/workspace/${wsId}`)}
+                onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={onEdit}
               />
               {p.node.type === 'general_manager' && p.projectId === activeProjectId && (
