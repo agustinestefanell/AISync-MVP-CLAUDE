@@ -1,21 +1,7 @@
 'use client'
 
 import type { MapAgentNode } from '@/lib/map/buildAgentLayout'
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getFamilyColor(color: string, alpha: number): string {
-  const normalized = color.replace('#', '').trim()
-  if (![3, 6].includes(normalized.length)) return color
-  const expanded =
-    normalized.length === 3
-      ? normalized.split('').map(c => `${c}${c}`).join('')
-      : normalized
-  const r = parseInt(expanded.slice(0, 2), 16)
-  const g = parseInt(expanded.slice(2, 4), 16)
-  const b = parseInt(expanded.slice(4, 6), 16)
-  return `rgba(${r},${g},${b},${alpha})`
-}
+import { getProjectColorTokens, type ProjectNodeType, type ProjectColorTokens } from '@/lib/teams/getProjectColor'
 
 // ─── TreeWorkspaceCard (direct port of demo's TreeWorkspaceCard) ──────────────
 
@@ -171,11 +157,13 @@ function TreeWorkspaceCard({
 function GMCard({
   node,
   teamCode,
+  tokens,
   onOpen,
   onEdit,
 }: {
   node:      MapAgentNode
   teamCode?: string
+  tokens:    ProjectColorTokens
   onOpen:    () => void
   onEdit:    () => void
 }) {
@@ -183,17 +171,23 @@ function GMCard({
     <div
       className="h-full w-full flex flex-col overflow-hidden rounded-[22px]"
       style={{
-        border:     '1.5px solid rgba(15,23,42,0.22)',
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(244,247,250,0.98) 100%)',
+        border:     `1.5px solid ${tokens.border}`,
+        background: `linear-gradient(180deg, ${tokens.bg} 0%, rgba(244,247,250,0.98) 100%)`,
         boxShadow:  '0 18px 38px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.80)',
       }}
     >
       {/* Header — label + name */}
       <div
         className="shrink-0 px-5 pt-2 pb-1.5"
-        style={{ borderBottom: '1px solid rgba(15,23,42,0.08)' }}
+        style={{
+          borderBottom: `1px solid ${tokens.border}`,
+          background:   tokens.header,
+        }}
       >
-        <div className="text-[9px] font-semibold uppercase tracking-[0.20em] leading-[1.1] text-neutral-500">
+        <div
+          className="text-[9px] font-semibold uppercase tracking-[0.20em] leading-[1.1]"
+          style={{ color: tokens.badge }}
+        >
           General Manager
         </div>
         <div className="mt-0.5 text-[14px] font-bold leading-tight text-neutral-950 line-clamp-1">
@@ -225,7 +219,7 @@ function GMCard({
         <div
           className="flex-1 min-h-0 rounded-[10px] px-3 py-1.5 text-[10px] leading-[1.45] text-neutral-700 overflow-hidden"
           style={{
-            border:     '1px solid rgba(15,23,42,0.08)',
+            border:     `1px solid ${tokens.border}`,
             background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
           }}
         >
@@ -237,7 +231,7 @@ function GMCard({
       <div
         className="shrink-0 flex items-center justify-center gap-2 px-5 py-1.5"
         style={{
-          borderTop:  '1px solid rgba(15,23,42,0.08)',
+          borderTop:  `1px solid ${tokens.border}`,
           background: 'linear-gradient(180deg, rgba(247,249,252,0.8) 0%, rgba(239,244,248,0.88) 100%)',
         }}
       >
@@ -269,21 +263,27 @@ function GMCard({
 // ─── Public: TeamAgentCard — dispatches to GM or TreeWorkspaceCard ────────────
 
 interface Props {
-  node:      MapAgentNode
-  teamCode?: string
-  onOpen:    (workspaceId: string) => void
-  onEdit:    (teamId: string) => void
+  node:          MapAgentNode
+  teamCode?:     string
+  projectIndex?: number
+  nodeType?:     ProjectNodeType
+  onOpen:        (workspaceId: string) => void
+  onEdit:        (teamId: string) => void
 }
 
-export default function TeamAgentCard({ node, teamCode, onOpen, onEdit }: Props) {
-  const borderColor = getFamilyColor(node.ribbon, 0.35)
-  const accentColor = getFamilyColor(node.ribbon, 0.85)
+export default function TeamAgentCard({ node, teamCode, projectIndex = 0, nodeType, onOpen, onEdit }: Props) {
+  const nt: ProjectNodeType = nodeType ?? (
+    node.type === 'general_manager' ? 'gm' :
+    node.type === 'worker'          ? 'worker' : 'team'
+  )
+  const tokens = getProjectColorTokens(projectIndex, nt)
 
   if (node.type === 'general_manager') {
     return (
       <GMCard
         node={node}
         teamCode={teamCode}
+        tokens={tokens}
         onOpen={() => onOpen(node.workspaceId)}
         onEdit={() => onEdit(node.teamId)}
       />
@@ -304,10 +304,10 @@ export default function TeamAgentCard({ node, teamCode, onOpen, onEdit }: Props)
       subtitle={subtitle}
       functionLabel={functionLabel}
       brief={brief}
-      ribbonColor={node.ribbon}
-      softColor={node.soft}
-      borderColor={borderColor}
-      accentColor={accentColor}
+      ribbonColor={tokens.header}
+      softColor={tokens.bg}
+      borderColor={tokens.border}
+      accentColor={tokens.accent}
       tags={tags}
       compact={isWorker}
       outlineOnly={false}

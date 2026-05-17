@@ -16,6 +16,7 @@ import {
 import type { TeamWithWorkspaces }  from '@/lib/db/types'
 import type { ExternalConnection }  from './TeamsClient'
 import type { MapAgentNode }        from '@/lib/map/buildAgentLayout'
+import type { ProjectNodeType }     from '@/lib/teams/getProjectColor'
 
 interface MapViewProps {
   teams:               TeamWithWorkspaces[]
@@ -88,6 +89,23 @@ export default function MapView({
   )
 
   const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
+
+  const projectIndexByProjectId = useMemo(() => {
+    const map = new Map<string, number>()
+    roots.forEach((r, i) => map.set(r.projectId, i))
+    return map
+  }, [roots])
+
+  const nodeTypeMap = useMemo((): Map<string, ProjectNodeType> => {
+    const map   = new Map<string, ProjectNodeType>()
+    const gmIds = new Set(mapNodes.filter(n => n.type === 'general_manager').map(n => n.id))
+    for (const n of mapNodes) {
+      if (n.type === 'general_manager')  map.set(n.id, 'gm')
+      else if (n.type === 'worker')      map.set(n.id, 'worker')
+      else map.set(n.id, gmIds.has(n.parentId ?? '') ? 'team' : 'subteam')
+    }
+    return map
+  }, [mapNodes])
 
   // Build layout for all root trees, accumulate into flat lists with X offset
   const { allPlacements, allConnectors, totalWidth, totalHeight, connectTeamLeft } = useMemo(() => {
@@ -202,6 +220,8 @@ export default function MapView({
               <TeamAgentCard
                 node={p.node}
                 teamCode={teamCodes?.[p.node.teamId]}
+                projectIndex={projectIndexByProjectId.get(p.node.projectId) ?? 0}
+                nodeType={nodeTypeMap.get(p.node.id)}
                 onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={onEdit}
               />
