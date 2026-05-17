@@ -13,22 +13,22 @@ import {
   type TreeLayoutPlacement,
   type TreeLayoutConnector,
 } from '@/lib/map/buildTreeLayout'
-import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 import type { TeamWithWorkspaces }  from '@/lib/db/types'
 import type { ExternalConnection }  from './TeamsClient'
 import type { MapAgentNode }        from '@/lib/map/buildAgentLayout'
 
 interface MapViewProps {
-  teams:              TeamWithWorkspaces[]
-  projectId:          string
-  activeProjectId:    string
-  connectedTeamIds:   Set<string>
+  teams:               TeamWithWorkspaces[]
+  projectId:           string
+  activeProjectId:     string
+  connectedTeamIds:    Set<string>
   externalConnections: ExternalConnection[]
-  onEdit:             (teamId: string) => void
-  onConnect:          () => void
-  zoomInSignal?:      number
-  zoomOutSignal?:     number
-  resetSignal?:       number
+  teamCodes?:          Record<string, string>
+  onEdit:              (teamId: string) => void
+  onConnect:           () => void
+  zoomInSignal?:       number
+  zoomOutSignal?:      number
+  resetSignal?:        number
 }
 
 const CONNECT_TEAM_GAP    = 84
@@ -74,6 +74,7 @@ export default function MapView({
   teams,
   activeProjectId,
   connectedTeamIds,
+  teamCodes,
   onEdit,
   onConnect,
   zoomInSignal,
@@ -86,8 +87,7 @@ export default function MapView({
     [agentNodes, connectedTeamIds],
   )
 
-  const roots     = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
-  const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])
+  const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
 
   // Build layout for all root trees, accumulate into flat lists with X offset
   const { allPlacements, allConnectors, totalWidth, totalHeight, connectTeamLeft } = useMemo(() => {
@@ -201,7 +201,7 @@ export default function MapView({
             >
               <TeamAgentCard
                 node={p.node}
-                teamCode={teamCodes[p.node.teamId]}
+                teamCode={teamCodes?.[p.node.teamId]}
                 onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={onEdit}
               />

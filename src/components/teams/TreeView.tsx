@@ -72,12 +72,16 @@ function TreeNode({
   p,
   onOpen,
   onEdit,
+  teamCodes,
 }: {
-  p:      TreeLayoutPlacement
-  onOpen: (wsId: string) => void
-  onEdit: (teamId: string) => void
+  p:         TreeLayoutPlacement
+  onOpen:    (wsId: string) => void
+  onEdit:    (teamId: string) => void
+  teamCodes?: Record<string, string>
 }) {
   const { node } = p
+  const teamCode    = teamCodes?.[node.teamId]
+  const displayName = teamCode ? `${teamCode} · ${node.teamName}` : node.teamName
 
   if (node.type === 'general_manager') {
     return (
@@ -90,7 +94,7 @@ function TreeNode({
         }}
       >
         <div className="text-[8px] uppercase tracking-[0.18em] text-white/55">Main</div>
-        <div className="mt-1 line-clamp-2 text-[11px] font-semibold leading-[1.2]">{node.teamName}</div>
+        <div className="mt-1 line-clamp-2 text-[11px] font-semibold leading-[1.2]">{displayName}</div>
       </div>
     )
   }
@@ -132,7 +136,7 @@ function TreeNode({
           {roleLabel}
         </div>
         <div className="line-clamp-3 text-[11px] font-semibold leading-[1.2] text-neutral-900">
-          {node.teamName}
+          {displayName}
         </div>
         <div className="flex items-center gap-1 pt-0.5">
           <button
@@ -169,6 +173,7 @@ interface TreeViewProps {
   teams:               TeamWithWorkspaces[]
   connectedTeamIds:    Set<string>
   externalConnections: ExternalConnection[]
+  teamCodes?:          Record<string, string>
   onEdit:              (team: TeamWithWorkspaces) => void
   onDelete:            (team: TeamWithWorkspaces) => void
   onConnect:           () => void
@@ -180,6 +185,7 @@ interface TreeViewProps {
 export default function TreeView({
   teams,
   connectedTeamIds,
+  teamCodes,
   onEdit,
   onConnect,
   zoomInSignal,
@@ -309,6 +315,7 @@ export default function TreeView({
                 p={p}
                 onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={handleEdit}
+                teamCodes={teamCodes}
               />
             </div>
           ))}

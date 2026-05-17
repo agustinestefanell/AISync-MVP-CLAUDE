@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
+import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 import TreeView from './TreeView'
 import AddTeamModal from './AddTeamModal'
 import EditTeamModal from './EditTeamModal'
@@ -96,6 +97,8 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
       c.id === id ? { ...c, status: 'rejected' } : c
     ))
   }
+
+  const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])
 
   // My local teams that have at least one active connection
   const connectedTeamIds = new Set(
@@ -278,6 +281,7 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
             activeProjectId={projectId}
             connectedTeamIds={connectedTeamIds}
             externalConnections={externalConnections}
+            teamCodes={teamCodes}
             zoomInSignal={zoomIn}
             zoomOutSignal={zoomOut}
             resetSignal={zoomReset}
@@ -292,6 +296,7 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
             teams={teams}
             connectedTeamIds={connectedTeamIds}
             externalConnections={externalConnections}
+            teamCodes={teamCodes}
             onEdit={t => setEditingTeam(t)}
             onDelete={t => setEditingTeam(t)}
             onConnect={() => setShowConnect(true)}
