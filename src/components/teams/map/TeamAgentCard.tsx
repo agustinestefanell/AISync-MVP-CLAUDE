@@ -193,18 +193,11 @@ function GMCard({
         className="shrink-0 px-5 pt-2 pb-1.5"
         style={{ borderBottom: '1px solid rgba(15,23,42,0.08)' }}
       >
-        <div className="flex items-center gap-2">
-          <div className="text-[9px] font-semibold uppercase tracking-[0.20em] leading-[1.1] text-neutral-500">
-            General Manager
-          </div>
-          {teamCode && (
-            <div className="rounded-[5px] border border-neutral-200 bg-neutral-100 px-1.5 py-0.5 text-[9px] font-bold leading-none tracking-wide text-neutral-500">
-              {teamCode}
-            </div>
-          )}
+        <div className="text-[9px] font-semibold uppercase tracking-[0.20em] leading-[1.1] text-neutral-500">
+          General Manager
         </div>
         <div className="mt-0.5 text-[14px] font-bold leading-tight text-neutral-950 line-clamp-1">
-          {node.teamName}
+          {teamCode ? `${teamCode} · ${node.teamName}` : node.teamName}
         </div>
       </div>
 
