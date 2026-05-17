@@ -188,40 +188,40 @@ function GMCard({
     >
       {/* Header — label + name */}
       <div
-        className="shrink-0 px-5 pt-2.5 pb-2"
+        className="shrink-0 px-5 pt-2 pb-1.5"
         style={{ borderBottom: '1px solid rgba(15,23,42,0.08)' }}
       >
-        <div className="text-[9px] font-semibold uppercase tracking-[0.20em] text-neutral-500">
+        <div className="text-[9px] font-semibold uppercase tracking-[0.20em] leading-[1.1] text-neutral-500">
           General Manager
         </div>
-        <div className="mt-0.5 text-[15px] font-bold leading-tight text-neutral-950 line-clamp-1">
+        <div className="mt-0.5 text-[14px] font-bold leading-tight text-neutral-950 line-clamp-1">
           {node.teamName}
         </div>
       </div>
 
       {/* Body — info columns + description */}
-      <div className="flex flex-1 min-h-0 flex-col gap-2 px-5 py-2">
+      <div className="flex flex-1 min-h-0 flex-col gap-1 px-5 py-1">
 
         {/* Two columns: Provider | Team Type */}
         <div className="flex shrink-0 gap-8">
           <div>
-            <div className="text-[8.5px] uppercase tracking-[0.16em] text-neutral-500">Provider</div>
-            <div className="mt-0.5 text-[12px] font-semibold leading-tight text-neutral-900">{node.provider}</div>
-            <div className="text-[10px] leading-tight text-neutral-500">{node.model}</div>
+            <div className="text-[8.5px] uppercase tracking-[0.16em] leading-[1.1] text-neutral-500">Provider</div>
+            <div className="mt-0.5 text-[12px] font-semibold leading-[1.1] text-neutral-900">{node.provider}</div>
+            <div className="text-[10px] leading-[1.1] text-neutral-500">{node.model}</div>
           </div>
           <div>
-            <div className="text-[8.5px] uppercase tracking-[0.16em] text-neutral-500">Team Type</div>
-            <div className="mt-0.5 text-[12px] font-semibold leading-tight text-neutral-900">{node.teamType}</div>
+            <div className="text-[8.5px] uppercase tracking-[0.16em] leading-[1.1] text-neutral-500">Team Type</div>
+            <div className="mt-0.5 text-[12px] font-semibold leading-[1.1] text-neutral-900">{node.teamType}</div>
             {node.connected
-              ? <div className="text-[10px] leading-tight text-emerald-600">Connected</div>
-              : <div className="text-[10px] leading-tight text-neutral-400">—</div>
+              ? <div className="text-[10px] leading-[1.1] text-emerald-600">Connected</div>
+              : <div className="text-[10px] leading-[1.1] text-neutral-400">—</div>
             }
           </div>
         </div>
 
         {/* Description — full width, fills remaining space */}
         <div
-          className="flex-1 min-h-0 rounded-[10px] px-3 py-2 text-[10px] leading-[1.45] text-neutral-700 overflow-hidden"
+          className="flex-1 min-h-0 rounded-[10px] px-3 py-1.5 text-[10px] leading-[1.45] text-neutral-700 overflow-hidden"
           style={{
             border:     '1px solid rgba(15,23,42,0.08)',
             background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
@@ -233,7 +233,7 @@ function GMCard({
 
       {/* Footer — buttons */}
       <div
-        className="shrink-0 flex items-center justify-center gap-2 px-5 py-2"
+        className="shrink-0 flex items-center justify-center gap-2 px-5 py-1.5"
         style={{
           borderTop:  '1px solid rgba(15,23,42,0.08)',
           background: 'linear-gradient(180deg, rgba(247,249,252,0.8) 0%, rgba(239,244,248,0.88) 100%)',
@@ -242,7 +242,7 @@ function GMCard({
         <button
           type="button"
           data-pan-block="true"
-          className="rounded-[10px] bg-[#1e293b] px-6 py-2 text-[11px] font-medium text-white hover:bg-[#334155]"
+          className="rounded-[10px] bg-[#1e293b] px-6 py-1.5 text-[11px] font-medium text-white hover:bg-[#334155]"
           onPointerDown={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
           onClick={e => { e.preventDefault(); e.stopPropagation(); onOpen() }}
@@ -252,7 +252,7 @@ function GMCard({
         <button
           type="button"
           data-pan-block="true"
-          className="rounded-[10px] border border-neutral-200 bg-white px-5 py-2 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50"
+          className="rounded-[10px] border border-neutral-200 bg-white px-5 py-1.5 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50"
           onPointerDown={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
           onClick={e => { e.preventDefault(); e.stopPropagation(); onEdit() }}
