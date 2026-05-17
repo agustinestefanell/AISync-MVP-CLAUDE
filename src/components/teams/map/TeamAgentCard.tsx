@@ -198,7 +198,7 @@ function GMCard({
             General Manager
           </div>
           {teamCode && (
-            <div className="rounded-[5px] border border-neutral-200 bg-neutral-100 px-1.5 py-0.5 text-[8px] font-semibold leading-none text-neutral-500">
+            <div className="rounded-[5px] border border-neutral-200 bg-neutral-100 px-1.5 py-0.5 text-[9px] font-bold leading-none tracking-wide text-neutral-500">
               {teamCode}
             </div>
           )}
