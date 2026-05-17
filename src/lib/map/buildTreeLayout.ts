@@ -42,9 +42,9 @@ const MAP_WORKER_WIDTH       = 265
 const MAP_WORKER_HEIGHT      = 262
 const MAP_LEVEL_GAP          = 140
 const MAP_ROOT_LEVEL_GAP     = Math.round(MAP_LEVEL_GAP * 1.5) // 210 — extra air between GM and its children
-const MAP_SIBLING_GAP        = 20
-const MAP_WORKER_GAP         = 35
-const MAP_FAMILY_BREAK_GAP   = 40
+const MAP_SIBLING_GAP        = 77
+const MAP_WORKER_GAP         = 77
+const MAP_FAMILY_BREAK_GAP   = 148
 
 export const MAP_CANVAS_PADDING_X   = 128
 export const MAP_CANVAS_PADDING_Y   = 40
