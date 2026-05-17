@@ -170,12 +170,14 @@ function TreeWorkspaceCard({
 
 function GMCard({
   node,
+  teamCode,
   onOpen,
   onEdit,
 }: {
-  node: MapAgentNode
-  onOpen: () => void
-  onEdit: () => void
+  node:      MapAgentNode
+  teamCode?: string
+  onOpen:    () => void
+  onEdit:    () => void
 }) {
   return (
     <div
@@ -191,8 +193,15 @@ function GMCard({
         className="shrink-0 px-5 pt-2 pb-1.5"
         style={{ borderBottom: '1px solid rgba(15,23,42,0.08)' }}
       >
-        <div className="text-[9px] font-semibold uppercase tracking-[0.20em] leading-[1.1] text-neutral-500">
-          General Manager
+        <div className="flex items-center gap-2">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.20em] leading-[1.1] text-neutral-500">
+            General Manager
+          </div>
+          {teamCode && (
+            <div className="rounded-[5px] border border-neutral-200 bg-neutral-100 px-1.5 py-0.5 text-[8px] font-semibold leading-none text-neutral-500">
+              {teamCode}
+            </div>
+          )}
         </div>
         <div className="mt-0.5 text-[14px] font-bold leading-tight text-neutral-950 line-clamp-1">
           {node.teamName}
@@ -267,12 +276,13 @@ function GMCard({
 // ─── Public: TeamAgentCard — dispatches to GM or TreeWorkspaceCard ────────────
 
 interface Props {
-  node:   MapAgentNode
-  onOpen: (workspaceId: string) => void
-  onEdit: (teamId: string) => void
+  node:      MapAgentNode
+  teamCode?: string
+  onOpen:    (workspaceId: string) => void
+  onEdit:    (teamId: string) => void
 }
 
-export default function TeamAgentCard({ node, onOpen, onEdit }: Props) {
+export default function TeamAgentCard({ node, teamCode, onOpen, onEdit }: Props) {
   const borderColor = getFamilyColor(node.ribbon, 0.35)
   const accentColor = getFamilyColor(node.ribbon, 0.85)
 
@@ -280,6 +290,7 @@ export default function TeamAgentCard({ node, onOpen, onEdit }: Props) {
     return (
       <GMCard
         node={node}
+        teamCode={teamCode}
         onOpen={() => onOpen(node.workspaceId)}
         onEdit={() => onEdit(node.teamId)}
       />
@@ -296,7 +307,7 @@ export default function TeamAgentCard({ node, onOpen, onEdit }: Props) {
 
   return (
     <TreeWorkspaceCard
-      title={node.teamName}
+      title={teamCode ? `${teamCode} · ${node.teamName}` : node.teamName}
       subtitle={subtitle}
       functionLabel={functionLabel}
       brief={brief}

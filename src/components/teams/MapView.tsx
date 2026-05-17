@@ -13,6 +13,7 @@ import {
   type TreeLayoutPlacement,
   type TreeLayoutConnector,
 } from '@/lib/map/buildTreeLayout'
+import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 import type { TeamWithWorkspaces }  from '@/lib/db/types'
 import type { ExternalConnection }  from './TeamsClient'
 import type { MapAgentNode }        from '@/lib/map/buildAgentLayout'
@@ -85,7 +86,8 @@ export default function MapView({
     [agentNodes, connectedTeamIds],
   )
 
-  const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
+  const roots     = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
+  const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])
 
   // Build layout for all root trees, accumulate into flat lists with X offset
   const { allPlacements, allConnectors, totalWidth, totalHeight, connectTeamLeft } = useMemo(() => {
@@ -199,6 +201,7 @@ export default function MapView({
             >
               <TeamAgentCard
                 node={p.node}
+                teamCode={teamCodes[p.node.teamId]}
                 onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={onEdit}
               />
