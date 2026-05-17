@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import type { DocCheckpoint, DocAuditEvent, DocHandoffPackage } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
+import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 import RepositoryView from './RepositoryView'
 import StructureView from './StructureView'
 import AuditView from './AuditView'
@@ -150,6 +151,11 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
     })),
   [filteredCheckpoints])
 
+  const teamCodes = useMemo(
+    () => computeTeamCodes(projects.flatMap(p => p.teams)),
+    [projects],
+  )
+
   const helpContent = helpTab ? TABS.find(t => t.id === helpTab) : null
 
   return (
@@ -191,10 +197,10 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
 
         {/* View */}
         <div className="flex-1 min-h-0 overflow-hidden">
-          {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} />}
-          {tab === 'structure'   && <StructureView   checkpoints={checkpoints} projects={projects} userName={userName} userEmail={userEmail} />}
+          {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} teamCodes={teamCodes} />}
+          {tab === 'structure'   && <StructureView   checkpoints={checkpoints} projects={projects} userName={userName} userEmail={userEmail} teamCodes={teamCodes} />}
           {tab === 'audit'       && <AuditView        checkpoints={checkpoints} auditEvents={auditEvents} />}
-          {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} projects={projects} userEmail={userEmail} />}
+          {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
           {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
         </div>
       </div>

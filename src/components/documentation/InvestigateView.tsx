@@ -19,6 +19,11 @@ function formatDate(iso: string) {
   })
 }
 
+function teamLabel(id: string, name: string, codes?: Record<string, string>): string {
+  const code = codes?.[id]
+  return code ? `${code} · ${name}` : name
+}
+
 function dateLabel(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 }
@@ -34,11 +39,12 @@ function StatCard({ label, value }: { label: string; value: number }) {
 
 interface Props {
   checkpoints: DocCheckpoint[]
-  projects: ProjectWithTeams[]
-  userEmail: string
+  projects:    ProjectWithTeams[]
+  userEmail:   string
+  teamCodes?:  Record<string, string>
 }
 
-export default function InvestigateView({ checkpoints, userEmail }: Props) {
+export default function InvestigateView({ checkpoints, userEmail, teamCodes }: Props) {
   const router = useRouter()
   const [search,         setSearch]         = useState('')
   const [filterProject,  setFilterProject]  = useState('')
@@ -116,7 +122,7 @@ export default function InvestigateView({ checkpoints, userEmail }: Props) {
           <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)}
             className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
             <option value="">All teams</option>
-            {uniqueTeams.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            {uniqueTeams.map(([id, name]) => <option key={id} value={id}>{teamLabel(id, name, teamCodes)}</option>)}
           </select>
           <select value={filterType} onChange={e => setFilterType(e.target.value)}
             className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
@@ -168,7 +174,7 @@ export default function InvestigateView({ checkpoints, userEmail }: Props) {
                         <InvMeta label="Document Type"    value={c.purpose} />
                         <InvMeta label="Latest Reference" value={formatDate(c.created_at)} suppress />
                         <InvMeta label="Investigation Lens" value={c.project_name} />
-                        <InvMeta label="Related Actors"   value={`${c.team_name} · ${c.workspace_name}`} />
+                        <InvMeta label="Related Actors"   value={`${teamLabel(c.team_id, c.team_name, teamCodes)} · ${c.workspace_name}`} />
                       </div>
                     </div>
                     <div className="flex flex-col gap-2 shrink-0">

@@ -47,6 +47,11 @@ function formatDate(iso: string) {
   })
 }
 
+function teamLabel(id: string, name: string, codes?: Record<string, string>): string {
+  const code = codes?.[id]
+  return code ? `${code} · ${name}` : name
+}
+
 // ── Detail panels ─────────────────────────────────────────────────────────
 function Row({ label, children, suppressWarn }: { label: string; children: React.ReactNode; suppressWarn?: boolean }) {
   return (
@@ -66,13 +71,13 @@ function MetaRow({ label, value, mono }: { label: string; value: string; mono?: 
   )
 }
 
-function CheckpointDetailPanel({ cp, userName, onClose }: { cp: DocCheckpoint; userName: string; onClose: () => void }) {
+function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCheckpoint; userName: string; onClose: () => void; teamCodes?: Record<string, string> }) {
   return (
     <div className="h-full flex flex-col border-l border-gray-800 bg-gray-950">
       <div className="shrink-0 px-6 py-4 border-b border-gray-800 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="text-sm font-bold text-white leading-tight">{cp.name}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{cp.workspace_name} · {cp.team_name}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{cp.workspace_name} · {teamLabel(cp.team_id, cp.team_name, teamCodes)}</p>
         </div>
         <button onClick={onClose} className="text-gray-600 hover:text-gray-300 text-sm shrink-0">✕</button>
       </div>
@@ -104,7 +109,7 @@ function CheckpointDetailPanel({ cp, userName, onClose }: { cp: DocCheckpoint; u
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Secondary Metadata</p>
           <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 space-y-2.5">
-            <MetaRow label="Team"         value={cp.team_name} />
+            <MetaRow label="Team"         value={teamLabel(cp.team_id, cp.team_name, teamCodes)} />
             <MetaRow label="Object Type"  value={cp.object_type} />
             <MetaRow label="Project"      value={cp.project_name} />
             <MetaRow label="Workspace"    value={cp.workspace_name} />
@@ -206,10 +211,11 @@ interface Props {
   userEmail:           string
   externalSelectedId?: string | null
   onFilterChange?:     (filtered: DocCheckpoint[]) => void
+  teamCodes?:          Record<string, string>
 }
 
 export default function RepositoryView({
-  checkpoints, handoffPackages, userName, externalSelectedId, onFilterChange,
+  checkpoints, handoffPackages, userName, externalSelectedId, onFilterChange, teamCodes,
 }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -301,7 +307,7 @@ export default function RepositoryView({
             <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)}
               className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
               <option value="">All teams</option>
-              {uniqueTeams.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              {uniqueTeams.map(([id, name]) => <option key={id} value={id}>{teamLabel(id, name, teamCodes)}</option>)}
             </select>
             <select value={filterType} onChange={e => setFilterType(e.target.value)}
               className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
@@ -349,7 +355,7 @@ export default function RepositoryView({
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-semibold text-white truncate">{item.cp.name}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">{item.cp.team_name} · {item.cp.workspace_name}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">{teamLabel(item.cp.team_id, item.cp.team_name, teamCodes)} · {item.cp.workspace_name}</p>
                               <div className="flex flex-wrap gap-1.5 mt-2">
                                 <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PURPOSE_BADGE[item.cp.purpose] ?? 'text-gray-400 bg-gray-800 border-gray-700'}`}>
                                   {item.cp.purpose}
@@ -423,7 +429,7 @@ export default function RepositoryView({
         {selectedItem && (
           <div className="w-1/2 min-w-0 overflow-hidden">
             {selectedItem.kind === 'checkpoint' && (
-              <CheckpointDetailPanel cp={selectedItem.cp} userName={userName} onClose={() => setSelectedId(null)} />
+              <CheckpointDetailPanel cp={selectedItem.cp} userName={userName} onClose={() => setSelectedId(null)} teamCodes={teamCodes} />
             )}
             {selectedItem.kind === 'handoff' && (
               <HandoffDetailPanel hp={selectedItem.hp} onClose={() => setSelectedId(null)} />

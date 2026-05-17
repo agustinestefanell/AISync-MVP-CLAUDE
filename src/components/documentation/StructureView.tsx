@@ -24,6 +24,11 @@ function formatDate(iso: string) {
   })
 }
 
+function teamLabel(id: string, name: string, codes?: Record<string, string>): string {
+  const code = codes?.[id]
+  return code ? `${code} · ${name}` : name
+}
+
 interface TreeProject {
   id: string
   name: string
@@ -76,7 +81,7 @@ function ChevronIcon({ open }: { open: boolean }) {
   )
 }
 
-function DetailPanel({ cp, userName, onClose }: { cp: DocCheckpoint; userName: string; onClose: () => void }) {
+function DetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCheckpoint; userName: string; onClose: () => void; teamCodes?: Record<string, string> }) {
   return (
     <div className="fixed inset-y-0 right-0 w-96 bg-gray-950 border-l border-gray-800 z-40 flex flex-col shadow-2xl">
       <div className="shrink-0 px-5 py-4 border-b border-gray-800 flex items-start justify-between gap-4">
@@ -95,7 +100,7 @@ function DetailPanel({ cp, userName, onClose }: { cp: DocCheckpoint; userName: s
           { label: 'Responsible', value: cp.responsible ?? userName },
           { label: 'Sensitivity', value: cp.sensitivity },
           { label: 'Object type', value: cp.object_type },
-          { label: 'Team',        value: cp.team_name },
+          { label: 'Team',        value: teamLabel(cp.team_id, cp.team_name, teamCodes) },
           { label: 'Workspace',   value: cp.workspace_name },
           { label: 'Project',     value: cp.project_name },
           { label: 'Purpose',     value: <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PURPOSE_BADGE[cp.purpose] ?? 'text-gray-400 bg-gray-800 border-gray-700'}`}>{cp.purpose}</span> },
@@ -122,12 +127,13 @@ function DetailPanel({ cp, userName, onClose }: { cp: DocCheckpoint; userName: s
 
 interface Props {
   checkpoints: DocCheckpoint[]
-  projects: ProjectWithTeams[]
-  userName: string
-  userEmail: string
+  projects:    ProjectWithTeams[]
+  userName:    string
+  userEmail:   string
+  teamCodes?:  Record<string, string>
 }
 
-export default function StructureView({ checkpoints, userName }: Props) {
+export default function StructureView({ checkpoints, userName, teamCodes }: Props) {
   const tree    = useMemo(() => buildTree(checkpoints), [checkpoints])
   const [expandedProjects,   setExpandedProjects]   = useState<Set<string>>(new Set(tree.map(p => p.id)))
   const [expandedTeams,      setExpandedTeams]      = useState<Set<string>>(new Set(tree.flatMap(p => p.teams.map(t => t.id))))
@@ -184,7 +190,7 @@ export default function StructureView({ checkpoints, userName }: Props) {
                       >
                         <ChevronIcon open={expandedTeams.has(team.id)} />
                         <span className="mr-1">📁</span>
-                        {team.name}
+                        {teamLabel(team.id, team.name, teamCodes)}
                         <span className={`text-xs px-1.5 py-0.5 rounded border font-bold ml-1 ${
                           team.type === 'SAT' ? 'text-emerald-400 bg-emerald-950 border-emerald-800' : 'text-purple-400 bg-purple-950 border-purple-800'
                         }`}>{team.type}</span>
@@ -236,7 +242,7 @@ export default function StructureView({ checkpoints, userName }: Props) {
       </div>
 
       {selected && (
-        <DetailPanel cp={selected} userName={userName} onClose={() => setSelected(null)} />
+        <DetailPanel cp={selected} userName={userName} onClose={() => setSelected(null)} teamCodes={teamCodes} />
       )}
     </div>
   )
