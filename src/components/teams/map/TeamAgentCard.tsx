@@ -166,7 +166,7 @@ function TreeWorkspaceCard({
   )
 }
 
-// ─── GM Card (port of demo's inline general_manager rendering) ────────────────
+// ─── GM Card ──────────────────────────────────────────────────────────────────
 
 function GMCard({
   node,
@@ -177,62 +177,72 @@ function GMCard({
   onOpen: () => void
   onEdit: () => void
 }) {
-  const borderColor = getFamilyColor(node.ribbon, 0.35)
-  const softColor   = node.soft
-
   return (
     <div
-      className="rounded-[24px] border"
+      className="h-full w-full flex flex-col overflow-hidden rounded-[22px]"
       style={{
-        borderColor: 'rgba(15,23,42,0.18)',
-        background:  'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(244,247,250,0.98) 100%)',
-        boxShadow:   '0 18px 38px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.76)',
+        border:     '1.5px solid rgba(15,23,42,0.22)',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(244,247,250,0.98) 100%)',
+        boxShadow:  '0 18px 38px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.80)',
       }}
     >
-      {/* Header */}
+      {/* Header — label + name */}
       <div
-        className="rounded-t-[24px] px-6 py-4 text-white"
-        style={{
-          background:   'linear-gradient(180deg, #0f172a 0%, #172235 100%)',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-        }}
+        className="shrink-0 px-5 pt-2.5 pb-2"
+        style={{ borderBottom: '1px solid rgba(15,23,42,0.08)' }}
       >
-        <div className="text-[10px] uppercase tracking-[0.18em] text-white/60">General Manager</div>
-        <div className="mt-1 text-[19px] font-semibold">{node.teamName}</div>
-      </div>
-
-      {/* Body */}
-      <div className="grid gap-4 px-5 py-5 md:grid-cols-[minmax(180px,1fr)_minmax(0,1fr)]">
-        <div
-          className="rounded-[18px] border px-4 py-4"
-          style={{ borderColor, backgroundColor: softColor, boxShadow: `inset 0 3px 0 ${node.ribbon}, inset 0 1px 0 rgba(255,255,255,0.42)` }}
-        >
-          <div className="text-[10px] uppercase tracking-[0.16em]" style={{ color: node.ribbon }}>Provider</div>
-          <div className="mt-2 text-[15px] font-semibold text-neutral-900">{node.provider}</div>
-          <div className="mt-2 text-[12px] text-neutral-500">{node.model}</div>
+        <div className="text-[9px] font-semibold uppercase tracking-[0.20em] text-neutral-500">
+          General Manager
         </div>
-        <div
-          className="rounded-[18px] border px-4 py-4"
-          style={{ borderColor, backgroundColor: softColor, boxShadow: `inset 0 3px 0 ${node.ribbon}, inset 0 1px 0 rgba(255,255,255,0.42)` }}
-        >
-          <div className="text-[10px] uppercase tracking-[0.16em]" style={{ color: node.ribbon }}>Team Type</div>
-          <div className="mt-2 text-[15px] font-semibold text-neutral-900">{node.teamType}</div>
-          {node.connected && <div className="mt-2 text-[12px] text-emerald-600">Connected</div>}
+        <div className="mt-0.5 text-[15px] font-bold leading-tight text-neutral-950 line-clamp-1">
+          {node.teamName}
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Body — info columns + description */}
+      <div className="flex flex-1 min-h-0 flex-col gap-2 px-5 py-2">
+
+        {/* Two columns: Provider | Team Type */}
+        <div className="flex shrink-0 gap-8">
+          <div>
+            <div className="text-[8.5px] uppercase tracking-[0.16em] text-neutral-500">Provider</div>
+            <div className="mt-0.5 text-[12px] font-semibold leading-tight text-neutral-900">{node.provider}</div>
+            <div className="text-[10px] leading-tight text-neutral-500">{node.model}</div>
+          </div>
+          <div>
+            <div className="text-[8.5px] uppercase tracking-[0.16em] text-neutral-500">Team Type</div>
+            <div className="mt-0.5 text-[12px] font-semibold leading-tight text-neutral-900">{node.teamType}</div>
+            {node.connected
+              ? <div className="text-[10px] leading-tight text-emerald-600">Connected</div>
+              : <div className="text-[10px] leading-tight text-neutral-400">—</div>
+            }
+          </div>
+        </div>
+
+        {/* Description — full width, fills remaining space */}
+        <div
+          className="flex-1 min-h-0 rounded-[10px] px-3 py-2 text-[10px] leading-[1.45] text-neutral-700 overflow-hidden"
+          style={{
+            border:     '1px solid rgba(15,23,42,0.08)',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+          }}
+        >
+          {node.teamDescription || <span className="italic text-neutral-400">No description yet.</span>}
+        </div>
+      </div>
+
+      {/* Footer — buttons */}
       <div
-        className="flex justify-center gap-2 px-4 py-4"
+        className="shrink-0 flex items-center justify-center gap-2 px-5 py-2"
         style={{
-          borderTop:  'rgba(15,23,42,0.1)',
+          borderTop:  '1px solid rgba(15,23,42,0.08)',
           background: 'linear-gradient(180deg, rgba(247,249,252,0.8) 0%, rgba(239,244,248,0.88) 100%)',
         }}
       >
         <button
           type="button"
           data-pan-block="true"
-          className="rounded-[10px] bg-[#1e293b] px-6 py-2 text-[12px] font-medium text-white hover:bg-[#334155]"
+          className="rounded-[10px] bg-[#1e293b] px-6 py-2 text-[11px] font-medium text-white hover:bg-[#334155]"
           onPointerDown={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
           onClick={e => { e.preventDefault(); e.stopPropagation(); onOpen() }}
@@ -242,7 +252,7 @@ function GMCard({
         <button
           type="button"
           data-pan-block="true"
-          className="rounded-[10px] border border-neutral-200 bg-white px-5 py-2 text-[12px] font-medium text-neutral-700 hover:bg-neutral-50"
+          className="rounded-[10px] border border-neutral-200 bg-white px-5 py-2 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50"
           onPointerDown={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
           onClick={e => { e.preventDefault(); e.stopPropagation(); onEdit() }}
