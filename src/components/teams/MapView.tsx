@@ -30,41 +30,31 @@ interface MapViewProps {
   resetSignal?:       number
 }
 
-function ConnectTeamAnchor({ onConnect }: { onConnect: () => void }) {
+const CONNECT_TEAM_GAP    = 84
+const CONNECT_TEAM_WIDTH  = 300
+const CONNECT_TEAM_HEIGHT = 179
+
+function ConnectTeamBox({ onConnect }: { onConnect: () => void }) {
   return (
-    <div
+    <button
+      type="button"
       data-pan-block="true"
-      className="absolute"
-      style={{ left: 'calc(100% + 84px)', top: '28px', width: '300px' }}
+      className="flex h-full w-full flex-col items-center justify-center rounded-[22px] border-2 border-dashed px-6 py-6 text-center transition-colors hover:border-neutral-500 hover:bg-white/90"
+      style={{
+        borderColor: 'rgba(100,116,139,0.45)',
+        background:  'linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(241,245,249,0.92) 100%)',
+        boxShadow:   'inset 0 1px 0 rgba(255,255,255,0.78), 0 12px 24px rgba(15,23,42,0.05)',
+      }}
+      onPointerDown={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => { e.preventDefault(); e.stopPropagation(); onConnect() }}
     >
-      <div
-        aria-hidden="true"
-        className="absolute"
-        style={{
-          left: '-84px', top: '96px', width: '84px',
-          borderTop: '2px dashed rgba(100,116,139,0.52)',
-        }}
-      />
-      <button
-        type="button"
-        data-pan-block="true"
-        className="flex min-h-[188px] w-full flex-col items-center justify-center rounded-[22px] border-2 border-dashed px-6 py-6 text-center transition-colors hover:border-neutral-500 hover:bg-white/90"
-        style={{
-          borderColor: 'rgba(100,116,139,0.45)',
-          background:  'linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(241,245,249,0.92) 100%)',
-          boxShadow:   'inset 0 1px 0 rgba(255,255,255,0.78), 0 12px 24px rgba(15,23,42,0.05)',
-        }}
-        onPointerDown={e => e.stopPropagation()}
-        onMouseDown={e => e.stopPropagation()}
-        onClick={e => { e.preventDefault(); e.stopPropagation(); onConnect() }}
-      >
-        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-neutral-400 bg-white/85 text-[28px] font-semibold leading-none text-neutral-700">
-          +
-        </div>
-        <div className="mt-4 text-[14px] font-semibold text-neutral-900">Connect Team</div>
-        <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-neutral-500">Link External User</div>
-      </button>
-    </div>
+      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-neutral-400 bg-white/85 text-[28px] font-semibold leading-none text-neutral-700">
+        +
+      </div>
+      <div className="mt-4 text-[14px] font-semibold text-neutral-900">Connect Team</div>
+      <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-neutral-500">Link External User</div>
+    </button>
   )
 }
 
@@ -98,9 +88,9 @@ export default function MapView({
   const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
 
   // Build layout for all root trees, accumulate into flat lists with X offset
-  const { allPlacements, allConnectors, totalWidth, totalHeight } = useMemo(() => {
+  const { allPlacements, allConnectors, totalWidth, totalHeight, connectTeamLeft } = useMemo(() => {
     if (!roots.length) {
-      return { allPlacements: [], allConnectors: [], totalWidth: 0, totalHeight: 0 }
+      return { allPlacements: [], allConnectors: [], totalWidth: 0, totalHeight: 0, connectTeamLeft: 0 }
     }
 
     type PlacementExt = TreeLayoutPlacement & { projectId: string }
@@ -126,11 +116,13 @@ export default function MapView({
       maxHeight  = Math.max(maxHeight, layout.height)
     }
 
+    const baseWidth = xOffset - GAP_BETWEEN_ROOT_TREES + 2 * MAP_CANVAS_PADDING_X
     return {
-      allPlacements: placements,
-      allConnectors: connectors,
-      totalWidth:    xOffset - GAP_BETWEEN_ROOT_TREES + 2 * MAP_CANVAS_PADDING_X,
-      totalHeight:   maxHeight + 2 * MAP_CANVAS_PADDING_Y,
+      allPlacements:   placements,
+      allConnectors:   connectors,
+      totalWidth:      baseWidth + CONNECT_TEAM_GAP + CONNECT_TEAM_WIDTH,
+      totalHeight:     maxHeight + 2 * MAP_CANVAS_PADDING_Y,
+      connectTeamLeft: baseWidth - MAP_CANVAS_PADDING_X + CONNECT_TEAM_GAP,
     }
   }, [roots, mapNodes])
 
@@ -210,11 +202,21 @@ export default function MapView({
                 onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={onEdit}
               />
-              {p.node.type === 'general_manager' && p.projectId === activeProjectId && (
-                <ConnectTeamAnchor onConnect={onConnect} />
-              )}
             </div>
           ))}
+
+          {/* Single Connect Team box at the end of the GM row */}
+          <div
+            className="absolute"
+            style={{
+              left:   `${connectTeamLeft}px`,
+              top:    `${MAP_CANVAS_PADDING_Y}px`,
+              width:  `${CONNECT_TEAM_WIDTH}px`,
+              height: `${CONNECT_TEAM_HEIGHT}px`,
+            }}
+          >
+            <ConnectTeamBox onConnect={onConnect} />
+          </div>
         </div>
       </CanvasViewport>
     </div>
