@@ -42,23 +42,47 @@ function getSubtreeNodes(rootId: string, all: MapAgentNode[]): MapAgentNode[] {
 
 // ─── Compact node card (port of demo TreeOverviewView inline renderer) ────────
 
+const TREE_CONNECT_GAP    = 56
+const TREE_CONNECT_WIDTH  = 116
+const TREE_CONNECT_HEIGHT = 84
+
+function TreeConnectTeamBox({ onConnect }: { onConnect: () => void }) {
+  return (
+    <button
+      type="button"
+      data-pan-block="true"
+      className="flex h-full w-full flex-col items-center justify-center rounded-[16px] border-2 border-dashed px-2 py-2 text-center transition-colors hover:border-neutral-500 hover:bg-white/90"
+      style={{
+        borderColor: 'rgba(100,116,139,0.45)',
+        background:  'linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(241,245,249,0.96) 100%)',
+        boxShadow:   'inset 0 1px 0 rgba(255,255,255,0.75), 0 6px 14px rgba(15,23,42,0.05)',
+      }}
+      onPointerDown={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => { e.preventDefault(); e.stopPropagation(); onConnect() }}
+    >
+      <div className="text-[18px] font-semibold leading-none text-neutral-700">+</div>
+      <div className="mt-1.5 line-clamp-2 text-[10px] font-semibold leading-[1.15] text-neutral-900">Connect Team</div>
+      <div className="mt-1 text-[7px] uppercase tracking-[0.16em] text-neutral-500">Link External</div>
+    </button>
+  )
+}
+
 function TreeNode({
   p,
   onOpen,
   onEdit,
-  onConnect,
 }: {
-  p:         TreeLayoutPlacement
-  onOpen:    (wsId: string) => void
-  onEdit:    (teamId: string) => void
-  onConnect: () => void
+  p:      TreeLayoutPlacement
+  onOpen: (wsId: string) => void
+  onEdit: (teamId: string) => void
 }) {
   const { node } = p
 
   if (node.type === 'general_manager') {
     return (
       <div
-        className="relative flex h-full w-full flex-col items-center justify-center overflow-visible rounded-[16px] border px-2 py-2 text-center text-white"
+        className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-[16px] border px-2 py-2 text-center text-white"
         style={{
           borderColor: 'rgba(15,23,42,0.18)',
           background:  'linear-gradient(180deg, #0f172a 0%, #172235 100%)',
@@ -67,36 +91,6 @@ function TreeNode({
       >
         <div className="text-[8px] uppercase tracking-[0.18em] text-white/55">Main</div>
         <div className="mt-1 line-clamp-2 text-[11px] font-semibold leading-[1.2]">{node.teamName}</div>
-
-        {/* Connect Team anchor */}
-        <div
-          data-pan-block="true"
-          className="absolute"
-          style={{ left: 'calc(100% + 56px)', top: '50%', width: '116px', height: '96px', transform: 'translateY(-50%)' }}
-        >
-          <div
-            aria-hidden="true"
-            className="absolute"
-            style={{ left: '-56px', top: '50%', width: '56px', borderTop: '2px dashed rgba(100,116,139,0.52)', transform: 'translateY(-50%)' }}
-          />
-          <button
-            type="button"
-            data-pan-block="true"
-            className="flex h-full w-full flex-col items-center justify-center rounded-[16px] border-2 border-dashed px-2 py-2 text-center transition-colors hover:border-neutral-500 hover:bg-white/90"
-            style={{
-              borderColor: 'rgba(100,116,139,0.45)',
-              background:  'linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(241,245,249,0.96) 100%)',
-              boxShadow:   'inset 0 1px 0 rgba(255,255,255,0.75), 0 6px 14px rgba(15,23,42,0.05)',
-            }}
-            onPointerDown={e => e.stopPropagation()}
-            onMouseDown={e => e.stopPropagation()}
-            onClick={e => { e.preventDefault(); e.stopPropagation(); onConnect() }}
-          >
-            <div className="text-[18px] font-semibold leading-none text-neutral-700">+</div>
-            <div className="mt-1.5 line-clamp-2 text-[10px] font-semibold leading-[1.15] text-neutral-900">Connect Team</div>
-            <div className="mt-1 text-[7px] uppercase tracking-[0.16em] text-neutral-500">Link External</div>
-          </button>
-        </div>
       </div>
     )
   }
@@ -199,9 +193,9 @@ export default function TreeView({
   )
   const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
 
-  const { allPlacements, allConnectors, totalWidth, totalHeight } = useMemo(() => {
+  const { allPlacements, allConnectors, totalWidth, totalHeight, connectTeamLeft } = useMemo(() => {
     if (!roots.length) {
-      return { allPlacements: [], allConnectors: [], totalWidth: 0, totalHeight: 0 }
+      return { allPlacements: [], allConnectors: [], totalWidth: 0, totalHeight: 0, connectTeamLeft: 0 }
     }
 
     type PlacementExt = TreeLayoutPlacement & { projectId: string }
@@ -227,11 +221,13 @@ export default function TreeView({
       maxHeight  = Math.max(maxHeight, layout.height)
     }
 
+    const baseWidth = xOffset - 20 + 2 * TREE_CANVAS_PADDING_X
     return {
-      allPlacements: placements,
-      allConnectors: connectors,
-      totalWidth:    xOffset - 20 + 2 * TREE_CANVAS_PADDING_X,
-      totalHeight:   maxHeight + 2 * TREE_CANVAS_PADDING_Y,
+      allPlacements:   placements,
+      allConnectors:   connectors,
+      totalWidth:      baseWidth + TREE_CONNECT_GAP + TREE_CONNECT_WIDTH,
+      totalHeight:     maxHeight + 2 * TREE_CANVAS_PADDING_Y,
+      connectTeamLeft: baseWidth - TREE_CANVAS_PADDING_X + TREE_CONNECT_GAP,
     }
   }, [roots, mapNodes])
 
@@ -313,10 +309,22 @@ export default function TreeView({
                 p={p}
                 onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={handleEdit}
-                onConnect={onConnect}
               />
             </div>
           ))}
+
+          {/* Single Connect Team box at the end of the GM row */}
+          <div
+            className="absolute"
+            style={{
+              left:   `${connectTeamLeft}px`,
+              top:    `${TREE_CANVAS_PADDING_Y}px`,
+              width:  `${TREE_CONNECT_WIDTH}px`,
+              height: `${TREE_CONNECT_HEIGHT}px`,
+            }}
+          >
+            <TreeConnectTeamBox onConnect={onConnect} />
+          </div>
         </div>
       </CanvasViewport>
     </div>
