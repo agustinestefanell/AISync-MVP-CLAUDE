@@ -33,10 +33,11 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { name, projectId, parentId, agents } = body as {
+  const { name, projectId, parentId, agents, description } = body as {
     name: string
     projectId: string
     parentId: string | null
+    description?: string | null
     agents: Array<{ role: string; provider: string; model: string; config?: Record<string, unknown> }>
   }
 
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
 
   const { data: team, error: teamErr } = await supabase
     .from('teams')
-    .insert({ project_id: projectId, name: name.trim(), type: teamType, parent_id: parentId ?? null })
+    .insert({ project_id: projectId, name: name.trim(), type: teamType, parent_id: parentId ?? null, description: description?.trim() || null })
     .select()
     .single()
   if (teamErr) return NextResponse.json({ error: teamErr.message }, { status: 500 })

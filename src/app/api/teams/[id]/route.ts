@@ -43,11 +43,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       .eq('id', agent.id)
   }
 
-  const { data: full } = await supabase
+  const { data: full, error: fullErr } = await supabase
     .from('teams')
     .select('*, workspaces(*, agent_sessions(*))')
     .eq('id', params.id)
     .single()
+
+  if (fullErr || !full) return NextResponse.json({ error: 'Could not reload updated team.' }, { status: 500 })
 
   return NextResponse.json(full)
 }
