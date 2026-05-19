@@ -8,6 +8,7 @@ interface AppLayoutProps {
   children:           React.ReactNode
   userName?:          string
   projectName?:       string
+  accentColor?:       string
   /** false = flex column, overflow-hidden (workspace / full-height views) */
   scrollable?:        boolean
 }
@@ -19,6 +20,7 @@ export default function AppLayout({
   children,
   userName,
   projectName,
+  accentColor,
   scrollable = true,
 }: AppLayoutProps) {
   return (
@@ -32,6 +34,7 @@ export default function AppLayout({
         pageSubtitleHref={pageSubtitleHref}
         userName={userName}
         projectName={projectName}
+        accentColor={accentColor}
       />
       <main className={
         scrollable
@@ -40,7 +43,7 @@ export default function AppLayout({
       }>
         {children}
       </main>
-      <BottomRibbon />
+      <BottomRibbon accentColor={accentColor} />
     </div>
   )
 }

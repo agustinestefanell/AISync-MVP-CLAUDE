@@ -6,6 +6,12 @@ import WorkspaceShell from '@/components/workspace/WorkspaceShell'
 import AppLayout from '@/components/layout/AppLayout'
 import type { Message } from '@/lib/db/types'
 
+function teamIdToAccent(id: string): string {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return `hsl(${h % 360}, 45%, 55%)`
+}
+
 export default async function WorkspacePage({
   params,
   searchParams,
@@ -28,11 +34,16 @@ export default async function WorkspacePage({
   )
   const initialMessages = Object.fromEntries(entries)
 
+  const team        = workspace.teams
+  const pageName    = team?.name ?? 'Workspace'
+  const accentColor = team ? teamIdToAccent(team.id) : undefined
+
   return (
     <AppLayout
-      pageName="MAIN WORKSPACE"
+      pageName={pageName}
       pageSubtitle="How to use Main Workspace (click here)"
       scrollable={false}
+      accentColor={accentColor}
     >
       <WorkspaceShell
         workspace={workspace}

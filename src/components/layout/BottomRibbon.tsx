@@ -21,7 +21,7 @@ function isActive(pathname: string, href: string, match: string): boolean {
   return pathname === href || pathname.startsWith(href + '/')
 }
 
-export default function BottomRibbon() {
+export default function BottomRibbon({ accentColor }: { accentColor?: string }) {
   const pathname = usePathname()
   const [workspaceHref, setWorkspaceHref] = useState<string>('/')
 
@@ -43,7 +43,14 @@ export default function BottomRibbon() {
   ]
 
   return (
-    <nav className="sticky bottom-0 z-50 h-10 bg-gray-900 border-t border-gray-800 flex items-center justify-center shrink-0">
+    <nav
+      className="sticky bottom-0 z-50 h-10 bg-gray-900 flex items-center justify-center shrink-0"
+      style={{
+        borderTop: accentColor
+          ? `1px solid ${accentColor}`
+          : '1px solid rgb(31,41,55)',
+      }}
+    >
       {NAV_ITEMS.map((item, i) => (
         <div key={item.label} className="flex items-center">
           {i > 0 && <span className="text-gray-700 text-xs select-none">|</span>}

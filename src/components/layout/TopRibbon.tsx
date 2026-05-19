@@ -4,10 +4,11 @@ interface TopRibbonProps {
   pageSubtitleHref?: string
   projectName?:      string
   userName?:         string
+  accentColor?:      string
 }
 
 export default function TopRibbon({
-  pageName, pageSubtitle, pageSubtitleHref, projectName, userName,
+  pageName, pageSubtitle, pageSubtitleHref, projectName, userName, accentColor,
 }: TopRibbonProps) {
   const rightInfo = [
     projectName ? `Project: ${projectName}` : null,
@@ -15,7 +16,14 @@ export default function TopRibbon({
   ].filter(Boolean).join(' · ')
 
   return (
-    <header className="sticky top-0 z-50 h-12 bg-gray-900 border-b border-gray-800 px-6 flex items-center justify-between shrink-0">
+    <header
+      className="sticky top-0 z-50 h-12 bg-gray-900 px-6 flex items-center justify-between shrink-0"
+      style={{
+        borderBottom: accentColor
+          ? `1px solid ${accentColor}`
+          : '1px solid rgb(31,41,55)',
+      }}
+    >
 
       {/* LEFT — logo + wordmark (clickeable → dashboard) */}
       <a href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
