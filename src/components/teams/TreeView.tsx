@@ -77,9 +77,8 @@ function TreeNode({
   const isGM      = node.type === 'general_manager'
   const isSM      = node.type === 'senior_manager'
   const roleLabel = isGM ? 'General Manager' : isSM ? 'Team' : 'Worker'
-  const darkBg    = nodeType === 'gm' || nodeType === 'team'
-  const textMain  = darkBg ? '#ffffff' : '#1e293b'
-  const textSub   = darkBg ? 'rgba(255,255,255,0.70)' : '#475569'
+  const textMain  = '#1e293b'
+  const textSub   = '#64748b'
 
   return (
     <div
@@ -87,15 +86,15 @@ function TreeNode({
       style={{
         borderRadius: isGM ? '18px' : isSM ? '16px' : '14px',
         border:       `1.5px solid ${tokens.border}`,
-        background:   tokens.border,
-        boxShadow:    '0 8px 18px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.12)',
+        background:   `linear-gradient(180deg, ${tokens.header} 0%, ${tokens.bg} 100%)`,
+        boxShadow:    '0 8px 18px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.80)',
       }}
     >
       {/* SAT badge */}
       {node.teamType === 'SAT' && (
         <div
           className="absolute right-1.5 top-1.5 z-10 rounded-[5px] border px-1 py-0.5 text-[7px] font-semibold leading-none"
-          style={{ borderColor: 'rgba(255,255,255,0.30)', background: 'rgba(255,255,255,0.18)', color: textMain }}
+          style={{ borderColor: tokens.border, background: tokens.bg, color: tokens.badge }}
         >
           SAT
         </div>
@@ -114,7 +113,7 @@ function TreeNode({
             type="button"
             data-pan-block="true"
             className="rounded-full px-2 py-[3px] text-[9px] font-medium leading-none transition-opacity hover:opacity-80"
-            style={{ background: 'rgba(255,255,255,0.22)', color: textMain, border: `1px solid rgba(255,255,255,0.28)` }}
+            style={{ background: tokens.border, color: '#ffffff', border: `1px solid ${tokens.border}` }}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onOpen(node.workspaceId) }}
@@ -125,7 +124,7 @@ function TreeNode({
             type="button"
             data-pan-block="true"
             className="rounded-full px-2 py-[3px] text-[9px] font-medium leading-none transition-opacity hover:opacity-80"
-            style={{ background: 'rgba(255,255,255,0.10)', color: textSub, border: `1px solid rgba(255,255,255,0.18)` }}
+            style={{ background: 'transparent', color: textSub, border: `1px solid ${tokens.border}` }}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onEdit(node.teamId) }}
@@ -175,7 +174,7 @@ export default function TreeView({
     const gmIds = new Set(mapNodes.filter(n => n.type === 'general_manager').map(n => n.id))
     for (const n of mapNodes) {
       if (n.type === 'general_manager')  map.set(n.id, 'gm')
-      else if (n.type === 'worker')      map.set(n.id, 'worker')
+      else if (n.type === 'worker')      map.set(n.id, 'subteam')
       else map.set(n.id, gmIds.has(n.parentId ?? '') ? 'team' : 'subteam')
     }
     return map

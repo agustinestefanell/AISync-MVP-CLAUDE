@@ -53,9 +53,7 @@ function TreeWorkspaceCard({
         borderColor: outlineOnly ? accentColor : borderColor,
         background: outlineOnly
           ? 'linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(245,248,251,0.98) 100%)'
-          : compact
-            ? 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(247,249,252,0.98) 100%)'
-            : 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(250,252,254,0.98) 100%)',
+          : `linear-gradient(180deg, ${ribbonColor} 0%, ${softColor} 100%)`,
         boxShadow: compact
           ? '0 10px 20px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.72)'
           : '0 14px 30px rgba(15,23,42,0.09), inset 0 1px 0 rgba(255,255,255,0.8)',
@@ -172,7 +170,7 @@ function GMCard({
       className="h-full w-full flex flex-col overflow-hidden rounded-[22px]"
       style={{
         border:     `1.5px solid ${tokens.border}`,
-        background: `linear-gradient(180deg, ${tokens.bg} 0%, rgba(244,247,250,0.98) 100%)`,
+        background: `linear-gradient(180deg, ${tokens.header} 0%, ${tokens.bg} 100%)`,
         boxShadow:  '0 18px 38px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.80)',
       }}
     >
