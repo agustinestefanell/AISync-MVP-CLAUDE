@@ -11,23 +11,10 @@ import {
   type TreeLayoutPlacement,
   type TreeLayoutConnector,
 } from '@/lib/map/buildTreeLayout'
+import { getProjectColorTokens, type ProjectNodeType } from '@/lib/teams/getProjectColor'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 import type { ExternalConnection }  from './TeamsClient'
 import type { MapAgentNode }        from '@/lib/map/buildAgentLayout'
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getFamilyColor(color: string, alpha: number): string {
-  const normalized = color.replace('#', '').trim()
-  if (![3, 6].includes(normalized.length)) return color
-  const expanded = normalized.length === 3
-    ? normalized.split('').map(c => `${c}${c}`).join('')
-    : normalized
-  const r = parseInt(expanded.slice(0, 2), 16)
-  const g = parseInt(expanded.slice(2, 4), 16)
-  const b = parseInt(expanded.slice(4, 6), 16)
-  return `rgba(${r},${g},${b},${alpha})`
-}
 
 function getSubtreeNodes(rootId: string, all: MapAgentNode[]): MapAgentNode[] {
   const ids   = new Set<string>()
@@ -73,15 +60,20 @@ function TreeNode({
   onOpen,
   onEdit,
   teamCodes,
+  rootIndex = 0,
+  nodeType  = 'team',
 }: {
-  p:         TreeLayoutPlacement
-  onOpen:    (wsId: string) => void
-  onEdit:    (teamId: string) => void
+  p:          TreeLayoutPlacement
+  onOpen:     (wsId: string) => void
+  onEdit:     (teamId: string) => void
   teamCodes?: Record<string, string>
+  rootIndex?: number
+  nodeType?:  ProjectNodeType
 }) {
   const { node } = p
   const teamCode    = teamCodes?.[node.teamId]
   const displayName = teamCode ? `${teamCode} · ${node.teamName}` : node.teamName
+  const tokens      = getProjectColorTokens(rootIndex, nodeType)
 
   if (node.type === 'general_manager') {
     return (
@@ -90,7 +82,7 @@ function TreeNode({
         style={{
           borderColor: 'rgba(15,23,42,0.18)',
           background:  'linear-gradient(180deg, #0f172a 0%, #172235 100%)',
-          boxShadow:   '0 10px 22px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.08)',
+          boxShadow:   `0 10px 22px rgba(15,23,42,0.14), inset 0 3px 0 ${tokens.accent}, inset 0 1px 0 rgba(255,255,255,0.08)`,
         }}
       >
         <div className="text-[8px] uppercase tracking-[0.18em] text-white/55">Main</div>
@@ -99,25 +91,21 @@ function TreeNode({
     )
   }
 
-  const ribbon    = node.ribbon
-  const soft      = node.soft
-  const accent    = getFamilyColor(ribbon, 0.85)
   const isSM      = node.type === 'senior_manager'
   const roleLabel = isSM ? 'Team' : 'Worker'
-  const boxBorder = isSM ? getFamilyColor(ribbon, 0.35) : getFamilyColor(accent, 0.28)
   const boxBg     = isSM
-    ? `linear-gradient(180deg, ${getFamilyColor(ribbon, 0.2)} 0%, ${getFamilyColor(ribbon, 0.2)} 34%, rgba(255,255,255,0.96) 34%, rgba(255,255,255,0.96) 100%)`
-    : `linear-gradient(180deg, ${getFamilyColor(ribbon, 0.18)} 0%, ${getFamilyColor(ribbon, 0.18)} 32%, rgba(255,255,255,0.97) 32%, rgba(255,255,255,0.97) 100%)`
+    ? `linear-gradient(180deg, ${tokens.bg} 0%, ${tokens.bg} 34%, rgba(255,255,255,0.96) 34%, rgba(255,255,255,0.96) 100%)`
+    : 'linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(248,250,252,0.97) 100%)'
 
   return (
     <div
       className={`relative flex h-full w-full flex-col items-center justify-center overflow-hidden text-center ${isSM ? 'rounded-[18px]' : 'rounded-[16px]'}`}
       style={{
-        border:     `1px solid ${boxBorder}`,
+        border:     `1px solid ${tokens.border}`,
         background: boxBg,
         boxShadow:  isSM
-          ? `0 10px 22px rgba(15,23,42,0.08), inset 0 3px 0 ${accent}, inset 0 1px 0 rgba(255,255,255,0.75)`
-          : `0 8px 18px rgba(15,23,42,0.07), inset 0 3px 0 ${accent}, inset 0 1px 0 rgba(255,255,255,0.75)`,
+          ? `0 10px 22px rgba(15,23,42,0.08), inset 0 3px 0 ${tokens.accent}, inset 0 1px 0 rgba(255,255,255,0.75)`
+          : `0 8px 18px rgba(15,23,42,0.07), inset 0 3px 0 ${tokens.accent}, inset 0 1px 0 rgba(255,255,255,0.75)`,
       }}
     >
       {node.teamType === 'SAT' && (
@@ -131,7 +119,7 @@ function TreeNode({
       <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 px-2 py-2">
         <div
           className="rounded-full px-2 py-1 text-[8px] uppercase tracking-[0.14em]"
-          style={{ color: accent, background: getFamilyColor(soft, 0.92), border: `1px solid ${getFamilyColor(accent, 0.2)}` }}
+          style={{ color: tokens.badge, background: tokens.bg, border: `1px solid ${tokens.border}` }}
         >
           {roleLabel}
         </div>
@@ -143,7 +131,7 @@ function TreeNode({
             type="button"
             data-pan-block="true"
             className="rounded-full border px-2 py-[3px] text-[9px] font-medium leading-none text-neutral-700 transition-colors hover:text-neutral-900"
-            style={{ borderColor: getFamilyColor(accent, 0.24), background: 'rgba(255,255,255,0.82)' }}
+            style={{ borderColor: tokens.border, background: 'rgba(255,255,255,0.82)' }}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onOpen(node.workspaceId) }}
@@ -154,7 +142,7 @@ function TreeNode({
             type="button"
             data-pan-block="true"
             className="rounded-full border px-2 py-[3px] text-[9px] font-medium leading-none text-neutral-600 transition-colors hover:text-neutral-800"
-            style={{ borderColor: getFamilyColor(accent, 0.18), background: getFamilyColor(soft, 0.44) }}
+            style={{ borderColor: tokens.border, background: tokens.bg }}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onEdit(node.teamId) }}
@@ -198,6 +186,25 @@ export default function TreeView({
     [agentNodes, connectedTeamIds],
   )
   const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
+
+  const rootIndexByNodeId = useMemo(() => {
+    const map = new Map<string, number>()
+    roots.forEach((root, i) => {
+      getSubtreeNodes(root.id, mapNodes).forEach(n => map.set(n.id, i))
+    })
+    return map
+  }, [roots, mapNodes])
+
+  const nodeTypeByNodeId = useMemo((): Map<string, ProjectNodeType> => {
+    const map   = new Map<string, ProjectNodeType>()
+    const gmIds = new Set(mapNodes.filter(n => n.type === 'general_manager').map(n => n.id))
+    for (const n of mapNodes) {
+      if (n.type === 'general_manager')  map.set(n.id, 'gm')
+      else if (n.type === 'worker')      map.set(n.id, 'worker')
+      else map.set(n.id, gmIds.has(n.parentId ?? '') ? 'team' : 'subteam')
+    }
+    return map
+  }, [mapNodes])
 
   const { allPlacements, allConnectors, totalWidth, totalHeight, connectTeamLeft } = useMemo(() => {
     if (!roots.length) {
@@ -316,6 +323,8 @@ export default function TreeView({
                 onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={handleEdit}
                 teamCodes={teamCodes}
+                rootIndex={rootIndexByNodeId.get(p.node.id) ?? 0}
+                nodeType={nodeTypeByNodeId.get(p.node.id)}
               />
             </div>
           ))}
