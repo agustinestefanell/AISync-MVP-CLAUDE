@@ -230,7 +230,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
       <button
         key={event.id}
         className="w-full truncate rounded-[5px] border px-1 py-0.5 text-left text-[9px] font-medium leading-tight"
-        style={{ borderColor: c.border, backgroundColor: c.bg, color: c.accent }}
+        style={{ borderColor: c.border, backgroundColor: c.bg, color: '#1e293b' }}
         onClick={ev => { ev.stopPropagation(); openDetail(event) }}
         title={`${event.time} ${cfg?.label ?? event.event_type}`}
       >
@@ -448,7 +448,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                   }`}
                   style={{
                     background:  cellDate ? 'rgba(255,255,255,0.02)' : 'transparent',
-                    borderColor: cellDate ? (focus ? 'rgb(107,114,128)' : 'rgb(55,65,81)') : 'transparent',
+                    borderColor: cellDate ? (focus ? 'rgb(156,163,175)' : 'rgb(229,231,235)') : 'transparent',
                   }}
                   onClick={() => { if (cellDate) { setFocusDate(cellDate); setViewMode('day') } }}
                 >
