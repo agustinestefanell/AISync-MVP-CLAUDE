@@ -448,7 +448,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                   }`}
                   style={{
                     background:  cellDate ? 'rgba(255,255,255,0.02)' : 'transparent',
-                    borderColor: cellDate ? (focus ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.07)') : 'transparent',
+                    borderColor: cellDate ? (focus ? 'rgb(107,114,128)' : 'rgb(55,65,81)') : 'transparent',
                   }}
                   onClick={() => { if (cellDate) { setFocusDate(cellDate); setViewMode('day') } }}
                 >

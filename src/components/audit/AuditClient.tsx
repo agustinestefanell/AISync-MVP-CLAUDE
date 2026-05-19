@@ -59,7 +59,7 @@ export default function AuditClient({ events, customProviders, checkpoints, proj
         onSelectCheckpoint={(id) => setExternalDetailCpId(id)}
       />
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-6 py-10">
+        <div className="px-6 py-10">
           <div className="mb-8">
             <h1 className="text-xl font-semibold text-white">Event Timeline</h1>
             <p className="text-sm text-gray-500 mt-1">
