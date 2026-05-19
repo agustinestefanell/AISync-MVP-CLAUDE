@@ -5,6 +5,8 @@ import AuditTimeline from './AuditTimeline'
 import SMPanel from '@/components/sm/SMPanel'
 import type { AuditEventRow } from '@/lib/db/audit'
 import type { CustomProvider } from '@/components/sm/SMPanel'
+import type { ProjectWithTeams } from '@/lib/db/types'
+import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 
 const MAX_CONTEXT = 100
 
@@ -12,11 +14,17 @@ interface Props {
   events:          AuditEventRow[]
   customProviders: CustomProvider[]
   checkpoints:     { id: string; name: string }[]
+  projects:        ProjectWithTeams[]
 }
 
-export default function AuditClient({ events, customProviders, checkpoints }: Props) {
+export default function AuditClient({ events, customProviders, checkpoints, projects }: Props) {
   const [externalDetailCpId, setExternalDetailCpId] = useState<string | null>(null)
   const [filteredEvents,     setFilteredEvents]     = useState<AuditEventRow[]>(events)
+
+  const teamCodes = useMemo(
+    () => computeTeamCodes(projects.flatMap(p => p.teams)),
+    [projects],
+  )
 
   const handleFilterChange = useCallback((filtered: AuditEventRow[]) => {
     setFilteredEvents(filtered)
@@ -62,6 +70,7 @@ export default function AuditClient({ events, customProviders, checkpoints }: Pr
             events={events}
             externalDetailCpId={externalDetailCpId}
             onFilterChange={handleFilterChange}
+            teamCodes={teamCodes}
           />
         </div>
       </main>

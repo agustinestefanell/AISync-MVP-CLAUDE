@@ -66,10 +66,11 @@ function formatDate(iso: string) {
   })
 }
 
-export default function AuditTimeline({ events, externalDetailCpId, onFilterChange }: {
+export default function AuditTimeline({ events, externalDetailCpId, onFilterChange, teamCodes }: {
   events:              AuditEventRow[]
   externalDetailCpId?: string | null
   onFilterChange?:    (filtered: AuditEventRow[]) => void
+  teamCodes?:          Record<string, string>
 }) {
   const router = useRouter()
 
@@ -175,13 +176,20 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                 <div className={`absolute left-3 top-5 w-3 h-3 rounded-full ring-2 ring-gray-950 ${cfg.dotColor}`} />
 
                 <div className="flex-1 min-w-0">
-                  {/* Tipo + workspace */}
+                  {/* Tipo + team + workspace */}
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.badgeClass}`}>
                       {cfg.label}
                     </span>
+                    {e.team_id && (
+                      <span className="text-xs text-gray-500">
+                        {teamCodes?.[e.team_id]
+                          ? `${teamCodes[e.team_id]} · ${e.team_name}`
+                          : e.team_name}
+                      </span>
+                    )}
                     {e.workspaces?.name && (
-                      <span className="text-xs text-gray-600">{e.workspaces.name}</span>
+                      <span className="text-xs text-gray-600">· {e.workspaces.name}</span>
                     )}
                   </div>
 
