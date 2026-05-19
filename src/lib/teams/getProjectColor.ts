@@ -21,27 +21,27 @@ export function getProjectColorTokens(
   switch (nodeType) {
     case 'gm':
       return {
-        bg:     `hsl(${h},20%,96%)`,
-        header: `hsl(${h},30%,86%)`,
-        border: `hsl(${h},42%,68%)`,
-        badge:  `hsl(${h},50%,42%)`,
-        accent: `hsl(${h},46%,52%)`,
+        bg:     `hsl(${h},40%,94%)`,
+        header: `hsl(${h},55%,82%)`,
+        border: `hsl(${h},65%,50%)`,
+        badge:  `hsl(${h},70%,35%)`,
+        accent: `hsl(${h},65%,45%)`,
       }
     case 'team':
       return {
-        bg:     `hsl(${h},16%,97%)`,
-        header: `hsl(${h},38%,78%)`,
-        border: `hsl(${h},36%,74%)`,
-        badge:  `hsl(${h},44%,56%)`,
-        accent: `hsl(${h},44%,50%)`,
+        bg:     `hsl(${h},30%,95%)`,
+        header: `hsl(${h},50%,86%)`,
+        border: `hsl(${h},55%,62%)`,
+        badge:  `hsl(${h},60%,42%)`,
+        accent: `hsl(${h},55%,48%)`,
       }
     case 'subteam':
       return {
-        bg:     `hsl(${h},9%,97%)`,
-        header: `hsl(${h},24%,88%)`,
-        border: `hsl(${h},22%,82%)`,
-        badge:  `hsl(${h},32%,64%)`,
-        accent: `hsl(${h},32%,58%)`,
+        bg:     `hsl(${h},20%,96%)`,
+        header: `hsl(${h},35%,90%)`,
+        border: `hsl(${h},40%,76%)`,
+        badge:  `hsl(${h},45%,55%)`,
+        accent: `hsl(${h},40%,58%)`,
       }
     case 'worker':
       return {
