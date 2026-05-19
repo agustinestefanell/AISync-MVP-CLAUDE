@@ -62,7 +62,6 @@ const SM_W  = 356,  SM_H  = 364
 const WK_W  = 316,  WK_H  = 312
 const LEVEL_GAP        = 140
 const SIBLING_GAP      = 92
-const INTER_TEAM_GAP         = Math.round(316 / 3)  // 105 — rule of thirds
 const FAMILY_BREAK_GAP       = 176                   // demo value: wider gap between different node types
 const GAP_BETWEEN_ROOT_TREES = Math.round(316 * 0.3) // 95 — 0.3× worker card width
 const PAD_X            = 128

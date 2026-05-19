@@ -22,15 +22,6 @@ const PURPOSES = [
   'Soporte de auditoría',
 ] as const
 
-const PURPOSE_COLORS: Record<string, string> = {
-  'Checkpoint':           'text-gray-400 bg-gray-800 border-gray-700',
-  'Evidencia':            'text-yellow-400 bg-yellow-950 border-yellow-900',
-  'Reutilizar':           'text-blue-400 bg-blue-950 border-blue-900',
-  'Handoff':              'text-purple-400 bg-purple-950 border-purple-900',
-  'Retomar después':      'text-indigo-400 bg-indigo-950 border-indigo-900',
-  'Documentación':        'text-teal-400 bg-teal-950 border-teal-900',
-  'Soporte de auditoría': 'text-orange-400 bg-orange-950 border-orange-900',
-}
 
 interface Props {
   workspace: WorkspaceWithAgents
@@ -42,11 +33,11 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 export default function WorkspaceShell({ workspace, initialMessages, initialCheckpointId }: Props) {
   const [lockState, setLockState]       = useState(workspace.lock_state)
-  const [lockLoading, setLockLoading]   = useState(false)
-  const [checkpoints, setCheckpoints]   = useState<Checkpoint[]>([])
+  const [_lockLoading, setLockLoading]  = useState(false)
+  const [_checkpoints, setCheckpoints]  = useState<Checkpoint[]>([])
   const [saveStatus, setSaveStatus]     = useState<SaveStatus>('idle')
-  const [resumingId, setResumingId]     = useState<string | null>(null)
-  const [totalSelected, setTotalSelected]         = useState(0)
+  const [_resumingId, setResumingId]    = useState<string | null>(null)
+  const [_totalSelected, setTotalSelected]        = useState(0)
   const [showHandoffModal, setShowHandoffModal]   = useState(false)
 
   // Modal de Save Version
@@ -72,7 +63,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   }
 
   // ── Lock / Unlock ─────────────────────────────────────────────────────────
-  async function handleLockToggle() {
+  async function _handleLockToggle() {
     setLockLoading(true)
     const newState = lockState === 'locked' ? 'unlocked' : 'locked'
     await fetch(`/api/workspace/${workspace.id}/lock`, {
@@ -91,7 +82,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     setTotalSelected(total)
   }
 
-  function clearAllSelections() {
+  function _clearAllSelections() {
     for (const session of workspace.agent_sessions) {
       panelRefs.current[session.id]?.clearSelection()
     }
@@ -232,7 +223,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Session Backup — descarga JSON + audit log ────────────────────────────
-  async function handleBackup() {
+  async function _handleBackup() {
     const data = workspace.agent_sessions.map(session => ({
       agent_role: session.agent_role,
       provider:   session.provider,
@@ -266,13 +257,6 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   }
 
   const locked = lockState === 'locked'
-
-  const saveLabel: Record<SaveStatus, string> = {
-    idle:   '💾 Save Version',
-    saving: '⏳ Guardando…',
-    saved:  '✓ Guardado',
-    error:  '✗ Sin mensajes',
-  }
 
   return (
     <div className="h-full flex flex-col overflow-hidden p-4 gap-4" style={{ background: 'var(--color-app-bg)' }}>
