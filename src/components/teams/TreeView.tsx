@@ -74,9 +74,12 @@ function TreeNode({
   const paletteIndex = teamCode ? teamCodeToPaletteIndex(teamCode) : 0
   const tokens       = getProjectColorTokens(paletteIndex, nodeType)
 
-  const isGM     = node.type === 'general_manager'
-  const isSM     = node.type === 'senior_manager'
+  const isGM      = node.type === 'general_manager'
+  const isSM      = node.type === 'senior_manager'
   const roleLabel = isGM ? 'General Manager' : isSM ? 'Team' : 'Worker'
+  const darkBg    = nodeType === 'gm' || nodeType === 'team'
+  const textMain  = darkBg ? '#ffffff' : '#1e293b'
+  const textSub   = darkBg ? 'rgba(255,255,255,0.70)' : '#475569'
 
   return (
     <div
@@ -84,41 +87,34 @@ function TreeNode({
       style={{
         borderRadius: isGM ? '18px' : isSM ? '16px' : '14px',
         border:       `1.5px solid ${tokens.border}`,
-        background:   tokens.bg,
-        boxShadow:    `0 8px 18px rgba(15,23,42,0.08), inset 0 3px 0 ${tokens.accent}, inset 0 1px 0 rgba(255,255,255,0.72)`,
+        background:   tokens.border,
+        boxShadow:    '0 8px 18px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.12)',
       }}
     >
       {/* SAT badge */}
       {node.teamType === 'SAT' && (
         <div
-          className="absolute right-1.5 top-1.5 z-10 rounded-[5px] border px-1 py-0.5 text-[7px] font-semibold leading-none text-neutral-700"
-          style={{ borderColor: 'rgba(15,23,42,0.16)', background: 'rgba(255,255,255,0.96)', boxShadow: '0 2px 4px rgba(15,23,42,0.08)' }}
+          className="absolute right-1.5 top-1.5 z-10 rounded-[5px] border px-1 py-0.5 text-[7px] font-semibold leading-none"
+          style={{ borderColor: 'rgba(255,255,255,0.30)', background: 'rgba(255,255,255,0.18)', color: textMain }}
         >
           SAT
         </div>
       )}
 
-      {/* Header strip */}
-      <div
-        className="shrink-0 px-2 py-1"
-        style={{ background: tokens.header, borderBottom: `1px solid ${tokens.border}` }}
-      >
-        <div className="text-[7px] font-semibold uppercase tracking-[0.16em]" style={{ color: tokens.badge }}>
+      {/* Content */}
+      <div className="flex h-full w-full flex-col justify-center gap-1.5 px-2 py-2">
+        <div className="text-[7px] font-semibold uppercase tracking-[0.16em]" style={{ color: textSub }}>
           {roleLabel}
         </div>
-      </div>
-
-      {/* Body */}
-      <div className="flex flex-col gap-1.5 px-2 py-1.5">
-        <div className="line-clamp-2 text-[10px] font-semibold leading-[1.25] text-neutral-900">
+        <div className="line-clamp-2 text-[10px] font-semibold leading-[1.25]" style={{ color: textMain }}>
           {displayName}
         </div>
         <div className="flex items-center gap-1">
           <button
             type="button"
             data-pan-block="true"
-            className="rounded-full border px-2 py-[3px] text-[9px] font-medium leading-none text-neutral-700 transition-colors hover:text-neutral-900"
-            style={{ borderColor: tokens.border, background: 'rgba(255,255,255,0.82)' }}
+            className="rounded-full px-2 py-[3px] text-[9px] font-medium leading-none transition-opacity hover:opacity-80"
+            style={{ background: 'rgba(255,255,255,0.22)', color: textMain, border: `1px solid rgba(255,255,255,0.28)` }}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onOpen(node.workspaceId) }}
@@ -128,8 +124,8 @@ function TreeNode({
           <button
             type="button"
             data-pan-block="true"
-            className="rounded-full border px-2 py-[3px] text-[9px] font-medium leading-none text-neutral-600 transition-colors hover:text-neutral-800"
-            style={{ borderColor: tokens.border, background: tokens.bg }}
+            className="rounded-full px-2 py-[3px] text-[9px] font-medium leading-none transition-opacity hover:opacity-80"
+            style={{ background: 'rgba(255,255,255,0.10)', color: textSub, border: `1px solid rgba(255,255,255,0.18)` }}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onEdit(node.teamId) }}
