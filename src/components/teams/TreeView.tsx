@@ -74,63 +74,51 @@ function TreeNode({
   const paletteIndex = teamCode ? teamCodeToPaletteIndex(teamCode) : 0
   const tokens       = getProjectColorTokens(paletteIndex, nodeType)
 
-  if (node.type === 'general_manager') {
-    return (
-      <div
-        className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-[16px] border px-2 py-2 text-center text-white"
-        style={{
-          borderColor: 'rgba(15,23,42,0.18)',
-          background:  'linear-gradient(180deg, #0f172a 0%, #172235 100%)',
-          boxShadow:   `0 10px 22px rgba(15,23,42,0.14), inset 0 3px 0 ${tokens.accent}, inset 0 1px 0 rgba(255,255,255,0.08)`,
-        }}
-      >
-        <div className="text-[8px] uppercase tracking-[0.18em] text-white/55">Main</div>
-        <div className="mt-1 line-clamp-2 text-[11px] font-semibold leading-[1.2]">{displayName}</div>
-      </div>
-    )
-  }
-
-  const isSM      = node.type === 'senior_manager'
-  const roleLabel = isSM ? 'Team' : 'Worker'
-  const boxBg     = isSM
-    ? `linear-gradient(180deg, ${tokens.bg} 0%, ${tokens.bg} 34%, rgba(255,255,255,0.96) 34%, rgba(255,255,255,0.96) 100%)`
-    : 'linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(248,250,252,0.97) 100%)'
+  const isGM     = node.type === 'general_manager'
+  const isSM     = node.type === 'senior_manager'
+  const roleLabel = isGM ? 'General Manager' : isSM ? 'Team' : 'Worker'
 
   return (
     <div
-      className={`relative flex h-full w-full flex-col items-center justify-center overflow-hidden text-center ${isSM ? 'rounded-[18px]' : 'rounded-[16px]'}`}
+      className="relative flex h-full w-full flex-col overflow-hidden"
       style={{
-        border:     `1px solid ${tokens.border}`,
-        background: boxBg,
-        boxShadow:  isSM
-          ? `0 10px 22px rgba(15,23,42,0.08), inset 0 3px 0 ${tokens.accent}, inset 0 1px 0 rgba(255,255,255,0.75)`
-          : `0 8px 18px rgba(15,23,42,0.07), inset 0 3px 0 ${tokens.accent}, inset 0 1px 0 rgba(255,255,255,0.75)`,
+        borderRadius: isGM ? '18px' : isSM ? '16px' : '14px',
+        border:       `1.5px solid ${tokens.border}`,
+        background:   tokens.bg,
+        boxShadow:    '0 8px 18px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.72)',
       }}
     >
+      {/* SAT badge */}
       {node.teamType === 'SAT' && (
         <div
-          className="absolute right-1.5 top-1.5 rounded-[7px] border px-1.5 py-0.5 text-[8px] font-semibold leading-none text-neutral-700"
-          style={{ borderColor: 'rgba(15,23,42,0.16)', background: 'rgba(255,255,255,0.96)', boxShadow: '0 2px 6px rgba(15,23,42,0.08)' }}
+          className="absolute right-1.5 top-1.5 z-10 rounded-[5px] border px-1 py-0.5 text-[7px] font-semibold leading-none text-neutral-700"
+          style={{ borderColor: 'rgba(15,23,42,0.16)', background: 'rgba(255,255,255,0.96)', boxShadow: '0 2px 4px rgba(15,23,42,0.08)' }}
         >
           SAT
         </div>
       )}
-      <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 px-2 py-2">
-        <div
-          className="rounded-full px-2 py-1 text-[8px] uppercase tracking-[0.14em]"
-          style={{ color: tokens.badge, background: tokens.bg, border: `1px solid ${tokens.border}` }}
-        >
+
+      {/* Header strip */}
+      <div
+        className="shrink-0 px-2 py-1"
+        style={{ background: tokens.header, borderBottom: `1px solid ${tokens.border}` }}
+      >
+        <div className="text-[7px] font-semibold uppercase tracking-[0.16em]" style={{ color: tokens.badge }}>
           {roleLabel}
         </div>
-        <div className="line-clamp-3 text-[11px] font-semibold leading-[1.2] text-neutral-900">
+      </div>
+
+      {/* Body */}
+      <div className="flex min-h-0 flex-1 flex-col justify-between px-2 py-1.5">
+        <div className="line-clamp-2 text-[10px] font-semibold leading-[1.25] text-neutral-900">
           {displayName}
         </div>
-        <div className="flex items-center gap-1 pt-0.5">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             data-pan-block="true"
-            className="rounded-full border px-2 py-[3px] text-[9px] font-medium leading-none text-neutral-700 transition-colors hover:text-neutral-900"
-            style={{ borderColor: tokens.border, background: 'rgba(255,255,255,0.82)' }}
+            className="rounded-[6px] px-2 py-[3px] text-[8px] font-medium leading-none text-white transition-opacity hover:opacity-80"
+            style={{ background: tokens.accent }}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onOpen(node.workspaceId) }}
@@ -140,8 +128,8 @@ function TreeNode({
           <button
             type="button"
             data-pan-block="true"
-            className="rounded-full border px-2 py-[3px] text-[9px] font-medium leading-none text-neutral-600 transition-colors hover:text-neutral-800"
-            style={{ borderColor: tokens.border, background: tokens.bg }}
+            className="rounded-[6px] border px-2 py-[3px] text-[8px] font-medium leading-none transition-colors hover:opacity-80"
+            style={{ borderColor: tokens.border, color: tokens.badge, background: 'rgba(255,255,255,0.82)' }}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onEdit(node.teamId) }}
