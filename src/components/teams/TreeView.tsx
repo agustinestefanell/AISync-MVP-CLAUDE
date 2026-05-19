@@ -84,8 +84,8 @@ function TreeNode({
       style={{
         borderRadius: isGM ? '18px' : isSM ? '16px' : '14px',
         border:       `1.5px solid ${tokens.border}`,
-        background:   tokens.header,
-        boxShadow:    '0 8px 18px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.72)',
+        background:   tokens.bg,
+        boxShadow:    `0 8px 18px rgba(15,23,42,0.08), inset 0 3px 0 ${tokens.accent}, inset 0 1px 0 rgba(255,255,255,0.72)`,
       }}
     >
       {/* SAT badge */}
@@ -109,7 +109,7 @@ function TreeNode({
       </div>
 
       {/* Body */}
-      <div className="flex min-h-0 flex-1 flex-col justify-between px-2 py-1.5">
+      <div className="flex flex-col gap-1.5 px-2 py-1.5">
         <div className="line-clamp-2 text-[10px] font-semibold leading-[1.25] text-neutral-900">
           {displayName}
         </div>
@@ -117,8 +117,8 @@ function TreeNode({
           <button
             type="button"
             data-pan-block="true"
-            className="rounded-[6px] px-2 py-[3px] text-[8px] font-medium leading-none text-white transition-opacity hover:opacity-80"
-            style={{ background: tokens.accent }}
+            className="rounded-full border px-2 py-[3px] text-[9px] font-medium leading-none text-neutral-700 transition-colors hover:text-neutral-900"
+            style={{ borderColor: tokens.border, background: 'rgba(255,255,255,0.82)' }}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onOpen(node.workspaceId) }}
@@ -128,8 +128,8 @@ function TreeNode({
           <button
             type="button"
             data-pan-block="true"
-            className="rounded-[6px] border px-2 py-[3px] text-[8px] font-medium leading-none transition-colors hover:opacity-80"
-            style={{ borderColor: tokens.border, color: tokens.badge, background: 'rgba(255,255,255,0.82)' }}
+            className="rounded-full border px-2 py-[3px] text-[9px] font-medium leading-none text-neutral-600 transition-colors hover:text-neutral-800"
+            style={{ borderColor: tokens.border, background: tokens.bg }}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onEdit(node.teamId) }}
