@@ -76,7 +76,7 @@ export interface Message {
 // Tipos enriquecidos para el dashboard (con joins)
 export interface WorkspaceWithAgents extends Workspace {
   agent_sessions: AgentSession[]
-  teams: { id: string; name: string; parent_id: string | null } | null
+  teams: { id: string; name: string; parent_id: string | null; project_id: string; created_at: string } | null
 }
 
 export interface TeamWithWorkspaces extends Team {

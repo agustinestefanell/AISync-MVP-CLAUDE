@@ -11,7 +11,7 @@ import {
   type TreeLayoutPlacement,
   type TreeLayoutConnector,
 } from '@/lib/map/buildTreeLayout'
-import { getProjectColorTokens, type ProjectNodeType } from '@/lib/teams/getProjectColor'
+import { getProjectColorTokens, teamCodeToPaletteIndex, type ProjectNodeType } from '@/lib/teams/getProjectColor'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 import type { ExternalConnection }  from './TeamsClient'
 import type { MapAgentNode }        from '@/lib/map/buildAgentLayout'
@@ -60,20 +60,19 @@ function TreeNode({
   onOpen,
   onEdit,
   teamCodes,
-  rootIndex = 0,
-  nodeType  = 'team',
+  nodeType = 'team',
 }: {
   p:          TreeLayoutPlacement
   onOpen:     (wsId: string) => void
   onEdit:     (teamId: string) => void
   teamCodes?: Record<string, string>
-  rootIndex?: number
   nodeType?:  ProjectNodeType
 }) {
   const { node } = p
   const teamCode    = teamCodes?.[node.teamId]
   const displayName = teamCode ? `${teamCode} · ${node.teamName}` : node.teamName
-  const tokens      = getProjectColorTokens(rootIndex, nodeType)
+  const paletteIndex = teamCode ? teamCodeToPaletteIndex(teamCode) : 0
+  const tokens       = getProjectColorTokens(paletteIndex, nodeType)
 
   if (node.type === 'general_manager') {
     return (
@@ -186,14 +185,6 @@ export default function TreeView({
     [agentNodes, connectedTeamIds],
   )
   const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
-
-  const rootIndexByNodeId = useMemo(() => {
-    const map = new Map<string, number>()
-    roots.forEach((root, i) => {
-      getSubtreeNodes(root.id, mapNodes).forEach(n => map.set(n.id, i))
-    })
-    return map
-  }, [roots, mapNodes])
 
   const nodeTypeByNodeId = useMemo((): Map<string, ProjectNodeType> => {
     const map   = new Map<string, ProjectNodeType>()
@@ -323,7 +314,6 @@ export default function TreeView({
                 onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={handleEdit}
                 teamCodes={teamCodes}
-                rootIndex={rootIndexByNodeId.get(p.node.id) ?? 0}
                 nodeType={nodeTypeByNodeId.get(p.node.id)}
               />
             </div>

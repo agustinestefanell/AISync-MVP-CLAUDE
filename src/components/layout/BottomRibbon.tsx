@@ -43,10 +43,10 @@ export default function BottomRibbon({ accentColor }: { accentColor?: string }) 
   ]
 
   const colored       = !!accentColor
-  const textActive    = colored ? '#1e293b' : '#ffffff'
-  const textInactive  = colored ? '#475569' : '#9ca3af'
-  const textFuture    = colored ? '#64748b' : '#6b7280'
-  const textSeparator = colored ? 'rgba(0,0,0,0.22)' : '#374151'
+  const textActive    = '#ffffff'
+  const textInactive  = colored ? 'rgba(255,255,255,0.62)' : '#9ca3af'
+  const textFuture    = colored ? 'rgba(255,255,255,0.38)' : '#6b7280'
+  const textSeparator = colored ? 'rgba(255,255,255,0.18)' : '#374151'
 
   return (
     <nav

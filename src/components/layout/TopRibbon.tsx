@@ -15,16 +15,16 @@ export default function TopRibbon({
     userName    ? `User: ${userName}`        : null,
   ].filter(Boolean).join(' · ')
 
-  const colored   = !!accentColor
-  const textPrimary   = colored ? '#1e293b' : '#ffffff'
-  const textSecondary = colored ? '#475569' : '#9ca3af'
+  const colored       = !!accentColor
+  const textPrimary   = '#ffffff'
+  const textSecondary = colored ? 'rgba(255,255,255,0.68)' : '#9ca3af'
 
   return (
     <header
       className="sticky top-0 z-50 h-12 px-6 flex items-center justify-between shrink-0"
       style={{
         background:   colored ? accentColor : '#111827',
-        borderBottom: colored ? '1px solid rgba(0,0,0,0.18)' : '1px solid rgb(31,41,55)',
+        borderBottom: colored ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgb(31,41,55)',
       }}
     >
 

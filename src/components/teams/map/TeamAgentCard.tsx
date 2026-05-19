@@ -1,7 +1,7 @@
 'use client'
 
 import type { MapAgentNode } from '@/lib/map/buildAgentLayout'
-import { getProjectColorTokens, type ProjectNodeType, type ProjectColorTokens } from '@/lib/teams/getProjectColor'
+import { getProjectColorTokens, teamCodeToPaletteIndex, type ProjectNodeType, type ProjectColorTokens } from '@/lib/teams/getProjectColor'
 
 // ─── TreeWorkspaceCard (direct port of demo's TreeWorkspaceCard) ──────────────
 
@@ -263,20 +263,20 @@ function GMCard({
 // ─── Public: TeamAgentCard — dispatches to GM or TreeWorkspaceCard ────────────
 
 interface Props {
-  node:          MapAgentNode
-  teamCode?:     string
-  projectIndex?: number
-  nodeType?:     ProjectNodeType
-  onOpen:        (workspaceId: string) => void
-  onEdit:        (teamId: string) => void
+  node:      MapAgentNode
+  teamCode?: string
+  nodeType?: ProjectNodeType
+  onOpen:    (workspaceId: string) => void
+  onEdit:    (teamId: string) => void
 }
 
-export default function TeamAgentCard({ node, teamCode, projectIndex = 0, nodeType, onOpen, onEdit }: Props) {
+export default function TeamAgentCard({ node, teamCode, nodeType, onOpen, onEdit }: Props) {
   const nt: ProjectNodeType = nodeType ?? (
     node.type === 'general_manager' ? 'gm' :
     node.type === 'worker'          ? 'worker' : 'team'
   )
-  const tokens = getProjectColorTokens(projectIndex, nt)
+  const paletteIndex = teamCode ? teamCodeToPaletteIndex(teamCode) : 0
+  const tokens       = getProjectColorTokens(paletteIndex, nt)
 
   if (node.type === 'general_manager') {
     return (

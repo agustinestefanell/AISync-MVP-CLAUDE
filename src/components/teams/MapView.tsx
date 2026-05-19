@@ -16,7 +16,7 @@ import {
 import type { TeamWithWorkspaces }  from '@/lib/db/types'
 import type { ExternalConnection }  from './TeamsClient'
 import type { MapAgentNode }        from '@/lib/map/buildAgentLayout'
-import type { ProjectNodeType }     from '@/lib/teams/getProjectColor'
+import type { ProjectNodeType } from '@/lib/teams/getProjectColor'
 
 interface MapViewProps {
   teams:               TeamWithWorkspaces[]
@@ -107,7 +107,7 @@ export default function MapView({
       return { allPlacements: [], allConnectors: [], totalWidth: 0, totalHeight: 0, connectTeamLeft: 0 }
     }
 
-    type PlacementExt = TreeLayoutPlacement & { projectId: string; rootIndex: number }
+    type PlacementExt = TreeLayoutPlacement & { projectId: string }
     type ConnectorExt = TreeLayoutConnector & { projectId: string }
 
     const placements: PlacementExt[] = []
@@ -115,13 +115,12 @@ export default function MapView({
     let   xOffset   = 0
     let   maxHeight = 0
 
-    for (let rootIdx = 0; rootIdx < roots.length; rootIdx++) {
-      const root    = roots[rootIdx]
+    for (const root of roots) {
       const subtree = getSubtreeNodes(root.id, mapNodes)
       const layout  = buildTreeLayout(root, subtree)
 
       for (const p of layout.placements) {
-        placements.push({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset, projectId: root.projectId, rootIndex: rootIdx })
+        placements.push({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset, projectId: root.projectId })
       }
       for (const c of layout.connectors) {
         connectors.push({ ...c, fromX: c.fromX + xOffset, toX: c.toX + xOffset, projectId: root.projectId })
@@ -215,7 +214,6 @@ export default function MapView({
               <TeamAgentCard
                 node={p.node}
                 teamCode={teamCodes?.[p.node.teamId]}
-                projectIndex={p.rootIndex}
                 nodeType={nodeTypeMap.get(p.node.id)}
                 onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={onEdit}
