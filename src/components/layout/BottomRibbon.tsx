@@ -42,21 +42,28 @@ export default function BottomRibbon({ accentColor }: { accentColor?: string }) 
     ...STATIC_NAV_ITEMS.slice(3),                                                   // rest
   ]
 
+  const colored       = !!accentColor
+  const textActive    = colored ? '#1e293b' : '#ffffff'
+  const textInactive  = colored ? '#475569' : '#9ca3af'
+  const textFuture    = colored ? '#64748b' : '#6b7280'
+  const textSeparator = colored ? 'rgba(0,0,0,0.22)' : '#374151'
+
   return (
     <nav
-      className="sticky bottom-0 z-50 h-10 bg-gray-900 flex items-center justify-center shrink-0"
+      className="sticky bottom-0 z-50 h-10 flex items-center justify-center shrink-0"
       style={{
-        borderTop: accentColor
-          ? `1px solid ${accentColor}`
-          : '1px solid rgb(31,41,55)',
+        background: colored
+          ? `color-mix(in srgb, ${accentColor} 88%, #000)`
+          : '#111827',
+        borderTop: colored ? '1px solid rgba(0,0,0,0.18)' : '1px solid rgb(31,41,55)',
       }}
     >
       {NAV_ITEMS.map((item, i) => (
         <div key={item.label} className="flex items-center">
-          {i > 0 && <span className="text-gray-700 text-xs select-none">|</span>}
+          {i > 0 && <span className="text-xs select-none" style={{ color: textSeparator }}>|</span>}
 
           {item.future ? (
-            <span className="relative group cursor-default text-gray-500 text-xs px-3 select-none">
+            <span className="relative group cursor-default text-xs px-3 select-none" style={{ color: textFuture }}>
               {item.label}
               <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 bg-gray-700 text-gray-300 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 Coming soon
@@ -65,11 +72,10 @@ export default function BottomRibbon({ accentColor }: { accentColor?: string }) 
           ) : (
             <Link
               href={item.href}
-              className={`text-xs px-3 transition-colors ${
-                isActive(pathname, item.href, item.match)
-                  ? 'text-white font-medium'
-                  : 'text-gray-400 hover:text-white'
-              }`}
+              className="text-xs px-3 transition-colors font-medium"
+              style={{
+                color: isActive(pathname, item.href, item.match) ? textActive : textInactive,
+              }}
             >
               {item.label}
             </Link>
