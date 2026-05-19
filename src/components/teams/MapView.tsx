@@ -90,12 +90,6 @@ export default function MapView({
 
   const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
 
-  const projectIndexByProjectId = useMemo(() => {
-    const map = new Map<string, number>()
-    roots.forEach((r, i) => map.set(r.projectId, i))
-    return map
-  }, [roots])
-
   const nodeTypeMap = useMemo((): Map<string, ProjectNodeType> => {
     const map   = new Map<string, ProjectNodeType>()
     const gmIds = new Set(mapNodes.filter(n => n.type === 'general_manager').map(n => n.id))
@@ -113,7 +107,7 @@ export default function MapView({
       return { allPlacements: [], allConnectors: [], totalWidth: 0, totalHeight: 0, connectTeamLeft: 0 }
     }
 
-    type PlacementExt = TreeLayoutPlacement & { projectId: string }
+    type PlacementExt = TreeLayoutPlacement & { projectId: string; rootIndex: number }
     type ConnectorExt = TreeLayoutConnector & { projectId: string }
 
     const placements: PlacementExt[] = []
@@ -121,12 +115,13 @@ export default function MapView({
     let   xOffset   = 0
     let   maxHeight = 0
 
-    for (const root of roots) {
+    for (let rootIdx = 0; rootIdx < roots.length; rootIdx++) {
+      const root    = roots[rootIdx]
       const subtree = getSubtreeNodes(root.id, mapNodes)
       const layout  = buildTreeLayout(root, subtree)
 
       for (const p of layout.placements) {
-        placements.push({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset, projectId: root.projectId })
+        placements.push({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset, projectId: root.projectId, rootIndex: rootIdx })
       }
       for (const c of layout.connectors) {
         connectors.push({ ...c, fromX: c.fromX + xOffset, toX: c.toX + xOffset, projectId: root.projectId })
@@ -220,7 +215,7 @@ export default function MapView({
               <TeamAgentCard
                 node={p.node}
                 teamCode={teamCodes?.[p.node.teamId]}
-                projectIndex={projectIndexByProjectId.get(p.node.projectId) ?? 0}
+                projectIndex={p.rootIndex}
                 nodeType={nodeTypeMap.get(p.node.id)}
                 onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
                 onEdit={onEdit}
