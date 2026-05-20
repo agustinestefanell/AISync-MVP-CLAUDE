@@ -176,10 +176,11 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
     return map
   }, [filtered])
 
-  // Derived calendar data — null-safe until focusDate initializes client-side
-  const monthCells = useMemo(() => getMonthCells(focusDate ?? new Date()), [focusDate])
+  // Derived calendar data — return empty arrays when focusDate is null (no new Date() during SSR)
+  const monthCells = useMemo(() => focusDate ? getMonthCells(focusDate) : [], [focusDate])
   const weekDates  = useMemo(() => {
-    const start = getStartOfWeek(focusDate ?? new Date())
+    if (!focusDate) return []
+    const start = getStartOfWeek(focusDate)
     return Array.from({ length: 7 }, (_, i) => addDays(start, i))
   }, [focusDate])
   const dayEvents = focusDate ? (byDate.get(buildDateKey(focusDate)) ?? []) : []
@@ -367,8 +368,12 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
       <div className="mb-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="text-sm font-semibold text-gray-900">{formatPeriodLabel(focusDate, viewMode)}</div>
-            <div className="text-xs text-gray-500 mt-0.5">{filtered.length} event{filtered.length !== 1 ? 's' : ''}</div>
+            <div className="text-sm font-semibold text-gray-900">
+              Event Timeline — {formatPeriodLabel(focusDate, viewMode)}
+              <span className="ml-2 text-xs font-normal text-gray-500">
+                · {filtered.length} event{filtered.length !== 1 ? 's' : ''}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
