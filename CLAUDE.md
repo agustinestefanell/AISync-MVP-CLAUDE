@@ -1,5 +1,23 @@
 # AISync MVP — Claude Code Reference
 
+## RUTINA DURA — Actualización de handoff.md
+
+Al cerrar cada OE, ANTES de confirmar que está cerrada,
+Claude Code DEBE actualizar handoff.md con:
+
+1. Fecha y título de la OE
+2. Archivos modificados
+3. Decisión técnica tomada y por qué
+4. Alternativas descartadas y por qué se descartaron
+5. Riesgos conocidos o deuda técnica generada
+
+Sin esta actualización, la OE NO está cerrada.
+
+Esta regla tiene prioridad sobre cualquier otra instrucción
+de cierre. No hay excepciones.
+
+---
+
 ## REGLA CRÍTICA — Demo first
 
 Si una funcionalidad existe en C:\proyectos\AISync\MVP (la demo):
