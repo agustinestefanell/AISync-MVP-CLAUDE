@@ -197,3 +197,121 @@ Si se implementan team codes en TreeView también, reutilizar `computeTeamCodes`
 
 ### Próximo paso recomendado
 Evaluar si TreeView debe mostrar los mismos códigos (OE separada).
+
+---
+
+## [2026-05-19~20] — GMCard rediseño (description visible + tokens cromáticos)
+
+### Decisión / Estado cerrado
+GMCard en Teams Map ahora muestra la descripción del team visible en el cuerpo de la card. Layout reorganizado con tokens cromáticos del sistema corporativo. Background con gradiente `linear-gradient(180deg, tokens.header 0%, tokens.bg 100%)`.
+
+### Archivos / superficies afectadas
+- `src/components/teams/map/TeamAgentCard.tsx`
+
+### Riesgos o pendientes
+Ninguno.
+
+---
+
+## [2026-05-19~20] — Sistema cromático corporativo (12 paletas fijas)
+
+### Decisión / Estado cerrado
+Reemplazado golden angle (HSL dinámico) por 12 paletas fijas corporativas (`CORPORATE_PALETTES`). Función `teamCodeToPaletteIndex(code)` parsea el segundo segmento del código jerárquico (ej: `A-01` → índice 1). Función `getProjectColorTokens(index, nodeType)` retorna `{bg, header, border, badge, accent}`.
+
+Fuente única de color para MAP, Tree y Workspace ribbons. No hay lógica de color duplicada.
+
+### Archivos / superficies afectadas
+- `src/lib/teams/getProjectColor.ts`
+
+### Riesgos o pendientes
+Paletas hardcodeadas. Si se agregan más de 12 teams raíz, los índices ciclan (módulo 12) — comportamiento aceptable para MVP.
+
+---
+
+## [2026-05-19~20] — Numeración jerárquica extendida a Tree, Documentation Mode y Audit Log
+
+### Decisión / Estado cerrado
+`computeTeamCodes()` ya existía para MAP. Se extendió a:
+- **TreeView**: códigos visibles en nodos, workers mapeados a tipo `subteam` para heredar color de paleta.
+- **Documentation Mode**: pasa `teamCodes` desde el servidor vía `getProjectsWithHierarchy()`.
+- **Audit Log**: `AuditEventRow` extendido con `team_id` / `team_name` via join `workspaces(name, teams(id, name))`. `AuditClient` computa `teamCodes` y los pasa al calendario.
+
+### Archivos / superficies afectadas
+- `src/components/teams/TreeView.tsx`
+- `src/lib/db/audit.ts`
+- `src/app/audit/page.tsx`
+- `src/components/audit/AuditClient.tsx`
+
+### Riesgos o pendientes
+`audit_log` no tiene FK formal a `checkpoints` — tradeoff arquitectónico pendiente (registrado en CLAUDE.md).
+
+---
+
+## [2026-05-19~20] — Colorimetría MAP y Tree con gradiente
+
+### Decisión / Estado cerrado
+- MAP (`TeamAgentCard`): GMCard y TreeWorkspaceCard usan `linear-gradient(180deg, tokens.header 0%, tokens.bg 100%)` — sin color sólido.
+- Tree (`TreeView`): mismo patrón de gradiente. Workers mapeados a tipo `subteam` para obtener color del equipo (no neutral). Rail del árbol usa `tokens.border`.
+- Colorimetría MAP: `rootIndex` determina paleta del root, `teamIndex` para sub-teams. Golden angle eliminado.
+
+### Archivos / superficies afectadas
+- `src/components/teams/map/TeamAgentCard.tsx`
+- `src/components/teams/TreeView.tsx`
+
+---
+
+## [2026-05-19~20] — Workspace header con nombre de team + ribbons de color
+
+### Decisión / Estado cerrado
+El header del Workspace muestra el nombre del team con `accentColor` derivado de la paleta corporativa. Ribbons de color consistentes con el sistema de `getProjectColorTokens`.
+
+### Archivos / superficies afectadas
+- `src/components/workspace/WorkspaceShell.tsx` (o equivalente)
+
+---
+
+## [2026-05-19~20] — Audit Log: calendario Month/Week/Day con SSR deshabilitado
+
+### Decisión / Estado cerrado
+Reemplazada timeline lineal por calendario Month/Week/Day portado desde demo `PageC.tsx` (sin librerías externas, solo `Date` native + CSS grid).
+
+**Hydration fix definitivo:** `AuditClient` se importa desde `page.tsx` con `dynamic(..., { ssr: false })`. Ni `AuditClient` ni `AuditTimeline` se renderizan en server. Elimina cualquier posibilidad de mismatch server/client por fechas, timezone o locale.
+
+Patrón previo intentado (movido `focusDate` a `useEffect`, eliminado `?? new Date()` de useMemos) no fue suficiente — se requería deshabilitar SSR completo del componente.
+
+### Archivos / superficies afectadas
+- `src/app/audit/page.tsx` — dynamic import con `ssr: false`
+- `src/components/audit/AuditClient.tsx` — dynamic import interno de AuditTimeline (redundante pero inofensivo)
+- `src/components/audit/AuditTimeline.tsx` — calendario completo nuevo
+
+### Riesgos o pendientes
+Con `ssr: false`, la página Audit Log no genera HTML en server — el SEO/crawl de esa ruta queda en cliente. Aceptable para una herramienta interna.
+
+---
+
+## [2026-05-19~20] — ESLint fix: unused vars con _ prefix
+
+### Decisión / Estado cerrado
+`.eslintrc.json` extendido con `varsIgnorePattern: "^_"` y `argsIgnorePattern: "^_"`. Variables work-in-progress en `WorkspaceShell.tsx` renombradas con prefijo `_`. Variables código muerto (`PURPOSE_COLORS`, `saveLabel`, `INTER_TEAM_GAP`) eliminadas. Unbloquea `npm run build` en Vercel.
+
+### Archivos / superficies afectadas
+- `.eslintrc.json`
+- `src/components/workspace/WorkspaceShell.tsx`
+- `src/lib/map/buildAgentLayout.ts`
+
+---
+
+## [2026-05-19~20] — Decisiones arquitectónicas discutidas, no implementadas
+
+### Decisión / Estado: pendiente de OE
+
+Tres decisiones discutidas en sesión pero sin implementación todavía:
+
+1. **BYOK-first para API keys** — el usuario trae su propia key por provider. AISync no paga uso de IA de sus clientes. Tabla `user_api_keys` ya existe en schema.
+
+2. **Gestión gobernada de archivos** — 4 estados: efímero → draft → saved object → archived. Diseñado para Content Plane (migrable). No implementado.
+
+3. **Repositorio de Contexto** — RAG gobernado con `pgvector`, scope jerárquico (Account > Project > Team > Workspace). No implementado. Requiere migración DB y decisión de hosting del modelo de embeddings.
+
+### Próximo paso recomendado
+Cualquiera de los tres requiere OE propia antes de implementar.
