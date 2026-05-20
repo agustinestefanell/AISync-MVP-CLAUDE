@@ -61,7 +61,7 @@ export default function AuditClient({ events, customProviders, checkpoints, proj
       <main className="flex-1 overflow-y-auto">
         <div className="px-6 pt-4 pb-6">
           <div className="mb-4">
-            <h1 className="text-xl font-semibold text-white">Event Timeline</h1>
+            <h1 className="text-xl font-semibold text-gray-900">Event Timeline</h1>
             <p className="text-sm text-gray-500 mt-1">
               {events.length} event{events.length !== 1 ? 's' : ''} recorded
             </p>

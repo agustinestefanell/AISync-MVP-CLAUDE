@@ -112,11 +112,14 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
 }) {
   const router = useRouter()
 
-  // Calendar state
+  // Calendar state — focusDate starts null to avoid server/client hydration mismatch
   const [viewMode,  setViewMode]  = useState<ViewMode>('month')
-  const [focusDate, setFocusDate] = useState<Date>(() =>
-    events.length > 0 ? new Date(events[0].created_at) : new Date()
-  )
+  const [focusDate, setFocusDate] = useState<Date | null>(null)
+
+  useEffect(() => {
+    setFocusDate(events.length > 0 ? new Date(events[0].created_at) : new Date())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Filter state
   const [filterType,   setFilterType]   = useState('all')
@@ -133,7 +136,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
   const normalized = useMemo<NormalizedEvent[]>(() => events.map(e => ({
     ...e,
     date: e.created_at.slice(0, 10),
-    time: new Date(e.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    time: e.created_at.slice(11, 16),
   })), [events])
 
   // Unique teams for filter dropdown
@@ -173,24 +176,24 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
     return map
   }, [filtered])
 
-  // Derived calendar data
-  const monthCells = useMemo(() => getMonthCells(focusDate), [focusDate])
+  // Derived calendar data — null-safe until focusDate initializes client-side
+  const monthCells = useMemo(() => getMonthCells(focusDate ?? new Date()), [focusDate])
   const weekDates  = useMemo(() => {
-    const start = getStartOfWeek(focusDate)
+    const start = getStartOfWeek(focusDate ?? new Date())
     return Array.from({ length: 7 }, (_, i) => addDays(start, i))
   }, [focusDate])
-  const dayEvents = byDate.get(buildDateKey(focusDate)) ?? []
+  const dayEvents = focusDate ? (byDate.get(buildDateKey(focusDate)) ?? []) : []
 
   // Navigation (ported from demo PageC.tsx goToPrevious / goToNext / resetFocus)
   const goToPrev = () => {
-    if (viewMode === 'month') setFocusDate(d => addMonths(d, -1))
-    else if (viewMode === 'week') setFocusDate(d => addDays(d, -7))
-    else setFocusDate(d => addDays(d, -1))
+    if (viewMode === 'month') setFocusDate(d => addMonths(d ?? new Date(), -1))
+    else if (viewMode === 'week') setFocusDate(d => addDays(d ?? new Date(), -7))
+    else setFocusDate(d => addDays(d ?? new Date(), -1))
   }
   const goToNext = () => {
-    if (viewMode === 'month') setFocusDate(d => addMonths(d, 1))
-    else if (viewMode === 'week') setFocusDate(d => addDays(d, 7))
-    else setFocusDate(d => addDays(d, 1))
+    if (viewMode === 'month') setFocusDate(d => addMonths(d ?? new Date(), 1))
+    else if (viewMode === 'week') setFocusDate(d => addDays(d ?? new Date(), 7))
+    else setFocusDate(d => addDays(d ?? new Date(), 1))
   }
 
   // Detail modal handlers (preserved from original AuditTimeline)
@@ -355,13 +358,16 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
     )
   }
 
+  // Guard: wait for client-side focusDate before rendering calendar
+  if (!focusDate) return <div className="p-6 text-sm text-gray-600">Loading calendar…</div>
+
   return (
     <>
       {/* ── Controls: period label + view toggle + prev/next/today ── */}
       <div className="mb-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="text-sm font-semibold text-white">{formatPeriodLabel(focusDate, viewMode)}</div>
+            <div className="text-sm font-semibold text-gray-900">{formatPeriodLabel(focusDate, viewMode)}</div>
             <div className="text-xs text-gray-500 mt-0.5">{filtered.length} event{filtered.length !== 1 ? 's' : ''}</div>
           </div>
 
@@ -373,7 +379,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                   key={m}
                   onClick={() => setViewMode(m)}
                   className={`h-7 rounded-full px-3 text-xs font-medium transition-colors ${
-                    viewMode === m ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-gray-200'
+                    viewMode === m ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white'
                   }`}
                 >
                   {m.charAt(0).toUpperCase() + m.slice(1)}
@@ -383,9 +389,9 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
 
             {/* Prev / Today / Next */}
             <div className="flex rounded-full border border-gray-700 bg-gray-900 p-0.5">
-              <button onClick={goToPrev}                        className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-gray-200 transition-colors">Prev</button>
-              <button onClick={() => setFocusDate(new Date())} className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-gray-200 transition-colors">Today</button>
-              <button onClick={goToNext}                        className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-gray-200 transition-colors">Next</button>
+              <button onClick={goToPrev}                        className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-white transition-colors">Prev</button>
+              <button onClick={() => setFocusDate(new Date())} className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-white transition-colors">Today</button>
+              <button onClick={goToNext}                        className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-white transition-colors">Next</button>
             </div>
           </div>
         </div>
@@ -415,7 +421,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
           {(filterType !== 'all' || filterTeamId !== 'all') && (
             <button
               onClick={() => { setFilterType('all'); setFilterTeamId('all') }}
-              className="text-xs text-gray-500 hover:text-gray-300 px-2 transition-colors"
+              className="text-xs text-gray-500 hover:text-gray-800 px-2 transition-colors"
             >
               Reset
             </button>
@@ -455,7 +461,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                   {cellDate && (
                     <>
                       <div className="mb-1 flex items-center justify-between">
-                        <span className={`text-xs font-semibold ${focus ? 'text-white' : 'text-gray-500'}`}>
+                        <span className={`text-xs font-semibold ${focus ? 'text-gray-900' : 'text-gray-500'}`}>
                           {cellDate.getDate()}
                         </span>
                         {evs.length > 0 && <span className="text-[10px] text-gray-600">{evs.length}</span>}
@@ -464,7 +470,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                         {evs.slice(0, 3).map(e => renderMonthChip(e))}
                         {evs.length > 3 && (
                           <button
-                            className="px-1 text-[9px] text-gray-500 hover:text-gray-300 transition-colors"
+                            className="px-1 text-[9px] text-gray-500 hover:text-gray-800 transition-colors"
                             onClick={ev => { ev.stopPropagation(); setFocusDate(cellDate!); setViewMode('day') }}
                           >
                             +{evs.length - 3} more
@@ -493,8 +499,8 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                   key={key}
                   className="min-h-[300px] rounded-[12px] border p-2"
                   style={{
-                    background:  'rgba(255,255,255,0.02)',
-                    borderColor: focus ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)',
+                    background:  '#ffffff',
+                    borderColor: focus ? 'rgb(107,114,128)' : 'rgb(209,213,219)',
                   }}
                 >
                   <button
@@ -504,7 +510,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                     <div className="text-[10px] uppercase tracking-wider text-gray-500">
                       {DAY_NAMES[date.getDay()]}
                     </div>
-                    <div className="mt-0.5 text-sm font-semibold text-gray-200">
+                    <div className="mt-0.5 text-sm font-semibold text-gray-800">
                       {MONTH_NAMES[date.getMonth()].slice(0, 3)} {date.getDate()}
                     </div>
                   </button>
@@ -512,7 +518,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                     {evs.length > 0
                       ? evs.map(e => renderWeekCard(e))
                       : (
-                        <div className="rounded-[8px] border border-dashed border-gray-800 px-2 py-4 text-xs text-gray-700 text-center">
+                        <div className="rounded-[8px] border border-dashed border-gray-300 px-2 py-4 text-xs text-gray-400 text-center">
                           —
                         </div>
                       )
@@ -531,8 +537,8 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
           {dayEvents.length > 0
             ? dayEvents.map(e => renderDayCard(e))
             : (
-              <div className="rounded-[14px] border border-dashed border-gray-800 flex items-center justify-center min-h-[160px]">
-                <p className="text-gray-600 text-sm">No events on this day.</p>
+              <div className="rounded-[14px] border border-dashed border-gray-300 flex items-center justify-center min-h-[160px]">
+                <p className="text-gray-500 text-sm">No events on this day.</p>
               </div>
             )
           }
