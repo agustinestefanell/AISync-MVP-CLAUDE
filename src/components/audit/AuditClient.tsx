@@ -1,7 +1,17 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import AuditTimeline from './AuditTimeline'
+import dynamic from 'next/dynamic'
+
+const AuditTimeline = dynamic(
+  () => import('./AuditTimeline'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-6 text-sm text-gray-500">Loading calendar...</div>
+    ),
+  }
+)
 import SMPanel from '@/components/sm/SMPanel'
 import type { AuditEventRow } from '@/lib/db/audit'
 import type { CustomProvider } from '@/components/sm/SMPanel'
