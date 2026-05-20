@@ -315,3 +315,38 @@ Tres decisiones discutidas en sesión pero sin implementación todavía:
 
 ### Próximo paso recomendado
 Cualquiera de los tres requiere OE propia antes de implementar.
+
+---
+
+## [2026-05-20] — OE SAT/MAT Structured Context — Capas 1, 3 y 4 implementadas
+
+### Contexto
+Los agentes en workspace SAT no tenían visibilidad del trabajo de sus pares. Cada AgentPanel operaba en aislamiento total — solo veía su propio historial de mensajes. El objetivo era que en equipos SAT, cada agente pudiera ver el estado reciente de los otros paneles antes de responder.
+
+### Decisión / Estado cerrado
+Implementación de 3 capas de contexto en `/api/chat/route.ts`:
+- **Capa 1** (role prompt): ya existía, preservada
+- **Capa 3** (team system prompt): consulta `system_prompts` por `team_id`. Silencia error si columna no existe — forward-compatible
+- **Capa 4** (snapshot de pares): últimos 5 mensajes de cada panel hermano, formateado como bloque de contexto. Solo para SAT; MAT queda aislado
+
+Orden final de ensamblado: `[rolePromptParts, teamPromptParts, snapshotParts, rawMessages]`
+
+El snapshot viaja desde el cliente: `WorkspaceShell` construye `buildOtherPanelsSnapshot()` via `panelRefs`, lo pasa como prop a cada `AgentPanel`, que lo serializa en el fetch body.
+
+### Archivos modificados
+- `src/app/api/chat/route.ts` — reescritura completa del ensamblado de mensajes
+- `src/components/workspace/AgentPanel.tsx` — nuevo prop `teamId`, `teamType`, `getOtherPanelsSnapshot`; snapshot incluido en fetch body
+- `src/components/workspace/WorkspaceShell.tsx` — `teamType` computado con `useMemo`; `buildOtherPanelsSnapshot` con `useCallback`; props nuevos pasados a cada AgentPanel
+
+### Alternativas descartadas
+- **Snapshot para MAT**: descartado porque en MAT no hay un "equipo" coordinado. Cada agente puede tener proveedor distinto y rol independiente. Sin flag confiable de "MAT coordinado", la inyección ciega podría confundir modelos. Pendiente revisión cuando MAT tenga casos de uso definidos.
+- **Snapshot completo (todos los mensajes)**: descartado — muy costoso en tokens. `slice(-5)` + `content.slice(0, 400)` es suficiente para awareness sin inflar el contexto.
+- **Persistencia del snapshot en DB**: descartado — el snapshot es efímero por diseño (Content Plane). No debe persistirse en Control Plane.
+
+### Riesgos / deuda técnica
+- La **Capa 2** (Prompts Library del usuario) no está implementada. El comentario en el código marca el gap entre Capa 1 y Capa 3.
+- Capa 3 (`team_id` en `system_prompts`) requiere migración DB para funcionar. La query falla silenciosamente hoy — comportamiento aceptable.
+- El snapshot usa `panelRefs.current` en el momento del send. Si un panel no está montado todavía, retorna `[]` — sin crash, pero sin contexto.
+
+### Commit
+`0f40de5` — feat: SAT structured context — layers 1/3/4 in chat API
