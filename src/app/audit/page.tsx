@@ -1,6 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import AuditClient from '@/components/audit/AuditClient'
+import dynamic from 'next/dynamic'
+
+const AuditClient = dynamic(
+  () => import('@/components/audit/AuditClient'),
+  {
+    ssr: false,
+    loading: () => <div className="p-6 text-sm text-gray-500">Loading...</div>,
+  }
+)
 import { getAuditEvents } from '@/lib/db/audit'
 import { getProjectsWithHierarchy } from '@/lib/db/projects'
 import AppLayout from '@/components/layout/AppLayout'
