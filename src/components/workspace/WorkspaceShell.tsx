@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AgentPanel, { type AgentPanelHandle } from './AgentPanel'
 import HandoffPackageModal from './HandoffPackageModal'
 import type { AgentSession, Checkpoint, WorkspaceWithAgents, Message } from '@/lib/db/types'
@@ -47,8 +47,33 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const [nameError, setNameError]           = useState(false)
   const [saveModalError, setSaveModalError] = useState<string | null>(null)
 
-  const panelRefs      = useRef<Record<string, AgentPanelHandle | null>>({})
+  const panelRefs       = useRef<Record<string, AgentPanelHandle | null>>({})
   const selectionCounts = useRef<Record<string, number>>({})
+
+  // SAT vs MAT: one provider = SAT, many = MAT (same logic as teams/route.ts)
+  const teamType = useMemo(() => {
+    const providers = new Set(workspace.agent_sessions.map(s => s.provider))
+    return providers.size === 1 ? ('SAT' as const) : ('MAT' as const)
+  }, [workspace.agent_sessions])
+
+  // Snapshot of last N messages from all panels except the calling one
+  const buildOtherPanelsSnapshot = useCallback((currentSessionId: string) => {
+    return workspace.agent_sessions
+      .filter(s => s.id !== currentSessionId)
+      .map(s => {
+        const allMsgs = panelRefs.current[s.id]?.getAllMessages() ?? []
+        const lastMessages = allMsgs
+          .filter(m => (m.role === 'user' || m.role === 'assistant') && m.content.trim())
+          .slice(-5)
+          .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+        return {
+          role:  AGENT_LABEL[s.agent_role] ?? s.agent_role,
+          panel: s.agent_role,
+          lastMessages,
+        }
+      })
+      .filter(p => p.lastMessages.length > 0)
+  }, [workspace.agent_sessions])
 
   // Cargar checkpoints existentes al montar
   useEffect(() => {
@@ -281,6 +306,9 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
             onForward={(messages, targetRole) => handlePanelForward(session, messages, targetRole)}
             onCreateHandoff={() => setShowHandoffModal(true)}
             onSaveVersion={openSaveModal}
+            teamId={workspace.team_id}
+            teamType={teamType}
+            getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(session.id)}
           />
         ))}
       </div>

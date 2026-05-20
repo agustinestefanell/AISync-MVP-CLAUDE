@@ -92,6 +92,12 @@ export interface AgentPanelHandle {
   clearSelection(): void
 }
 
+interface PanelSnapshot {
+  role:         string
+  panel:        string
+  lastMessages: { role: 'user' | 'assistant'; content: string }[]
+}
+
 interface Props {
   session:           AgentSession
   initialMessages:   Message[]
@@ -101,6 +107,10 @@ interface Props {
   onForward?:        (messages: ChatMessage[], targetRole: string) => void
   onCreateHandoff?:  () => void
   onSaveVersion?:    () => void
+  // SAT/MAT structured context (Capa 3 + 4)
+  teamId?:                  string
+  teamType?:                'SAT' | 'MAT'
+  getOtherPanelsSnapshot?:  () => PanelSnapshot[]
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -108,6 +118,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
   ({
     session, initialMessages, workspaceLocked, onSelectionChange,
     forwardTargets, onForward, onCreateHandoff, onSaveVersion,
+    teamId, teamType, getOtherPanelsSnapshot,
   }, ref) => {
     const role         = ROLE_CONFIG[session.agent_role] ?? DEFAULT_ROLE
     const guidePrompts = GUIDE_PROMPTS[session.agent_role] ?? GUIDE_PROMPTS.worker1
@@ -234,6 +245,10 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       try {
         const agentRole = session.agent_role === 'manager' ? 'manager' : 'worker'
 
+        // SAT: always share other panels' context. MAT: no snapshot (no active forward flag).
+        const otherPanelsSnapshot: PanelSnapshot[] =
+          teamType === 'SAT' ? (getOtherPanelsSnapshot?.() ?? []) : []
+
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -243,6 +258,12 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
             model:     session.model,
             agentRole,
             ...(session.config?.endpoint ? { endpoint: session.config.endpoint } : {}),
+            team_id:              teamId   ?? null,
+            workspace_id:         session.workspace_id,
+            team_type:            teamType ?? null,
+            panel_id:             session.agent_role,
+            session_id:           session.id,
+            otherPanelsSnapshot,
           }),
         })
 
