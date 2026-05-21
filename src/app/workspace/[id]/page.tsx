@@ -51,6 +51,7 @@ export default async function WorkspacePage({
 
   const team = workspace.teams
   const pageName = team?.name ?? 'Workspace'
+  const teamType = new Set(workspace.agent_sessions.map(s => s.provider)).size === 1 ? 'SAT' : 'MAT'
 
   let accentColor: string | undefined
   if (team?.project_id) {
@@ -71,6 +72,7 @@ export default async function WorkspacePage({
       pageSubtitle="How to use Main Workspace (click here)"
       scrollable={false}
       accentColor={accentColor}
+      badge={teamType}
     >
       <WorkspaceShell
         workspace={workspace}

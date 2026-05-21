@@ -5,10 +5,11 @@ interface TopRibbonProps {
   projectName?:      string
   userName?:         string
   accentColor?:      string
+  badge?:            string
 }
 
 export default function TopRibbon({
-  pageName, pageSubtitle, pageSubtitleHref, projectName, userName, accentColor,
+  pageName, pageSubtitle, pageSubtitleHref, projectName, userName, accentColor, badge,
 }: TopRibbonProps) {
   const rightInfo = [
     projectName ? `Project: ${projectName}` : null,
@@ -38,9 +39,19 @@ export default function TopRibbon({
 
       {/* CENTER — page name + subtitle */}
       <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-        <span className="text-xs font-bold tracking-widest uppercase" style={{ color: textPrimary }}>
-          {pageName}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold tracking-widest uppercase" style={{ color: textPrimary }}>
+            {pageName}
+          </span>
+          {badge && (
+            <span
+              className="rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wider leading-none border"
+              style={{ color: textPrimary, borderColor: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.15)' }}
+            >
+              {badge}
+            </span>
+          )}
+        </div>
         {pageSubtitle && (
           pageSubtitleHref
             ? (

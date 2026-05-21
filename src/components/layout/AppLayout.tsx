@@ -9,6 +9,7 @@ interface AppLayoutProps {
   userName?:          string
   projectName?:       string
   accentColor?:       string
+  badge?:             string
   /** false = flex column, overflow-hidden (workspace / full-height views) */
   scrollable?:        boolean
 }
@@ -21,6 +22,7 @@ export default function AppLayout({
   userName,
   projectName,
   accentColor,
+  badge,
   scrollable = true,
 }: AppLayoutProps) {
   return (
@@ -35,6 +37,7 @@ export default function AppLayout({
         userName={userName}
         projectName={projectName}
         accentColor={accentColor}
+        badge={badge}
       />
       <main className={
         scrollable
