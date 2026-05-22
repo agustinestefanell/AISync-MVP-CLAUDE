@@ -46,7 +46,11 @@ export default function TopRibbon({
           {badge && (
             <span
               className="rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wider leading-none border"
-              style={{ color: textPrimary, borderColor: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.15)' }}
+              style={
+                badge === 'SAT'
+                  ? { color: '#000000', borderColor: '#000000', background: '#ffffff' }
+                  : { color: '#ffffff', borderColor: '#ffffff', background: '#000000' }
+              }
             >
               {badge}
             </span>

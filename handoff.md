@@ -350,3 +350,284 @@ El snapshot viaja desde el cliente: `WorkspaceShell` construye `buildOtherPanels
 
 ### Commit
 `0f40de5` — feat: SAT structured context — layers 1/3/4 in chat API
+
+---
+
+## [2026-05-21] — OE: Prompt Library MVP con asignación Team/Worker e inyección runtime
+
+### Archivos modificados
+- `supabase/migrations/016_prompt_library.sql` — CREADO
+- `src/lib/db/prompts.ts` — CREADO
+- `src/components/workspace/PromptLibrary.tsx` — CREADO
+- `src/components/workspace/AgentPanel.tsx` — MODIFICADO
+- `src/app/api/chat/route.ts` — MODIFICADO
+
+### Tablas creadas
+**`prompt_library`**: `id`, `user_id`, `title`, `body`, `scope` (worker|team), `status`, `version`, `tags`, `notes`, `created_at`, `updated_at`. RLS: solo el dueño (`user_id = auth.uid()`).
+
+**`prompt_assignments`**: `id`, `prompt_id` (FK cascade), `assigned_to` (worker|team), `target_id`, `agent_role`, `is_active`, `created_at`. RLS: solo si el prompt pertenece al usuario.
+
+### Funciones CRUD (src/lib/db/prompts.ts)
+`listActivePromptsForContext({ teamId, sessionId, agentRole })` — server-side, usa `createClient()` del server. Retorna `{ teamPrompts, workerPrompts }`.
+
+### Componente PromptLibrary.tsx
+Modal con dos secciones: **Library** (CRUD + Assign to Worker / Assign to Team) y **Active in this context** (Assigned to this Worker + Inherited from Team + Unassign). Usa Supabase browser client directamente, mismo patrón que `TeamsClient.tsx`.
+
+### Cambios en AgentPanel.tsx
+- Importado `PromptLibrary`
+- Agregado state `showPromptLibrary`
+- Botón "Prompt Library" reemplazado: ya no es Coming soon, abre el modal con `teamId`, `teamType`, `workspaceId`, `sessionId`, `agentRole`
+- "Add Context File" mantiene tooltip Coming soon
+- `PromptLibrary` renderizado dentro de Fragment junto al panel principal
+
+### Cambios en route.ts — Orden de inyección runtime
+```
+1. Role Prompt base (rolePromptParts) — Capa 1
+2. Team Prompt de system_prompts (teamPromptParts) — Capa 3
+3. Prompt Library Team prompts (promptLibraryParts[0]) — NUEVO
+4. Prompt Library Worker prompts (promptLibraryParts[1]) — NUEVO
+5. Snapshot SAT de otros paneles (snapshotParts) — Capa 4
+6. Historial local (rawMessages)
+```
+
+### Precedencia Team/Worker
+Worker Prompt prevalece en su ámbito porque se inyecta después del Team Prompt. La arquitectura va de lo general (Team) a lo singular (Worker). Si hay conflicto de instrucciones, el Worker Prompt sobrescribe al nivel del agente que lo tiene asignado.
+
+### Decisiones técnicas
+- **Sin delete físico**: `is_active = false` para desasignar, `status = 'active'` para prompts. No se implementó archive/delete MVP.
+- **Sin trigger `updated_at`**: misma decisión que el resto del proyecto (no hay triggers automáticos). Se actualiza manualmente desde el componente.
+- **RLS sobre `prompt_assignments`**: verifica FK contra `prompt_library.user_id`. Garantiza que nadie puede asignar/ver asignaciones de prompts ajenos.
+- **Wrapping con Fragment**: AgentPanel ya tenía un `<div>` raíz; se envolvió en `<Fragment>` para soportar el modal fuera del árbol del panel.
+- **query en dos pasos**: assignments → prompt_ids → prompt rows. Evita problemas de TypeScript con nested select de Supabase sin tipos generados.
+- **Inyección en route.ts dentro de `try/catch`**: si la tabla no existe o falla la query, el chat sigue funcionando sin error visible.
+
+### Lo que quedó fuera del MVP
+- Audit Log de prompts
+- Versionado complejo (auto-increment de version)
+- Aprobación multinivel
+- Prompts por Project/Subteam
+- Prompts temporales
+- Scoring automático
+- AI que sugiere prompts
+- Delete físico de prompts
+
+### Riesgos pendientes
+- **Migración en Supabase pendiente de ejecución**: `016_prompt_library.sql` debe ejecutarse en Supabase Dashboard antes de usar la feature en producción. Hasta entonces, el chat sigue funcionando (queries dentro de try/catch).
+- **RLS sin policy de delete en `prompt_assignments`**: intencionalmente omitida para MVP ya que se usa `is_active = false`. Si se agrega delete físico en el futuro, agregar policy correspondiente.
+- **RLS sin policy de delete en `prompt_library`**: mismo criterio.
+
+### Commit
+Build pasa. OE cerrada.
+
+---
+
+## [2026-05-21] — Fix: Prompts Library en BottomRibbon conectado a modal temporal
+
+### Cambios
+- `src/components/layout/BottomRibbon.tsx` — "Prompts Library" ya no es `future: true`. Renderiza `<button>` que abre `PromptLibrary` en modo solo-biblioteca (teamId/sessionId/agentRole vacíos).
+- `src/components/workspace/PromptLibrary.tsx` — sección "Active in this context" muestra mensaje "Open a workspace to see active prompts." cuando sessionId y teamId están vacíos.
+
+### Nota de pendiente
+**Prompts Library en ribbon = modal temporal.**
+**Pendiente: implementar página /prompts dedicada.**
+
+### Decisión
+El estado del modal vive en `BottomRibbon` directamente (ya es client component). No se tocó `AppLayout` (server component). No se creó ruta `/prompts`.
+
+### Build
+Pasa sin errores.
+
+---
+
+## [2026-05-21] — OE A: Context Files Schema + CRUD + Storage
+
+### Archivos creados
+- `supabase/migrations/017_context_sources.sql`
+- `src/lib/storage/contextFiles.ts`
+- `src/lib/context/extractText.ts`
+- `src/lib/db/context.ts`
+
+### Tabla `context_sources`
+Campos: `id`, `user_id`, `title`, `source_kind`, `scope`, `project_id`, `team_id`, `workspace_id`, `session_id`, `content_text`, `file_path`, `file_type`, `file_size_bytes`, `status`, `retention_mode`, `extracted_text_available`, `origin_type`, `origin_message_id`, `notes`, `tags`, `created_at`, `updated_at`.
+
+RLS: `FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid())`.
+
+### Bucket Supabase Storage
+- Nombre: `context-files`
+- Visibilidad: **private**
+- La migración incluye SQL para crear el bucket (`INSERT INTO storage.buckets`) y RLS sobre `storage.objects`.
+- **Si el INSERT falla** (extensión storage no activa o permisos insuficientes), crear manualmente en Supabase Dashboard: Storage → New Bucket → "context-files" → Private.
+- RLS de storage: path format `{userId}/{contextSourceId}/{safeFileName}` — solo el dueño puede subir/leer/borrar.
+
+### Helpers de Storage (`src/lib/storage/contextFiles.ts`)
+- `uploadContextFile({ file, fileName, mimeType, userId, contextSourceId })` → devuelve `file_path`
+- `getContextFileUrl(filePath, expiresInSeconds)` → devuelve signed URL temporal (default 1h). No URL pública.
+
+### CRUD (`src/lib/db/context.ts`)
+- `createContextSource(data)` — crea registro
+- `updateContextSource(id, data)` — actualiza con `updated_at`
+- `listContextSources({ userId, scope?, projectId?, teamId?, workspaceId?, sessionId? })` — filtra activos
+- `getContextSource(id)` — por id
+- `archiveContextSource(id)` — cambia status a 'archived'
+- `extractAndSaveText(id, text)` — guarda content_text y marca `extracted_text_available = true`
+- `getContextSourcesForRuntime({ projectId?, teamId?, sessionId? })` — query OR multi-scope, preparado para OE C
+
+### Extractor de texto (`src/lib/context/extractText.ts`)
+- `extractTextFromBuffer(buffer, mimeType)` → `{ text, supported }`
+- TXT/MD/CSV/JSON/HTML: extracción directa (`buffer.toString('utf-8')`)
+- PDF: `pdf-parse` (dynamic import — cast `as unknown as callable` por `export =` ESM syntax de v2)
+- DOCX: `mammoth.extractRawText`
+- Otros: `{ text: null, supported: false }` — guarda referencia sin extracción
+- `detectMimeType(fileName)` → mimeType por extensión
+
+### Dependencias agregadas
+- `pdf-parse@2.4.5` + `@types/pdf-parse@1.1.5`
+- `mammoth@1.12.0` (tipos incluidos)
+
+### Decisiones técnicas
+- **`pdf-parse` import**: v2.x usa `export =` ESM. Se importa como `(await import('pdf-parse')) as unknown as callable` para evitar error TypeScript.
+- **Sin require()**: ESLint del proyecto prohíbe `@typescript-eslint/no-require-imports` — todo via `import()` dinámico.
+- **Sin trigger updated_at**: mismo criterio que el resto del proyecto.
+- **Bucket SQL en migración**: incluido con `ON CONFLICT DO NOTHING`. Si falla, creación manual en Dashboard queda documentada.
+
+### Validaciones
+- Build: ✓ sin errores
+- Migración: lista para ejecutar en Supabase Dashboard
+- CRUD: funciones tipadas, usa server client con RLS
+- Storage: helpers creados, signed URL, sin URL pública
+- Extracción: TXT/MD/PDF/DOCX/otros cubiertos
+
+### Qué queda para OE B
+- Página `/context` con lista por scope (Project/Team/Session)
+- Botón "Add Context File" funcional desde workspace
+- Botón en BottomRibbon
+
+### Qué queda para OE C
+- Selección selectiva en `route.ts`
+- Herencia Project → Team → Session
+- Inyección en context package antes del historial
+
+### Riesgos pendientes
+- **Migración no ejecutada todavía** en Supabase Dashboard. Las funciones de CRUD van a fallar hasta que se ejecute.
+- **Bucket no creado** hasta que se ejecute la migración (o se cree manualmente).
+- `getContextSourcesForRuntime` ordena por `scope` alfabético (project < session < team). En OE C revisar si el orden correcto es project → team → session y ajustar.
+
+### Commit
+Build pasa. OE A cerrada.
+
+---
+
+## OE B — Context Files UI · 2026-05-21
+
+### Archivos modificados
+- `src/components/workspace/AgentPanel.tsx` — botón "Add Context File" ahora funcional (import ContextFilePanel, state showContextFilePanel, render)
+- `src/app/api/context/route.ts` — fix: `catch (e)` → `catch {}` en dos handlers (ESLint no-unused-vars)
+- `src/components/layout/BottomRibbon.tsx` — agregado item "Context Files" → `/context` en STATIC_NAV_ITEMS
+- `src/app/context/page.tsx` — nuevo: Server Component, auth check → redirect
+- `src/app/context/ContextPageClient.tsx` — nuevo: lista activos por scope (Project/Team/Session) con botón Archive
+
+### Decisiones técnicas
+- **projectId en AgentPanel**: Props actuales (WorkspaceShell → AgentPanel) no incluyen projectId. Se pasa `undefined` a ContextFilePanel — la sección "Inherited from Project" muestra "No project ID available". A resolver cuando la cadena de props lo exponga.
+- **Archive desde página**: Se hace directamente con browser Supabase client (update status='archived'). No hay API route separada — operación simple con RLS.
+- **Dos archivos en /context**: page.tsx (Server, auth) + ContextPageClient.tsx (Client, lógica). Mismo patrón que el resto del proyecto.
+
+### Alternativas descartadas
+- API route para archive: innecesaria, RLS garantiza que el usuario solo archiva sus propios registros.
+- Página con upload integrado: el upload ya existe en ContextFilePanel (modal desde workspace). La página /context es solo gestión.
+
+### Validaciones
+- Build: ✓ sin errores (solo warnings pre-existentes en CanvasViewport.tsx)
+- Nuevas rutas: `/context` y `/api/context` visibles en build table
+- Warnings: 2 de react-hooks/exhaustive-deps en CanvasViewport.tsx — pre-existentes, no de esta OE
+
+### Qué queda para OE C
+- Inyección de context_sources en `route.ts` (chat API)
+- Selección Project → Team → Session con herencia
+- `getContextSourcesForRuntime` ya implementado — solo conectar
+
+### Riesgos pendientes
+- **Migración 017 + bucket no ejecutados** en Supabase Dashboard hasta que el developer lo haga. Sin eso, upload y listado fallan en producción.
+- **projectId missing**: ContextFilePanel recibe `teamId` y `sessionId` pero no `projectId`. La sección Project en el panel muestra vacío siempre. Resolver en OE futura cuando se exponga projectId en la cadena workspace → panel.
+
+### Commit
+Build pasa. OE B cerrada.
+
+---
+
+## OE C — Context Files Runtime Injection · 2026-05-21
+
+### Archivos revisados
+- `C:\proyectos\AISync\MVP\src\` — demo es Vite frontend-only, sin API route de chat. No hay patrón equivalente que portar.
+- `src/app/api/chat/route.ts` — diagnóstico previo completo
+- `src/lib/db/context.ts` — función getContextSourcesForRuntime
+
+### Archivos tocados
+- `src/lib/db/context.ts` — fix de ordenamiento y límite por scope
+- `src/app/api/chat/route.ts` — import, project_id, contextFilesParts, orden final
+
+### Diagnóstico previo
+- session_id: ya estaba en body
+- team_id: ya estaba en body
+- workspace_id: declarado en tipo pero no destructurado — no se usa en runtime (normal)
+- project_id: NO estaba en body — agregado como opcional con fallback null
+- getContextSourcesForRuntime: ordenaba por scope alfabético (project < session < team) — incorrecto. Corregido.
+
+### Cambio en getContextSourcesForRuntime (context.ts)
+- Agregado filtro .not('content_text', 'is', null)
+- Eliminado .order('scope', { ascending: true }) (era alfabético — incorrecto)
+- Ordenamiento en JS por scopeOrder: project=0, team=1, session=2
+- Dentro de cada scope: created_at desc
+- Límite de 3 fuentes por scope en JS con contador por key
+
+### Cambio en route.ts
+- Importado: getContextSourcesForRuntime
+- Agregado: project_id al destructuring y tipo (opcional, fallback null)
+- Agregado: función helper truncateContextText(text, maxLength=2000)
+- Agregado: bloque contextFilesParts (try/catch tolerante a errores)
+- Formato: "Context files available to this agent:" + [Scope] Title / Content
+- Truncado: 2000 caracteres por fuente
+- Orden final: rolePromptParts → teamPromptParts → promptLibraryParts → contextFilesParts → snapshotParts → rawMessages
+
+### Semántica de capas
+- Prompt Library = instrucciones/comportamiento
+- Context Files = material factual/documental
+- Snapshots = estado en tiempo real de otros paneles
+- rawMessages = historial de conversación
+
+### Confirmaciones de no-cambio
+- streaming: NO tocado
+- providers: NO tocados
+- apiMessages: NO tocado
+- UI: NO tocada
+- AgentPanel: NO tocado
+- Prompt Library: NO tocada
+- RAG/embeddings: NO implementados
+
+### Validación
+- Build: sin errores (solo warnings pre-existentes en CanvasViewport.tsx)
+- Prueba funcional: requiere migración 017 ejecutada en Supabase + archivo MD subido al Team Context
+
+### Qué queda fuera (futuro)
+- RAG, embeddings, vector search
+- Ranking semántico por query
+- Chunking avanzado
+- Límite dinámico según tokens del modelo
+- Audit log de uso de Context Files
+
+### Riesgos pendientes
+- project_id nunca llega desde el frontend (AgentPanel no lo pasa). Capa Project Context siempre vacía hasta que se exponga en la cadena workspace → AgentPanel → body.
+- Migración 017 y bucket aún no ejecutados en Supabase Dashboard.
+
+### Commit
+Build pasa. OE C cerrada.
+
+---
+
+## Fix — truncateContextText 2000 → 35000 · 2026-05-22
+
+Archivo: `src/app/api/chat/route.ts`
+Cambio: `maxLength = 2000` → `maxLength = 35000` en función `truncateContextText`.
+
+Razón: el truncado de 2000 chars era demasiado agresivo para archivos de contexto reales.
+Efecto: cada fuente de Context Files puede contribuir hasta 35.000 chars al contexto del agente.
+Build: OK.

@@ -4,6 +4,8 @@ import { Fragment, forwardRef, useImperativeHandle, useRef, useState } from 'rea
 import { Copy, Check } from 'lucide-react'
 import type { AgentSession, Message } from '@/lib/db/types'
 import type { ChatMessage } from '@/lib/providers/types'
+import PromptLibrary from './PromptLibrary'
+import ContextFilePanel from './ContextFilePanel'
 
 // ── Role configuration ───────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, {
@@ -133,8 +135,10 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     const [streamingContent, setStreamingContent] = useState('')
     const [error, setError]                   = useState<string | null>(null)
     const [forwardTarget, setForwardTarget]   = useState(forwardTargets?.[0]?.role ?? '')
-    const [showRefreshConfirm, setShowRefreshConfirm] = useState(false)
-    const [copiedIndex, setCopiedIndex]               = useState<number | null>(null)
+    const [showRefreshConfirm, setShowRefreshConfirm]   = useState(false)
+    const [copiedIndex, setCopiedIndex]                 = useState<number | null>(null)
+    const [showPromptLibrary,    setShowPromptLibrary]    = useState(false)
+    const [showContextFilePanel, setShowContextFilePanel] = useState(false)
     const [apiMessages, setApiMessages]               = useState<ChatMessage[]>(
       initialMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
     )
@@ -313,6 +317,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
 
     // ── Render ───────────────────────────────────────────────────────────────
     return (
+      <Fragment>
       <div className={`ui-role-panel ${role.panelClass} h-full flex min-h-0 min-w-0 flex-col overflow-hidden`}>
 
         {/* ── SECTION 1: Header ─────────────────────────────────────────── */}
@@ -348,19 +353,18 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
         {/* ── SECTION 2: Tools row ──────────────────────────────────────── */}
         <div className="shrink-0 px-3 py-1.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
           <div className="ui-chat-tools-row">
-            {(['Prompt Library', 'Add Context File'] as const).map(label => (
-              <div key={label} className="relative group">
-                <button className="ui-chat-prompt shrink-0" style={{ cursor: 'default' }}>
-                  {label}
-                </button>
-                <span
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded text-[10px] whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                  style={{ background: 'var(--color-surface-inverse)', color: 'var(--color-text-inverse)' }}
-                >
-                  Coming soon — available in an upcoming release
-                </span>
-              </div>
-            ))}
+            <button
+              className="ui-chat-prompt shrink-0"
+              onClick={() => setShowPromptLibrary(true)}
+            >
+              Prompt Library
+            </button>
+            <button
+              className="ui-chat-prompt shrink-0"
+              onClick={() => setShowContextFilePanel(true)}
+            >
+              Add Context File
+            </button>
           </div>
         </div>
 
@@ -655,6 +659,25 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
         </div>
 
       </div>
+
+      <PromptLibrary
+        open={showPromptLibrary}
+        onClose={() => setShowPromptLibrary(false)}
+        teamId={teamId ?? ''}
+        teamType={teamType}
+        workspaceId={session.workspace_id}
+        sessionId={session.id}
+        agentRole={session.agent_role}
+      />
+
+      <ContextFilePanel
+        open={showContextFilePanel}
+        onClose={() => setShowContextFilePanel(false)}
+        teamId={teamId ?? undefined}
+        workspaceId={session.workspace_id}
+        sessionId={session.id}
+      />
+      </Fragment>
     )
   }
 )

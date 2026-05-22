@@ -15,7 +15,25 @@
       "Bash(Start-Sleep -Seconds 8)",
       "Bash(Get-Content \"C:\\\\Users\\\\Agustin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--proyectos-AISync-aisync-mvp-claude\\\\2632d618-e7a2-4d29-8b45-37588d480d8c\\\\tasks\\\\bhm509tz1.output\" -Tail 20)",
       "Bash(Get-ChildItem -Path \"C:\\\\proyectos\\\\AISync\\\\aisync-mvp-claude\\\\src\" -Recurse -Include \"*page.tsx\", \"*page.ts\")",
-      "Bash(Find-ChildItem -Path \"C:\\\\proyectos\\\\AISync\\\\aisync-mvp-claude\\\\src\\\\components\" -Recurse -Name \"*Client*\" -Type f)"
+      "Bash(Find-ChildItem -Path \"C:\\\\proyectos\\\\AISync\\\\aisync-mvp-claude\\\\src\\\\components\" -Recurse -Name \"*Client*\" -Type f)",
+      "Bash(npm run *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :300)",
+      "Bash(Select-String -Pattern \"CLAUDE|IDENTITY|README|docs|DOCTRINE\" -SimpleMatch)",
+      "Bash(taskkill /PID 25072 /F)",
+      "PowerShell(Stop-Process *)",
+      "PowerShell(Get-Process *)",
+      "Bash(xargs grep -l \"Documentation\\\\|DocMode\\\\|documentation\")",
+      "Bash(Select-String \"WorkspaceShell|Error|error\")",
+      "Bash(Select-Object -First 30)",
+      "Bash(xargs grep -l \"audit\\\\|Audit\\\\|calendar\\\\|Calendar\")",
+      "Bash(xargs grep -l \"audit\\\\|Audit\")",
+      "Bash(xargs grep -l \"openai\\\\|anthropic\\\\|groq\\\\|gemini\")",
+      "Bash(Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue)",
+      "Bash(xargs grep -l \"Prompt Library\\\\|PromptLibrary\\\\|prompt_library\")",
+      "Bash(npm.cmd run *)",
+      "Bash(npm.cmd install *)",
+      "Bash(printf '\\\\n---\\\\n\\\\n## OE C — Context Files Runtime Injection · 2026-05-21\\\\n\\\\n### Archivos revisados\\\\n- `C:\\\\\\\\proyectos\\\\\\\\AISync\\\\\\\\MVP\\\\\\\\src\\\\\\\\` — demo es Vite frontend-only, sin API route de chat. No hay patrón equivalente que portar.\\\\n- `src/app/api/chat/route.ts` — diagnóstico previo completo\\\\n- `src/lib/db/context.ts` — función getContextSourcesForRuntime\\\\n\\\\n### Archivos tocados\\\\n- `src/lib/db/context.ts` — fix de ordenamiento y límite por scope\\\\n- `src/app/api/chat/route.ts` — import, project_id, contextFilesParts, orden final\\\\n\\\\n### Diagnóstico previo\\\\n- session_id: ya estaba en body\\\\n- team_id: ya estaba en body\\\\n- workspace_id: declarado en tipo pero no destructurado — no se usa en runtime \\(normal\\)\\\\n- project_id: NO estaba en body — agregado como opcional con fallback null\\\\n- getContextSourcesForRuntime: ordenaba por scope alfabético \\(project < session < team\\) — incorrecto. Corregido.\\\\n\\\\n### Cambio en getContextSourcesForRuntime \\(context.ts\\)\\\\n- Agregado filtro .not\\('\"'\"'content_text'\"'\"', '\"'\"'is'\"'\"', null\\)\\\\n- Eliminado .order\\('\"'\"'scope'\"'\"', { ascending: true }\\) \\(era alfabético — incorrecto\\)\\\\n- Ordenamiento en JS por scopeOrder: project=0, team=1, session=2\\\\n- Dentro de cada scope: created_at desc\\\\n- Límite de 3 fuentes por scope en JS con contador por key\\\\n\\\\n### Cambio en route.ts\\\\n- Importado: getContextSourcesForRuntime\\\\n- Agregado: project_id al destructuring y tipo \\(opcional, fallback null\\)\\\\n- Agregado: función helper truncateContextText\\(text, maxLength=2000\\)\\\\n- Agregado: bloque contextFilesParts \\(try/catch tolerante a errores\\)\\\\n- Formato: \"Context files available to this agent:\" + [Scope] Title / Content\\\\n- Truncado: 2000 caracteres por fuente\\\\n- Orden final: rolePromptParts → teamPromptParts → promptLibraryParts → contextFilesParts → snapshotParts → rawMessages\\\\n\\\\n### Semántica de capas\\\\n- Prompt Library = instrucciones/comportamiento\\\\n- Context Files = material factual/documental\\\\n- Snapshots = estado en tiempo real de otros paneles\\\\n- rawMessages = historial de conversación\\\\n\\\\n### Confirmaciones de no-cambio\\\\n- streaming: NO tocado\\\\n- providers: NO tocados\\\\n- apiMessages: NO tocado\\\\n- UI: NO tocada\\\\n- AgentPanel: NO tocado\\\\n- Prompt Library: NO tocada\\\\n- RAG/embeddings: NO implementados\\\\n\\\\n### Validación\\\\n- Build: sin errores \\(solo warnings pre-existentes en CanvasViewport.tsx\\)\\\\n- Prueba funcional: requiere migración 017 ejecutada en Supabase + archivo MD subido al Team Context\\\\n\\\\n### Qué queda fuera \\(futuro\\)\\\\n- RAG, embeddings, vector search\\\\n- Ranking semántico por query\\\\n- Chunking avanzado\\\\n- Límite dinámico según tokens del modelo\\\\n- Audit log de uso de Context Files\\\\n\\\\n### Riesgos pendientes\\\\n- project_id nunca llega desde el frontend \\(AgentPanel no lo pasa\\). Capa Project Context siempre vacía hasta que se exponga en la cadena workspace → AgentPanel → body.\\\\n- Migración 017 y bucket aún no ejecutados en Supabase Dashboard.\\\\n\\\\n### Commit\\\\nBuild pasa. OE C cerrada.\\\\n')"
     ]
   }
 }

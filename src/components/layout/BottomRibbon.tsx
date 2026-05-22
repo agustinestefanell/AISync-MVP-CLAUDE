@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import PromptLibrary from '@/components/workspace/PromptLibrary'
 
 const STATIC_NAV_ITEMS = [
   { label: 'Dashboard',          href: '/',              match: 'exact',     future: false },
@@ -10,7 +11,8 @@ const STATIC_NAV_ITEMS = [
   { label: 'Audit Log',          href: '/audit',         match: 'prefix',    future: false },
   { label: 'Cross Verification', href: '#',              match: 'prefix',    future: true  },
   { label: 'Documentation Mode', href: '/documentation', match: 'prefix',    future: false },
-  { label: 'Prompts Library',    href: '#',              match: 'prefix',    future: true  },
+  { label: 'Prompts Library',    href: '#',              match: 'prefix',    future: false },
+  { label: 'Context Files',      href: '/context',       match: 'prefix',    future: false },
   { label: 'Settings',           href: '/settings',      match: 'prefix',    future: false },
   { label: 'Advanced',           href: '#',              match: 'prefix',    future: true  },
 ] as const
@@ -23,7 +25,8 @@ function isActive(pathname: string, href: string, match: string): boolean {
 
 export default function BottomRibbon({ accentColor }: { accentColor?: string }) {
   const pathname = usePathname()
-  const [workspaceHref, setWorkspaceHref] = useState<string>('/')
+  const [workspaceHref,      setWorkspaceHref]      = useState<string>('/')
+  const [showPromptLibrary,  setShowPromptLibrary]  = useState(false)
 
   useEffect(() => {
     fetch('/api/active-workspace')
@@ -49,6 +52,14 @@ export default function BottomRibbon({ accentColor }: { accentColor?: string }) 
   const textSeparator = colored ? 'rgba(255,255,255,0.18)' : '#374151'
 
   return (
+    <>
+    <PromptLibrary
+      open={showPromptLibrary}
+      onClose={() => setShowPromptLibrary(false)}
+      teamId=""
+      sessionId=""
+      agentRole=""
+    />
     <nav
       className="sticky bottom-0 z-50 h-10 flex items-center justify-center shrink-0"
       style={{
@@ -62,7 +73,15 @@ export default function BottomRibbon({ accentColor }: { accentColor?: string }) 
         <div key={item.label} className="flex items-center">
           {i > 0 && <span className="text-xs select-none" style={{ color: textSeparator }}>|</span>}
 
-          {item.future ? (
+          {item.label === 'Prompts Library' ? (
+            <button
+              onClick={() => setShowPromptLibrary(true)}
+              className="text-xs px-3 transition-colors font-medium"
+              style={{ color: textInactive }}
+            >
+              {item.label}
+            </button>
+          ) : item.future ? (
             <span className="relative group cursor-default text-xs px-3 select-none" style={{ color: textFuture }}>
               {item.label}
               <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 bg-gray-700 text-gray-300 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -83,5 +102,6 @@ export default function BottomRibbon({ accentColor }: { accentColor?: string }) 
         </div>
       ))}
     </nav>
+    </>
   )
 }
