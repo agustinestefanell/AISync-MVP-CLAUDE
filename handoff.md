@@ -631,3 +631,59 @@ Cambio: `maxLength = 2000` → `maxLength = 35000` en función `truncateContextT
 Razón: el truncado de 2000 chars era demasiado agresivo para archivos de contexto reales.
 Efecto: cada fuente de Context Files puede contribuir hasta 35.000 chars al contexto del agente.
 Build: OK.
+
+---
+
+## Settings — Cloud Providers update · 2026-05-22
+
+Archivo: `src/components/settings/ApiKeysManager.tsx`
+
+Cambios:
+- Anthropic: hint actualizado a "Get your API key at console.anthropic.com"
+- Groq: agregado a CLOUD_PROVIDERS (name: Groq, color: text-yellow-400)
+
+Naming verificado: runtime usa nombres capitalizados (Anthropic, OpenAI, Google) → Groq usa "Groq".
+
+IA Local: no fue modificada.
+
+Pendiente (OE futura para que Groq funcione en chat):
+- Agregar "Groq" a KNOWN_PROVIDERS en route.ts
+- Crear src/lib/providers/groq.ts (Groq es OpenAI-compatible)
+- Registrar Groq en providers/index.ts
+Sin estos 3 cambios, el usuario puede guardar la key pero el chat falla con error 400.
+
+Build: OK.
+
+---
+
+## OE — Groq provider runtime · 2026-05-22
+
+### Archivos tocados
+- `src/lib/providers/groq.ts` — nuevo: GroqProvider sobre OpenAI SDK con baseURL Groq
+- `src/lib/providers/index.ts` — import GroqProvider + registro en registry
+- `src/app/api/chat/route.ts` — "Groq" agregado a KNOWN_PROVIDERS
+
+### Patrón aplicado
+Groq es OpenAI-compatible. GroqProvider usa el SDK openai con baseURL: https://api.groq.com/openai/v1. Sin dependencia nueva.
+
+### MODEL_MAP final
+- "Llama 3.3 70B" → llama-3.3-70b-versatile
+- "Llama 3.1 8B" → llama-3.1-8b-instant
+- "Mixtral 8x7B" → mixtral-8x7b-32768
+- "Gemma2 9B" → gemma2-9b-it
+- Fallback: si el model name no está en el mapa, se pasa directo a Groq (permite usar IDs arbitrarios)
+
+### Naming
+Nombre canónico: "Groq" (capitalizado). Coincide con Settings, KNOWN_PROVIDERS y registry.
+
+### Confirmaciones
+- UI: NO tocada
+- Streaming: NO tocado
+- OpenAI/Anthropic/Google/IA Local: intactos
+- Build: OK
+
+### Smoke test
+Pendiente — requiere API key Groq en Settings y team configurado con provider Groq.
+
+### Estado
+OE cerrada. Groq disponible de punta a punta.

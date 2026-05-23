@@ -8,7 +8,7 @@ import type { ChatMessage } from '@/lib/providers/types'
 
 export const dynamic = 'force-dynamic'
 
-const KNOWN_PROVIDERS = new Set(['Anthropic', 'OpenAI', 'Google', 'IA Local'])
+const KNOWN_PROVIDERS = new Set(['Anthropic', 'OpenAI', 'Google', 'Groq', 'IA Local'])
 
 const ENV_KEYS: Record<string, string | undefined> = {
   Anthropic: process.env.ANTHROPIC_API_KEY,

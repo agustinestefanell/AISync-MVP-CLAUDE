@@ -10,7 +10,7 @@ const CLOUD_PROVIDERS = [
     color: 'text-orange-400',
     border: 'border-orange-900',
     bg: 'bg-orange-950/30',
-    hint: 'Empieza con sk-ant-…',
+    hint: 'Get your API key at console.anthropic.com',
   },
   {
     name: 'OpenAI',
@@ -25,6 +25,13 @@ const CLOUD_PROVIDERS = [
     border: 'border-blue-900',
     bg: 'bg-blue-950/30',
     hint: 'Google AI Studio API key',
+  },
+  {
+    name: 'Groq',
+    color: 'text-yellow-400',
+    border: 'border-yellow-900',
+    bg: 'bg-yellow-950/30',
+    hint: 'Get your API key at console.groq.com',
   },
 ]
 
