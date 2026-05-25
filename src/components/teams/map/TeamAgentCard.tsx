@@ -290,10 +290,12 @@ export default function TeamAgentCard({ node, teamCode, nodeType, onOpen, onEdit
 
   const isWorker    = node.type === 'worker'
   const subtitle    = isWorker ? 'Team Worker' : 'Sub-Team Workspace'
-  const functionLabel = node.teamDescription
+  const brief       = isWorker
+    ? (node.agentDescription ?? node.teamDescription ?? '')
+    : (node.teamDescription ?? '')
+  const functionLabel = brief
     ? (isWorker ? 'Execution lane' : 'Team coordination and management')
     : (isWorker ? 'Execution lane' : 'Sub-team coordination')
-  const brief       = node.teamDescription ?? ''
   const tags        = [node.provider, node.teamType]
 
   return (

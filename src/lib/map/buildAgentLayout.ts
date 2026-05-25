@@ -8,6 +8,7 @@ export interface MapAgentNode {
   label: string
   provider: string
   model: string
+  agentDescription: string | null
   workspaceId: string
   teamId: string
   teamName: string
@@ -295,16 +296,17 @@ export function agentNodesToMapNodes(
 
     const palette = paletteMap[a.teamId] ?? TEAM_PALETTE[0]
     return {
-      id:              a.agentId,
+      id:               a.agentId,
       type,
-      label:           a.teamName,
-      provider:        a.provider,
-      model:           a.model,
-      workspaceId:     a.workspaceId,
-      teamId:          a.teamId,
-      teamName:        a.teamName,
-      teamType:        a.teamType,
-      teamDescription: a.teamDescription,
+      label:            a.teamName,
+      provider:         a.provider,
+      model:            a.model,
+      agentDescription: a.agentDescription,
+      workspaceId:      a.workspaceId,
+      teamId:           a.teamId,
+      teamName:         a.teamName,
+      teamType:         a.teamType,
+      teamDescription:  a.teamDescription,
       parentId,
       ribbon:    palette.ribbon,
       soft:      palette.soft,

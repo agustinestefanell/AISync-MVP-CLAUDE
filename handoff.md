@@ -891,3 +891,49 @@ Columna izquierda del grid 2-cols acumulaba: Name + Description (team, textarea 
 
 ### Estado
 OE cerrada.
+
+---
+
+## MAP TeamAgentCard — Fix descripción individual de Workers · 2026-05-25
+
+### Archivos tocados
+- `src/lib/db/agent-map.ts` — agregado `agentDescription: string | null` a `AgentNode`, poblado con `agent.description`
+- `src/lib/map/buildAgentLayout.ts` — agregado `agentDescription: string | null` a `MapAgentNode`, propagado desde `a.agentDescription`
+- `src/components/teams/map/TeamAgentCard.tsx` — `brief` para worker cards usa `node.agentDescription ?? node.teamDescription ?? ''`
+
+### Diagnóstico previo
+El MAP de teams no usa `TeamNode.tsx` (ese es un componente @xyflow legacy). Usa `TeamAgentCard.tsx` renderizado desde `MapView.tsx` a través de:
+```
+TeamsClient → MapView → TeamAgentCard → TreeWorkspaceCard (para worker/SM)
+```
+El campo `brief` en `TreeWorkspaceCard` (el área de descripción del card) era `node.teamDescription ?? ''` — usando siempre la descripción del team, no la del agente individual.
+
+### Data chain
+`agent_sessions.description` → `AgentNode.agentDescription` → `MapAgentNode.agentDescription` → `TeamAgentCard` → `brief`
+
+### Lógica aplicada
+- **Worker nodes**: `node.agentDescription ?? node.teamDescription ?? ''` — prioriza la descripción del agente; si no tiene, cae a la del team; si tampoco, vacío (renderiza "No description yet." en itálica)
+- **Senior Manager nodes**: sin cambio — usan `node.teamDescription ?? ''` (descripción del sub-team)
+- **GM card**: sin cambio — ya usaba `node.teamDescription` en bloque dedicado
+
+### Confirmaciones
+- GM card: NO tocada
+- Tree view: NO tocada
+- AgentPanel: NO tocado
+- EditTeamModal: NO tocado
+- Streaming / chat route: NO tocados
+- Layout / posicionamiento del MAP: NO tocados
+
+### Alternativas descartadas
+- **Solo `agentDescription`**: descartado — si el agente no tiene descripción aún, el card quedaría vacío sin fallback informativo
+- **Solo `teamDescription`**: era el bug — descriptions individuales de workers no se mostraban
+
+### Build
+✓ `tsc --noEmit` sin errores. Warnings pre-existentes en CanvasViewport.tsx.
+
+### Riesgo residual
+- Requiere migración 018 ejecutada en Supabase para que `agent_sessions.description` exista. Sin la migración, `agent.description` es `undefined` en el tipo y el fallback a `teamDescription` actúa como antes.
+- Migraciones 016, 017, 018 siguen pendientes de ejecución en Supabase Dashboard.
+
+### Estado
+OE cerrada.
