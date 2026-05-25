@@ -937,3 +937,35 @@ El campo `brief` en `TreeWorkspaceCard` (el área de descripción del card) era 
 
 ### Estado
 OE cerrada.
+
+---
+
+## Teams Map — Tooltip nativo en descripción truncada de Worker cards · 2026-05-25
+
+### Archivo revisado (Demo First)
+`C:\proyectos\AISync\MVP\src` — no hay `TeamAgentCard` ni descripción con tooltip en la demo. No hay patrón que portar.
+
+### Archivo tocado
+`src/components/teams/map/TeamAgentCard.tsx` — único archivo modificado.
+
+### Componente y elemento
+`TreeWorkspaceCard` (función interna del archivo). El `<div>` que renderiza `{brief || <span>No description yet.</span>}`.
+
+### Cambio
+Agregado `title={brief || undefined}` al div de descripción:
+- Si `brief` tiene contenido: el tooltip muestra el texto completo en hover.
+- Si `brief` es vacío (`''`): `title` es `undefined` — no genera tooltip vacío.
+- El fallback "No description yet." no cambia.
+
+### Confirmaciones
+- line-clamp / truncado CSS: NO tocado
+- MAP layout, posicionamiento, colores, conexiones: NO tocados
+- GM card: NO tocado
+- Tree: NO tocado
+- EditTeamModal, AgentPanel, route.ts, providers, streaming: NO tocados
+
+### Build
+✓ `npm run build` sin errores.
+
+### Estado
+OE cerrada.

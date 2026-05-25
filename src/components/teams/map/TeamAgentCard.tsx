@@ -109,6 +109,7 @@ function TreeWorkspaceCard({
 
         <div
           className="min-h-[4.35rem] flex-1 rounded-[12px] px-3.5 py-3 text-[11px] leading-[1.45] text-neutral-700"
+          title={brief || undefined}
           style={{
             border:     `1px solid ${borderColor}`,
             background: 'linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(248,250,252,0.9) 100%)',
