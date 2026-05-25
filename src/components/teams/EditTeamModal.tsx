@@ -27,6 +27,7 @@ interface AgentEdit {
   provider: string
   model: string
   endpoint: string
+  description: string
 }
 
 function computeType(agents: AgentEdit[]) {
@@ -48,11 +49,12 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
 
   function toAgentEdit(a: AgentSession): AgentEdit {
     return {
-      id:       a.id,
-      role:     a.agent_role,
-      provider: a.provider,
-      model:    a.model,
-      endpoint: (a.config?.endpoint as string) ?? '',
+      id:          a.id,
+      role:        a.agent_role,
+      provider:    a.provider,
+      model:       a.model,
+      endpoint:    (a.config?.endpoint as string) ?? '',
+      description: a.description ?? '',
     }
   }
 
@@ -124,10 +126,11 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
           lead_role:   leadRole,
           parentId:    parentId || null,
           agents:      agents.map(a => ({
-            id:       a.id,
-            provider: a.provider,
-            model:    a.model.trim(),
-            config:   isLocal(a.provider) ? { endpoint: a.endpoint.trim() } : null,
+            id:          a.id,
+            provider:    a.provider,
+            model:       a.model.trim(),
+            config:      isLocal(a.provider) ? { endpoint: a.endpoint.trim() } : null,
+            description: a.description.trim() || null,
           })),
         }),
       })
@@ -154,7 +157,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-3xl mx-4 shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-5xl mx-4 shadow-2xl flex flex-col max-h-[90vh]">
 
         {/* ── Header ── */}
         <div className="shrink-0 px-6 py-4 border-b border-gray-800 flex items-center justify-between gap-4">
@@ -282,6 +285,15 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
                             />
                           )}
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-500 mb-1">Description</label>
+                            <input
+                              type="text" value={a.description}
+                              onChange={e => setAgentField(i, { description: e.target.value })}
+                              placeholder="Describe this agent's focus or specialty"
+                              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                            />
+                          </div>
                         </div>
                       )
                     })}

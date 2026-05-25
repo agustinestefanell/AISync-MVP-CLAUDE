@@ -19,7 +19,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     parentId: string | null
     description?: string | null
     lead_role?: 'manager' | 'submanager' | 'worker'
-    agents: Array<{ id: string; provider: string; model: string; config?: Record<string, unknown> | null }>
+    agents: Array<{ id: string; provider: string; model: string; config?: Record<string, unknown> | null; description?: string | null }>
   }
 
   const teamType = computeType(agents)
@@ -39,7 +39,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   for (const agent of agents) {
     await supabase
       .from('agent_sessions')
-      .update({ provider: agent.provider, model: agent.model, config: agent.config ?? null })
+      .update({
+        provider:    agent.provider,
+        model:       agent.model,
+        config:      agent.config ?? null,
+        description: agent.description ?? null,
+      })
       .eq('id', agent.id)
   }
 

@@ -345,6 +345,11 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                     </span>
                   )}
                 </div>
+                {session.description && (
+                  <div className="text-[10px] truncate mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
+                    {session.description}
+                  </div>
+                )}
               </div>
             </div>
           </div>

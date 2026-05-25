@@ -687,3 +687,92 @@ Pendiente — requiere API key Groq en Settings y team configurado con provider 
 
 ### Estado
 OE cerrada. Groq disponible de punta a punta.
+
+---
+
+## OE — Agent Session Description · 2026-05-25
+
+### Archivos tocados
+- `supabase/migrations/018_agent_session_description.sql` — CREADO: `ALTER TABLE agent_sessions ADD COLUMN IF NOT EXISTS description text;`
+- `src/lib/db/types.ts` — agregado `description: string | null` a `AgentSession`
+- `src/components/teams/EditTeamModal.tsx` — `AgentEdit` + `description`, campo en cada agent card, incluido en PATCH body
+- `src/app/api/teams/[id]/route.ts` — tipo body actualizado, `description` persistido en UPDATE de agent_sessions
+- `src/components/workspace/AgentPanel.tsx` — `session.description` mostrado en header del panel si existe
+
+### Cambio por archivo
+
+**types.ts**: campo `description: string | null` en `AgentSession`. Opcional en la lectura (puede ser null para sessions pre-existentes sin descripción asignada).
+
+**EditTeamModal.tsx**:
+- `AgentEdit` interface: nuevo campo `description: string`
+- `toAgentEdit`: lee `a.description ?? ''`
+- Agent cards (izquierda): nuevo `<input type="text">` al final de cada card con placeholder "Agent description (optional)"
+- PATCH body: `description: a.description.trim() || null` (null si vacío)
+
+**route.ts** (`/api/teams/[id]`):
+- Tipo del body agents array: `description?: string | null`
+- Loop de update: `description: agent.description ?? null`
+
+**AgentPanel.tsx**:
+- Header: tercera línea debajo de `{session.model}` — muestra `session.description` en `text-[10px]` con color `--color-text-tertiary` si existe. Truncada con `truncate`.
+
+### Decisión técnica
+- Description por agent session (no por agente como tipo global). Permite que el mismo rol (worker1) tenga descripciones distintas en distintos teams.
+- Guardado en columna `description` top-level (no en `config JSONB`) — más limpio para queries futuras y visibilidad directa en `AgentSession`.
+- Sin validación obligatoria: campo opcional. No se agregó `if (!description.trim())` error — la descripción es informativa, no estructural.
+
+### Alternativas descartadas
+- **Config JSONB**: descartado — description es dato de primer orden, no configuración técnica. Columna separada es más semántica.
+- **Campo solo en manager**: descartado — cualquier agente puede beneficiarse de una descripción de rol específico al contexto del team.
+- **Display en tooltip**: descartado — línea inline en el header es más visible y no requiere hover interaction.
+
+### Riesgos pendientes
+- **Migración 018 no ejecutada**: debe correr `ALTER TABLE agent_sessions ADD COLUMN IF NOT EXISTS description text;` en Supabase Dashboard SQL Editor. Hasta entonces, el PATCH a agent_sessions intentará actualizar la columna `description` que no existe — el update falla silenciosamente (no rompe el chat).
+- **Migraciones 016, 017 también pendientes**: acumulado de sesiones anteriores.
+
+### Build
+TypeScript compilado sin errores. Warnings pre-existentes en CanvasViewport.tsx (react-hooks/exhaustive-deps). Error `/_document` en Next.js page data collection — pre-existente, no relacionado con esta OE.
+
+### Estado
+OE cerrada. Descripción editable por agente disponible de punta a punta, pendiente migración DB.
+
+---
+
+## EditTeamModal — Agent Description UI + Modal Width · 2026-05-25
+
+### Archivos tocados
+- `src/components/teams/EditTeamModal.tsx` — único archivo modificado
+
+### Demo First
+Demo MVP (`C:\proyectos\AISync\MVP`) no tiene `EditTeamModal` — es frontend-only sin gestión de teams. No hay patrón que portar.
+
+### Diagnóstico previo
+- Ancho anterior: `max-w-3xl` (48rem = 768px)
+- Campo `description` en agent cards: ya existía (OE anterior) pero sin label y con placeholder genérico
+
+### Cambios
+1. **Ancho del modal**: `max-w-3xl` → `max-w-5xl` (64rem = 1024px, +256px ≈ 200px más ancho)
+2. **Input Description en cada agent card**:
+   - Agregado `<label>Description</label>` encima del input
+   - Placeholder actualizado: "Describe this agent's focus or specialty"
+   - Conectado a `agents[index].description` via `setAgentField(i, { description: ... })`
+   - Incluido en PATCH: `description: a.description.trim() || null` (ya estaba desde OE anterior)
+
+### Confirmaciones
+- providers/modelos: NO tocados
+- streaming: NO tocado
+- route.ts chat: NO tocado
+- MAP / Tree: NO tocados
+- Prompt Library / Context Files: NO tocados
+- Lógica de guardado: NO cambiada
+
+### Build
+✓ Compilado sin errores. Solo warnings pre-existentes en CanvasViewport.tsx.
+
+### Validación manual pendiente
+1. Teams Map → Edit Team → confirmar modal más ancho
+2. Cada agent card tiene label "Description" + placeholder "Describe this agent's focus or specialty"
+3. Escribir descripción, guardar, reabrir — persistencia requiere migración 018 ejecutada en Supabase
+
+### Estado
+OE cerrada.

@@ -38,6 +38,7 @@ export interface AgentSession {
   provider: string
   model: string
   config: Record<string, unknown> | null
+  description: string | null
   created_at: string
 }
 
