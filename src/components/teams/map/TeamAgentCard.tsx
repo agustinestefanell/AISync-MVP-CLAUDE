@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { MapAgentNode } from '@/lib/map/buildAgentLayout'
 import { getProjectColorTokens, teamCodeToPaletteIndex, type ProjectNodeType, type ProjectColorTokens } from '@/lib/teams/getProjectColor'
 
@@ -42,6 +43,8 @@ function TreeWorkspaceCard({
   onPrimaryAction: () => void
   onSecondaryAction?: () => void
 }) {
+  const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null)
+
   const shellBackground = outlineOnly ? '#ffffff' : ribbonColor
   const shellColor      = outlineOnly ? accentColor : '#ffffff'
   const cardWidth       = compact ? 265 : 300
@@ -109,23 +112,29 @@ function TreeWorkspaceCard({
           ))}
         </div>
 
-        <div className="relative group min-h-[4.35rem] flex-1">
-          <div
-            className="h-full rounded-[12px] px-3.5 py-3 text-[11px] leading-[1.45] text-neutral-700"
-            style={{
-              border:     `1px solid ${borderColor}`,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(248,250,252,0.9) 100%)',
-            }}
-          >
-            {brief || <span className="italic text-neutral-400">No description yet.</span>}
-          </div>
-
-          {briefTooltip && (
-            <div className="absolute hidden group-hover:block z-50 top-full left-0 mt-1 w-full rounded-[10px] border border-neutral-200 bg-white px-3.5 py-3 text-[11px] leading-[1.5] text-neutral-700 shadow-md break-words">
-              {briefTooltip}
-            </div>
-          )}
+        <div
+          className="min-h-[4.35rem] flex-1 rounded-[12px] px-3.5 py-3 text-[11px] leading-[1.45] text-neutral-700"
+          style={{
+            border:     `1px solid ${borderColor}`,
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(248,250,252,0.9) 100%)',
+          }}
+          onMouseEnter={briefTooltip ? e => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            setTooltip({ x: rect.left, y: rect.bottom + 4 })
+          } : undefined}
+          onMouseLeave={briefTooltip ? () => setTooltip(null) : undefined}
+        >
+          {brief || <span className="italic text-neutral-400">No description yet.</span>}
         </div>
+
+        {briefTooltip && tooltip && (
+          <div
+            style={{ position: 'fixed', left: tooltip.x, top: tooltip.y, width: 280, zIndex: 9999 }}
+            className="bg-white border border-gray-200 rounded shadow-lg p-2 text-[11px] text-gray-700 break-words"
+          >
+            {briefTooltip}
+          </div>
+        )}
 
         {/* Actions */}
         <div

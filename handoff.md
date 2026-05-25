@@ -1012,3 +1012,31 @@ El card raíz tiene `overflow-hidden`. El tooltip se despliega dentro del card s
 
 ### Estado
 OE cerrada.
+
+---
+
+## Teams Map — Tooltip fixed position en Worker cards · 2026-05-25
+
+### Cambio
+Reemplazo del tooltip CSS (`group-hover`) por tooltip con `position: fixed` + `useState`.
+
+### Archivo tocado
+`src/components/teams/map/TeamAgentCard.tsx`
+
+### Implementación
+- `import { useState }` agregado
+- `const [tooltip, setTooltip] = useState<{x:number; y:number} | null>(null)` en `TreeWorkspaceCard`
+- `onMouseEnter`: `getBoundingClientRect()` → guarda `{ x: rect.left, y: rect.bottom + 4 }`
+- `onMouseLeave`: `setTooltip(null)`
+- Tooltip renderizado con `position: fixed` + `zIndex: 9999` → escapa `overflow-hidden` del card raíz
+- `width: 280` fijo (no depende del card width)
+- Solo se monta si `briefTooltip && tooltip` → sin tooltip vacío
+
+### Verificación data chain
+`agent_sessions.description` → `agent.description` → `AgentNode.agentDescription` (agent-map.ts, sin truncado) → `MapAgentNode.agentDescription` (buildAgentLayout.ts, sin truncado) → `node.agentDescription?.trim()` → `briefTooltip`. Texto llega completo al componente.
+
+### Build
+✓ `tsc --noEmit` sin errores. `npm run build` limpio.
+
+### Estado
+Cerrado.
