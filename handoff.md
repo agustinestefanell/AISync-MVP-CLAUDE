@@ -814,6 +814,51 @@ OE cerrada.
 
 ---
 
+## EditTeamModal — Fix herencia descripción Workers + hallazgo MAP/Tree · 2026-05-25
+
+### Archivos leídos (demo + MVP)
+- Demo MVP: sin componente equivalente — sin patrón que portar.
+- `src/components/teams/TeamNode.tsx` — card del MAP.
+- `src/components/teams/TreeView.tsx` — card del Tree (componente `TreeNode` interno).
+
+### Hallazgo: truncado ya estaba resuelto
+
+**MAP (`TeamNode.tsx`):** descripción ya tiene `WebkitLineClamp: 2` + `WebkitBoxOrient: 'vertical'` + `overflow: 'hidden'` aplicados desde la implementación original. No se requería cambio.
+
+**Tree (`TreeView.tsx` / `TreeNode`):** el componente `TreeNode` no renderiza la descripción del team en absoluto — solo muestra roleLabel, displayName y botones Open/Edit. No había truncado necesario.
+
+### Archivo tocado
+`src/components/teams/EditTeamModal.tsx` — único archivo modificado.
+
+### Fix aplicado — herencia de descripción en Workers
+
+**Cambio 1 — `toAgentEdit`:**
+- Manager sin descripción propia: inicializa con `team.description ?? ''` (pre-rellena con la descripción del team).
+- Workers sin descripción propia: inicializa con `''` (campo vacío sin herencia).
+- La lógica de guardado no cambia: `a.description.trim() || null` persiste lo que el usuario escriba.
+
+**Cambio 2 — placeholder del textarea por agente:**
+- Manager: `"Describe this agent's focus or specialty"` (puede ver la descripción del team como referencia).
+- Workers: `"Add a role description for this agent"` (distingue visualmente que se espera descripción específica del rol).
+
+### Confirmaciones
+- Payload PATCH: NO tocado.
+- Lógica de guardado: NO tocada.
+- Providers/modelos/streaming/chat route: NO tocados.
+- MAP / Tree: NO tocados.
+
+### Build
+✓ Sin errores. Warnings pre-existentes en CanvasViewport.tsx.
+
+### Riesgos residuales
+- Si el Manager ya tenía una descripción propia guardada, se usa esa (correcto). Si no tiene, hereda la del team como valor inicial — al guardar, ese valor se persiste en `agent_sessions.description`. Requiere migración 018 ejecutada para persistir correctamente.
+- Si team.description es null (team sin descripción), Manager también muestra campo vacío.
+
+### Estado
+OE cerrada.
+
+---
+
 ## EditTeamModal — rediseño sin scroll · 2026-05-25
 
 ### Archivo tocado

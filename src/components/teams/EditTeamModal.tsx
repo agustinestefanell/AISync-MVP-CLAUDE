@@ -54,7 +54,9 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
       provider:    a.provider,
       model:       a.model,
       endpoint:    (a.config?.endpoint as string) ?? '',
-      description: a.description ?? '',
+      description: a.agent_role === 'manager'
+        ? (a.description ?? team.description ?? '')
+        : (a.description ?? ''),
     }
   }
 
@@ -265,7 +267,10 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                           value={a.description}
                           onChange={e => setAgentField(i, { description: e.target.value })}
                           rows={2}
-                          placeholder="Describe this agent's focus or specialty"
+                          placeholder={a.role === 'manager'
+                            ? "Describe this agent's focus or specialty"
+                            : "Add a role description for this agent"
+                          }
                           className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
                         />
                       </div>
