@@ -10,6 +10,7 @@ function TreeWorkspaceCard({
   subtitle,
   functionLabel,
   brief,
+  briefTooltip,
   ribbonColor,
   softColor,
   borderColor,
@@ -27,6 +28,7 @@ function TreeWorkspaceCard({
   subtitle: string
   functionLabel: string
   brief: string
+  briefTooltip?: string
   ribbonColor: string
   softColor: string
   borderColor: string
@@ -109,7 +111,7 @@ function TreeWorkspaceCard({
 
         <div
           className="min-h-[4.35rem] flex-1 rounded-[12px] px-3.5 py-3 text-[11px] leading-[1.45] text-neutral-700"
-          title={node.agentDescription?.trim() || undefined}
+          title={briefTooltip}
           style={{
             border:     `1px solid ${borderColor}`,
             background: 'linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(248,250,252,0.9) 100%)',
@@ -305,6 +307,7 @@ export default function TeamAgentCard({ node, teamCode, nodeType, onOpen, onEdit
       subtitle={subtitle}
       functionLabel={functionLabel}
       brief={brief}
+      briefTooltip={node.agentDescription?.trim() || undefined}
       ribbonColor={tokens.header}
       softColor={tokens.bg}
       borderColor={tokens.border}
