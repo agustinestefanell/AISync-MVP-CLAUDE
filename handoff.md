@@ -969,3 +969,46 @@ Agregado `title={brief || undefined}` al div de descripción:
 
 ### Estado
 OE cerrada.
+
+---
+
+## Teams Map — Custom tooltip CSS en descripción de Worker cards · 2026-05-25
+
+### Archivo revisado (Demo First)
+`C:\proyectos\AISync\MVP\src` — sin patrón equivalente. No hay que portar.
+
+### Archivo tocado
+`src/components/teams/map/TeamAgentCard.tsx` — único archivo modificado.
+
+### Cambio aplicado
+El bloque de descripción en `TreeWorkspaceCard` pasó de:
+- `<div title={briefTooltip}>` (tooltip nativo)
+
+A:
+- `<div className="relative group min-h-[4.35rem] flex-1">` (wrapper)
+  - `<div>` con el texto visible (sin `title`)
+  - `{briefTooltip && <div className="absolute hidden group-hover:block z-50 ...">}` (tooltip custom)
+
+### Comportamiento
+- Tooltip aparece solo si `briefTooltip` existe (`node.agentDescription?.trim()`)
+- `group-hover:block` activa el tooltip en hover puro CSS, sin JS state
+- `w-full` — ancho igual al bloque de descripción
+- `top-full left-0 mt-1` — se despliega hacia abajo
+- Dentro de card con `overflow-hidden`: el tooltip queda visible solapando la sección de actions (dentro del card). Aceptable para MVP.
+
+### Confirmaciones
+- `title={briefTooltip}` eliminado
+- Sin JS state ni handlers
+- Sin librerías externas
+- MAP layout, colores, conexiones: NO tocados
+- Tree: NO tocado
+- EditTeamModal, AgentPanel, route.ts, providers, streaming: NO tocados
+
+### Build
+✓ `tsc --noEmit` sin errores. `npm run build` limpio.
+
+### Riesgo residual
+El card raíz tiene `overflow-hidden`. El tooltip se despliega dentro del card solapando los botones Open/Edit en hover. Si en el futuro se quiere un tooltip que aparezca fuera del card, habría que cambiar `overflow-hidden` o usar `position: fixed` con JS.
+
+### Estado
+OE cerrada.

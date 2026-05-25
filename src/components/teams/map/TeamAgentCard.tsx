@@ -109,15 +109,22 @@ function TreeWorkspaceCard({
           ))}
         </div>
 
-        <div
-          className="min-h-[4.35rem] flex-1 rounded-[12px] px-3.5 py-3 text-[11px] leading-[1.45] text-neutral-700"
-          title={briefTooltip}
-          style={{
-            border:     `1px solid ${borderColor}`,
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(248,250,252,0.9) 100%)',
-          }}
-        >
-          {brief || <span className="italic text-neutral-400">No description yet.</span>}
+        <div className="relative group min-h-[4.35rem] flex-1">
+          <div
+            className="h-full rounded-[12px] px-3.5 py-3 text-[11px] leading-[1.45] text-neutral-700"
+            style={{
+              border:     `1px solid ${borderColor}`,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(248,250,252,0.9) 100%)',
+            }}
+          >
+            {brief || <span className="italic text-neutral-400">No description yet.</span>}
+          </div>
+
+          {briefTooltip && (
+            <div className="absolute hidden group-hover:block z-50 top-full left-0 mt-1 w-full rounded-[10px] border border-neutral-200 bg-white px-3.5 py-3 text-[11px] leading-[1.5] text-neutral-700 shadow-md break-words">
+              {briefTooltip}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
