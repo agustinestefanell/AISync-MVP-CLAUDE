@@ -779,6 +779,41 @@ OE cerrada.
 
 ---
 
+## EditTeamModal — limpieza controles + textarea · 2026-05-25
+
+### Archivo tocado
+`src/components/teams/EditTeamModal.tsx` — único archivo modificado.
+
+### Demo First
+Demo MVP no tiene equivalente. No hay Focus ni Lead Role en ningún componente de edición de teams.
+
+### Controles eliminados
+- **Focus** (header): label + select eliminados. State `focusedAgent`/`setFocusedAgent` también eliminado (puramente UI, no en payload).
+- **Lead Role** (team identity row): label + select eliminados. `leadRole` value conservado en payload (`lead_role: leadRole`). `setLeadRole` eliminado del destructuring (quedaba unused tras quitar el select).
+
+### Inputs convertidos a textarea
+- **Team Description**: `input type="text"` → `textarea rows={2} resize-none`. Mismo binding: `value={description}` + `onChange={e => setDescription(e.target.value)}`.
+- **Agent Description (×3)**: `input type="text"` → `textarea rows={2} resize-none`. Mismo binding: `value={a.description}` + `onChange={e => setAgentField(i, { description: e.target.value })}`.
+
+### Ajuste de grid
+Team identity row: `grid-cols-3/4` → `grid-cols-2/3` (Lead Role eliminado reduce una columna). Añadido `items-start` para que Name (input) y Description (textarea) no se estiren verticalmente.
+
+### Confirmaciones
+- Payload PATCH: NO tocado — `lead_role: leadRole` sigue enviándose con el valor inicial del team.
+- Guardado/handlers: NO tocados.
+- Providers/modelos/streaming/chat route: NO tocados.
+
+### Build
+✓ Sin errores. Warnings pre-existentes en CanvasViewport.tsx.
+
+### Riesgo residual
+`leadRole` permanece con el valor inicial (`team.lead_role`) y se envía en el PATCH pero ya no es editable desde el modal. Para cambiar el lead role habrá que re-exponer el control o usar otro flujo.
+
+### Estado
+OE cerrada.
+
+---
+
 ## EditTeamModal — rediseño sin scroll · 2026-05-25
 
 ### Archivo tocado

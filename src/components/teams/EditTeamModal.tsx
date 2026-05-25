@@ -60,10 +60,9 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
 
   const [name, setName]               = useState(team.name)
   const [description, setDescription] = useState(team.description ?? '')
-  const [leadRole, setLeadRole]       = useState<'manager' | 'submanager' | 'worker'>(team.lead_role ?? 'worker')
+  const [leadRole]                    = useState<'manager' | 'submanager' | 'worker'>(team.lead_role ?? 'worker')
   const [parentId, setParentId]       = useState(team.parent_id ?? '')
   const [agents, setAgents]           = useState<AgentEdit[]>(rawAgents.map(toAgentEdit))
-  const [focusedAgent, setFocusedAgent] = useState(0)
   const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([])
   const [error, setError]             = useState('')
   const [saving, setSaving]           = useState(false)
@@ -166,20 +165,6 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                 ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
                 : 'bg-purple-950 text-purple-400 border-purple-800'
             }`}>{teamType}</span>
-            {agents.length > 0 && (
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500 shrink-0">Focus</span>
-                <select
-                  value={focusedAgent}
-                  onChange={e => setFocusedAgent(Number(e.target.value))}
-                  className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
-                >
-                  {agents.map((a, i) => (
-                    <option key={a.id} value={i}>{AGENT_LABEL[a.role] ?? a.role}</option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-sm px-2 shrink-0">✕</button>
         </div>
@@ -188,7 +173,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
         <div className="flex-1 overflow-y-auto px-6 py-4">
 
           {/* ── Team identity row ── */}
-          <div className={`grid gap-3 mb-4 ${validParents.length > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          <div className={`grid gap-3 mb-4 items-start ${validParents.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Name *</label>
               <input
@@ -200,24 +185,13 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Description *</label>
-              <input
-                type="text" value={description}
+              <textarea
+                value={description}
                 onChange={e => setDescription(e.target.value)}
+                rows={2}
                 placeholder="Describe what this team does"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Lead Role</label>
-              <select
-                value={leadRole}
-                onChange={e => setLeadRole(e.target.value as typeof leadRole)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
-              >
-                <option value="manager">Manager</option>
-                <option value="submanager">Sub-Manager</option>
-                <option value="worker">Worker</option>
-              </select>
             </div>
             {validParents.length > 0 && (
               <div>
@@ -287,11 +261,12 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                       )}
                       <div>
                         <label className="block text-[10px] font-medium text-gray-500 mb-1">Description</label>
-                        <input
-                          type="text" value={a.description}
+                        <textarea
+                          value={a.description}
                           onChange={e => setAgentField(i, { description: e.target.value })}
+                          rows={2}
                           placeholder="Describe this agent's focus or specialty"
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
                         />
                       </div>
                     </div>
