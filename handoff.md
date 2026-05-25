@@ -776,3 +776,38 @@ Demo MVP (`C:\proyectos\AISync\MVP`) no tiene `EditTeamModal` — es frontend-on
 
 ### Estado
 OE cerrada.
+
+---
+
+## EditTeamModal — rediseño sin scroll · 2026-05-25
+
+### Archivo tocado
+`src/components/teams/EditTeamModal.tsx` — único archivo modificado.
+
+### Demo First
+Demo MVP no tiene `EditTeamModal` — no hay patrón equivalente que portar.
+
+### Diagnóstico previo — qué generaba scroll
+Columna izquierda del grid 2-cols acumulaba: Name + Description (team, textarea 2 rows) + Lead Role + Sub-team of + 3 agent cards stacked. La columna derecha (Team Controls) añadía ancho sin reducir altura.
+
+### Cambios aplicados
+1. **Panel derecho "Team Controls" eliminado** — completo.
+2. **Agent Name readOnly eliminado** — redundante con el label de cada card.
+3. **Provider selector duplicado eliminado** — existía en Team Controls como espejo del selector en cada card.
+4. **Agent Focus movido al header** — inline junto al badge SAT/MAT. Label compacto "Focus" + select.
+5. **`focusedAgentData` variable eliminada** — solo se usaba en el panel derecho. `focusedAgent` state conservado para el dropdown en header.
+6. **Team identity en fila horizontal** — Name + Description + Lead Role + Sub-team of en `grid-cols-3/4`.
+7. **Team Description** — `textarea rows={2}` → `input type="text"` para ganar altura.
+8. **Agents en grid 3 columnas** — Manager / Worker 1 / Worker 2 side by side. Cada card: provider (full width) + model (full width) + endpoint (si local) + description.
+9. **Add Agent / Promote / Erase Agent / Refresh** — `grid grid-cols-4` debajo de agent cards.
+10. **Erase Team** — movido al footer junto a Go to Workspace.
+
+### Confirmaciones
+- Lógica de guardado: NO tocada — providers, modelos, streaming, route.ts: NO tocados
+- Handlers de Save/Delete: NO tocados — estados disabled de botones: conservados
+
+### Build
+✓ Sin errores. Warnings pre-existentes en CanvasViewport.tsx.
+
+### Estado
+OE cerrada.
