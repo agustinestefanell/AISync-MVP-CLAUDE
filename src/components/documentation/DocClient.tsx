@@ -172,22 +172,22 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
       {/* Right: tab bar + view */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Tab bar */}
-        <div className="shrink-0 border-b border-gray-800 px-6 flex items-end justify-between">
+        <div className="shrink-0 border-b border-[var(--color-border-default)] px-6 flex items-end justify-between">
           {TABS.map(t => (
             <div key={t.id} className="flex flex-col items-center pb-2 gap-1">
               <button
                 onClick={() => setTab(t.id)}
-                className={`text-xs font-medium px-4 py-3 border-b-2 transition-colors ${
+                className={`ui-tab text-xs font-medium px-4 py-3 border-b-2 transition-colors ${
                   tab === t.id
-                    ? 'border-indigo-500 text-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-600'
+                    ? 'ui-tab-active border-indigo-500 text-[var(--color-text-primary)]'
+                    : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 {t.label}
               </button>
               <button
                 onClick={() => setHelpTab(t.id)}
-                className="text-xs text-blue-500 underline cursor-pointer"
+                className="text-xs text-[var(--color-text-tertiary)] underline cursor-pointer"
               >
                 How to use {t.label}
               </button>
@@ -212,22 +212,22 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
           onClick={e => { if (e.target === e.currentTarget) setHelpTab(null) }}
         >
           <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
-            <div className="px-6 py-5 border-b border-gray-800 flex items-start justify-between gap-4">
+            <div className="px-6 py-5 border-b border-[var(--color-border-default)] flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-base font-semibold text-white">
+                <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
                   How to use {helpContent.label}
                 </h3>
-                <p className="text-xs text-gray-500 mt-0.5">Operational guidance</p>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Operational guidance</p>
               </div>
               <button
                 onClick={() => setHelpTab(null)}
-                className="text-gray-500 hover:text-gray-600 text-sm px-1 transition-colors shrink-0"
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm px-1 transition-colors shrink-0"
               >
                 ✕
               </button>
             </div>
             <div className="px-6 py-5">
-              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
                 {helpContent.guide}
               </p>
             </div>

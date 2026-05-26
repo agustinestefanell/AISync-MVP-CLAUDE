@@ -39,8 +39,8 @@ function formatDate(iso: string) {
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl px-5 py-4">
-      <p className="text-2xl font-bold text-[var(--color-text-primary)]">{value}</p>
-      <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 font-medium tracking-wide uppercase">{label}</p>
+      <p className="ui-title text-2xl font-bold text-[var(--color-text-primary)]">{value}</p>
+      <p className="ui-label text-xs text-[var(--color-text-secondary)] mt-0.5 font-medium tracking-wide uppercase">{label}</p>
     </div>
   )
 }
@@ -276,7 +276,7 @@ export default function AuditView({ checkpoints, auditEvents }: Props) {
 function Meta({ label, value, suppress }: { label: string; value: React.ReactNode; suppress?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-xs text-[var(--color-text-secondary)]">{label}:</span>
+      <span className="ui-meta text-xs text-[var(--color-text-secondary)]">{label}:</span>
       <span className="text-xs text-[var(--color-text-primary)]" suppressHydrationWarning={!!suppress}>{value}</span>
     </div>
   )

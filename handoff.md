@@ -1389,3 +1389,69 @@ Ninguno — sin cambios de código. Solo handoff.md actualizado.
 
 ### Estado
 OE Decorativa A cerrada. Base visual ya estaba completa. Lista para OE Decorativa B.
+
+---
+
+## [2026-05-26] — OE Decorativa B: Aplicar clases utilitarias UI a Documentation Mode
+
+### Archivos modificados
+- `src/components/documentation/DocClient.tsx`
+- `src/components/documentation/AuditView.tsx`
+- `src/components/documentation/InvestigateView.tsx`
+- `src/components/documentation/RepositoryView.tsx`
+
+### Diagnóstico previo
+- tokens.css se importa ANTES de `@tailwind utilities` → clases ui-* como base, Tailwind sobreescribe font-size/color con override. Sin override Tailwind: border-radius, letter-spacing, background se aplican desde los tokens.
+- `ui-tabs` NO aplicado al contenedor de tabs — el contenedor es full-width flex; inline-flex rompería el layout. Decisión de intervención mínima.
+- StructureView.tsx — sin stat cards ni tab navigation. Tiene residuos dark mode pendientes (PURPOSE_BADGE, STATE_BADGE, DetailPanel bg-gray-950) — fuera del scope decorativo de esta OE, se documentan como deuda técnica.
+
+### Targets localizados
+- **Tab navigation** → `DocClient.tsx` línea 175 (único lugar, centraliza todas las vistas)
+- **Stat cards** → definición local `StatCard()` en `RepositoryView.tsx` (l.197), `AuditView.tsx`, `InvestigateView.tsx`
+- **Metadata secundaria** → helpers `Row`/`MetaRow` en `RepositoryView.tsx`, `Meta` en `AuditView.tsx`, `InvMeta` en `InvestigateView.tsx`
+
+### Cambios realizados por archivo
+
+**`DocClient.tsx`** (Target 1 — tabs):
+- `ui-tab` agregado a cada botón de tab (static class)
+- `ui-tab-active` agregado al estado activo (junto a `border-indigo-500`)
+- Dark residues corregidos: `border-gray-800` → `border-[var(--color-border-default)]`
+- Active tab: `text-white` → `text-[var(--color-text-primary)]`
+- Inactive tab hover: `text-gray-500 hover:text-gray-600` → `text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]`
+- "How to use" button: `text-blue-500` → `text-[var(--color-text-tertiary)]`
+- Help modal: `border-gray-800` → `border-[var(--color-border-default)]`, `text-white` → `text-[var(--color-text-primary)]`, `text-gray-500/600` → tokens
+
+**`AuditView.tsx`** (Targets 2+3 — stat cards + metadata):
+- `StatCard` número: agregado `ui-title`
+- `StatCard` label: agregado `ui-label`
+- `Meta` helper label span: agregado `ui-meta`
+
+**`InvestigateView.tsx`** (Targets 2+3):
+- `StatCard` número: agregado `ui-title`
+- `StatCard` label: agregado `ui-label`
+- `InvMeta` helper label span: agregado `ui-meta`
+
+**`RepositoryView.tsx`** (Targets 2+3):
+- `StatCard` número: agregado `ui-title`
+- `StatCard` label: agregado `ui-label`
+- `Row` helper label span: agregado `ui-meta`
+- `MetaRow` helper label span: agregado `ui-meta`
+
+### Deuda técnica identificada (fuera de scope — próxima OE)
+- `StructureView.tsx`: PURPOSE_BADGE, STATE_BADGE, DetailPanel — todavía en dark mode (bg-gray-950, text-white, border-gray-800). Necesita migración equivalente a la hecha en OE D para los otros views.
+
+### Validaciones
+- ✓ Demo reference leída (PageB.tsx, PageD.tsx) — no usa ui-tabs en Documentation Mode; usa ui-label en detail panels
+- ✓ Tab navigation vive en DocClient.tsx
+- ✓ Stat cards definidas localmente en cada view
+- ✓ No se tocó lógica de tabs (setTab handler intacto)
+- ✓ No se tocaron handlers de filtros
+- ✓ Panel derecho intacto
+- ✓ Sub-Manager sidebar intacto
+- ✓ KnowledgeMap canvas intacto
+- ✓ `--color-accent` intacto
+- ✓ `--color-accent-strong` intacto
+- ✓ `npm run build` limpio
+
+### Estado
+OE Decorativa B cerrada.

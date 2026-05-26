@@ -56,7 +56,7 @@ function teamLabel(id: string, name: string, codes?: Record<string, string>): st
 function Row({ label, children, suppressWarn }: { label: string; children: React.ReactNode; suppressWarn?: boolean }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="text-xs text-[var(--color-text-secondary)] w-24 shrink-0 pt-0.5">{label}</span>
+      <span className="ui-meta text-xs text-[var(--color-text-secondary)] w-24 shrink-0 pt-0.5">{label}</span>
       <span className="text-xs text-[var(--color-text-primary)] leading-relaxed" suppressHydrationWarning={suppressWarn}>{children}</span>
     </div>
   )
@@ -65,7 +65,7 @@ function Row({ label, children, suppressWarn }: { label: string; children: React
 function MetaRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-xs text-[var(--color-text-secondary)]">{label}</span>
+      <span className="ui-meta text-xs text-[var(--color-text-secondary)]">{label}</span>
       <span className={`text-xs text-[var(--color-text-primary)] truncate max-w-[160px] ${mono ? 'font-mono' : ''}`} title={value}>{value}</span>
     </div>
   )
@@ -197,8 +197,8 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl px-5 py-4">
-      <p className="text-2xl font-bold text-[var(--color-text-primary)]">{value}</p>
-      <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 font-medium tracking-wide uppercase">{label}</p>
+      <p className="ui-title text-2xl font-bold text-[var(--color-text-primary)]">{value}</p>
+      <p className="ui-label text-xs text-[var(--color-text-secondary)] mt-0.5 font-medium tracking-wide uppercase">{label}</p>
     </div>
   )
 }
