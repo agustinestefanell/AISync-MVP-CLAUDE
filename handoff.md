@@ -1093,3 +1093,43 @@ text-gray-100→text-gray-900 / text-gray-200→text-gray-800 / text-gray-300→
 
 ### Estado
 OE cerrada.
+
+---
+
+## OE A — Light mode color tokens · 2026-05-25
+
+### Archivo modificado
+`src/styles/tokens.css`
+
+### Tokens actualizados (valores distintos a los existentes)
+- `--color-app-bg`: `#edf1f5` → `#F6F7F9`
+- `--color-text-primary`: `#0f172a` → `#111827`
+- `--color-text-secondary`: `#334155` → `#374151`
+- `--color-text-tertiary`: `#5f6f82` → `#4B5563`
+- `--color-text-muted`: `#8a98aa` → `#6B7280`
+
+### Tokens agregados (nuevos)
+Superficies: `--color-shell-bg`, `--color-surface-subtle`, `--color-surface-nested`, `--color-input-bg`, `--color-disabled-bg`
+Textos: `--color-text-placeholder`, `--color-text-disabled`, `--color-text-danger`, `--color-text-warning`, `--color-text-success`
+Bordes: `--color-border-subtle`, `--color-border-default`, `--color-border-focus` (#1f4e79), `--color-border-danger`, `--color-border-warning` (#FDE68A)
+Botones: `--color-btn-secondary-*` (4 tokens), `--color-btn-danger-*` (5 tokens)
+Badges: 10 tokens (`--color-badge-*-bg/text` para neutral/structural/success/warning/danger)
+
+### Tokens que ya existían (sin cambio)
+`--color-surface`, `--color-surface-soft`, `--color-surface-muted`, `--color-surface-raised`, `--color-surface-inverse`, `--color-text-inverse`, `--color-border`, `--color-border-strong`, `--color-border-heavy`, todos los `--color-accent-*`, roles, phases, modules, success/warning/danger semánticos
+
+### Tokens críticos preservados
+- `--color-accent: #1f4e79` ✓
+- `--color-accent-strong: #173c5e` ✓
+
+### Confirmaciones
+- `--color-border-focus: #1f4e79` ✓ (alineado con accent)
+- `--color-border-warning: #FDE68A` ✓
+- Componentes .tsx: NO tocados
+- MAP, Tree, Workspace, ribbons: NO tocados
+
+### Build
+✓ `npm run build` limpio.
+
+### Estado
+OE A cerrada.
