@@ -178,7 +178,7 @@ export default function KnowledgeMap({ checkpoints }: Props) {
   const proOptions = useMemo(() => ({ hideAttribution: true }), [])
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex min-h-0">
       {/* Left panel */}
       <div className="shrink-0 w-64 border-r border-[var(--color-border-subtle)] flex flex-col bg-[var(--color-surface)] px-4 py-5 space-y-6">
         <div>
