@@ -172,12 +172,12 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
       {/* Right: tab bar + view */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Tab bar */}
-        <div className="shrink-0 border-b border-[var(--color-border-default)] px-6 py-2.5 flex items-center justify-center gap-3">
+        <div className="shrink-0 border-b border-[var(--color-border-default)] px-6 py-2.5 flex items-center justify-center gap-5">
           {TABS.map(t => (
             <div key={t.id} className="grid min-w-max justify-items-center gap-1">
               <button
                 onClick={() => setTab(t.id)}
-                className={`h-8 px-3.5 rounded-[10px] text-[0.8125rem] font-medium transition-colors border ${
+                className={`h-8 px-3.5 rounded-[10px] text-[0.75rem] font-medium transition-colors border ${
                   tab === t.id
                     ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-white shadow-sm'
                     : 'bg-white border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-soft)] hover:text-[var(--color-text-primary)]'

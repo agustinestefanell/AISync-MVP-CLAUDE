@@ -1506,3 +1506,5 @@ Los tabs estaban distribuidos con `justify-between` ocupando el ancho total del 
 
 ### Estado
 OE Botonera cerrada.
+
+**Ajuste posterior [2026-05-26]:** font-size tabs `0.8125rem` → `0.75rem` (12px). Gap entre tabs `gap-3` → `gap-5`.
