@@ -354,8 +354,8 @@ export default function RepositoryView({
                         <>
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-white truncate">{item.cp.name}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">{teamLabel(item.cp.team_id, item.cp.team_name, teamCodes)} · {item.cp.workspace_name}</p>
+                              <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{item.cp.name}</p>
+                              <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{teamLabel(item.cp.team_id, item.cp.team_name, teamCodes)} · {item.cp.workspace_name}</p>
                               <div className="flex flex-wrap gap-1.5 mt-2">
                                 <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PURPOSE_BADGE[item.cp.purpose] ?? 'text-gray-400 bg-gray-50 border-gray-200'}`}>
                                   {item.cp.purpose}
@@ -364,13 +364,13 @@ export default function RepositoryView({
                                   {item.cp.doc_state.replace('_', ' ')}
                                 </span>
                               </div>
-                              <p className="text-xs text-gray-600 mt-1.5" suppressHydrationWarning>{formatDate(item.cp.created_at)}</p>
+                              <p className="text-xs text-[var(--color-text-secondary)] mt-1.5" suppressHydrationWarning>{formatDate(item.cp.created_at)}</p>
                             </div>
                           </div>
                           <div className="flex gap-2 mt-3">
                             <button
                               onClick={e => { e.stopPropagation(); setSelectedId(id) }}
-                              className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                              className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
                             >
                               View Details →
                             </button>
@@ -391,11 +391,11 @@ export default function RepositoryView({
                                 <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded border font-bold uppercase ${HANDOFF_BADGE}`}>
                                   HANDOFF
                                 </span>
-                                <p className="text-sm font-semibold text-white truncate">{item.hp.name}</p>
+                                <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{item.hp.name}</p>
                               </div>
-                              <p className="text-xs text-gray-500 mt-0.5">{item.hp.workspace_name}</p>
+                              <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{item.hp.workspace_name}</p>
                               <div className="flex flex-wrap gap-1.5 mt-2">
-                                <span className="text-xs text-gray-400">
+                                <span className="text-xs text-[var(--color-text-secondary)]">
                                   {AGENT_LABEL[item.hp.from_agent] ?? item.hp.from_agent}
                                   {' → '}
                                   {AGENT_LABEL[item.hp.to_agent] ?? item.hp.to_agent}
@@ -404,13 +404,13 @@ export default function RepositoryView({
                                   {item.hp.status}
                                 </span>
                               </div>
-                              <p className="text-xs text-gray-600 mt-1.5" suppressHydrationWarning>{formatDate(item.hp.created_at)}</p>
+                              <p className="text-xs text-[var(--color-text-secondary)] mt-1.5" suppressHydrationWarning>{formatDate(item.hp.created_at)}</p>
                             </div>
                           </div>
                           <div className="flex gap-2 mt-3">
                             <button
                               onClick={e => { e.stopPropagation(); setSelectedId(id) }}
-                              className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                              className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
                             >
                               View Details →
                             </button>
