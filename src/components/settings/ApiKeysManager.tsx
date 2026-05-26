@@ -7,30 +7,30 @@ import CustomProvidersManager from './CustomProvidersManager'
 const CLOUD_PROVIDERS = [
   {
     name: 'Anthropic',
-    color: 'text-orange-400',
-    border: 'border-orange-900',
-    bg: 'bg-orange-950/30',
+    color: 'text-orange-600',
+    border: 'border-[var(--color-border-default)]',
+    bg: 'bg-[var(--color-surface)]',
     hint: 'Get your API key at console.anthropic.com',
   },
   {
     name: 'OpenAI',
-    color: 'text-green-400',
-    border: 'border-green-900',
-    bg: 'bg-green-950/30',
+    color: 'text-green-700',
+    border: 'border-[var(--color-border-default)]',
+    bg: 'bg-[var(--color-surface)]',
     hint: 'Empieza con sk-…',
   },
   {
     name: 'Google',
-    color: 'text-blue-400',
-    border: 'border-blue-900',
-    bg: 'bg-blue-950/30',
+    color: 'text-blue-600',
+    border: 'border-[var(--color-border-default)]',
+    bg: 'bg-[var(--color-surface)]',
     hint: 'Google AI Studio API key',
   },
   {
     name: 'Groq',
-    color: 'text-yellow-400',
-    border: 'border-yellow-900',
-    bg: 'bg-yellow-950/30',
+    color: 'text-amber-600',
+    border: 'border-[var(--color-border-default)]',
+    bg: 'bg-[var(--color-surface)]',
     hint: 'Get your API key at console.groq.com',
   },
 ]
@@ -137,11 +137,11 @@ export default function ApiKeysManager() {
                 <div className="flex items-center gap-3 mb-3">
                   <span className={`text-sm font-bold ${p.color}`}>{p.name}</span>
                   {saved ? (
-                    <span className="text-xs text-emerald-400 bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded-full">
+                    <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                       ✓ key guardada
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-600">sin key</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">sin key</span>
                   )}
                 </div>
 
@@ -156,7 +156,7 @@ export default function ApiKeysManager() {
                     onChange={e => setField(p.name, { input: e.target.value })}
                     onKeyDown={e => e.key === 'Enter' && handleSave(p.name)}
                     placeholder={saved ? 'Nueva key (reemplaza la actual)' : p.hint}
-                    className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+                    className="flex-1 bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] placeholder-gray-400 focus:outline-none focus:border-[var(--color-border-focus)] transition-colors font-mono"
                   />
                   <button
                     onClick={() => handleSave(p.name)}
@@ -209,12 +209,12 @@ export default function ApiKeysManager() {
       <CustomProvidersManager />
 
       {/* Env var note */}
-      <div className="border border-gray-800 rounded-xl px-5 py-4">
-        <p className="text-xs text-gray-600 leading-relaxed">
-          <strong className="text-gray-500">Prioridad de keys:</strong> Si guardás una key aquí, tiene prioridad sobre las variables de entorno del servidor (
-          <code className="text-gray-500">ANTHROPIC_API_KEY</code>,{' '}
-          <code className="text-gray-500">OPENAI_API_KEY</code>,{' '}
-          <code className="text-gray-500">GOOGLE_AI_API_KEY</code>
+      <div className="border border-[var(--color-border-default)] rounded-xl px-5 py-4">
+        <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+          <strong className="text-[var(--color-text-secondary)]">Prioridad de keys:</strong> Si guardás una key aquí, tiene prioridad sobre las variables de entorno del servidor (
+          <code className="text-[var(--color-text-secondary)]">ANTHROPIC_API_KEY</code>,{' '}
+          <code className="text-[var(--color-text-secondary)]">OPENAI_API_KEY</code>,{' '}
+          <code className="text-[var(--color-text-secondary)]">GOOGLE_AI_API_KEY</code>
           ). Las keys se almacenan en Supabase con RLS — solo vos podés acceder a las tuyas.
         </p>
       </div>

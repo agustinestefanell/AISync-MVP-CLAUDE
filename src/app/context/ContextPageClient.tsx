@@ -68,23 +68,23 @@ export default function ContextPageClient({ userId }: Props) {
   const sessionSources = sources.filter(s => s.scope === 'session')
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-[var(--color-app-bg)] text-[var(--color-text-primary)]">
       <div className="max-w-4xl mx-auto px-6 py-10">
         <div className="mb-8">
-          <h1 className="text-xl font-semibold text-white">Context Files</h1>
-          <p className="text-sm text-gray-400 mt-1">
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Context Files</h1>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">
             Files uploaded to provide context to your AI agents.
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 text-xs text-red-400 bg-red-950 border border-red-900 rounded-lg px-4 py-3">
+          <div className="mb-6 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
             {error}
           </div>
         )}
 
         {loading ? (
-          <p className="text-sm text-gray-500">Loading…</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
         ) : (
           <div className="space-y-10">
             <ContextSection
@@ -127,45 +127,45 @@ function ContextSection({
   return (
     <div>
       <div className="mb-3">
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
-        <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+        <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">{title}</h2>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{description}</p>
       </div>
 
       {items.length === 0 ? (
-        <p className="text-xs text-gray-600 italic">No files in this scope.</p>
+        <p className="text-xs text-[var(--color-text-muted)] italic">No files in this scope.</p>
       ) : (
-        <div className="border border-gray-800 rounded-xl overflow-hidden">
+        <div className="border border-[var(--color-border-default)] rounded-xl overflow-hidden bg-[var(--color-surface)]">
           {items.map((s, i) => (
             <div
               key={s.id}
               className={`flex items-center gap-4 px-4 py-3 ${
-                i < items.length - 1 ? 'border-b border-gray-800' : ''
+                i < items.length - 1 ? 'border-b border-[var(--color-border-default)]' : ''
               }`}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-white truncate">{s.title}</p>
-                <p className="text-[11px] text-gray-500 mt-0.5">
+                <p className="text-sm text-[var(--color-text-primary)] truncate">{s.title}</p>
+                <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
                   {s.file_type?.split('/').pop() ?? s.source_kind ?? '—'}
                   {s.file_size_bytes != null && (
                     <> · {(s.file_size_bytes / 1024).toFixed(1)} KB</>
                   )}
                   {' · '}
                   {s.extracted_text_available ? (
-                    <span className="text-emerald-500">text extracted</span>
+                    <span className="text-emerald-600">text extracted</span>
                   ) : (
-                    <span className="text-gray-600">no text</span>
+                    <span className="text-[var(--color-text-muted)]">no text</span>
                   )}
                   {s.notes && <> · {s.notes}</>}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[10px] text-gray-600">
+                <span className="text-[10px] text-[var(--color-text-muted)]">
                   {new Date(s.created_at).toLocaleDateString()}
                 </span>
                 <button
                   onClick={() => onArchive(s.id)}
                   disabled={archiving === s.id}
-                  className="text-[11px] text-gray-500 hover:text-red-400 disabled:opacity-50 transition-colors px-2 py-1 rounded hover:bg-gray-800"
+                  className="text-[11px] text-[var(--color-text-muted)] hover:text-red-500 disabled:opacity-50 transition-colors px-2 py-1 rounded hover:bg-red-50"
                 >
                   {archiving === s.id ? 'Archiving…' : 'Archive'}
                 </button>

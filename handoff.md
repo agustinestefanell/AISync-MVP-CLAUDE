@@ -1133,3 +1133,73 @@ Badges: 10 tokens (`--color-badge-*-bg/text` para neutral/structural/success/war
 
 ### Estado
 OE A cerrada.
+
+---
+
+## [2026-05-26] — OE B: Apply light mode tokens to 5 components
+
+### Archivos tocados
+- `src/app/context/ContextPageClient.tsx`
+- `src/components/settings/ApiKeysManager.tsx`
+- `src/components/sm/SMPanel.tsx`
+- `src/components/teams/ConnectTeamModal.tsx`
+- `src/components/teams/EditTeamModal.tsx`
+
+### Cambios por componente
+
+**Context Files (`ContextPageClient.tsx`)**
+- Root: `bg-gray-950 text-white` → `bg-[var(--color-app-bg)] text-[var(--color-text-primary)]`
+- Títulos y texto helper: reemplazados por tokens `--color-text-primary` / `--color-text-muted`
+- Error: `bg-red-950 text-red-400` → `bg-red-50 text-red-600`
+- Filas: `border-gray-800` → `border-[var(--color-border-default)]` + `bg-[var(--color-surface)]`
+
+**Edit Team modal (`EditTeamModal.tsx`)**
+- Header/footer: `border-gray-800` → `border-[var(--color-border-default)]`
+- `text-white` en inputs → `text-[var(--color-text-primary)]` (texto invisible sobre fondo claro)
+- SAT badge: `bg-emerald-950 text-emerald-400 border-emerald-800` → light equivalents
+- MAT badge: `bg-purple-950 text-purple-400 border-purple-800` → light equivalents
+- Secciones Manager/Worker: `bg-gray-50/60` → `bg-[var(--color-surface-subtle)] border-[var(--color-border-subtle)]`
+- Labels: `text-gray-400` → `text-[var(--color-text-secondary)]`
+- Inputs: `border-gray-200` → `border-[var(--color-border-default)]` + `focus:border-[var(--color-border-focus)]`
+
+**Sub-Manager sidebar (`SMPanel.tsx`)**
+- Fondo panel (open): `#0a0f1a` → `var(--color-surface)` — elimina el efecto "panda"
+- Fondo panel (collapsed): mantiene `var(--color-surface)` (uniforme)
+- Todos los `rgba(255,255,255,...)` → tokens semánticos de texto y borde
+- Mensajes assistant: `rgba(255,255,255,0.07)` → `var(--color-surface-soft)` + borde `var(--color-border-subtle)`
+- Mensajes user: mantiene `var(--color-accent)` + `text-white` (acción primaria)
+- Inputs/selects: `rgba(255,255,255,0.06)` → `var(--color-input-bg)` + `var(--color-border-default)`
+- Warning box (consent): `rgba(180,83,9,0.12)` → `var(--color-badge-warning-bg)` + `var(--color-border-warning)`
+- Send button: mantiene `var(--color-accent)` + `text-white` (no tocado)
+
+**Provider cards (`ApiKeysManager.tsx`)**
+- Fondos tintados (orange-950/30, green-950/30, blue-950/30, yellow-950/30) → `bg-[var(--color-surface)]`
+- Bordes tintados (orange-900, green-900, etc.) → `border-[var(--color-border-default)]`
+- Colores de texto provider: dark 400 → light 600/700 (orange-600, green-700, blue-600, amber-600)
+- Badge "key guardada": `bg-emerald-950 text-emerald-400` → `bg-emerald-50 text-emerald-700`
+- Input API key: `text-white` → `text-[var(--color-text-primary)]`
+- Nota env var: `border-gray-800` → `border-[var(--color-border-default)]`
+
+**Connect Team modal (`ConnectTeamModal.tsx`)**
+- Header/footer: `border-gray-800` → `border-[var(--color-border-default)]`
+- `text-white` en select/input → `text-[var(--color-text-primary)]`
+- Opción seleccionada "Project-bound": `bg-indigo-950/40 border-indigo-800 text-indigo-300` → `bg-[var(--color-badge-structural-bg)] border-[var(--color-border-default)] text-[var(--color-text-primary)]`
+- Opción seleccionada "No shared repo": `bg-gray-50/60` → `bg-[var(--color-surface-subtle)]`
+- Labels: `text-gray-400` → `text-[var(--color-text-secondary)]`
+
+### Confirmaciones
+- No se tocó lógica, handlers, state, props ni rutas
+- No se tocaron botones primarios (`bg-indigo-600`, Send, Connect)
+- `--color-accent` intacto (usado en Send/Connect buttons del SMPanel)
+- `--color-accent-strong` intacto
+- MAP, Tree, Workspace ribbons, AgentPanel, KnowledgeMap canvas, Navbar: no tocados
+- Review & Forward, Audit AI: no tocados
+
+### Build
+✓ `npm run build` limpio (solo warnings pre-existentes de `useEffect` en CanvasViewport)
+
+### Demo First
+Componentes no existen en demo de referencia (`C:\proyectos\AISync\MVP`). Son exclusivos del MVP.
+
+### Estado
+OE B cerrada.

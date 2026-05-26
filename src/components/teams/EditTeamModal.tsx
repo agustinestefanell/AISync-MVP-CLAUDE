@@ -159,16 +159,16 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
       <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-5xl mx-4 shadow-2xl flex flex-col max-h-[90vh]">
 
         {/* ── Header ── */}
-        <div className="shrink-0 px-6 py-3.5 border-b border-gray-800 flex items-center justify-between gap-4">
+        <div className="shrink-0 px-6 py-3.5 border-b border-[var(--color-border-default)] flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <h3 className="text-base font-semibold text-white shrink-0">Edit Team</h3>
+            <h3 className="text-base font-semibold text-[var(--color-text-primary)] shrink-0">Edit Team</h3>
             <span className={`text-xs px-2 py-0.5 rounded-full border font-bold shrink-0 ${
               teamType === 'SAT'
-                ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
-                : 'bg-purple-950 text-purple-400 border-purple-800'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-purple-50 text-purple-700 border-purple-200'
             }`}>{teamType}</span>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 text-sm px-2 shrink-0">✕</button>
+          <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm px-2 shrink-0">✕</button>
         </div>
 
         {/* ── Body ── */}
@@ -177,31 +177,31 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
           {/* ── Team identity row ── */}
           <div className={`grid gap-3 mb-4 items-start ${validParents.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Name *</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Name *</label>
               <input
                 autoFocus type="text" value={name}
                 onChange={e => setName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSave()}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Description *</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Description *</label>
               <textarea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 rows={2}
                 placeholder="Describe what this team does"
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+                className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors resize-none"
               />
             </div>
             {validParents.length > 0 && (
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Sub-team of</label>
+                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Sub-team of</label>
                 <select
                   value={parentId}
                   onChange={e => setParentId(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
                 >
                   <option value="">— None —</option>
                   {validParents.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -218,12 +218,12 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                   const local = isLocal(a.provider)
                   const cloud = isCloud(a.provider)
                   return (
-                    <div key={a.id} className="bg-gray-50/60 border border-gray-200 rounded-lg px-3 py-3 space-y-2">
-                      <p className="text-xs font-semibold text-gray-600">{AGENT_LABEL[a.role] ?? a.role}</p>
+                    <div key={a.id} className="bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] rounded-lg px-3 py-3 space-y-2">
+                      <p className="text-xs font-semibold text-[var(--color-text-secondary)]">{AGENT_LABEL[a.role] ?? a.role}</p>
                       <select
                         value={a.provider}
                         onChange={e => setAgentField(i, { provider: e.target.value })}
-                        className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                        className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
                       >
                         <optgroup label="Cloud">
                           {CLOUD_PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
@@ -241,7 +241,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                         <select
                           value={a.model}
                           onChange={e => setAgentField(i, { model: e.target.value })}
-                          className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                          className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
                         >
                           {MODELS[a.provider as CloudProvider].map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
@@ -250,7 +250,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                           type="text" value={a.model}
                           onChange={e => setAgentField(i, { model: e.target.value })}
                           placeholder={local ? 'model (e.g. llama3)' : 'model'}
-                          className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                          className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
                         />
                       )}
                       {local && (
@@ -258,11 +258,11 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                           type="text" value={a.endpoint}
                           onChange={e => setAgentField(i, { endpoint: e.target.value })}
                           placeholder="http://localhost:11434/v1"
-                          className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+                          className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors font-mono"
                         />
                       )}
                       <div>
-                        <label className="block text-[10px] font-medium text-gray-500 mb-1">Description</label>
+                        <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Description</label>
                         <textarea
                           value={a.description}
                           onChange={e => setAgentField(i, { description: e.target.value })}
@@ -271,7 +271,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                             ? "Describe this agent's focus or specialty"
                             : "Add a role description for this agent"
                           }
-                          className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+                          className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors resize-none"
                         />
                       </div>
                     </div>
@@ -295,16 +295,16 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
             </>
           )}
 
-          {error && <p className="text-xs text-red-400 mt-3">{error}</p>}
+          {error && <p className="text-xs text-red-600 mt-3">{error}</p>}
         </div>
 
         {/* ── Footer ── */}
-        <div className="shrink-0 px-6 py-3.5 border-t border-gray-800 flex items-center justify-between gap-3">
+        <div className="shrink-0 px-6 py-3.5 border-t border-[var(--color-border-default)] flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             {workspace && (
               <button
                 onClick={() => router.push(`/workspace/${workspace.id}`)}
-                className="text-xs text-gray-400 hover:text-indigo-400 border border-gray-200 hover:border-indigo-700 px-3 py-2 rounded-lg transition-colors"
+                className="text-xs text-[var(--color-text-secondary)] hover:text-indigo-600 border border-[var(--color-border-default)] hover:border-indigo-400 px-3 py-2 rounded-lg transition-colors"
               >
                 Go to Workspace
               </button>
@@ -324,7 +324,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="text-sm text-gray-400 hover:text-gray-800 px-4 py-2 rounded-lg transition-colors"
+              className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-4 py-2 rounded-lg transition-colors"
             >
               Cancel
             </button>

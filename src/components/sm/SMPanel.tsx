@@ -250,8 +250,8 @@ export default function SMPanel({
         className="shrink-0 flex flex-col overflow-hidden transition-all duration-200 ease-in-out"
         style={{
           width: open ? '20rem' : '52px',
-          background: open ? '#0a0f1a' : 'var(--color-surface-muted)',
-          borderRight: '1px solid var(--color-border)',
+          background: 'var(--color-surface)',
+          borderRight: '1px solid var(--color-border-subtle)',
         }}
       >
         {!open ? (
@@ -295,16 +295,15 @@ export default function SMPanel({
           <>
             {/* Header */}
             <div className="shrink-0 px-5 py-4 flex items-center justify-between gap-3"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-sm font-bold text-white">Sub-Manager</span>
-                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
-                <span className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>{pageName}</span>
+                <span className="text-sm font-bold text-[var(--color-text-primary)]">Sub-Manager</span>
+                <span className="text-xs text-[var(--color-text-muted)]">·</span>
+                <span className="text-xs truncate text-[var(--color-text-muted)]">{pageName}</span>
               </div>
               <button
                 onClick={() => setOpen(false)}
-                className="text-sm shrink-0 transition-colors"
-                style={{ color: 'rgba(255,255,255,0.3)' }}
+                className="text-sm shrink-0 transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
                 title="Collapse Sub-Manager"
               >
                 ✕
@@ -315,8 +314,8 @@ export default function SMPanel({
             {!connection && !showConsent && (
               <div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
                 <div className="text-center">
-                  <p className="text-sm font-semibold text-white mb-1">Sub-Manager not connected.</p>
-                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Sub-Manager not connected.</p>
+                  <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
                     Connect an AI provider to ask questions about the documents and events on this page.
                   </p>
                 </div>
@@ -334,28 +333,26 @@ export default function SMPanel({
             {!connection && showConsent && (
               <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5">
                 <div className="rounded-xl px-4 py-4"
-                  style={{ background: 'rgba(180,83,9,0.12)', border: '1px solid rgba(180,83,9,0.28)' }}>
-                  <p className="text-xs font-semibold mb-2 uppercase tracking-wide"
-                    style={{ color: 'var(--color-warning)' }}>Before connecting</p>
-                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                  style={{ background: 'var(--color-badge-warning-bg)', border: '1px solid var(--color-border-warning)' }}>
+                  <p className="text-xs font-semibold mb-2 uppercase tracking-wide text-[var(--color-text-warning)]">Before connecting</p>
+                  <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
                     Sub-Manager will send the current page context to the selected AI provider.
                     This includes document names, states, audit records, and organizational metadata.
                     If you select an external provider, this data leaves your infrastructure.
                   </p>
-                  <p className="text-xs leading-relaxed mt-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                  <p className="text-xs leading-relaxed mt-2 text-[var(--color-text-secondary)]">
                     Only connect if you are authorized to share this information externally.
                     IA Local runs on your own infrastructure and keeps all data local.
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider"
-                    style={{ color: 'rgba(255,255,255,0.4)' }}>Provider</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Provider</label>
                   <select
                     value={selProvider}
                     onChange={e => handleProviderChange(e.target.value)}
-                    className="w-full rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+                    className="w-full rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none"
+                    style={{ background: 'var(--color-input-bg)', border: '1px solid var(--color-border-default)' }}
                   >
                     <optgroup label="Built-in">
                       {Object.keys(PROVIDER_MODELS).map(p => (
@@ -383,23 +380,22 @@ export default function SMPanel({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider"
-                    style={{ color: 'rgba(255,255,255,0.4)' }}>Model</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Model</label>
                   {(LOCAL_PROVIDERS.has(selProvider) || !(selProvider in PROVIDER_MODELS)) ? (
                     <input
                       type="text"
                       value={selModel}
                       onChange={e => setSelModel(e.target.value)}
                       placeholder="e.g. mistral, llama3, phi3"
-                      className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none"
-                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+                      className="w-full rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-400 focus:outline-none"
+                      style={{ background: 'var(--color-input-bg)', border: '1px solid var(--color-border-default)' }}
                     />
                   ) : (
                     <select
                       value={selModel}
                       onChange={e => setSelModel(e.target.value)}
-                      className="w-full rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
-                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+                      className="w-full rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none"
+                      style={{ background: 'var(--color-input-bg)', border: '1px solid var(--color-border-default)' }}
                     >
                       {(PROVIDER_MODELS[selProvider] ?? []).map(m => (
                         <option key={m} value={m}>{m}</option>
@@ -410,15 +406,14 @@ export default function SMPanel({
 
                 {LOCAL_PROVIDERS.has(selProvider) && (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider"
-                      style={{ color: 'rgba(255,255,255,0.4)' }}>Endpoint</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Endpoint</label>
                     <input
                       type="text"
                       value={selEndpoint}
                       onChange={e => setSelEndpoint(e.target.value)}
                       placeholder="http://localhost:11434/v1"
-                      className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none"
-                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+                      className="w-full rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-400 focus:outline-none"
+                      style={{ background: 'var(--color-input-bg)', border: '1px solid var(--color-border-default)' }}
                     />
                   </div>
                 )}
@@ -434,8 +429,8 @@ export default function SMPanel({
                   </button>
                   <button
                     onClick={() => setShowConsent(false)}
-                    className="flex-1 text-xs py-2.5 rounded-xl transition-colors"
-                    style={{ border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)' }}
+                    className="flex-1 text-xs py-2.5 rounded-xl transition-colors text-[var(--color-text-secondary)]"
+                    style={{ border: '1px solid var(--color-border-default)' }}
                   >
                     Cancel
                   </button>
@@ -448,7 +443,7 @@ export default function SMPanel({
               <>
                 {/* Connection badge */}
                 <div className="shrink-0 px-5 py-2 flex items-center justify-between gap-2"
-                  style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                  style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
                   <div className="flex items-center gap-2 min-w-0">
                     {connection.isLocal ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium"
@@ -462,19 +457,17 @@ export default function SMPanel({
                         ⚠ External
                       </span>
                     )}
-                    <span className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    <span className="text-xs truncate text-[var(--color-text-muted)]">
                       {connection.provider} · {connection.model}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <button onClick={handleClearChat}
-                      className="text-xs transition-colors"
-                      style={{ color: 'rgba(255,255,255,0.3)' }}>
+                      className="text-xs transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
                       Clear
                     </button>
                     <button onClick={handleDisconnect}
-                      className="text-xs transition-colors"
-                      style={{ color: 'rgba(255,255,255,0.3)' }}>
+                      className="text-xs transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
                       Disconnect
                     </button>
                   </div>
@@ -483,13 +476,13 @@ export default function SMPanel({
                 {/* Context indicator */}
                 {contextStatus && (
                   <div className="shrink-0 px-5 py-1.5"
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
                     {contextStatus === 'filtered' ? (
-                      <p className="text-xs" style={{ color: 'var(--color-warning)' }}>
+                      <p className="text-xs text-[var(--color-text-warning)]">
                         🔍 Searching within filtered results only
                       </p>
                     ) : (
-                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                      <p className="text-xs text-[var(--color-text-muted)]">
                         🔍 Searching all documents
                       </p>
                     )}
@@ -499,7 +492,7 @@ export default function SMPanel({
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 space-y-4">
                   {messages.length === 0 && !streaming && (
-                    <p className="text-xs text-center mt-8" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                    <p className="text-xs text-center mt-8 text-[var(--color-text-muted)]">
                       Ask anything about the {pageName.toLowerCase()} context.
                     </p>
                   )}
@@ -508,13 +501,13 @@ export default function SMPanel({
                       <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
                         m.role === 'user'
                           ? 'text-white'
-                          : 'text-gray-200'
+                          : 'text-[var(--color-text-primary)]'
                       }`}
                         style={{
                           background: m.role === 'user'
                             ? 'var(--color-accent)'
-                            : 'rgba(255,255,255,0.07)',
-                          border: m.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                            : 'var(--color-surface-soft)',
+                          border: m.role === 'user' ? 'none' : '1px solid var(--color-border-subtle)',
                         }}
                       >
                         {m.role === 'assistant' ? renderAssistantMessage(m.content) : m.content}
@@ -523,17 +516,16 @@ export default function SMPanel({
                   ))}
                   {streaming && streamingContent && (
                     <div className="flex justify-start">
-                      <div className="max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed text-gray-200"
-                        style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div className="max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed text-[var(--color-text-primary)]"
+                        style={{ background: 'var(--color-surface-soft)', border: '1px solid var(--color-border-subtle)' }}>
                         {renderAssistantMessage(streamingContent)}
-                        <span className="inline-block w-1 h-3 animate-pulse ml-0.5 align-middle"
-                          style={{ background: 'rgba(255,255,255,0.4)' }} />
+                        <span className="inline-block w-1 h-3 animate-pulse ml-0.5 align-middle bg-[var(--color-text-muted)]" />
                       </div>
                     </div>
                   )}
                   {streaming && !streamingContent && (
                     <div className="flex justify-start">
-                      <div className="px-3 py-2 text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                      <div className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
                         Thinking…
                       </div>
                     </div>
@@ -552,7 +544,7 @@ export default function SMPanel({
                 </div>
 
                 {/* Input */}
-                <div className="shrink-0 px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="shrink-0 px-4 py-3" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
                   <div className="flex gap-2">
                     <textarea
                       value={input}
@@ -562,10 +554,10 @@ export default function SMPanel({
                       }}
                       placeholder="Ask about documents or events…"
                       rows={2}
-                      className="flex-1 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none resize-none transition-colors"
+                      className="flex-1 rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] placeholder-gray-400 focus:outline-none resize-none transition-colors"
                       style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.12)',
+                        background: 'var(--color-input-bg)',
+                        border: '1px solid var(--color-border-default)',
                       }}
                     />
                     <button
