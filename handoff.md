@@ -1708,3 +1708,41 @@ No se requirió ningún cambio. `TreeView.tsx` ya usaba `teamCodeToPaletteIndex`
 
 ### Estado
 Cerrado. Fix 2 ya estaba implementado — no requirió cambios.
+
+---
+
+## [2026-05-26] — OE: Port DocumentationMirrorTree a StructureView
+
+### Diagnóstico previo
+`StructureView.tsx` mostraba un árbol de checkpoints agrupados (Proyecto → Teams → Workspaces → Checkpoints). Esa vista no representaba la intención real de Documentation Mode: un árbol navegable tipo mirror tree, alineado con la jerarquía Teams/Agentes.
+
+### Archivos creados
+- `src/lib/documentation/types.ts` — `DocumentationMirrorNode` interface
+- `src/lib/documentation/buildMirrorTree.ts` — `MirrorAgent`, `MirrorTeam`, `MirrorTreeInput`, `buildDocumentationMirrorTree`
+- `src/components/documentation/DocumentationMirrorTree.tsx` — `TreeViewport` (pan/zoom/drag), `MirrorTreeNode` (recursivo), `DocumentationMirrorTree` (componente público)
+
+### Archivo modificado
+- `src/components/documentation/StructureView.tsx` — reemplaza árbol de checkpoints por `DocumentationMirrorTree`; deriva `mirrorTeams` y `mirrorAgents` desde `projects: ProjectWithTeams[]` (ya llegaba como prop pero no se usaba)
+
+### Decisiones técnicas
+- **Sin dependencia del map layer**: la documentación deriva sus datos directamente de `TeamWithWorkspaces[]` sin importar `MapAgentNode` ni `agentNodesToMapNodes`. Módulo documentation auto-contenido.
+- **`buildDocumentationMirrorTree` con inputs simplificados**: no porta `buildDocumentationModeModel` (900+ líneas en demo, datos de Content Plane que no existen en MVP). En cambio, construye `MirrorTreeInput` directamente desde `ProjectWithTeams`.
+- **Jerarquía de agentes**: manager sin padre de equipo → `general_manager`; manager con padre → `senior_manager`; worker1/worker2 → `worker`. Workers tienen `treeParentUnitId = manager.id` (aparecen bajo el manager en el árbol).
+- **`agentLabel`**: usa `session.description` si existe; fallback a `team.name` (manager) o `team.name · Worker` (worker).
+- **`TreeViewport`**: puerto exacto de la demo — drag con pointer capture, zoom con wheel, supresión de clicks post-drag.
+
+### Alternativas descartadas
+- Usar `MapAgentNode` en props: crearía dependencia cruzada documentation → map. Descartado en favor de tipos locales.
+- Portar `buildDocumentationModeModel`: 900+ líneas, depende de Content Plane (messages, savedObjects, calendarEvents). No existe en MVP. Innecesario — el árbol solo necesita teams y agents.
+
+### Restricciones respetadas
+- DocClient.tsx: NO tocado
+- RepositoryView, AuditView, InvestigateView, KnowledgeMap: NO tocados
+- MAP / Tree / Workspace / ribbons / route.ts / providers / streaming: NO tocados
+- Firma de props de StructureView: preservada (Props interface idéntica)
+
+### Build
+✓ `npm run build` limpio. Cero errores TypeScript. Commit: 0d528e2.
+
+### Estado
+Cerrado.
