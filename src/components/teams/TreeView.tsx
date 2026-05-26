@@ -30,7 +30,7 @@ function getSubtreeNodes(rootId: string, all: MapAgentNode[]): MapAgentNode[] {
 // ─── Compact node card (port of demo TreeOverviewView inline renderer) ────────
 
 const TREE_CONNECT_GAP    = 56
-const TREE_CONNECT_WIDTH  = 116
+const TREE_CONNECT_WIDTH  = 170
 const TREE_CONNECT_HEIGHT = 84
 
 function TreeConnectTeamBox({ onConnect }: { onConnect: () => void }) {

@@ -52,11 +52,11 @@ export const GAP_BETWEEN_ROOT_TREES = 150
 
 // ─── TREE constants (demo's TreeOverviewView values) ──────────────────────────
 
-const TREE_ROOT_WIDTH         = 112
+const TREE_ROOT_WIDTH         = 180
 const TREE_ROOT_HEIGHT        = 84
-const TREE_NODE_WIDTH         = 152
+const TREE_NODE_WIDTH         = 220
 const TREE_SUB_MANAGER_HEIGHT = 120
-const TREE_WORKER_WIDTH       = 112
+const TREE_WORKER_WIDTH       = 170
 const TREE_WORKER_HEIGHT      = 86
 const TREE_LEVEL_GAP          = 74
 const TREE_SIBLING_GAP        = 44
