@@ -180,9 +180,9 @@ export default function KnowledgeMap({ checkpoints }: Props) {
   return (
     <div className="h-full flex">
       {/* Left panel */}
-      <div className="shrink-0 w-64 border-r border-gray-800 flex flex-col bg-gray-950 px-4 py-5 space-y-6">
+      <div className="shrink-0 w-64 border-r border-[var(--color-border-subtle)] flex flex-col bg-[var(--color-surface)] px-4 py-5 space-y-6">
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Graph Focus Mode</p>
+          <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Graph Focus Mode</p>
           <div className="space-y-1">
             {MODES.map(m => (
               <button
@@ -191,7 +191,7 @@ export default function KnowledgeMap({ checkpoints }: Props) {
                 className={`w-full text-left text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
                   mode === m.id
                     ? 'bg-indigo-600 text-white'
-                    : 'text-gray-500 hover:text-gray-600 hover:bg-white'
+                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]'
                 }`}
               >
                 {m.label}
@@ -201,27 +201,27 @@ export default function KnowledgeMap({ checkpoints }: Props) {
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Filters</p>
+          <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Filters</p>
           <select value={filterProject} onChange={e => setFilterProject(e.target.value)}
-            className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
+            className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)]">
             <option value="">All projects</option>
             {uniqueProjects.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
           <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)}
-            className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
+            className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)]">
             <option value="">All teams</option>
             {uniqueTeams.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
           {(filterProject || filterTeam) && (
             <button onClick={() => { setFilterProject(''); setFilterTeam('') }}
-              className="text-xs text-gray-600 hover:text-gray-400 w-full text-left">
+              className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] w-full text-left">
               Clear filters
             </button>
           )}
         </div>
 
         <div className="mt-auto">
-          <p className="text-xs text-gray-700 leading-relaxed">
+          <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
             Wheel zoom · drag space to pan · drag node to reposition
           </p>
         </div>

@@ -1265,3 +1265,73 @@ RepositoryView no existe en la demo de referencia. Exclusivo del MVP.
 
 ### Estado
 OE C cerrada.
+
+---
+
+## [2026-05-26] — OE D: Fix AuditView, InvestigateView, KnowledgeMap panel light mode
+
+### Archivos tocados
+- `src/components/documentation/AuditView.tsx`
+- `src/components/documentation/InvestigateView.tsx`
+- `src/components/documentation/KnowledgeMap.tsx` (solo panel izquierdo)
+
+### Cambios realizados
+
+**`AuditView.tsx`**
+- `EVENT_CONFIG` badges: todos dark (text-green-400 bg-green-950, etc.) → light equivalents (text-green-700 bg-green-50 border-green-200, etc.)
+- `STATE_BADGE`: todos dark → light (emerald/yellow/red 700+50+200)
+- `StatCard`: `bg-white border-gray-800 text-white` → `bg-[var(--color-surface)] border-[var(--color-border-default)] text-[var(--color-text-primary)]`
+- Stats row + filters border: `border-gray-800` → `border-[var(--color-border-default)]`
+- List divider: `divide-gray-800/50` → `divide-[var(--color-border-subtle)]`
+- Item hover: `hover:bg-white/40` → `hover:bg-[var(--color-surface-soft)]`
+- Título documento: `text-white` → `text-[var(--color-text-primary)]`
+- team_name / workspace_name: `text-gray-600` → `text-[var(--color-text-secondary)]`
+- "View Details →": `text-indigo-400 hover:text-indigo-300` → `text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]`
+- "Open Document →" / "Audit Log →": `text-gray-500/600` → `text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]`
+- Modal header border: `border-gray-800` → `border-[var(--color-border-default)]`
+- Modal h3: `text-white` → `text-[var(--color-text-primary)]`
+- Modal botón ✕: `text-gray-500` → `text-[var(--color-text-muted)]`
+- User message bubble: `bg-indigo-900/50 text-indigo-100` → `bg-[var(--color-badge-structural-bg)] text-[var(--color-text-primary)]`
+- Bubble role label: `text-gray-400` → `text-[var(--color-text-muted)]`
+- Agent card en modal: `bg-gray-50/60 border-gray-200` → `bg-[var(--color-surface-subtle)] border-[var(--color-border-default)]`
+- `Meta` helper: `text-gray-600`/`text-gray-400` → `text-[var(--color-text-secondary)]`/`text-[var(--color-text-primary)]`
+
+**`InvestigateView.tsx`**
+- `PURPOSE_BADGE`: todos dark → light (green/blue/purple/orange 700+50+200)
+- `StatCard`: mismo fix que AuditView
+- Stats row + Investigation Focus border: `border-gray-800` → `border-[var(--color-border-default)]`
+- Search input: `text-white placeholder-gray-600` → `text-[var(--color-text-primary)] placeholder-[var(--color-text-placeholder)]`
+- Todos los selects/input filtros: `bg-white border-gray-200 text-gray-600` → tokens
+- Section label + helper text: `text-gray-500/700` → `text-[var(--color-text-muted)]`
+- Date divider lines: `bg-gray-50` → `bg-[var(--color-border-subtle)]`
+- Document cards: `bg-white border-gray-800` → `bg-[var(--color-surface)] border-[var(--color-border-default)]`; hover: → `hover:border-[var(--color-border-focus)]`
+- Título documento: `text-white` → `text-[var(--color-text-primary)]`
+- "Open Document →": `text-indigo-400 hover:text-indigo-300` → `text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]`
+- "Audit Log →": dark → `text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]`
+- `InvMeta` helper: `text-gray-600`/`text-gray-400` → `text-[var(--color-text-secondary)]`/`text-[var(--color-text-primary)]`
+
+**`KnowledgeMap.tsx` — solo panel izquierdo (lines 182-228)**
+- Panel container: `bg-gray-950 border-r border-gray-800` → `bg-[var(--color-surface)] border-r border-[var(--color-border-subtle)]`
+- "Graph Focus Mode" + "Filters" labels: `text-gray-500` → `text-[var(--color-text-secondary)]`
+- Inactive mode buttons: `text-gray-500 hover:text-gray-600 hover:bg-white` → `text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]`
+- Filter selects: `bg-white border-gray-200 text-gray-600` → `bg-[var(--color-input-bg)] border-[var(--color-border-default)] text-[var(--color-text-primary)]`
+- "Clear filters": `text-gray-600 hover:text-gray-400` → `text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]`
+- Help text: `text-gray-700` → `text-[var(--color-text-muted)]`
+
+### Confirmaciones
+- Canvas ReactFlow (colorMode="dark", Background color="#1e293b", MiniMap, nodes) NO TOCADO
+- DocFlowNode y COLOR_MAP NO TOCADOS
+- Botón "bg-indigo-600" (modo activo en KnowledgeMap) NO TOCADO
+- Botón "Resume →" en modal (bg-indigo-600) NO TOCADO
+- Agent message bubbles (bg-gray-100 text-gray-800) — ya eran light, sin cambio
+- `--color-accent` y `--color-accent-strong` intactos
+- No se tocó lógica, handlers, state, props, filtros, routing
+
+### Demo First
+Ninguno de los tres componentes existe en la demo de referencia (`C:\proyectos\AISync\MVP`). Son exclusivos del MVP.
+
+### Build
+✓ `npm run build` limpio (solo warnings pre-existentes de `useEffect` en CanvasViewport).
+
+### Estado
+OE D cerrada.

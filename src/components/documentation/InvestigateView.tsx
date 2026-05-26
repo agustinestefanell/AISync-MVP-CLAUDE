@@ -6,10 +6,10 @@ import type { DocCheckpoint } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 
 const PURPOSE_BADGE: Record<string, string> = {
-  'Checkpoint':     'text-green-400 bg-green-950 border-green-900',
-  'Session Backup': 'text-blue-400 bg-blue-950 border-blue-900',
-  'Handoff':        'text-purple-400 bg-purple-950 border-purple-900',
-  'Evidence':       'text-orange-400 bg-orange-950 border-orange-900',
+  'Checkpoint':     'text-green-700 bg-green-50 border-green-200',
+  'Session Backup': 'text-blue-700 bg-blue-50 border-blue-200',
+  'Handoff':        'text-purple-700 bg-purple-50 border-purple-200',
+  'Evidence':       'text-orange-700 bg-orange-50 border-orange-200',
 }
 
 function formatDate(iso: string) {
@@ -30,9 +30,9 @@ function dateLabel(iso: string) {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-white border border-gray-800 rounded-xl px-5 py-4">
-      <p className="text-2xl font-bold text-white">{value}</p>
-      <p className="text-xs text-gray-500 mt-0.5 font-medium tracking-wide uppercase">{label}</p>
+    <div className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl px-5 py-4">
+      <p className="text-2xl font-bold text-[var(--color-text-primary)]">{value}</p>
+      <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 font-medium tracking-wide uppercase">{label}</p>
     </div>
   )
 }
@@ -91,7 +91,7 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
   return (
     <div className="h-full flex flex-col">
       {/* Stats */}
-      <div className="shrink-0 px-6 py-4 grid grid-cols-4 gap-3 border-b border-gray-800">
+      <div className="shrink-0 px-6 py-4 grid grid-cols-4 gap-3 border-b border-[var(--color-border-default)]">
         <StatCard label="Threads"        value={stats.threads} />
         <StatCard label="Timeline Groups" value={stats.timelineGroups} />
         <StatCard label="Versioned Docs" value={stats.versioned} />
@@ -99,41 +99,41 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
       </div>
 
       {/* Investigation focus */}
-      <div className="shrink-0 px-6 py-4 border-b border-gray-800 space-y-3">
+      <div className="shrink-0 px-6 py-4 border-b border-[var(--color-border-default)] space-y-3">
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Investigation Focus</p>
+          <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Investigation Focus</p>
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search a topic, actor, project, document, or linked trace…"
-            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
           />
-          <p className="text-xs text-gray-700 mt-1.5">
+          <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
             Use this view to reconstruct an issue across related documents, not just to find one item.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <select value={filterProject} onChange={e => setFilterProject(e.target.value)}
-            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
+            className="bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)]">
             <option value="">All projects</option>
             {uniqueProjects.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
           <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)}
-            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
+            className="bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)]">
             <option value="">All teams</option>
             {uniqueTeams.map(([id, name]) => <option key={id} value={id}>{teamLabel(id, name, teamCodes)}</option>)}
           </select>
           <select value={filterType} onChange={e => setFilterType(e.target.value)}
-            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
+            className="bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)]">
             <option value="">All types</option>
             {['Checkpoint', 'Session Backup', 'Handoff', 'Evidence'].map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
-            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500" />
+            className="bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)]" />
           {(search || filterProject || filterTeam || filterType || filterDate) && (
             <button onClick={() => { setSearch(''); setFilterProject(''); setFilterTeam(''); setFilterType(''); setFilterDate('') }}
-              className="text-xs text-gray-500 hover:text-gray-600 px-2">
+              className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-2">
               Clear
             </button>
           )}
@@ -144,27 +144,27 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
       <div className="flex-1 overflow-y-auto px-6 py-6">
         {grouped.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-600 text-sm">No documents match your search.</p>
+            <p className="text-[var(--color-text-muted)] text-sm">No documents match your search.</p>
           </div>
         ) : grouped.map(([day, items]) => (
           <div key={day} className="mb-8">
             {/* Date header */}
             <div className="flex items-center gap-3 mb-4">
-              <div className="h-px flex-1 bg-gray-50" />
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider" suppressHydrationWarning>
+              <div className="h-px flex-1 bg-[var(--color-border-subtle)]" />
+              <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider" suppressHydrationWarning>
                 {dateLabel(day + 'T12:00:00')}
               </p>
-              <div className="h-px flex-1 bg-gray-50" />
+              <div className="h-px flex-1 bg-[var(--color-border-subtle)]" />
             </div>
 
             <div className="space-y-3">
               {items.map(c => (
-                <div key={c.id} className="bg-white border border-gray-800 rounded-xl px-5 py-4 hover:border-gray-200 transition-colors">
+                <div key={c.id} className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl px-5 py-4 hover:border-[var(--color-border-focus)] transition-colors">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-white">{c.name}</p>
-                        <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PURPOSE_BADGE[c.purpose] ?? 'text-gray-400 bg-gray-50 border-gray-200'}`}>
+                        <p className="text-sm font-semibold text-[var(--color-text-primary)]">{c.name}</p>
+                        <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PURPOSE_BADGE[c.purpose] ?? 'text-gray-600 bg-gray-50 border-gray-200'}`}>
                           {c.purpose}
                         </span>
                       </div>
@@ -180,11 +180,11 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
                     <div className="flex flex-col gap-2 shrink-0">
                       <button
                         onClick={() => router.push(`/workspace/${c.workspace_id}`)}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors text-right"
+                        className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors text-right"
                       >
                         Open Document →
                       </button>
-                      <a href="/audit" className="text-xs text-gray-600 hover:text-gray-400 transition-colors text-right">
+                      <a href="/audit" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors text-right">
                         Audit Log →
                       </a>
                     </div>
@@ -202,8 +202,8 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
 function InvMeta({ label, value, suppress }: { label: string; value: string; suppress?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-xs text-gray-600 shrink-0">{label}:</span>
-      <span className="text-xs text-gray-400 truncate" suppressHydrationWarning={!!suppress}>{value}</span>
+      <span className="text-xs text-[var(--color-text-secondary)] shrink-0">{label}:</span>
+      <span className="text-xs text-[var(--color-text-primary)] truncate" suppressHydrationWarning={!!suppress}>{value}</span>
     </div>
   )
 }
