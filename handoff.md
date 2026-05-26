@@ -1587,3 +1587,44 @@ Además: StructureView tenía todos los badges en dark mode (PURPOSE_BADGE, STAT
 
 ### Estado
 OE Viewport + badges cerrada.
+
+---
+
+## [2026-05-26] — Fix light mode residues en Settings (CustomProvidersManager + ApiKeysManager)
+
+### Archivos modificados
+- `src/components/settings/CustomProvidersManager.tsx`
+- `src/components/settings/ApiKeysManager.tsx`
+
+### Cambios en CustomProvidersManager.tsx
+
+**Provider name (línea 85):**
+- `text-white` → `text-[var(--color-text-primary)]`
+
+**Badge "activo" (línea 86-88):**
+- `text-emerald-400 bg-emerald-950 border-emerald-800` → `text-emerald-700 bg-emerald-50 border-emerald-200`
+
+**4 inputs del formulario (Nombre, Modelo, Endpoint URL, API Key):**
+- `bg-gray-50` → `bg-[var(--color-input-bg)]`
+- `border-gray-200` → `border-[var(--color-border-default)]`
+- `text-white` → `text-[var(--color-text-primary)]`
+- `placeholder-gray-600` → `placeholder-[var(--color-text-placeholder)]`
+- `focus:border-indigo-500` → `focus:border-[var(--color-border-focus)]`
+
+**Botón "Agregar provider":**
+- `bg-indigo-600 hover:bg-indigo-500` → `bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)]`
+
+### Cambios en ApiKeysManager.tsx
+
+**Botón "Guardar":**
+- `bg-indigo-600 hover:bg-indigo-500` → `bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)]`
+
+### Confirmaciones
+- Lógica, handlers, state, props, API routes: NO tocados
+- Streaming, providers de IA, agent sessions: NO tocados
+
+### Build
+✓ `npm run build` limpio. Commit: 472caf9.
+
+### Estado
+OE cerrada.
