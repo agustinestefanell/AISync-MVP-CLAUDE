@@ -1335,3 +1335,57 @@ Ninguno de los tres componentes existe en la demo de referencia (`C:\proyectos\A
 
 ### Estado
 OE D cerrada.
+
+---
+
+## [2026-05-26] — OE Decorativa A: Diagnóstico de clases utilitarias en tokens.css
+
+### Archivos tocados
+- Ninguno (intervención cero — ver diagnóstico)
+
+### Diagnóstico previo
+**Causa probable:** `tokens.css` ya expone variables base correctas de color, tipografía, spacing, radios y sombras, pero podría no tener todas las clases utilitarias CSS que las consumen.
+**Alcance real:** Limitado a `tokens.css`. Cero `.tsx`.
+**Dependencias:** Variables tipográficas, de color, radios y sombras ya definidas.
+**Riesgo de efectos secundarios:** Bajo siempre que no se dupliquen ni pisoteen clases ya validadas.
+**Criterio de intervención mínima:** Agregar solo lo faltante. Conservar todo lo existente.
+
+### Clases ya existentes (todas las pedidas en la OE)
+
+| Clase | Línea | Estado |
+|---|---|---|
+| `.ui-title` | 615 | ✓ existe, idéntica al spec |
+| `.ui-section-title` | 623 | ✓ existe, idéntica al spec |
+| `.ui-panel-title` | 631 | ✓ existe, idéntica al spec |
+| `.ui-label` | 639 | ✓ existe, idéntica al spec |
+| `.ui-meta` | 646 | ✓ existe, idéntica al spec |
+| `.ui-caption` | 652 | ✓ existe, idéntica al spec |
+| `.ui-card` | 944 | ✓ existe (con border además de radius+shadow) |
+| `.ui-panel` | 213-230 | ✓ existe, radius+shadow-card |
+| `.ui-surface` | 213-230 | ✓ existe, radius+shadow-card |
+| `.ui-panel-subtle` | 213-237 | ✓ existe, radius+shadow-soft |
+| `.ui-tabs` / `.ui-segmented-control` | 905 | ✓ existe, superset del spec |
+| `.ui-tab` / `.ui-segmented-option` | 916 | ✓ existe, superset del spec |
+| `.ui-tab:hover` | 931 | ✓ existe |
+| `.ui-tab-active` / `.ui-segmented-option-active` | 936 | ✓ existe (usa accent-soft-strong en border, sustancialmente equivalente) |
+
+### Sombras verificadas
+- `--shadow-soft` → línea 45 — ya existía ✓
+- `--shadow-card` → línea 46 — ya existía ✓
+- `--shadow-popover` → línea 47 — ya existía ✓
+
+### Clases agregadas
+Ninguna. Todas las pedidas ya existían con semántica equivalente o idéntica.
+
+### Validaciones
+- ✓ `tokens.css` leído completo (1429 líneas)
+- ✓ No se tocó ningún `.tsx`
+- ✓ `--color-accent` intacto (línea 67)
+- ✓ `--color-accent-strong` intacto (línea 68)
+- ✓ `npm run build` limpio
+
+### Commit realizado
+Ninguno — sin cambios de código. Solo handoff.md actualizado.
+
+### Estado
+OE Decorativa A cerrada. Base visual ya estaba completa. Lista para OE Decorativa B.
