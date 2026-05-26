@@ -68,49 +68,40 @@ export default function ContextPageClient({ userId }: Props) {
   const sessionSources = sources.filter(s => s.scope === 'session')
 
   return (
-    <div className="min-h-screen bg-[var(--color-app-bg)] text-[var(--color-text-primary)]">
-      <div className="max-w-4xl mx-auto px-6 py-10">
-        <div className="mb-8">
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Context Files</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Files uploaded to provide context to your AI agents.
-          </p>
+    <div className="max-w-4xl mx-auto px-6 py-10">
+      {error && (
+        <div className="mb-6 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          {error}
         </div>
+      )}
 
-        {error && (
-          <div className="mb-6 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-            {error}
-          </div>
-        )}
-
-        {loading ? (
-          <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
-        ) : (
-          <div className="space-y-10">
-            <ContextSection
-              title="Project Context"
-              description="Available across all teams in the project."
-              items={projectSources}
-              archiving={archiving}
-              onArchive={archive}
-            />
-            <ContextSection
-              title="Team Context"
-              description="Available to all agents in the team."
-              items={teamSources}
-              archiving={archiving}
-              onArchive={archive}
-            />
-            <ContextSection
-              title="Session Context"
-              description="Available only within a specific agent session."
-              items={sessionSources}
-              archiving={archiving}
-              onArchive={archive}
-            />
-          </div>
-        )}
-      </div>
+      {loading ? (
+        <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
+      ) : (
+        <div className="space-y-10">
+          <ContextSection
+            title="Project Context"
+            description="Available across all teams in the project."
+            items={projectSources}
+            archiving={archiving}
+            onArchive={archive}
+          />
+          <ContextSection
+            title="Team Context"
+            description="Available to all agents in the team."
+            items={teamSources}
+            archiving={archiving}
+            onArchive={archive}
+          />
+          <ContextSection
+            title="Session Context"
+            description="Available only within a specific agent session."
+            items={sessionSources}
+            archiving={archiving}
+            onArchive={archive}
+          />
+        </div>
+      )}
     </div>
   )
 }
