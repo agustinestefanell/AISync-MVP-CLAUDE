@@ -1203,3 +1203,65 @@ Componentes no existen en demo de referencia (`C:\proyectos\AISync\MVP`). Son ex
 
 ### Estado
 OE B cerrada.
+
+---
+
+## [2026-05-26] — OE C: Fix Repository stat contrast and detail panel light mode
+
+### Archivos tocados
+- `src/components/documentation/RepositoryView.tsx`
+
+### Componente del panel derecho identificado
+- `CheckpointDetailPanel` y `HandoffDetailPanel` — subcomponentes internos de `RepositoryView.tsx`
+- Evidencia grep: `bg-gray-950` en líneas 76 y 141, `text-white` en líneas 79 y 148
+
+### Cambios realizados
+
+**Stat cards (`StatCard`)**
+- `bg-white border-gray-800` → `bg-[var(--color-surface)] border-[var(--color-border-default)]`
+- Número: `text-white` → `text-[var(--color-text-primary)]`
+- Label: `text-gray-500` → `text-[var(--color-text-secondary)]`
+
+**Badges (`PURPOSE_BADGE`, `STATE_BADGE`, `STATUS_BADGE`, `HANDOFF_BADGE`)**
+- Todos los fondos dark (bg-green-950, bg-blue-950, etc.) → light equivalents (bg-green-50, etc.)
+- Textos dark (text-green-400, etc.) → light (text-green-700, etc.)
+- Bordes dark → light (border-green-200, etc.)
+
+**Helpers (`Row`, `MetaRow`)**
+- `text-gray-600` → `text-[var(--color-text-secondary)]` (labels) y `text-[var(--color-text-primary)]` (valores)
+- `text-gray-400` → `text-[var(--color-text-primary)]` (valores en MetaRow)
+
+**`CheckpointDetailPanel`**
+- Root: `bg-gray-950 border-gray-800` → `bg-[var(--color-surface)] border-[var(--color-border-subtle)]`
+- Títulos: `text-white` → `text-[var(--color-text-primary)]`
+- Subtítulos/labels: `text-gray-500/400` → `text-[var(--color-text-secondary)]`
+- Secondary Metadata box: `border-gray-800` → `border-[var(--color-border-default)]` + `bg-[var(--color-surface-subtle)]`
+- "View in Audit Log": dark → `border-[var(--color-border-default)] text-[var(--color-text-secondary)]`
+
+**`HandoffDetailPanel`**
+- Mismas correcciones que CheckpointDetailPanel
+- "Manager → Worker 1" arrow: `text-gray-500` → `text-[var(--color-text-muted)]`
+- Context box: `bg-white border-gray-800` → `bg-[var(--color-surface-subtle)] border-[var(--color-border-default)]`
+
+**Estructura del contenedor**
+- Stats row border: `border-gray-800` → `border-[var(--color-border-default)]`
+- List panel border: `border-gray-800` → `border-[var(--color-border-subtle)]`
+- Filters border: `border-gray-800` → `border-[var(--color-border-subtle)]`
+- List divider: `divide-gray-800/50` → `divide-[var(--color-border-subtle)]`
+- Active item: `bg-indigo-950/20` → `bg-[var(--color-badge-structural-bg)]`
+- Empty state + placeholder: dark → `text-[var(--color-text-muted)]`
+
+### Confirmaciones
+- No se tocó lógica, handlers, state, props, filtros, selección documental
+- "Open Document" (bg-indigo-600) no tocado
+- "View in Audit Log" href="/audit" no tocado (solo estilos visuales)
+- MAP, Tree, Workspace, AgentPanel, KnowledgeMap, Navbar: no tocados
+
+### Demo First
+RepositoryView no existe en la demo de referencia. Exclusivo del MVP.
+
+### Build
+✓ `npm run build` limpio.
+
+### Estado
+OE C cerrada.
