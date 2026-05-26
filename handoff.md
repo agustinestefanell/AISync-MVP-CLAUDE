@@ -1508,3 +1508,82 @@ Los tabs estaban distribuidos con `justify-between` ocupando el ancho total del 
 OE Botonera cerrada.
 
 **Ajuste posterior [2026-05-26]:** font-size tabs `0.8125rem` → `0.75rem` (12px). Gap entre tabs `gap-3` → `gap-5`.
+
+---
+
+## [2026-05-26] — OE Viewport + badges: StructureView y KnowledgeMap
+
+### Archivos modificados
+- `src/components/documentation/StructureView.tsx`
+- `src/components/documentation/KnowledgeMap.tsx`
+
+### Demo First
+`C:\proyectos\AISync\MVP\src\pages\PageB.tsx` revisado — patrón de height fill: `flex h-full min-h-0 flex-col gap-2.5`, `ui-surface min-h-0 flex flex-1 flex-col overflow-hidden`. No existe equivalente a StructureView ni KnowledgeMap en la demo.
+
+### Problema
+StructureView: root `h-full overflow-y-auto` sin `flex flex-col` — viewport cortado, contenido del árbol no scrolleaba correctamente en altura disponible.
+KnowledgeMap: root `h-full flex` sin `min-h-0` — posible corte en contextos flex sin constraint de altura mínima.
+Además: StructureView tenía todos los badges en dark mode (PURPOSE_BADGE, STATE_BADGE, SAT/MAT, DetailPanel, tree items) — deuda de la OE D/Decorativa B.
+
+### Cambios en StructureView.tsx
+
+**Viewport fix:**
+- Root: `h-full overflow-y-auto` → `h-full flex flex-col`
+- Agregado `<div className="flex-1 min-h-0 overflow-y-auto">` wrapping el contenido del árbol + max-w-3xl container
+- DetailPanel (fixed position) queda fuera del scroll wrapper — correcto, no afecta el flujo
+
+**PURPOSE_BADGE** (todos dark → light):
+- Checkpoint: `text-green-400 bg-green-950 border-green-900` → `text-green-700 bg-green-50 border-green-200`
+- Session Backup: `text-blue-400 bg-blue-950 border-blue-900` → `text-blue-700 bg-blue-50 border-blue-200`
+- Handoff: `text-purple-400 bg-purple-950 border-purple-900` → `text-purple-700 bg-purple-50 border-purple-200`
+- Evidence: `text-orange-400 bg-orange-950 border-orange-900` → `text-orange-700 bg-orange-50 border-orange-200`
+
+**STATE_BADGE** (todos dark → light):
+- active: `text-emerald-400 bg-emerald-950 border-emerald-900` → `text-emerald-700 bg-emerald-50 border-emerald-200`
+- under_review: `text-yellow-400 bg-yellow-950 border-yellow-900` → `text-yellow-700 bg-yellow-50 border-yellow-200`
+- locked: `text-red-400 bg-red-950 border-red-900` → `text-red-700 bg-red-50 border-red-200`
+
+**SAT/MAT badge:**
+- SAT: `text-emerald-400 bg-emerald-950 border-emerald-800` → `text-emerald-700 bg-emerald-50 border-emerald-200`
+- MAT: `text-purple-400 bg-purple-950 border-purple-800` → `text-purple-700 bg-purple-50 border-purple-200`
+
+**DetailPanel** (bg-gray-950 → tokens):
+- Root: `bg-gray-950 border-l border-gray-800` → `bg-[var(--color-surface)] border-l border-[var(--color-border-default)]`
+- Header border: `border-b border-gray-800` → `border-b border-[var(--color-border-default)]`
+- "Document Detail" label: `text-gray-500` → `text-[var(--color-text-muted)]`
+- Title h3: `text-white` → `text-[var(--color-text-primary)]`
+- Close button: `text-gray-600 hover:text-gray-600` → `text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]`
+- Row label: `text-gray-600 w-24 shrink-0` → `ui-meta text-[var(--color-text-secondary)] w-24 shrink-0`
+- Row value: `text-gray-600` → `text-[var(--color-text-primary)]`
+- Audit Log link: `border-gray-200 text-gray-400 hover:text-gray-800` → tokens light
+
+**Tree items** (dark → tokens):
+- Project button: `text-white hover:text-indigo-300` → `text-[var(--color-text-primary)] hover:text-[var(--color-accent)]`
+- Team button: `text-gray-600 hover:text-white` → `text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]`
+- Workspace button: `text-gray-400 hover:text-white` → `text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]`
+- Workspace count: `text-gray-600` → `text-[var(--color-text-muted)]`
+- Checkpoint button: `hover:text-white text-gray-500` → `text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]`
+- Borders: `border-gray-800` (todos) → `border-[var(--color-border-subtle)]`
+- Descripción superior: `text-gray-600 mb-6` → `text-[var(--color-text-secondary)] mb-6`
+- "teams/" label: `text-gray-600 font-mono` → `text-[var(--color-text-muted)] font-mono`
+- Empty state: `text-gray-500` + `text-gray-700` → tokens light
+
+### Cambios en KnowledgeMap.tsx
+
+**Viewport fix:**
+- Root: `h-full flex` → `h-full flex min-h-0`
+- Efecto: garantiza que el div flex no desborde en contextos donde el padre tiene altura calculada por flexbox sin constraint explícito
+- Canvas, nodos, ReactFlow, colorMode, Background, MiniMap: NO TOCADOS
+
+### Confirmaciones
+- ✓ ReactFlow canvas (colorMode="dark", Background color="#1e293b", MiniMap dark, DocFlowNode, COLOR_MAP): intacto
+- ✓ `--color-accent` y `--color-accent-strong` intactos
+- ✓ No se tocó lógica, handlers, state, props, ni routing
+- ✓ ChevronIcon usa `stroke="currentColor"` → hereda color del padre automáticamente
+- ✓ Botón "Open Document" (bg-indigo-600) intacto
+
+### Build
+✓ `npm run build` limpio. Commit: ce89e78.
+
+### Estado
+OE Viewport + badges cerrada.
