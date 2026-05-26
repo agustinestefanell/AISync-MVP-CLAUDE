@@ -1455,3 +1455,54 @@ OE Decorativa A cerrada. Base visual ya estaba completa. Lista para OE Decorativ
 
 ### Estado
 OE Decorativa B cerrada.
+
+---
+
+## [2026-05-26] — OE Botonera Documentation Mode: Rediseño visual de tabs
+
+### Archivos modificados
+- `src/components/documentation/DocClient.tsx`
+
+### Demo First
+Patrón leído en `C:\proyectos\AISync\MVP\src\pages\PageB.tsx` línea 3316-3344:
+- Contenedor: `flex flex-wrap items-start justify-center self-center justify-self-center gap-x-3 gap-y-2`
+- Por-tab: `grid min-w-max justify-items-center gap-1`
+- Botón: `ui-button min-h-7 w-full px-3 text-[10px]` + activo: `ui-button-primary text-white`
+- Help link: `text-[10px] text-[var(--color-accent-strong)] underline underline-offset-2`
+
+### Diagnóstico previo
+Los tabs estaban distribuidos con `justify-between` ocupando el ancho total del header (barra tipo underline). Sin bloque izquierdo/derecho en el MVP → la botonera se centra directamente. Cambio puramente de `className`, sin alterar estado, handlers ni lógica.
+
+### Bloque de tabs localizado
+`DocClient.tsx` línea 175 — único lugar de definición de la barra de navegación.
+
+### Cambios realizados
+
+**Contenedor outer** (antes `flex items-end justify-between`):
+- → `flex items-center justify-center gap-3 py-2.5`
+- Efecto: tabs compactados al centro, ya no estirados a todo el ancho
+
+**Por-tab div** (antes `flex flex-col items-center pb-2 gap-1`):
+- → `grid min-w-max justify-items-center gap-1` (patrón demo)
+
+**Tab button** — reemplazado underline `border-b-2` por pill:
+- Inactivo: `h-8 px-3.5 rounded-[10px] border border-[var(--color-border-default)] bg-white text-[var(--color-text-secondary)]`
+- Activo: `bg-[var(--color-accent)] border-[var(--color-accent)] text-white shadow-sm` (mismo ADN que Review & Forward)
+- `onClick={() => setTab(t.id)}` — intacto
+
+**Help link** (antes `text-xs text-[var(--color-text-tertiary)]`):
+- → `text-[10px] text-[var(--color-text-muted)] underline underline-offset-2 hover:text-[var(--color-accent)]`
+- `onClick={() => setHelpTab(t.id)}` — intacto
+
+### Confirmaciones
+- ✓ Lógica de tabs intacta (setTab, tab === t.id)
+- ✓ Handlers intactos (setHelpTab, setTab)
+- ✓ No existe bloque izquierdo ni derecho en MVP — tabs simplemente centrados
+- ✓ KnowledgeMap canvas intacto
+- ✓ Panel derecho intacto
+- ✓ Sub-Manager sidebar intacto
+- ✓ `--color-accent` usado para estado activo (mismo que Review & Forward)
+- ✓ `npm run build` limpio
+
+### Estado
+OE Botonera cerrada.

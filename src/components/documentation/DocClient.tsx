@@ -172,22 +172,22 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
       {/* Right: tab bar + view */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Tab bar */}
-        <div className="shrink-0 border-b border-[var(--color-border-default)] px-6 flex items-end justify-between">
+        <div className="shrink-0 border-b border-[var(--color-border-default)] px-6 py-2.5 flex items-center justify-center gap-3">
           {TABS.map(t => (
-            <div key={t.id} className="flex flex-col items-center pb-2 gap-1">
+            <div key={t.id} className="grid min-w-max justify-items-center gap-1">
               <button
                 onClick={() => setTab(t.id)}
-                className={`ui-tab text-xs font-medium px-4 py-3 border-b-2 transition-colors ${
+                className={`h-8 px-3.5 rounded-[10px] text-[0.8125rem] font-medium transition-colors border ${
                   tab === t.id
-                    ? 'ui-tab-active border-indigo-500 text-[var(--color-text-primary)]'
-                    : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                    ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-white shadow-sm'
+                    : 'bg-white border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-soft)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 {t.label}
               </button>
               <button
                 onClick={() => setHelpTab(t.id)}
-                className="text-xs text-[var(--color-text-tertiary)] underline cursor-pointer"
+                className="text-[10px] text-[var(--color-text-muted)] underline underline-offset-2 text-center cursor-pointer transition-colors hover:text-[var(--color-accent)]"
               >
                 How to use {t.label}
               </button>
