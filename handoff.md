@@ -1661,3 +1661,50 @@ OE cerrada.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-26] — Tree View: boxes más anchos + colorimetría MAP
+
+### Archivos modificados
+- `src/lib/map/buildTreeLayout.ts`
+- `src/components/teams/TreeView.tsx`
+
+### Demo First
+`C:\proyectos\AISync\MVP\src\pages\PageD.tsx`:
+- `TREE_NODE_WIDTH = 152` (MVP tenía el mismo valor — coincidencia con demo)
+- `TREE_AUX_NODE_WIDTH = 116` (MVP TREE_WORKER_WIDTH era 112 — similar)
+- No hay CORPORATE_PALETTES en la demo — es un sistema del MVP
+
+### Fix 1 — Boxes más anchos
+
+Cambios en `buildTreeLayout.ts`:
+
+| Constante | Antes | Después | Delta |
+|---|---|---|---|
+| `TREE_ROOT_WIDTH` | 112 | 180 | +68 |
+| `TREE_NODE_WIDTH` | 152 | 220 | +68 |
+| `TREE_WORKER_WIDTH` | 112 | 170 | +58 |
+
+`TREE_CONNECT_WIDTH` en `TreeView.tsx`: 116 → 170
+
+Heights no modificadas — la OE solo requería más ancho.
+Spacing (`TREE_SIBLING_GAP = 44`, `TREE_LEVEL_GAP = 74`) no modificado — el algoritmo calcula posiciones relativas al ancho, sin solapamiento.
+
+### Fix 2 — Colorimetría
+
+No se requirió ningún cambio. `TreeView.tsx` ya usaba `teamCodeToPaletteIndex` + `getProjectColorTokens` de `src/lib/teams/getProjectColor.ts` — exactamente el mismo sistema que `TeamAgentCard.tsx` en el MAP.
+
+### Confirmaciones
+- MAP layout: NO tocado
+- MAP conexiones: NO tocadas
+- React Flow config: NO tocado
+- Tree jerarquía: NO tocada
+- Open/Edit handlers: NO tocados
+- `buildTreeLayout.ts` algoritmo: NO tocado (solo constantes de dimensión)
+
+### Build
+✓ `npm run build` limpio. Commit: 4f0f3dc.
+
+### Estado
+Cerrado. Fix 2 ya estaba implementado — no requirió cambios.
