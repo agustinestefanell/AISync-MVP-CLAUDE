@@ -156,7 +156,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-5xl mx-4 shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-5xl mx-4 shadow-2xl flex flex-col max-h-[90vh]">
 
         {/* ── Header ── */}
         <div className="shrink-0 px-6 py-3.5 border-b border-gray-800 flex items-center justify-between gap-4">
@@ -168,7 +168,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                 : 'bg-purple-950 text-purple-400 border-purple-800'
             }`}>{teamType}</span>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-sm px-2 shrink-0">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 text-sm px-2 shrink-0">✕</button>
         </div>
 
         {/* ── Body ── */}
@@ -182,7 +182,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                 autoFocus type="text" value={name}
                 onChange={e => setName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSave()}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>
             <div>
@@ -192,7 +192,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                 onChange={e => setDescription(e.target.value)}
                 rows={2}
                 placeholder="Describe what this team does"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
               />
             </div>
             {validParents.length > 0 && (
@@ -201,7 +201,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                 <select
                   value={parentId}
                   onChange={e => setParentId(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
                 >
                   <option value="">— None —</option>
                   {validParents.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -218,12 +218,12 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                   const local = isLocal(a.provider)
                   const cloud = isCloud(a.provider)
                   return (
-                    <div key={a.id} className="bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-3 space-y-2">
-                      <p className="text-xs font-semibold text-gray-300">{AGENT_LABEL[a.role] ?? a.role}</p>
+                    <div key={a.id} className="bg-gray-50/60 border border-gray-200 rounded-lg px-3 py-3 space-y-2">
+                      <p className="text-xs font-semibold text-gray-600">{AGENT_LABEL[a.role] ?? a.role}</p>
                       <select
                         value={a.provider}
                         onChange={e => setAgentField(i, { provider: e.target.value })}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                        className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
                       >
                         <optgroup label="Cloud">
                           {CLOUD_PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
@@ -241,7 +241,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                         <select
                           value={a.model}
                           onChange={e => setAgentField(i, { model: e.target.value })}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                          className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
                         >
                           {MODELS[a.provider as CloudProvider].map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
@@ -250,7 +250,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                           type="text" value={a.model}
                           onChange={e => setAgentField(i, { model: e.target.value })}
                           placeholder={local ? 'model (e.g. llama3)' : 'model'}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                          className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
                         />
                       )}
                       {local && (
@@ -258,7 +258,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                           type="text" value={a.endpoint}
                           onChange={e => setAgentField(i, { endpoint: e.target.value })}
                           placeholder="http://localhost:11434/v1"
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+                          className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
                         />
                       )}
                       <div>
@@ -271,7 +271,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                             ? "Describe this agent's focus or specialty"
                             : "Add a role description for this agent"
                           }
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+                          className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
                         />
                       </div>
                     </div>
@@ -286,7 +286,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                     key={label}
                     disabled
                     title="Coming soon"
-                    className="text-[11px] py-2 rounded-lg border border-gray-700 text-gray-600 cursor-not-allowed opacity-50"
+                    className="text-[11px] py-2 rounded-lg border border-gray-200 text-gray-600 cursor-not-allowed opacity-50"
                   >
                     {label}
                   </button>
@@ -304,7 +304,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
             {workspace && (
               <button
                 onClick={() => router.push(`/workspace/${workspace.id}`)}
-                className="text-xs text-gray-400 hover:text-indigo-400 border border-gray-700 hover:border-indigo-700 px-3 py-2 rounded-lg transition-colors"
+                className="text-xs text-gray-400 hover:text-indigo-400 border border-gray-200 hover:border-indigo-700 px-3 py-2 rounded-lg transition-colors"
               >
                 Go to Workspace
               </button>
@@ -324,7 +324,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="text-sm text-gray-400 hover:text-gray-200 px-4 py-2 rounded-lg transition-colors"
+              className="text-sm text-gray-400 hover:text-gray-800 px-4 py-2 rounded-lg transition-colors"
             >
               Cancel
             </button>

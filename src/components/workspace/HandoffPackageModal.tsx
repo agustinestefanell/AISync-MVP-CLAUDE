@@ -86,7 +86,7 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
   if (done) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div className="bg-gray-900 border border-green-800 rounded-2xl px-8 py-6 text-center shadow-2xl">
+        <div className="bg-white border border-green-800 rounded-2xl px-8 py-6 text-center shadow-2xl">
           <p className="text-green-400 font-semibold text-sm">Handoff Package created</p>
         </div>
       </div>
@@ -98,12 +98,12 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-lg mx-4 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 w-full max-w-lg mx-4 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
         <h2 className="text-base font-semibold text-white">Create Handoff Package</h2>
 
         {/* Name */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-gray-300">
+          <label className="text-sm font-medium text-gray-600">
             Name <span className="text-red-400">*</span>
           </label>
           <input
@@ -113,8 +113,8 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
             onChange={e => { setName(e.target.value); if (e.target.value.trim()) setNameError(false) }}
             onKeyDown={e => { if (e.key === 'Enter') handleCreate() }}
             placeholder="e.g. Analysis → Implementation handoff"
-            className={`w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors ${
-              nameError ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-purple-500'
+            className={`w-full bg-gray-50 border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors ${
+              nameError ? 'border-red-500 focus:border-red-400' : 'border-gray-200 focus:border-purple-500'
             }`}
           />
           {nameError && <p className="text-xs text-red-400">Name is required</p>}
@@ -123,11 +123,11 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
         {/* From → To */}
         <div className="flex items-end gap-3">
           <div className="flex-1 space-y-1.5">
-            <label className="text-sm font-medium text-gray-300">From</label>
+            <label className="text-sm font-medium text-gray-600">From</label>
             <select
               value={fromId}
               onChange={e => handleFromChange(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-purple-500 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-purple-500 transition-colors"
             >
               {sessions.map(s => (
                 <option key={s.id} value={s.id}>{AGENT_LABEL[s.agent_role] ?? s.agent_role}</option>
@@ -136,11 +136,11 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
           </div>
           <span className="pb-2.5 text-gray-500 text-sm shrink-0">→</span>
           <div className="flex-1 space-y-1.5">
-            <label className="text-sm font-medium text-gray-300">To</label>
+            <label className="text-sm font-medium text-gray-600">To</label>
             <select
               value={toId}
               onChange={e => setToId(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-purple-500 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-purple-500 transition-colors"
             >
               {sessions.map(s => (
                 <option key={s.id} value={s.id}>{AGENT_LABEL[s.agent_role] ?? s.agent_role}</option>
@@ -151,7 +151,7 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
 
         {/* Context */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-gray-300">
+          <label className="text-sm font-medium text-gray-600">
             Context <span className="text-gray-600 font-normal">(optional)</span>
           </label>
           <textarea
@@ -159,20 +159,20 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
             onChange={e => setContext(e.target.value)}
             placeholder="Describe the purpose or context of this handoff…"
             rows={2}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none focus:border-purple-500 resize-none transition-colors"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none focus:border-purple-500 resize-none transition-colors"
           />
         </div>
 
         {/* Messages */}
         {fromMessages.length > 0 ? (
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-medium text-gray-600">
               Messages to include{' '}
               <span className="text-gray-600 font-normal">(last {fromMessages.length})</span>
             </label>
-            <div className="bg-gray-800 border border-gray-700 rounded-xl max-h-40 overflow-y-auto divide-y divide-gray-700/50">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl max-h-40 overflow-y-auto divide-y divide-gray-700/50">
               {fromMessages.map((msg, i) => (
-                <label key={i} className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-700/30">
+                <label key={i} className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-100/30">
                   <input
                     type="checkbox"
                     checked={selectedIdx.has(i)}
@@ -183,7 +183,7 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
                     <span className={`text-xs font-medium ${msg.role === 'user' ? 'text-indigo-400' : 'text-gray-400'}`}>
                       {msg.role === 'user' ? 'User' : 'Agent'}
                     </span>
-                    <p className="text-xs text-gray-300 truncate mt-0.5">
+                    <p className="text-xs text-gray-600 truncate mt-0.5">
                       {msg.content.slice(0, 80)}{msg.content.length > 80 ? '…' : ''}
                     </p>
                   </span>
@@ -212,7 +212,7 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
           <button
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 text-sm rounded-lg transition-colors disabled:opacity-50"
           >
             Cancel
           </button>

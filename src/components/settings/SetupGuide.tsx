@@ -61,14 +61,14 @@ export default function SetupGuide() {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="border border-gray-700 rounded-xl overflow-hidden">
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
       {/* Trigger */}
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800/50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
       >
         <div className="flex items-center gap-2.5">
-          <span className="text-sm font-semibold text-gray-200">
+          <span className="text-sm font-semibold text-gray-800">
             ¿Cómo conectar tus agentes de IA?
           </span>
           <span className="text-xs text-gray-600 hidden sm:inline">
@@ -86,7 +86,7 @@ export default function SetupGuide() {
 
       {/* Body */}
       {open && (
-        <div className="border-t border-gray-800 px-5 py-5 space-y-6 bg-gray-900/40">
+        <div className="border-t border-gray-800 px-5 py-5 space-y-6 bg-white/40">
           {/* Intro */}
           <p className="text-xs text-gray-400 leading-relaxed max-w-xl">
             AISync te permite trabajar con los modelos de IA que vos elegís.
@@ -98,7 +98,7 @@ export default function SetupGuide() {
             {SECTIONS.map(s => (
               <div
                 key={s.name}
-                className="bg-gray-800/50 border border-gray-700/60 rounded-lg px-4 py-3 space-y-2"
+                className="bg-gray-50/50 border border-gray-200/60 rounded-lg px-4 py-3 space-y-2"
               >
                 {/* Header */}
                 <div className="flex items-center gap-2">

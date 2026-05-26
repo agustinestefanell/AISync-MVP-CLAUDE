@@ -83,7 +83,7 @@ export default function IncomingRequestsPanel({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg mx-4 shadow-2xl flex flex-col max-h-[80vh]">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl flex flex-col max-h-[80vh]">
         <div className="shrink-0 px-6 py-4 border-b border-gray-800 flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold text-white">Connection requests</h3>
@@ -91,7 +91,7 @@ export default function IncomingRequestsPanel({
               <p className="text-xs text-indigo-400 mt-0.5">{pending.length} pending</p>
             )}
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-sm px-2">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 text-sm px-2">✕</button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
@@ -108,14 +108,14 @@ export default function IncomingRequestsPanel({
                 <div>
                   <p className="text-sm font-semibold text-white">{conn.requester_email}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    wants to connect <span className="text-gray-300">{conn.requester_team_name}</span>
+                    wants to connect <span className="text-gray-600">{conn.requester_team_name}</span>
                   </p>
                   <p className="text-xs text-gray-600 mt-0.5" suppressHydrationWarning>
                     {formatDate(conn.created_at)}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-xs bg-gray-800 text-gray-400 border border-gray-700 px-2 py-0.5 rounded-full">
+                  <span className="text-xs bg-gray-50 text-gray-400 border border-gray-200 px-2 py-0.5 rounded-full">
                     {conn.connection_type}
                   </span>
                 </div>
@@ -127,7 +127,7 @@ export default function IncomingRequestsPanel({
                   <select
                     value={selectedTeam}
                     onChange={e => setSelectedTeam(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
                   >
                     {myTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
@@ -142,7 +142,7 @@ export default function IncomingRequestsPanel({
                     </button>
                     <button
                       onClick={() => setAcceptingId(null)}
-                      className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2 border border-gray-700 rounded-lg transition-colors"
+                      className="text-xs text-gray-500 hover:text-gray-600 px-3 py-2 border border-gray-200 rounded-lg transition-colors"
                     >
                       Cancel
                     </button>
@@ -172,10 +172,10 @@ export default function IncomingRequestsPanel({
             <div className="pt-2">
               <p className="text-xs font-medium text-gray-500 mb-2">Active connections (incoming)</p>
               {active.map(conn => (
-                <div key={conn.id} className="flex items-center gap-3 bg-gray-800/40 border border-gray-700 rounded-xl px-4 py-3">
+                <div key={conn.id} className="flex items-center gap-3 bg-gray-50/40 border border-gray-200 rounded-xl px-4 py-3">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-300 truncate">{conn.requester_email}</p>
+                    <p className="text-xs font-medium text-gray-600 truncate">{conn.requester_email}</p>
                     <p className="text-xs text-gray-500">
                       {conn.requester_team_name} ↔ {conn.receiver_team_name}
                     </p>

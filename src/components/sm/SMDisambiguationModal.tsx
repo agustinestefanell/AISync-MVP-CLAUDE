@@ -14,7 +14,7 @@ export default function SMDisambiguationModal({ results, onSelect, onClose }: Pr
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-3xl mx-4 shadow-2xl flex flex-col max-h-[80vh]">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-3xl mx-4 shadow-2xl flex flex-col max-h-[80vh]">
 
         {/* Header */}
         <div className="shrink-0 px-6 py-4 border-b border-gray-800 flex items-center justify-between gap-4">
@@ -28,7 +28,7 @@ export default function SMDisambiguationModal({ results, onSelect, onClose }: Pr
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-300 text-sm px-2 transition-colors"
+            className="text-gray-500 hover:text-gray-600 text-sm px-2 transition-colors"
           >
             ✕
           </button>
@@ -37,7 +37,7 @@ export default function SMDisambiguationModal({ results, onSelect, onClose }: Pr
         {/* Table */}
         <div className="flex-1 overflow-y-auto">
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-gray-900 border-b border-gray-800 z-10">
+            <thead className="sticky top-0 bg-white border-b border-gray-800 z-10">
               <tr>
                 <th className="text-left px-4 py-3 text-gray-500 font-semibold uppercase tracking-wider">Name</th>
                 <th className="text-left px-4 py-3 text-gray-500 font-semibold uppercase tracking-wider">Team</th>
@@ -49,7 +49,7 @@ export default function SMDisambiguationModal({ results, onSelect, onClose }: Pr
             </thead>
             <tbody className="divide-y divide-gray-800/60">
               {results.slice(0, 50).map(r => (
-                <tr key={r.id} className="hover:bg-gray-800/40 transition-colors">
+                <tr key={r.id} className="hover:bg-gray-50/40 transition-colors">
                   <td className="px-4 py-3 text-white font-medium max-w-[200px]">
                     <span className="block truncate" title={r.name}>{r.name}</span>
                   </td>

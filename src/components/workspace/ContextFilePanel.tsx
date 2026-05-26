@@ -128,15 +128,15 @@ export default function ContextFilePanel({
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-4xl mx-4 shadow-2xl flex flex-col overflow-hidden"
+        className="bg-white border border-gray-200 rounded-2xl w-full max-w-4xl mx-4 shadow-2xl flex flex-col overflow-hidden"
         style={{ height: '80vh' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
           <h2 className="text-sm font-semibold text-white">Add Context File</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-800 transition-colors text-lg leading-none"
+            className="text-gray-400 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors text-lg leading-none"
           >
             ×
           </button>
@@ -152,7 +152,7 @@ export default function ContextFilePanel({
         <div className="flex flex-1 overflow-hidden min-h-0">
 
           {/* Left — Upload */}
-          <div className="flex flex-col flex-1 border-r border-gray-700 overflow-hidden min-w-0">
+          <div className="flex flex-col flex-1 border-r border-gray-200 overflow-hidden min-w-0">
             <div className="px-4 py-2.5 border-b border-gray-800 shrink-0">
               <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Upload</span>
             </div>
@@ -165,7 +165,7 @@ export default function ContextFilePanel({
                   ref={fileInputRef}
                   type="file"
                   onChange={e => setFile(e.target.files?.[0] ?? null)}
-                  className="w-full text-xs text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 outline-none"
+                  className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none"
                   accept=".txt,.md,.pdf,.docx,.doc,.csv,.json,.html"
                 />
                 {file && (
@@ -186,7 +186,7 @@ export default function ContextFilePanel({
                       className={`text-xs px-3 py-1.5 rounded-lg border transition-colors capitalize ${
                         scope === s
                           ? 'bg-indigo-600 border-indigo-500 text-white'
-                          : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'
+                          : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-500'
                       }`}
                     >
                       {s === 'session' ? 'Session' : s === 'team' ? 'Team' : 'Project'}
@@ -207,7 +207,7 @@ export default function ContextFilePanel({
                   value={formTitle}
                   onChange={e => setFormTitle(e.target.value)}
                   placeholder="Defaults to file name"
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
 
@@ -219,7 +219,7 @@ export default function ContextFilePanel({
                   onChange={e => setFormNotes(e.target.value)}
                   placeholder="What is this file about?"
                   rows={3}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-indigo-500 transition-colors resize-none"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-indigo-500 transition-colors resize-none"
                 />
               </div>
 

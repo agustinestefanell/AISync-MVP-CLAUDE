@@ -191,7 +191,7 @@ export default function KnowledgeMap({ checkpoints }: Props) {
                 className={`w-full text-left text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
                   mode === m.id
                     ? 'bg-indigo-600 text-white'
-                    : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900'
+                    : 'text-gray-500 hover:text-gray-600 hover:bg-white'
                 }`}
               >
                 {m.label}
@@ -203,12 +203,12 @@ export default function KnowledgeMap({ checkpoints }: Props) {
         <div className="space-y-2">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Filters</p>
           <select value={filterProject} onChange={e => setFilterProject(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
+            className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
             <option value="">All projects</option>
             {uniqueProjects.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
           <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
+            className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
             <option value="">All teams</option>
             {uniqueTeams.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
@@ -248,7 +248,7 @@ export default function KnowledgeMap({ checkpoints }: Props) {
             <Background color="#1e293b" gap={24} />
             <Controls
               showInteractive={false}
-              className="!bg-gray-900 !border-gray-700 !rounded-xl [&>button]:!bg-gray-900 [&>button]:!border-gray-700 [&>button]:!text-gray-400"
+              className="!bg-white !border-gray-200 !rounded-xl [&>button]:!bg-white [&>button]:!border-gray-200 [&>button]:!text-gray-600"
             />
             <MiniMap
               nodeColor={(n) => {

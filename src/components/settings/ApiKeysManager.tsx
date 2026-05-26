@@ -123,7 +123,7 @@ export default function ApiKeysManager() {
 
       {/* Cloud providers */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-300 mb-4">API Keys de proveedores cloud</h2>
+        <h2 className="text-sm font-semibold text-gray-600 mb-4">API Keys de proveedores cloud</h2>
         <div className="space-y-3">
           {CLOUD_PROVIDERS.map(p => {
             const saved = savedKey(p.name)
@@ -156,7 +156,7 @@ export default function ApiKeysManager() {
                     onChange={e => setField(p.name, { input: e.target.value })}
                     onKeyDown={e => e.key === 'Enter' && handleSave(p.name)}
                     placeholder={saved ? 'Nueva key (reemplaza la actual)' : p.hint}
-                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+                    className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
                   />
                   <button
                     onClick={() => handleSave(p.name)}
@@ -186,18 +186,18 @@ export default function ApiKeysManager() {
       </div>
 
       {/* IA Local info */}
-      <div className="border border-gray-700 rounded-xl px-5 py-4 bg-gray-800/30">
+      <div className="border border-gray-200 rounded-xl px-5 py-4 bg-gray-50/30">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-sm font-bold text-gray-300">IA Local</span>
-          <span className="text-xs text-gray-500 bg-gray-800 border border-gray-700 px-2 py-0.5 rounded-full">
+          <span className="text-sm font-bold text-gray-600">IA Local</span>
+          <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">
             sin key necesaria
           </span>
         </div>
         <p className="text-xs text-gray-500 leading-relaxed">
           Para usar Ollama o LM Studio, seleccioná <strong className="text-gray-400">IA Local</strong> como provider en Add Team / Edit Team e ingresá el endpoint de tu servidor local (ej.{' '}
-          <code className="text-gray-400 bg-gray-900 px-1 rounded">http://localhost:11434/v1</code>
+          <code className="text-gray-400 bg-white px-1 rounded">http://localhost:11434/v1</code>
           ) junto con el nombre del modelo (ej.{' '}
-          <code className="text-gray-400 bg-gray-900 px-1 rounded">llama3</code>
+          <code className="text-gray-400 bg-white px-1 rounded">llama3</code>
           ).
         </p>
         <p className="text-xs text-gray-600 mt-2">

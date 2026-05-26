@@ -65,7 +65,7 @@ const EVENT_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   session_backup: { label: 'Session Backup',      badgeClass: 'text-blue-400 bg-blue-950 border-blue-900' },
   resume_work:    { label: 'Resume Work',         badgeClass: 'text-indigo-400 bg-indigo-950 border-indigo-900' },
   lock:           { label: 'Workspace locked',    badgeClass: 'text-red-400 bg-red-950 border-red-900' },
-  unlock:         { label: 'Workspace unlocked',  badgeClass: 'text-gray-400 bg-gray-800 border-gray-700' },
+  unlock:         { label: 'Workspace unlocked',  badgeClass: 'text-gray-400 bg-gray-50 border-gray-200' },
   review_forward: { label: 'Review & Forward',    badgeClass: 'text-purple-400 bg-purple-950 border-purple-900' },
 }
 const AGENT_LABEL: Record<string, string> = { manager: 'Manager', worker1: 'Worker 1', worker2: 'Worker 2' }
@@ -284,7 +284,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
             <div className="text-xs font-semibold text-neutral-500">{event.time}</div>
             <div className="mt-0.5 text-sm font-semibold text-neutral-900">{eventTitle(event)}</div>
           </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg?.badgeClass ?? 'text-gray-400 bg-gray-800 border-gray-700'}`}>
+          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg?.badgeClass ?? 'text-gray-400 bg-gray-50 border-gray-200'}`}>
             {cfg?.label ?? event.event_type}
           </span>
         </div>
@@ -378,7 +378,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
 
           <div className="flex flex-wrap items-center gap-2">
             {/* Month / Week / Day toggle */}
-            <div className="flex rounded-full border border-gray-700 bg-gray-900 p-0.5">
+            <div className="flex rounded-full border border-gray-200 bg-white p-0.5">
               {(['month', 'week', 'day'] as ViewMode[]).map(m => (
                 <button
                   key={m}
@@ -393,7 +393,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
             </div>
 
             {/* Prev / Today / Next */}
-            <div className="flex rounded-full border border-gray-700 bg-gray-900 p-0.5">
+            <div className="flex rounded-full border border-gray-200 bg-white p-0.5">
               <button onClick={goToPrev}                        className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-white transition-colors">Prev</button>
               <button onClick={() => setFocusDate(new Date())} className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-white transition-colors">Today</button>
               <button onClick={goToNext}                        className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-white transition-colors">Next</button>
@@ -406,7 +406,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
           <select
             value={filterType}
             onChange={e => setFilterType(e.target.value)}
-            className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500"
+            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500"
           >
             <option value="all">All event types</option>
             {Object.entries(EVENT_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -414,7 +414,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
           <select
             value={filterTeamId}
             onChange={e => setFilterTeamId(e.target.value)}
-            className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500"
+            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500"
           >
             <option value="all">All teams</option>
             {uniqueTeams.map(t => (
@@ -556,7 +556,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={e => { if (e.target === e.currentTarget) closeDetail() }}
         >
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col shadow-2xl">
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col shadow-2xl">
             <div className="shrink-0 px-6 py-4 border-b border-gray-800 flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <h3 className="text-base font-semibold text-white truncate">{detailName}</h3>
@@ -576,7 +576,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                     Resume Work →
                   </button>
                 )}
-                <button onClick={closeDetail} className="text-gray-500 hover:text-gray-300 text-sm px-2 transition-colors">
+                <button onClick={closeDetail} className="text-gray-500 hover:text-gray-600 text-sm px-2 transition-colors">
                   Close ✕
                 </button>
               </div>
@@ -592,9 +592,9 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {groupsArr.map((g, gi) => (
-                    <div key={gi} className="bg-gray-800/60 border border-gray-700 rounded-xl overflow-hidden flex flex-col">
-                      <div className="px-3 py-2 border-b border-gray-700 bg-gray-800 shrink-0">
-                        <p className="text-xs font-semibold text-gray-300">{AGENT_LABEL[g.agentRole] ?? g.agentRole}</p>
+                    <div key={gi} className="bg-gray-50/60 border border-gray-200 rounded-xl overflow-hidden flex flex-col">
+                      <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 shrink-0">
+                        <p className="text-xs font-semibold text-gray-600">{AGENT_LABEL[g.agentRole] ?? g.agentRole}</p>
                         <p className="text-xs text-gray-500">{g.provider} · {g.model}</p>
                       </div>
                       <div className="p-3 space-y-2 overflow-y-auto max-h-72">
@@ -604,7 +604,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                             className={`text-xs rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap ${
                               msg.role === 'user'
                                 ? 'bg-indigo-900/50 text-indigo-100 ml-3'
-                                : 'bg-gray-700 text-gray-200 mr-3'
+                                : 'bg-gray-100 text-gray-800 mr-3'
                             }`}
                           >
                             <span className="font-medium text-gray-400 block mb-0.5">

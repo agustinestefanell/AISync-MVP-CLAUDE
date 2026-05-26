@@ -89,7 +89,7 @@ function DetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCheckpoint; 
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Document Detail</p>
           <h3 className="text-sm font-bold text-white">{cp.name}</h3>
         </div>
-        <button onClick={onClose} className="text-gray-600 hover:text-gray-300 text-sm shrink-0">✕</button>
+        <button onClick={onClose} className="text-gray-600 hover:text-gray-600 text-sm shrink-0">✕</button>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
         {[
@@ -103,11 +103,11 @@ function DetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCheckpoint; 
           { label: 'Team',        value: teamLabel(cp.team_id, cp.team_name, teamCodes) },
           { label: 'Workspace',   value: cp.workspace_name },
           { label: 'Project',     value: cp.project_name },
-          { label: 'Purpose',     value: <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PURPOSE_BADGE[cp.purpose] ?? 'text-gray-400 bg-gray-800 border-gray-700'}`}>{cp.purpose}</span> },
+          { label: 'Purpose',     value: <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PURPOSE_BADGE[cp.purpose] ?? 'text-gray-400 bg-gray-50 border-gray-200'}`}>{cp.purpose}</span> },
         ].map(({ label, value, suppress }) => (
           <div key={label} className="flex items-start gap-3">
             <span className="text-xs text-gray-600 w-24 shrink-0">{label}</span>
-            <span className="text-xs text-gray-300" suppressHydrationWarning={!!suppress}>{value}</span>
+            <span className="text-xs text-gray-600" suppressHydrationWarning={!!suppress}>{value}</span>
           </div>
         ))}
         <div className="pt-2 flex gap-2">
@@ -116,7 +116,7 @@ function DetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCheckpoint; 
             Open Document
           </a>
           <a href="/audit"
-            className="flex-1 text-center text-xs border border-gray-700 hover:border-gray-500 text-gray-400 hover:text-gray-200 py-2 rounded-lg transition-colors">
+            className="flex-1 text-center text-xs border border-gray-200 hover:border-gray-500 text-gray-400 hover:text-gray-800 py-2 rounded-lg transition-colors">
             Audit Log
           </a>
         </div>
@@ -186,7 +186,7 @@ export default function StructureView({ checkpoints, userName, teamCodes }: Prop
                       {/* Team */}
                       <button
                         onClick={() => setExpandedTeams(toggle(expandedTeams, team.id))}
-                        className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors w-full text-left"
+                        className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-white transition-colors w-full text-left"
                       >
                         <ChevronIcon open={expandedTeams.has(team.id)} />
                         <span className="mr-1">📁</span>
@@ -221,7 +221,7 @@ export default function StructureView({ checkpoints, userName, teamCodes }: Prop
                                     >
                                       <span className="shrink-0">📄</span>
                                       <span className="text-xs truncate">{cp.name}</span>
-                                      <span className={`text-xs px-1.5 py-0.5 rounded border font-medium shrink-0 ${PURPOSE_BADGE[cp.purpose] ?? 'text-gray-500 bg-gray-800 border-gray-700'}`}>
+                                      <span className={`text-xs px-1.5 py-0.5 rounded border font-medium shrink-0 ${PURPOSE_BADGE[cp.purpose] ?? 'text-gray-500 bg-gray-50 border-gray-200'}`}>
                                         {cp.purpose}
                                       </span>
                                     </button>

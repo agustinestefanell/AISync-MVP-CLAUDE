@@ -180,7 +180,7 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
                 className={`text-xs font-medium px-4 py-3 border-b-2 transition-colors ${
                   tab === t.id
                     ? 'border-indigo-500 text-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-300'
+                    : 'border-transparent text-gray-500 hover:text-gray-600'
                 }`}
               >
                 {t.label}
@@ -211,7 +211,7 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={e => { if (e.target === e.currentTarget) setHelpTab(null) }}
         >
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
             <div className="px-6 py-5 border-b border-gray-800 flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-base font-semibold text-white">
@@ -221,13 +221,13 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
               </div>
               <button
                 onClick={() => setHelpTab(null)}
-                className="text-gray-500 hover:text-gray-300 text-sm px-1 transition-colors shrink-0"
+                className="text-gray-500 hover:text-gray-600 text-sm px-1 transition-colors shrink-0"
               >
                 ✕
               </button>
             </div>
             <div className="px-6 py-5">
-              <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
                 {helpContent.guide}
               </p>
             </div>

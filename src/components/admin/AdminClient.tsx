@@ -31,7 +31,7 @@ interface Props {
 
 function MetricCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl px-5 py-4">
+    <div className="bg-white border border-gray-800 rounded-xl px-5 py-4">
       <p className="text-2xl font-bold text-white">{value}</p>
       <p className="text-xs text-gray-500 mt-0.5 font-medium uppercase tracking-wide">{label}</p>
       {sub && <p className="text-xs text-gray-600 mt-1">{sub}</p>}
@@ -85,10 +85,10 @@ function OverviewSection({ um, usage, sys }: { um: UserMetrics; usage: UsageMetr
       {usage.topProviders.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-4">API keys by provider</h2>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <div className="bg-white border border-gray-800 rounded-xl overflow-hidden">
             {usage.topProviders.map((p, i) => (
               <div key={p.provider} className={`flex items-center justify-between px-5 py-3 ${i > 0 ? 'border-t border-gray-800' : ''}`}>
-                <span className="text-sm text-gray-300">{p.provider}</span>
+                <span className="text-sm text-gray-600">{p.provider}</span>
                 <span className="text-sm font-semibold text-white">{p.count}</span>
               </div>
             ))}
@@ -114,7 +114,7 @@ function UsersSection({ accounts }: { accounts: AccountRow[] }) {
   const ROLE_CLASS: Record<string, string> = {
     owner: 'text-amber-400 bg-amber-950 border-amber-800',
     admin: 'text-purple-400 bg-purple-950 border-purple-800',
-    user:  'text-gray-400 bg-gray-800 border-gray-700',
+    user:  'text-gray-400 bg-gray-50 border-gray-200',
   }
   const STATUS_CLASS: Record<string, string> = {
     active:    'text-emerald-400 bg-emerald-950 border-emerald-800',
@@ -130,12 +130,12 @@ function UsersSection({ accounts }: { accounts: AccountRow[] }) {
           placeholder="Search by email…"
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(0) }}
-          className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 w-72"
+          className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 w-72"
         />
         <span className="text-xs text-gray-600">{filtered.length} user{filtered.length !== 1 ? 's' : ''}</span>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-800 rounded-xl overflow-hidden">
         <table className="w-full text-xs">
           <thead className="border-b border-gray-800">
             <tr>
@@ -148,8 +148,8 @@ function UsersSection({ accounts }: { accounts: AccountRow[] }) {
           </thead>
           <tbody className="divide-y divide-gray-800/60">
             {visible.map(a => (
-              <tr key={a.id} className="hover:bg-gray-800/30 transition-colors">
-                <td className="px-4 py-3 text-gray-200 font-medium">{a.email}</td>
+              <tr key={a.id} className="hover:bg-gray-50/30 transition-colors">
+                <td className="px-4 py-3 text-gray-800 font-medium">{a.email}</td>
                 <td className="px-4 py-3 text-gray-400">{a.name ?? '—'}</td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${ROLE_CLASS[a.role] ?? ROLE_CLASS.user}`}>
@@ -172,7 +172,7 @@ function UsersSection({ accounts }: { accounts: AccountRow[] }) {
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="text-xs text-gray-500 hover:text-gray-300 disabled:opacity-30 transition-colors px-2 py-1"
+              className="text-xs text-gray-500 hover:text-gray-600 disabled:opacity-30 transition-colors px-2 py-1"
             >
               ← Prev
             </button>
@@ -180,7 +180,7 @@ function UsersSection({ accounts }: { accounts: AccountRow[] }) {
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page === totalPages - 1}
-              className="text-xs text-gray-500 hover:text-gray-300 disabled:opacity-30 transition-colors px-2 py-1"
+              className="text-xs text-gray-500 hover:text-gray-600 disabled:opacity-30 transition-colors px-2 py-1"
             >
               Next →
             </button>
@@ -242,7 +242,7 @@ function PromptsSection({ prompts }: { prompts: SystemPromptRow[] }) {
             className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-colors ${
               selectedRole === p.role
                 ? 'bg-indigo-600 text-white'
-                : 'bg-gray-900 border border-gray-800 text-gray-300 hover:border-gray-600'
+                : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-200'
             }`}
           >
             <p className="font-semibold">{p.display_name}</p>
@@ -285,7 +285,7 @@ function PromptsSection({ prompts }: { prompts: SystemPromptRow[] }) {
               value={baseLayer}
               onChange={e => setBaseLayer(e.target.value)}
               rows={6}
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-xs text-gray-200 font-mono leading-relaxed focus:outline-none focus:border-indigo-500 resize-none transition-colors"
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-800 font-mono leading-relaxed focus:outline-none focus:border-indigo-500 resize-none transition-colors"
             />
           </div>
 
@@ -295,7 +295,7 @@ function PromptsSection({ prompts }: { prompts: SystemPromptRow[] }) {
               value={rolePrompt}
               onChange={e => setRolePrompt(e.target.value)}
               rows={12}
-              className="flex-1 w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-xs text-gray-200 font-mono leading-relaxed focus:outline-none focus:border-indigo-500 resize-none transition-colors"
+              className="flex-1 w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-800 font-mono leading-relaxed focus:outline-none focus:border-indigo-500 resize-none transition-colors"
             />
           </div>
         </div>
@@ -324,11 +324,11 @@ function SecuritySection({ events }: { events: AdminEvent[] }) {
       </div>
 
       {unauthorized.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl px-6 py-10 text-center">
+        <div className="bg-white border border-gray-800 rounded-xl px-6 py-10 text-center">
           <p className="text-gray-600 text-sm">No unauthorized access attempts recorded.</p>
         </div>
       ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div className="bg-white border border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full text-xs">
             <thead className="border-b border-gray-800">
               <tr>
@@ -339,7 +339,7 @@ function SecuritySection({ events }: { events: AdminEvent[] }) {
             </thead>
             <tbody className="divide-y divide-gray-800/60">
               {unauthorized.map(e => (
-                <tr key={e.id} className="hover:bg-gray-800/30 transition-colors">
+                <tr key={e.id} className="hover:bg-gray-50/30 transition-colors">
                   <td className="px-4 py-3 text-gray-400 font-mono text-xs truncate max-w-[180px]">{e.admin_user_id}</td>
                   <td className="px-4 py-3 text-gray-500">
                     {(e.payload?.path as string) ?? '—'}
@@ -369,7 +369,7 @@ export default function AdminClient({ userMetrics, usageMetrics, systemMetrics, 
   return (
     <div className="flex-1 min-h-0 flex overflow-hidden">
       {/* Sidebar */}
-      <nav className="w-48 shrink-0 border-r border-gray-800 bg-gray-900/50 flex flex-col py-6 px-3 gap-1">
+      <nav className="w-48 shrink-0 border-r border-gray-800 bg-white/50 flex flex-col py-6 px-3 gap-1">
         {NAV.map(n => (
           <button
             key={n.id}
@@ -377,7 +377,7 @@ export default function AdminClient({ userMetrics, usageMetrics, systemMetrics, 
             className={`text-left px-4 py-2.5 rounded-xl text-sm transition-colors font-medium ${
               section === n.id
                 ? 'bg-indigo-600 text-white'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+                : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
             }`}
           >
             {n.label}

@@ -26,10 +26,10 @@ const STATE_BADGE: Record<string, string> = {
 }
 
 const STATUS_BADGE: Record<string, string> = {
-  draft:    'text-gray-400 bg-gray-800 border-gray-700',
+  draft:    'text-gray-400 bg-gray-50 border-gray-200',
   sent:     'text-blue-400 bg-blue-950 border-blue-900',
   received: 'text-green-400 bg-green-950 border-green-900',
-  archived: 'text-gray-500 bg-gray-800 border-gray-700',
+  archived: 'text-gray-500 bg-gray-50 border-gray-200',
 }
 
 const AGENT_LABEL: Record<string, string> = {
@@ -57,7 +57,7 @@ function Row({ label, children, suppressWarn }: { label: string; children: React
   return (
     <div className="flex items-start gap-3">
       <span className="text-xs text-gray-600 w-24 shrink-0 pt-0.5">{label}</span>
-      <span className="text-xs text-gray-300 leading-relaxed" suppressHydrationWarning={suppressWarn}>{children}</span>
+      <span className="text-xs text-gray-600 leading-relaxed" suppressHydrationWarning={suppressWarn}>{children}</span>
     </div>
   )
 }
@@ -79,7 +79,7 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
           <h3 className="text-sm font-bold text-white leading-tight">{cp.name}</h3>
           <p className="text-xs text-gray-500 mt-0.5">{cp.workspace_name} · {teamLabel(cp.team_id, cp.team_name, teamCodes)}</p>
         </div>
-        <button onClick={onClose} className="text-gray-600 hover:text-gray-300 text-sm shrink-0">✕</button>
+        <button onClick={onClose} className="text-gray-600 hover:text-gray-600 text-sm shrink-0">✕</button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
@@ -100,7 +100,7 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
             <span className="text-xs text-gray-400 capitalize">{cp.object_type}</span>
           </Row>
           <Row label="Purpose">
-            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PURPOSE_BADGE[cp.purpose] ?? 'text-gray-400 bg-gray-800 border-gray-700'}`}>
+            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PURPOSE_BADGE[cp.purpose] ?? 'text-gray-400 bg-gray-50 border-gray-200'}`}>
               {cp.purpose}
             </span>
           </Row>
@@ -108,7 +108,7 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
 
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Secondary Metadata</p>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 space-y-2.5">
+          <div className="bg-white border border-gray-800 rounded-xl px-4 py-3 space-y-2.5">
             <MetaRow label="Team"         value={teamLabel(cp.team_id, cp.team_name, teamCodes)} />
             <MetaRow label="Object Type"  value={cp.object_type} />
             <MetaRow label="Project"      value={cp.project_name} />
@@ -126,7 +126,7 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
           </a>
           <a
             href="/audit"
-            className="flex-1 text-center text-xs border border-gray-700 hover:border-gray-500 text-gray-400 hover:text-gray-200 py-2 rounded-lg transition-colors"
+            className="flex-1 text-center text-xs border border-gray-200 hover:border-gray-500 text-gray-400 hover:text-gray-800 py-2 rounded-lg transition-colors"
           >
             View in Audit Log
           </a>
@@ -149,7 +149,7 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
           </div>
           <p className="text-xs text-gray-500 mt-0.5">{hp.workspace_name}</p>
         </div>
-        <button onClick={onClose} className="text-gray-600 hover:text-gray-300 text-sm shrink-0">✕</button>
+        <button onClick={onClose} className="text-gray-600 hover:text-gray-600 text-sm shrink-0">✕</button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
@@ -174,7 +174,7 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
         {hp.context && (
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Context</p>
-            <p className="text-xs text-gray-300 leading-relaxed bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
+            <p className="text-xs text-gray-600 leading-relaxed bg-white border border-gray-800 rounded-xl px-4 py-3">
               {hp.context}
             </p>
           </div>
@@ -183,7 +183,7 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
         <div className="pt-1">
           <a
             href="/audit"
-            className="block text-center text-xs border border-gray-700 hover:border-gray-500 text-gray-400 hover:text-gray-200 py-2 rounded-lg transition-colors"
+            className="block text-center text-xs border border-gray-200 hover:border-gray-500 text-gray-400 hover:text-gray-800 py-2 rounded-lg transition-colors"
           >
             View in Audit Log
           </a>
@@ -196,7 +196,7 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
 // ── Stat card ─────────────────────────────────────────────────────────────
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl px-5 py-4">
+    <div className="bg-white border border-gray-800 rounded-xl px-5 py-4">
       <p className="text-2xl font-bold text-white">{value}</p>
       <p className="text-xs text-gray-500 mt-0.5 font-medium tracking-wide uppercase">{label}</p>
     </div>
@@ -300,17 +300,17 @@ export default function RepositoryView({
           {/* Filters */}
           <div className="shrink-0 px-4 py-3 border-b border-gray-800 flex flex-wrap gap-2">
             <select value={filterProject} onChange={e => setFilterProject(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
               <option value="">All projects</option>
               {uniqueProjects.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
             </select>
             <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
               <option value="">All teams</option>
               {uniqueTeams.map(([id, name]) => <option key={id} value={id}>{teamLabel(id, name, teamCodes)}</option>)}
             </select>
             <select value={filterType} onChange={e => setFilterType(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
               <option value="">All types</option>
               <option value="Checkpoint">Checkpoint</option>
               <option value="Session Backup">Session Backup</option>
@@ -319,15 +319,15 @@ export default function RepositoryView({
               <option value="Handoff Package">Handoff Package</option>
             </select>
             <select value={filterState} onChange={e => setFilterState(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
               <option value="">All states</option>
               <option value="active">Active</option>
               <option value="locked">Locked</option>
             </select>
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-indigo-500" />
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500" />
             {hasFilter && (
-              <button onClick={resetFilters} className="text-xs text-gray-500 hover:text-gray-300 px-2">
+              <button onClick={resetFilters} className="text-xs text-gray-500 hover:text-gray-600 px-2">
                 Reset
               </button>
             )}
@@ -348,7 +348,7 @@ export default function RepositoryView({
                     <div
                       key={id}
                       onClick={() => setSelectedId(isActive ? null : id)}
-                      className={`px-4 py-4 cursor-pointer transition-colors hover:bg-gray-900/60 ${isActive ? 'bg-indigo-950/20 border-l-2 border-indigo-500' : ''}`}
+                      className={`px-4 py-4 cursor-pointer transition-colors hover:bg-white/60 ${isActive ? 'bg-indigo-950/20 border-l-2 border-indigo-500' : ''}`}
                     >
                       {item.kind === 'checkpoint' ? (
                         <>
@@ -357,7 +357,7 @@ export default function RepositoryView({
                               <p className="text-sm font-semibold text-white truncate">{item.cp.name}</p>
                               <p className="text-xs text-gray-500 mt-0.5">{teamLabel(item.cp.team_id, item.cp.team_name, teamCodes)} · {item.cp.workspace_name}</p>
                               <div className="flex flex-wrap gap-1.5 mt-2">
-                                <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PURPOSE_BADGE[item.cp.purpose] ?? 'text-gray-400 bg-gray-800 border-gray-700'}`}>
+                                <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PURPOSE_BADGE[item.cp.purpose] ?? 'text-gray-400 bg-gray-50 border-gray-200'}`}>
                                   {item.cp.purpose}
                                 </span>
                                 <span className={`text-xs px-1.5 py-0.5 rounded border font-semibold uppercase ${STATE_BADGE[item.cp.doc_state] ?? STATE_BADGE.active}`}>

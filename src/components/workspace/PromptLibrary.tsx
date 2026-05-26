@@ -260,14 +260,14 @@ export default function PromptLibrary({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-4xl mx-4 shadow-2xl flex flex-col overflow-hidden" style={{ height: '80vh' }}>
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-4xl mx-4 shadow-2xl flex flex-col overflow-hidden" style={{ height: '80vh' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
           <h2 className="text-sm font-semibold text-white">Prompt Library</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-800 transition-colors text-lg leading-none"
+            className="text-gray-400 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors text-lg leading-none"
           >
             ×
           </button>
@@ -283,7 +283,7 @@ export default function PromptLibrary({
         <div className="flex flex-1 overflow-hidden min-h-0">
 
           {/* Left — Library */}
-          <div className="flex flex-col flex-1 border-r border-gray-700 overflow-hidden min-w-0">
+          <div className="flex flex-col flex-1 border-r border-gray-200 overflow-hidden min-w-0">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800 shrink-0">
               <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Library</span>
               <button
@@ -296,25 +296,25 @@ export default function PromptLibrary({
 
             {/* Create / Edit form */}
             {showForm && (
-              <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/40 shrink-0 space-y-2">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/40 shrink-0 space-y-2">
                 <input
                   value={formTitle}
                   onChange={e => setFormTitle(e.target.value)}
                   placeholder="Title"
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 transition-colors"
                 />
                 <textarea
                   value={formBody}
                   onChange={e => setFormBody(e.target.value)}
                   placeholder="Prompt instructions…"
                   rows={4}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 transition-colors resize-none"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 transition-colors resize-none"
                 />
                 <input
                   value={formNotes}
                   onChange={e => setFormNotes(e.target.value)}
                   placeholder="Notes (optional)"
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 transition-colors"
                 />
                 {formError && <p className="text-xs text-red-400">{formError}</p>}
                 <div className="flex gap-2">
@@ -327,7 +327,7 @@ export default function PromptLibrary({
                   </button>
                   <button
                     onClick={() => setShowForm(false)}
-                    className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-lg transition-colors"
+                    className="px-3 py-2 bg-gray-100 hover:bg-gray-600 text-gray-600 text-xs rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
@@ -342,7 +342,7 @@ export default function PromptLibrary({
               ) : prompts.length === 0 ? (
                 <p className="text-xs text-gray-500 py-6 text-center">No prompts yet. Create your first prompt.</p>
               ) : prompts.map(p => (
-                <div key={p.id} className="border border-gray-700 rounded-xl p-3 bg-gray-800/30 space-y-2">
+                <div key={p.id} className="border border-gray-200 rounded-xl p-3 bg-gray-50/30 space-y-2">
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white truncate">{p.title}</p>
@@ -350,15 +350,15 @@ export default function PromptLibrary({
                     </div>
                     <button
                       onClick={() => openEdit(p)}
-                      className="shrink-0 text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
+                      className="shrink-0 text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-600 transition-colors"
                     >
                       Edit
                     </button>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-700/60 text-gray-400">v{p.version}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100/60 text-gray-400">v{p.version}</span>
                     {p.scope && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-700/60 text-gray-400">{p.scope}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100/60 text-gray-400">{p.scope}</span>
                     )}
                     {p.status !== 'active' && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-900/40 text-yellow-500">{p.status}</span>

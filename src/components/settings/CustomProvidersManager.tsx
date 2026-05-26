@@ -68,7 +68,7 @@ export default function CustomProvidersManager() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-300">Providers personalizados</h2>
+        <h2 className="text-sm font-semibold text-gray-600">Providers personalizados</h2>
         <span className="text-xs text-gray-600">Compatible con cualquier API formato OpenAI</span>
       </div>
 
@@ -78,7 +78,7 @@ export default function CustomProvidersManager() {
           {providers.map(p => (
             <div
               key={p.id}
-              className="flex items-start gap-3 bg-gray-800/40 border border-gray-700 rounded-xl px-4 py-3"
+              className="flex items-start gap-3 bg-gray-50/40 border border-gray-200 rounded-xl px-4 py-3"
             >
               <div className="flex-1 min-w-0 space-y-0.5">
                 <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export default function CustomProvidersManager() {
       )}
 
       {/* Formulario para agregar */}
-      <div className="border border-gray-700 rounded-xl px-4 py-4 space-y-3 bg-gray-900/30">
+      <div className="border border-gray-200 rounded-xl px-4 py-4 space-y-3 bg-white/30">
         <p className="text-xs font-medium text-gray-400">
           {providers.length === 0 ? 'Agregá tu primer provider personalizado' : 'Agregar otro provider'}
         </p>
@@ -119,7 +119,7 @@ export default function CustomProvidersManager() {
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="Perplexity, Mistral, DeepSeek…"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
           <div>
@@ -129,7 +129,7 @@ export default function CustomProvidersManager() {
               value={form.model}
               onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
               placeholder="llama-3.1-sonar-large…"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
         </div>
@@ -141,7 +141,7 @@ export default function CustomProvidersManager() {
             value={form.endpoint_url}
             onChange={e => setForm(f => ({ ...f, endpoint_url: e.target.value }))}
             placeholder="https://api.perplexity.ai"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
           />
         </div>
 
@@ -152,7 +152,7 @@ export default function CustomProvidersManager() {
             value={form.api_key}
             onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
             placeholder="pplx-…"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
           />
         </div>
 

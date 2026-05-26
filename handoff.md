@@ -1040,3 +1040,56 @@ Reemplazo del tooltip CSS (`group-hover`) por tooltip con `position: fixed` + `u
 
 ### Estado
 Cerrado.
+
+---
+
+## Light mode global — hardcoded dark classes cleanup · 2026-05-25
+
+### Demo First
+Demo MVP (`C:\proyectos\AISync\MVP\src`) no usa `bg-gray-900`, `bg-gray-800` ni `bg-gray-700`. Confirma que light mode es la dirección correcta.
+
+### Archivos modificados (20 de 21)
+
+| Archivo | Clases reemplazadas |
+|---|---|
+| `EditTeamModal.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-300→text-gray-600, text-gray-200→text-gray-800 |
+| `ApiKeysManager.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-300→text-gray-600 |
+| `ContextFilePanel.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, border-gray-600→border-gray-200, text-gray-300→text-gray-600 |
+| `PromptLibrary.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, bg-gray-700→bg-gray-100, border-gray-700→border-gray-200, border-gray-600→border-gray-200, text-gray-300→text-gray-600 |
+| `WorkspaceShell.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-300→text-gray-600, hover:bg-gray-700→hover:bg-gray-100 |
+| `AuditTimeline.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, bg-gray-700→bg-gray-100, border-gray-700→border-gray-200, text-gray-300→text-gray-600, text-gray-200→text-gray-800 |
+| `InvestigateView.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-300→text-gray-600 |
+| `StructureView.tsx` | bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-300→text-gray-600, text-gray-200→text-gray-800 |
+| `RepositoryView.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-300→text-gray-600, text-gray-200→text-gray-800 |
+| `DocClient.tsx` | bg-gray-900→bg-white, border-gray-700→border-gray-200, text-gray-300→text-gray-600 |
+| `HandoffPackageModal.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, bg-gray-700→bg-gray-100, border-gray-700→border-gray-200, text-gray-300→text-gray-600 |
+| `AdminClient.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, border-gray-600→border-gray-200, text-gray-300→text-gray-600, text-gray-200→text-gray-800 |
+| `SMDisambiguationModal.tsx` | bg-gray-900→bg-white, border-gray-700→border-gray-200, hover:text-gray-300→hover:text-gray-600 |
+| `AuditView.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, bg-gray-700→bg-gray-100, border-gray-700→border-gray-200, text-gray-300→text-gray-600, text-gray-200→text-gray-800 |
+| `IncomingRequestsPanel.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-300→text-gray-600 |
+| `ConnectTeamModal.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-300→text-gray-600 |
+| `CustomProvidersManager.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-300→text-gray-600 |
+| `SetupGuide.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-200→text-gray-800 |
+| `ProjectList.tsx` | bg-gray-900→bg-white, bg-gray-800→bg-gray-50, border-gray-700→border-gray-200, text-gray-300→text-gray-600 |
+| `LogoutButton.tsx` | hover:bg-gray-800→hover:bg-gray-50 |
+| `KnowledgeMap.tsx` | Paneles laterales + controles UI reemplazados. Canvas dark conservado. |
+
+### Dark intencional conservado
+- **KnowledgeMap.tsx**: canvas ReactFlow (`colorMode="dark"`, `Background color="#1e293b"`, MiniMap `background: '#0f172a'`), colores de nodos del grafo (`bg-gray-900` en COLOR_MAP.checkpoint) — conservados.
+- **Navbar/TopRibbon**: no estaba en la lista autorizada, no tocado.
+
+### Tabla aplicada
+bg-gray-900→bg-white / bg-gray-800→bg-gray-50 / bg-gray-700→bg-gray-100
+border-gray-700→border-gray-200 / border-gray-600→border-gray-200
+text-gray-100→text-gray-900 / text-gray-200→text-gray-800 / text-gray-300→text-gray-600
+
+### Confirmaciones
+- Lógica, handlers, props, API, streaming, route.ts: NO tocados
+- MAP, Tree, TeamAgentCard: NO tocados
+- AgentPanel, TopRibbon, BottomRibbon, AppLayout: NO tocados
+
+### Build
+✓ tsc --noEmit sin errores. npm run build limpio.
+
+### Estado
+OE cerrada.

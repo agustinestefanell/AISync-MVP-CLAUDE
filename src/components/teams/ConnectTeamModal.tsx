@@ -73,14 +73,14 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md mx-4 shadow-2xl flex flex-col">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md mx-4 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold text-white">Connect Team</h3>
             <p className="text-xs text-gray-500 mt-0.5">Connect with a team from another AISync account</p>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-sm px-2">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 text-sm px-2">✕</button>
         </div>
 
         <div className="px-6 py-5 space-y-5">
@@ -92,7 +92,7 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
             <select
               value={hostTeamId}
               onChange={e => setHostTeamId(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
             >
               {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
@@ -110,7 +110,7 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
               onChange={e => setReceiverEmail(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               placeholder="other@company.com"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
 
@@ -125,7 +125,7 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
                   <p className="text-xs text-gray-500 mt-0.5">Bound to the active project. SM↔SM channel operational.</p>
                 </div>
               </label>
-              <label className="flex items-start gap-3 bg-gray-800/40 border border-gray-700/50 rounded-xl px-4 py-3 opacity-40 cursor-not-allowed">
+              <label className="flex items-start gap-3 bg-gray-50/40 border border-gray-200/50 rounded-xl px-4 py-3 opacity-40 cursor-not-allowed">
                 <input type="radio" disabled className="mt-0.5" />
                 <div>
                   <p className="text-xs font-semibold text-gray-400">Persistent partner
@@ -141,14 +141,14 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-2">Scope</label>
             <div className="space-y-2">
-              <label className="flex items-start gap-3 bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-3 cursor-pointer">
+              <label className="flex items-start gap-3 bg-gray-50/60 border border-gray-200 rounded-xl px-4 py-3 cursor-pointer">
                 <input type="radio" checked readOnly className="mt-0.5 accent-indigo-500" />
                 <div>
-                  <p className="text-xs font-semibold text-gray-300">No shared repository</p>
+                  <p className="text-xs font-semibold text-gray-600">No shared repository</p>
                   <p className="text-xs text-gray-500 mt-0.5">Message exchange between SMs, no repository access.</p>
                 </div>
               </label>
-              <label className="flex items-start gap-3 bg-gray-800/40 border border-gray-700/50 rounded-xl px-4 py-3 opacity-40 cursor-not-allowed">
+              <label className="flex items-start gap-3 bg-gray-50/40 border border-gray-200/50 rounded-xl px-4 py-3 opacity-40 cursor-not-allowed">
                 <input type="radio" disabled className="mt-0.5" />
                 <div>
                   <p className="text-xs font-semibold text-gray-400">Shared project repository
@@ -163,7 +163,7 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
         </div>
 
         <div className="px-6 py-4 border-t border-gray-800 flex items-center justify-end gap-3">
-          <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200 px-4 py-2 rounded-lg transition-colors">
+          <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-800 px-4 py-2 rounded-lg transition-colors">
             Cancel
           </button>
           <button
