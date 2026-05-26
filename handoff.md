@@ -1628,3 +1628,36 @@ OE Viewport + badges cerrada.
 
 ### Estado
 OE cerrada.
+
+---
+
+## [2026-05-26] — Context Files page integrada en AppLayout
+
+### Archivos modificados
+- `src/app/context/page.tsx`
+- `src/app/context/ContextPageClient.tsx`
+
+### Cambios
+
+**page.tsx:**
+- Importado `AppLayout`
+- Envuelto `ContextPageClient` con `AppLayout pageName="CONTEXT FILES" pageSubtitle="Files uploaded to provide context to your AI agents"`
+- `userName` pasado como `user.email ?? '—'` (igual que otras páginas que no tienen account completo)
+
+**ContextPageClient.tsx:**
+- Eliminado div raíz `min-h-screen bg-[var(--color-app-bg)]`
+- Eliminado bloque de título manual (`h1 + p` de descripción) — provisto por AppLayout
+- Conservado: lógica de carga, archive, error, secciones Project/Team/Session Context
+- Nuevo root: `<div className="max-w-4xl mx-auto px-6 py-10">` (solo el contenido)
+
+### Confirmaciones
+- Lógica de carga Supabase: NO tocada
+- Función `archive`: NO tocada
+- `ContextSection`: NO tocada
+- `AppLayout scrollable` no especificado → default (scrollable)
+
+### Build
+✓ `npm run build` limpio. Commit: 20c91cb.
+
+### Estado
+Cerrado.
