@@ -228,7 +228,7 @@ export default function KnowledgeMap({ checkpoints }: Props) {
       </div>
 
       {/* Graph */}
-      <div className="flex-1 min-w-0" style={{ height: 'calc(100vh - 200px)' }}>
+      <div className="flex-1 min-w-0" style={{ height: 'calc(100vh - 160px)' }}>
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-600 text-sm">No data to display. Save a checkpoint first.</p>
