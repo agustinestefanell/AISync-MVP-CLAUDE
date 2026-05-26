@@ -82,8 +82,8 @@ export default function CustomProvidersManager() {
             >
               <div className="flex-1 min-w-0 space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-white">{p.name}</span>
-                  <span className="text-xs text-emerald-400 bg-emerald-950 border border-emerald-800 px-1.5 py-0.5 rounded-full">
+                  <span className="text-sm font-bold text-[var(--color-text-primary)]">{p.name}</span>
+                  <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
                     activo
                   </span>
                 </div>
@@ -119,7 +119,7 @@ export default function CustomProvidersManager() {
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="Perplexity, Mistral, DeepSeek…"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
             />
           </div>
           <div>
@@ -129,7 +129,7 @@ export default function CustomProvidersManager() {
               value={form.model}
               onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
               placeholder="llama-3.1-sonar-large…"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
             />
           </div>
         </div>
@@ -141,7 +141,7 @@ export default function CustomProvidersManager() {
             value={form.endpoint_url}
             onChange={e => setForm(f => ({ ...f, endpoint_url: e.target.value }))}
             placeholder="https://api.perplexity.ai"
-            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+            className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors font-mono"
           />
         </div>
 
@@ -152,7 +152,7 @@ export default function CustomProvidersManager() {
             value={form.api_key}
             onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
             placeholder="pplx-…"
-            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+            className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors font-mono"
           />
         </div>
 
@@ -165,7 +165,7 @@ export default function CustomProvidersManager() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
+            className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
           >
             {saving ? 'Guardando…' : 'Agregar provider'}
           </button>

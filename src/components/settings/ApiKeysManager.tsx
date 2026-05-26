@@ -161,7 +161,7 @@ export default function ApiKeysManager() {
                   <button
                     onClick={() => handleSave(p.name)}
                     disabled={!st.input.trim() || st.saving}
-                    className="text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
+                    className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
                   >
                     {st.saving ? '…' : 'Guardar'}
                   </button>
