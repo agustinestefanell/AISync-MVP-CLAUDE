@@ -2145,3 +2145,27 @@ No necesita fix. Chain: `root (min-h-0) → shrink-0 stats → shrink-0 filters 
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — Scroll fix: h-full → flex-1 en raíz de vistas Documentation
+
+### Diagnóstico
+Repository, Audit e Investigate views no scrolleaban — la lista de documentos no permitía bajar. El parent en DocClient L199 es `flex flex-col`. En ese contexto, `h-full` (= `height: 100%`) en el hijo es poco confiable: el browser no siempre puede resolver el porcentaje contra una altura determinada por flex layout. El scroll nunca se activaba porque el contenedor no estaba correctamente restringido en altura.
+
+### Archivos modificados
+- `src/components/documentation/RepositoryView.tsx` (L291)
+- `src/components/documentation/AuditView.tsx` (L117)
+- `src/components/documentation/InvestigateView.tsx` (L124)
+
+### Cambio
+Las tres vistas: `h-full min-h-0 flex flex-col` → `flex-1 min-h-0 flex flex-col`
+
+### Por qué funciona
+`flex-1` le dice al flex layout que el componente debe crecer para llenar el espacio disponible. El browser resuelve la altura vía el algoritmo flex (que sí tiene altura definida desde `h-screen`), y el hijo `flex-1 overflow-y-auto` dentro de cada vista puede calcular su propia altura y activar el scroll.
+
+### Build
+✓ `npm run build` limpio. Commit: 28b549a.
+
+### Estado
+Cerrado.
