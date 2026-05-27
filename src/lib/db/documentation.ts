@@ -135,8 +135,6 @@ export async function getHandoffPackages(): Promise<DocHandoffPackage[]> {
     .select('id, name, from_agent, to_agent, status, context, messages, workspace_id, created_at, workspaces(name, teams(id, name, projects(id, name)))')
     .order('created_at', { ascending: false })
 
-  console.log('handoff raw:', data?.[0])
-
   return ((data ?? []) as unknown as RawHandoffPackage[]).map(r => {
     const team    = Array.isArray(r.workspaces?.teams) ? r.workspaces?.teams[0] : r.workspaces?.teams
     const project = Array.isArray(team?.projects)      ? team?.projects[0]      : team?.projects
