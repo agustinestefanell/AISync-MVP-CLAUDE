@@ -200,7 +200,7 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
           {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} teamCodes={teamCodes} />}
           {tab === 'structure'   && <StructureView   checkpoints={checkpoints} projects={projects} userName={userName} userEmail={userEmail} teamCodes={teamCodes} />}
           {tab === 'audit'       && <AuditView        checkpoints={checkpoints} auditEvents={auditEvents} teamCodes={teamCodes} />}
-          {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
+          {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
           {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
         </div>
       </div>

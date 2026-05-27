@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import type { DocCheckpoint } from '@/lib/db/documentation'
+import type { DocCheckpoint, DocHandoffPackage } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 
 const PURPOSE_BADGE: Record<string, string> = {
@@ -65,13 +65,14 @@ function StatCard({ label, value }: { label: string; value: number }) {
 }
 
 interface Props {
-  checkpoints: DocCheckpoint[]
-  projects:    ProjectWithTeams[]
-  userEmail:   string
-  teamCodes?:  Record<string, string>
+  checkpoints:     DocCheckpoint[]
+  handoffPackages: DocHandoffPackage[]
+  projects:        ProjectWithTeams[]
+  userEmail:       string
+  teamCodes?:      Record<string, string>
 }
 
-export default function InvestigateView({ checkpoints, userEmail, teamCodes }: Props) {
+export default function InvestigateView({ checkpoints, handoffPackages, userEmail, teamCodes }: Props) {
   const [search,         setSearch]         = useState('')
   const [filterProject,  setFilterProject]  = useState('')
   const [filterTeam,     setFilterTeam]     = useState('')
@@ -79,7 +80,12 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
   const [filterDate,     setFilterDate]     = useState('')
 
   const uniqueProjects = useMemo(() => Array.from(new Map(checkpoints.map(c => [c.project_id, c.project_name])).entries()), [checkpoints])
-  const uniqueTeams    = useMemo(() => Array.from(new Map(checkpoints.map(c => [c.team_id, c.team_name])).entries()), [checkpoints])
+  const uniqueTeams    = useMemo(() => {
+    const m = new Map<string, string>()
+    checkpoints.forEach(c => { if (c.team_id) m.set(c.team_id, c.team_name ?? '') })
+    handoffPackages.forEach(h => { if (h.team_id) m.set(h.team_id, h.team_name ?? '') })
+    return Array.from(m.entries())
+  }, [checkpoints, handoffPackages])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()

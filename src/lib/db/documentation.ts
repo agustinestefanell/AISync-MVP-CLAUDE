@@ -104,6 +104,10 @@ export interface DocHandoffPackage {
   context: string | null
   workspace_id: string
   workspace_name: string
+  team_id: string | null
+  team_name: string | null
+  project_id: string | null
+  project_name: string | null
   message_count: number
   created_at: string
 }
@@ -118,28 +122,39 @@ interface RawHandoffPackage {
   messages: unknown[]
   workspace_id: string
   created_at: string
-  workspaces: { name: string } | null
+  workspaces: {
+    name: string
+    teams: { id: string; name: string; projects: { id: string; name: string } | null } | null
+  } | null
 }
 
 export async function getHandoffPackages(): Promise<DocHandoffPackage[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('handoff_packages')
-    .select('id, name, from_agent, to_agent, status, context, messages, workspace_id, created_at, workspaces(name)')
+    .select('id, name, from_agent, to_agent, status, context, messages, workspace_id, created_at, workspaces(name, teams(id, name, projects(id, name)))')
     .order('created_at', { ascending: false })
 
-  return ((data ?? []) as unknown as RawHandoffPackage[]).map(r => ({
-    id:             r.id,
-    name:           r.name,
-    from_agent:     r.from_agent,
-    to_agent:       r.to_agent,
-    status:         r.status,
-    context:        r.context ?? null,
-    workspace_id:   r.workspace_id,
-    workspace_name: r.workspaces?.name ?? '—',
-    message_count:  Array.isArray(r.messages) ? r.messages.length : 0,
-    created_at:     r.created_at,
-  }))
+  return ((data ?? []) as unknown as RawHandoffPackage[]).map(r => {
+    const team    = Array.isArray(r.workspaces?.teams) ? r.workspaces?.teams[0] : r.workspaces?.teams
+    const project = Array.isArray(team?.projects)      ? team?.projects[0]      : team?.projects
+    return {
+      id:             r.id,
+      name:           r.name,
+      from_agent:     r.from_agent,
+      to_agent:       r.to_agent,
+      status:         r.status,
+      context:        r.context ?? null,
+      workspace_id:   r.workspace_id,
+      workspace_name: r.workspaces?.name ?? '—',
+      team_id:        team?.id        ?? null,
+      team_name:      team?.name      ?? null,
+      project_id:     project?.id     ?? null,
+      project_name:   project?.name   ?? null,
+      message_count:  Array.isArray(r.messages) ? r.messages.length : 0,
+      created_at:     r.created_at,
+    }
+  })
 }
 
 export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
