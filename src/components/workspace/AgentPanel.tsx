@@ -84,6 +84,10 @@ function formatDayMarker(date: Date): string {
   })
 }
 
+function formatMessageTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+}
+
 // ── Public interface ─────────────────────────────────────────────────────────
 export interface AgentPanelHandle {
   getLastAssistantMessage(): string | undefined
@@ -464,6 +468,9 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                         style={{ color: 'var(--color-text-muted)' }}
                       >
                         <span>{isUser ? 'User' : role.displayLabel}</span>
+                        {msg.created_at && (
+                          <span suppressHydrationWarning>{formatMessageTime(msg.created_at)}</span>
+                        )}
                       </div>
                       <div
                         className={`relative ui-message-bubble px-3 py-2 text-xs leading-5 ${
