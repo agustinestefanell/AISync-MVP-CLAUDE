@@ -113,8 +113,8 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
             onChange={e => { setName(e.target.value); if (e.target.value.trim()) setNameError(false) }}
             onKeyDown={e => { if (e.key === 'Enter') handleCreate() }}
             placeholder="e.g. Analysis → Implementation handoff"
-            className={`w-full bg-gray-50 border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors ${
-              nameError ? 'border-red-500 focus:border-red-400' : 'border-gray-200 focus:border-purple-500'
+            className={`w-full bg-gray-50 border rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none transition-colors ${
+              nameError ? 'border-red-500 focus:border-red-400' : 'border-gray-200 focus:border-[var(--color-border-focus)]'
             }`}
           />
           {nameError && <p className="text-xs text-red-400">Name is required</p>}
@@ -127,7 +127,7 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
             <select
               value={fromId}
               onChange={e => handleFromChange(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-purple-500 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)] transition-colors"
             >
               {sessions.map(s => (
                 <option key={s.id} value={s.id}>{AGENT_LABEL[s.agent_role] ?? s.agent_role}</option>
@@ -140,7 +140,7 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
             <select
               value={toId}
               onChange={e => setToId(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-purple-500 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)] transition-colors"
             >
               {sessions.map(s => (
                 <option key={s.id} value={s.id}>{AGENT_LABEL[s.agent_role] ?? s.agent_role}</option>
@@ -159,7 +159,7 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
             onChange={e => setContext(e.target.value)}
             placeholder="Describe the purpose or context of this handoff…"
             rows={2}
-            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none focus:border-purple-500 resize-none transition-colors"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] resize-none transition-colors"
           />
         </div>
 
@@ -205,7 +205,7 @@ export default function HandoffPackageModal({ workspace, getAgentMessages, onClo
           <button
             onClick={handleCreate}
             disabled={saving}
-            className="flex-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+            className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
           >
             {saving ? 'Creating…' : 'Create Handoff Package'}
           </button>
