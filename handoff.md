@@ -1963,3 +1963,40 @@ Cerrado.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — RepositoryView: document card item redesign Nivel 1
+
+### Diagnóstico
+RepositoryView mostraba objetos documentales como lista plana con `divide-y`. Cada item era un `div` con `px-4 py-4` sin tarjeta. La especificación Nivel 1 exigía convertir solo los items del listado izquierdo en cards documentales sobrias — sin reconstruir la pantalla completa ni agregar metadata inexistente.
+
+### Demo First
+`RepositoryItemCard` en `PageB.tsx:4721` — `rounded-[14px] border border-neutral-200 bg-white/80 px-3 py-2`, `ring-2 ring-[var(--color-accent)]` cuando selected, `DocumentListRowIcon` SVG inline, pills para typeLabel/teamLabel, bottom strip con metadata (state/version/updated/owner/sensitivity) + botones (`ui-button ui-button-primary text-white`). Patrón portado directamente.
+
+### Archivo modificado
+`src/components/documentation/RepositoryView.tsx` — único archivo tocado.
+
+### Cambios
+- Contenedor de lista: `divide-y divide-[var(--color-border-subtle)]` → `grid gap-3 content-start` dentro de `p-4`
+- Cada item: `div` plano → `article` con `rounded-[14px] border bg-[var(--color-surface)] overflow-hidden cursor-pointer`
+- Estado seleccionado: `border-l-2 border-indigo-500` → `border-indigo-500 ring-1 ring-indigo-500` (borde + ring, sin invertir colores)
+- Agregado SVG icon documental inline (20x20, mismo que AuditView)
+- Checkpoint card: title semibold + badges (STATE_BADGE + version_label) top-right + pills (purpose, team sky, workspace) + bottom strip (Owner, Sensitivity, Created + botones)
+- Handoff card: HANDOFF badge + title + status badge top-right + pills (agents, workspace) + bottom strip (Messages, Created + botón)
+- `View Details` y `Audit Log →`: clase cambiada a `ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40` (misma clase para ambos, sin jerarquía secundario/primario)
+
+### Restricciones respetadas
+- Lógica, filtros, handlers: no tocados
+- Stats bar: no tocada
+- Filters row: no tocada
+- Detail panel derecho (CheckpointDetailPanel, HandoffDetailPanel): no tocados
+- AuditView, StructureView, InvestigateView, KnowledgeMap: no tocados
+- MAP, Tree, Workspace, ribbons, route.ts, providers, streaming: no tocados
+- No se agregaron campos inexistentes ni bloques de compliance
+
+### Build
+✓ `npm run build` limpio. Solo warnings pre-existentes en CanvasViewport.tsx. Commit: 2ea0413.
+
+### Estado
+Cerrado.
