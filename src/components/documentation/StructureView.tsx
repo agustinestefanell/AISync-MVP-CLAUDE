@@ -13,34 +13,41 @@ interface Props {
   teamCodes?:  Record<string, string>
 }
 
-export default function StructureView({ projects }: Props) {
+export default function StructureView({ projects, teamCodes }: Props) {
   const allTeams = useMemo(() => projects.flatMap(p => p.teams), [projects])
 
   const mirrorTeams = useMemo(
-    () => allTeams.map(t => ({ teamId: t.id, teamLabel: t.name })),
-    [allTeams],
+    () => allTeams.map(t => {
+      const code = teamCodes?.[t.id]
+      return { teamId: t.id, teamLabel: code ? `${code} · ${t.name}` : t.name }
+    }),
+    [allTeams, teamCodes],
   )
 
   const mirrorAgents = useMemo(
     () => allTeams.flatMap(team => {
       const workspace = team.workspaces[0]
       if (!workspace) return []
+      const code = teamCodes?.[team.id]
       const managerSession = workspace.agent_sessions.find(s => s.agent_role === 'manager')
-      return workspace.agent_sessions.map(session => ({
-        unitId:           session.id,
-        treeParentUnitId: session.agent_role !== 'manager' && managerSession
-          ? managerSession.id
-          : null,
-        teamId:    team.id,
-        agentLabel: session.description
-          ?? (session.agent_role === 'manager' ? team.name : `${team.name} · Worker`),
-        agentRole: session.agent_role === 'manager'
-          ? (team.parent_id === null ? 'general_manager' : 'senior_manager')
-          : 'worker',
-        historical: false,
-      }))
+      return workspace.agent_sessions.map(session => {
+        const isManager  = session.agent_role === 'manager'
+        const isSubMgr   = isManager && team.parent_id !== null
+        const roleLabel  = isManager ? (isSubMgr ? 'Sub-Manager' : 'Manager') : 'Worker'
+        const agentLabel = code ? `${code} · ${roleLabel}` : roleLabel
+        return {
+          unitId:           session.id,
+          treeParentUnitId: !isManager && managerSession ? managerSession.id : null,
+          teamId:           team.id,
+          agentLabel,
+          agentRole: isManager
+            ? (team.parent_id === null ? 'general_manager' : 'senior_manager')
+            : 'worker',
+          historical: false,
+        }
+      })
     }),
-    [allTeams],
+    [allTeams, teamCodes],
   )
 
   const rootLabel = projects[0]?.name ?? 'Documentation'
