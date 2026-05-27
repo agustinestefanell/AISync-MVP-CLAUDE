@@ -100,6 +100,15 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
 
   const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])
 
+  const sortedTeams = useMemo(
+    () => [...teams].sort((a, b) => {
+      const codeA = teamCodes[a.id] ?? ''
+      const codeB = teamCodes[b.id] ?? ''
+      return codeA.localeCompare(codeB)
+    }),
+    [teams, teamCodes],
+  )
+
   // My local teams that have at least one active connection
   const connectedTeamIds = new Set(
     connections
@@ -276,7 +285,7 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
       <div className="flex-1 min-h-0 relative">
         {view === 'map' ? (
           <MapView
-            teams={teams}
+            teams={sortedTeams}
             projectId={projectId}
             activeProjectId={projectId}
             connectedTeamIds={connectedTeamIds}
@@ -293,7 +302,7 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
           />
         ) : (
           <TreeView
-            teams={teams}
+            teams={sortedTeams}
             connectedTeamIds={connectedTeamIds}
             externalConnections={externalConnections}
             teamCodes={teamCodes}
