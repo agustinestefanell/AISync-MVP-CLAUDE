@@ -2189,3 +2189,36 @@ Cerrado.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — Scroll fix definitivo: AppLayout main flex flex-col
+
+### Diagnóstico raíz
+`<main>` en AppLayout con `scrollable=false` era un elemento block (`flex-1 overflow-hidden min-h-0` sin `display: flex`). `flex-1` solo funciona cuando el padre es un flex container. Como `<main>` era block, `flex-1` en DocClient no tenía efecto y DocClient nunca tenía altura definida — el scroll nunca se activaba en ninguna vista. Afectaba: documentation, workspace, audit, teams, admin (todas las páginas con `scrollable={false}`).
+
+### Archivos modificados
+- `src/components/layout/AppLayout.tsx`
+
+### Cambio
+- `'flex-1 overflow-hidden min-h-0'` → `'flex-1 overflow-hidden min-h-0 flex flex-col'` (solo en rama `scrollable=false`)
+
+### Chain completo resultante
+```
+AppLayout outer:  h-screen flex flex-col overflow-hidden
+  main:           flex-1 overflow-hidden min-h-0 flex flex-col  ← fix
+    DocClient:    flex-1 min-h-0 flex overflow-hidden            ← flex-1 ahora resuelve
+      L173:       flex-1 min-h-0 flex flex-col overflow-hidden
+        L199:     flex-1 min-h-0 flex flex-col overflow-hidden
+          Vista:  flex-1 min-h-0 flex flex-col
+            Lista: flex-1 overflow-y-auto  ← scrollea ✓
+```
+
+### Sobre los filtros/datos
+Frontend no está desconectado del backend. Queries correctas, RLS correcto. La BD probablemente solo tiene datos de prueba de un team/día. Si se crean checkpoints en otros workspaces van a aparecer.
+
+### Build
+✓ `npm run build` limpio. Commit: 3a02366.
+
+### Estado
+Cerrado.
