@@ -73,7 +73,7 @@ function MetaRow({ label, value, mono }: { label: string; value: string; mono?: 
 
 function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCheckpoint; userName: string; onClose: () => void; teamCodes?: Record<string, string> }) {
   return (
-    <div className="h-full flex flex-col border-l border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
+    <div className="h-full min-h-0 flex flex-col border-l border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
       <div className="shrink-0 px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="text-sm font-bold text-[var(--color-text-primary)] leading-tight">{cp.name}</h3>
@@ -128,7 +128,7 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
           <button
             type="button"
             onClick={() => window.open('/audit', '_blank', 'noopener,noreferrer')}
-            className="flex-1 text-center text-xs border border-[var(--color-border-default)] hover:border-[var(--color-border-focus)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] py-2 rounded-lg transition-colors"
+            className="flex-1 text-center ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
           >
             View in Audit Log
           </button>
@@ -140,7 +140,7 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
 
 function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: () => void }) {
   return (
-    <div className="h-full flex flex-col border-l border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
+    <div className="h-full min-h-0 flex flex-col border-l border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
       <div className="shrink-0 px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -186,7 +186,7 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
           <button
             type="button"
             onClick={() => window.open('/audit', '_blank', 'noopener,noreferrer')}
-            className="w-full text-center text-xs border border-[var(--color-border-default)] hover:border-[var(--color-border-focus)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] py-2 rounded-lg transition-colors"
+            className="w-full text-center ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
           >
             View in Audit Log
           </button>
@@ -288,7 +288,7 @@ export default function RepositoryView({
   const hasFilter = filterProject || filterTeam || filterType || filterState || filterDate
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full min-h-0 flex flex-col">
       {/* Stats */}
       <div className="shrink-0 px-6 py-4 grid grid-cols-4 gap-3 border-b border-[var(--color-border-default)]">
         <StatCard label="Results"        value={stats.results} />
