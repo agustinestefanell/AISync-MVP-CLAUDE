@@ -1780,3 +1780,31 @@ DocumentationMirrorTree estaba portado. Tres problemas de presentación:
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-26] — AuditView: códigos jerárquicos en eventos de Documentation Mode
+
+### Diagnóstico
+AuditView mostraba `team_name` sin código jerárquico. `DocAuditEvent` no incluía `team_id`, por lo que no era posible resolver el código desde `teamCodes`.
+
+### Cambios
+- `DocAuditEvent` (documentation.ts): agregado `team_id: string | null`
+- Query `getDocAuditEvents`: `teams (name)` → `teams (id, name)`
+- Raw type inline: `teams: { id: string; name: string } | null`
+- Mapping: `team_id: r.workspaces?.teams?.id ?? null`
+- `AuditView.tsx` Props: agregado `teamCodes?: Record<string, string>`
+- Render de evento: `teamLabel = teamCode ? "${code} · ${team_name}" : team_name`
+- `DocClient.tsx`: `teamCodes={teamCodes}` pasado a `<AuditView />`
+
+### Restricciones respetadas
+- Lógica de filtros: NO tocada
+- Lógica de eventos: NO tocada
+- Otras vistas de Documentation Mode: NO tocadas
+- MAP / Tree / Workspace / ribbons / route.ts / providers: NO tocados
+
+### Build
+✓ `npm run build` limpio. Commit: 6fe8f1f.
+
+### Estado
+Cerrado.
