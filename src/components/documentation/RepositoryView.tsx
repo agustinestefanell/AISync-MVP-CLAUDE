@@ -340,84 +340,125 @@ export default function RepositoryView({
                 <p className="text-[var(--color-text-muted)] text-sm">No documents found.</p>
               </div>
             ) : (
-              <div className="divide-y divide-[var(--color-border-subtle)]">
+              <div className="p-4 grid gap-3 content-start">
                 {filtered.map(item => {
                   const id       = itemId(item)
                   const isActive = selectedId === id
                   return (
-                    <div
+                    <article
                       key={id}
                       onClick={() => setSelectedId(isActive ? null : id)}
-                      className={`px-4 py-4 cursor-pointer transition-colors hover:bg-[var(--color-surface-subtle)] ${isActive ? 'bg-[var(--color-badge-structural-bg)] border-l-2 border-indigo-500' : ''}`}
+                      className={`rounded-[14px] border bg-[var(--color-surface)] overflow-hidden cursor-pointer transition-colors hover:bg-[var(--color-surface-subtle)] ${
+                        isActive
+                          ? 'border-indigo-500 ring-1 ring-indigo-500'
+                          : 'border-[var(--color-border-subtle)]'
+                      }`}
                     >
                       {item.kind === 'checkpoint' ? (
-                        <>
+                        <div className="px-4 py-3">
+                          {/* Top row: icon + title + badges */}
                           <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{item.cp.name}</p>
-                              <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{teamLabel(item.cp.team_id, item.cp.team_name, teamCodes)} · {item.cp.workspace_name}</p>
-                              <div className="flex flex-wrap gap-1.5 mt-2">
-                                <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PURPOSE_BADGE[item.cp.purpose] ?? 'text-gray-400 bg-gray-50 border-gray-200'}`}>
-                                  {item.cp.purpose}
-                                </span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded border font-semibold uppercase ${STATE_BADGE[item.cp.doc_state] ?? STATE_BADGE.active}`}>
-                                  {item.cp.doc_state.replace('_', ' ')}
-                                </span>
-                              </div>
-                              <p className="text-xs text-[var(--color-text-secondary)] mt-1.5" suppressHydrationWarning>{formatDate(item.cp.created_at)}</p>
+                            <div className="flex min-w-0 items-start gap-2">
+                              <svg aria-hidden="true" viewBox="0 0 20 20" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M6 2.75h5.25L15.5 7v10.25a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-13.5a1 1 0 0 1 1-1Z" />
+                                <path d="M11 2.75V7h4.5" />
+                                <path d="M7.5 10.25h5" />
+                                <path d="M7.5 13h5" />
+                              </svg>
+                              <p className="text-sm font-semibold text-[var(--color-text-primary)] leading-snug">{item.cp.name}</p>
+                            </div>
+                            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-[0.08em] ${STATE_BADGE[item.cp.doc_state] ?? STATE_BADGE.active}`}>
+                                {item.cp.doc_state.replace('_', ' ')}
+                              </span>
+                              <span className="text-[9px] px-2 py-0.5 rounded-full border border-neutral-200 bg-white font-semibold uppercase tracking-[0.12em] text-neutral-600">
+                                {item.cp.version_label}
+                              </span>
                             </div>
                           </div>
-                          <div className="flex gap-2 mt-3">
-                            <button
-                              onClick={e => { e.stopPropagation(); setSelectedId(id) }}
-                              className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
-                            >
-                              View Details →
-                            </button>
-                            <a
-                              href="/audit"
-                              onClick={e => e.stopPropagation()}
-                              className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-                            >
-                              Audit Log →
-                            </a>
+                          {/* Pills: purpose + team + workspace */}
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] ${PURPOSE_BADGE[item.cp.purpose] ?? 'text-gray-600 border-gray-200 bg-gray-50'}`}>
+                              {item.cp.purpose}
+                            </span>
+                            <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-sky-700">
+                              {teamLabel(item.cp.team_id, item.cp.team_name, teamCodes)}
+                            </span>
+                            <span className="inline-flex items-center rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-2 py-0.5 text-[9px] font-medium text-[var(--color-text-secondary)]">
+                              {item.cp.workspace_name}
+                            </span>
                           </div>
-                        </>
+                          {/* Bottom strip: metadata + buttons */}
+                          <div className="mt-2 flex flex-wrap items-end justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2">
+                            <div className="text-[10px] leading-[1.5] text-[var(--color-text-muted)] flex flex-wrap gap-x-3 gap-y-0.5">
+                              <span><span className="font-semibold text-[var(--color-text-secondary)]">Owner:</span> {item.cp.responsible ?? userName}</span>
+                              <span><span className="font-semibold text-[var(--color-text-secondary)]">Sensitivity:</span> {item.cp.sensitivity}</span>
+                              <span suppressHydrationWarning><span className="font-semibold text-[var(--color-text-secondary)]">Created:</span> {formatDate(item.cp.created_at)}</span>
+                            </div>
+                            <div className="flex shrink-0 flex-wrap gap-2">
+                              <button
+                                onClick={e => { e.stopPropagation(); setSelectedId(id) }}
+                                className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
+                              >
+                                View Details
+                              </button>
+                              <a
+                                href="/audit"
+                                onClick={e => e.stopPropagation()}
+                                className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
+                              >
+                                Audit Log →
+                              </a>
+                            </div>
+                          </div>
+                        </div>
                       ) : (
-                        <>
+                        <div className="px-4 py-3">
+                          {/* Top row: icon + HANDOFF badge + title + status badge */}
                           <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded border font-bold uppercase ${HANDOFF_BADGE}`}>
-                                  HANDOFF
-                                </span>
-                                <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{item.hp.name}</p>
+                            <div className="flex min-w-0 items-start gap-2">
+                              <svg aria-hidden="true" viewBox="0 0 20 20" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M6 2.75h5.25L15.5 7v10.25a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-13.5a1 1 0 0 1 1-1Z" />
+                                <path d="M11 2.75V7h4.5" />
+                                <path d="M7.5 10.25h5" />
+                                <path d="M7.5 13h5" />
+                              </svg>
+                              <div className="min-w-0">
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase mr-1.5 ${HANDOFF_BADGE}`}>HANDOFF</span>
+                                <span className="text-sm font-semibold text-[var(--color-text-primary)]">{item.hp.name}</span>
                               </div>
-                              <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{item.hp.workspace_name}</p>
-                              <div className="flex flex-wrap gap-1.5 mt-2">
-                                <span className="text-xs text-[var(--color-text-secondary)]">
-                                  {AGENT_LABEL[item.hp.from_agent] ?? item.hp.from_agent}
-                                  {' → '}
-                                  {AGENT_LABEL[item.hp.to_agent] ?? item.hp.to_agent}
-                                </span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded border font-semibold uppercase ${STATUS_BADGE[item.hp.status] ?? STATUS_BADGE.draft}`}>
-                                  {item.hp.status}
-                                </span>
-                              </div>
-                              <p className="text-xs text-[var(--color-text-secondary)] mt-1.5" suppressHydrationWarning>{formatDate(item.hp.created_at)}</p>
+                            </div>
+                            <span className={`shrink-0 text-[9px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-[0.08em] ${STATUS_BADGE[item.hp.status] ?? STATUS_BADGE.draft}`}>
+                              {item.hp.status}
+                            </span>
+                          </div>
+                          {/* Pills: agents + workspace */}
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            <span className="inline-flex items-center rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-2 py-0.5 text-[9px] font-medium text-[var(--color-text-secondary)]">
+                              {AGENT_LABEL[item.hp.from_agent] ?? item.hp.from_agent} → {AGENT_LABEL[item.hp.to_agent] ?? item.hp.to_agent}
+                            </span>
+                            <span className="inline-flex items-center rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-2 py-0.5 text-[9px] font-medium text-[var(--color-text-secondary)]">
+                              {item.hp.workspace_name}
+                            </span>
+                          </div>
+                          {/* Bottom strip: metadata + buttons */}
+                          <div className="mt-2 flex flex-wrap items-end justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2">
+                            <div className="text-[10px] leading-[1.5] text-[var(--color-text-muted)] flex flex-wrap gap-x-3 gap-y-0.5">
+                              <span><span className="font-semibold text-[var(--color-text-secondary)]">Messages:</span> {item.hp.message_count}</span>
+                              <span suppressHydrationWarning><span className="font-semibold text-[var(--color-text-secondary)]">Created:</span> {formatDate(item.hp.created_at)}</span>
+                            </div>
+                            <div className="flex shrink-0 flex-wrap gap-2">
+                              <button
+                                onClick={e => { e.stopPropagation(); setSelectedId(id) }}
+                                className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
+                              >
+                                View Details
+                              </button>
                             </div>
                           </div>
-                          <div className="flex gap-2 mt-3">
-                            <button
-                              onClick={e => { e.stopPropagation(); setSelectedId(id) }}
-                              className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
-                            >
-                              View Details →
-                            </button>
-                          </div>
-                        </>
+                        </div>
                       )}
-                    </div>
+                    </article>
                   )
                 })}
               </div>
