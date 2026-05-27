@@ -151,65 +151,107 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-[var(--color-border-subtle)]">
+      <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-[var(--color-text-muted)] text-sm">No audit records found.</p>
           </div>
-        ) : filtered.map(e => {
-          const cfg  = EVENT_CONFIG[e.event_type] ?? { label: e.event_type, dotColor: 'bg-gray-600', badgeClass: 'text-gray-600 bg-gray-50 border-gray-200' }
-          const cpId = e.metadata?.checkpoint_id as string | undefined
-          const cp   = cpId ? cpMap.get(cpId) : null
-          const cpName = (e.metadata?.name as string) ?? (e.event_type === 'session_backup' ? 'Session Backup' : 'Session event')
-          const actor     = (e.metadata?.from_agent ?? e.metadata?.agent_role) as string | undefined
-          const teamCode  = e.team_id ? teamCodes?.[e.team_id] : undefined
-          const teamLabel = teamCode ? `${teamCode} · ${e.team_name}` : e.team_name
+        ) : (
+          <div className="p-4 grid gap-3 content-start">
+            {filtered.map(e => {
+              const cfg       = EVENT_CONFIG[e.event_type] ?? { label: e.event_type, dotColor: 'bg-gray-600', badgeClass: 'text-gray-600 bg-gray-50 border-gray-200' }
+              const cpId      = e.metadata?.checkpoint_id as string | undefined
+              const cp        = cpId ? cpMap.get(cpId) : null
+              const cpName    = (e.metadata?.name as string) ?? (e.event_type === 'session_backup' ? 'Session Backup' : 'Session event')
+              const actor     = (e.metadata?.from_agent ?? e.metadata?.agent_role) as string | undefined
+              const teamCode  = e.team_id ? teamCodes?.[e.team_id] : undefined
+              const teamLabel = teamCode ? `${teamCode} · ${e.team_name}` : e.team_name
+              const docPath   = cp ? `${cp.project_name} / ${cp.team_name} / ${cp.workspace_name}` : e.workspace_name ?? '—'
 
-          return (
-            <div key={e.id} className="px-6 py-4 hover:bg-[var(--color-surface-soft)] transition-colors">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.badgeClass}`}>
-                      {cfg.label}
-                    </span>
-                    {teamLabel && <span className="text-xs text-[var(--color-text-secondary)]">{teamLabel}</span>}
-                    {e.workspace_name && <span className="text-xs text-[var(--color-text-secondary)]">· {e.workspace_name}</span>}
+              return (
+                <div key={e.id} className="rounded-[14px] border border-[var(--color-border-subtle)] bg-[var(--color-surface)] overflow-hidden">
+                  {/* Top strip */}
+                  <div className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1.45fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,1.2fr)_auto]">
+                    {/* Identity */}
+                    <div className="min-w-0 border-[var(--color-border-subtle)] md:border-r md:pr-3">
+                      <div className="flex items-start gap-2">
+                        <svg aria-hidden="true" viewBox="0 0 20 20" className="mt-1 h-4 w-4 shrink-0 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M6 2.75h5.25L15.5 7v10.25a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-13.5a1 1 0 0 1 1-1Z" />
+                          <path d="M11 2.75V7h4.5" />
+                          <path d="M7.5 10.25h5" />
+                          <path d="M7.5 13h5" />
+                        </svg>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">{cpName}</div>
+                          <div className="mt-0.5 truncate text-[11px] leading-5 text-[var(--color-text-secondary)]">
+                            {[teamLabel, e.workspace_name, 'working-record'].filter(Boolean).join(' · ')}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actor + User */}
+                    <div className="grid gap-2">
+                      <Field label="Actor" value={actor ? (AGENT_LABEL[actor] ?? actor) : 'n/a'} />
+                      <Field label="User"  value={actor ? (AGENT_LABEL[actor] ?? actor) : 'n/a'} />
+                    </div>
+
+                    {/* Event Type + Source Workspace */}
+                    <div className="grid gap-2">
+                      <Field label="Event Type"       value={cfg.label} />
+                      <Field label="Source Workspace" value={e.workspace_name ?? 'n/a'} />
+                    </div>
+
+                    {/* Reference Time + Audit Linkage */}
+                    <div className="grid gap-2">
+                      <Field label="Reference Time" value={formatDate(e.created_at)} suppress />
+                      <Field label="Audit Linkage"  value={cpId ? '1 linked event' : 'n/a'} />
+                    </div>
+
+                    {/* Badges + Buttons */}
+                    <div className="flex min-w-[160px] flex-col items-end justify-between gap-3">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {cp && (
+                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${STATE_BADGE[cp.doc_state] ?? STATE_BADGE.active}`}>
+                            {cp.doc_state.replace('_', ' ')}
+                          </span>
+                        )}
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] ${cfg.badgeClass}`}>
+                          {cfg.label}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {cpId && (
+                          <button onClick={() => openDetail(e)}
+                            className="ui-button min-h-7 px-3 text-[11px] text-[var(--color-text-secondary)]">
+                            View Details
+                          </button>
+                        )}
+                        {e.workspace_id && (
+                          <button onClick={() => window.open(`/workspace/${e.workspace_id}`, '_blank', 'noopener,noreferrer')}
+                            className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40">
+                            Open Document →
+                          </button>
+                        )}
+                        <button onClick={() => window.open('/audit', '_blank', 'noopener,noreferrer')}
+                          className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40">
+                          Audit Log →
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{cpName}</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1">
-                    {actor && <Meta label="Actor"      value={AGENT_LABEL[actor] ?? actor} />}
-                    <Meta label="Reference Time" value={formatDate(e.created_at)} suppress />
-                    <Meta label="Audit Linkage"  value={cpId ? '1 linked' : 'unlinked'} />
-                    {cp && <Meta label="Document State" value={
-                      <span className={`text-xs px-1.5 py-0.5 rounded border font-semibold uppercase ${STATE_BADGE[cp.doc_state] ?? STATE_BADGE.active}`}>
-                        {cp.doc_state.replace('_',' ')}
-                      </span>
-                    } />}
+
+                  {/* Bottom strip */}
+                  <div className="grid gap-x-4 gap-y-1.5 border-t border-[var(--color-border-subtle)] px-4 py-2.5 sm:grid-cols-3">
+                    <Field label="Document State"   value={cp ? cp.doc_state.replace('_', ' ') : 'n/a'} />
+                    <Field label="Document Version" value={cp?.version_label ?? 'v1'} />
+                    <Field label="PATH"             value={docPath} long />
                   </div>
                 </div>
-                <div className="flex flex-col gap-2 shrink-0">
-                  {cpId && (
-                    <button onClick={() => openDetail(e)}
-                      className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors text-right">
-                      View Details →
-                    </button>
-                  )}
-                  {e.workspace_id && (
-                    <button onClick={() => window.open(`/workspace/${e.workspace_id}`, '_blank', 'noopener,noreferrer')}
-                      className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40">
-                      Open Document →
-                    </button>
-                  )}
-                  <button onClick={() => window.open('/audit', '_blank', 'noopener,noreferrer')}
-                    className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40">
-                    Audit Log →
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-        })}
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Checkpoint messages modal */}
@@ -275,11 +317,20 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
   )
 }
 
-function Meta({ label, value, suppress }: { label: string; value: React.ReactNode; suppress?: boolean }) {
+function _Meta({ label, value, suppress }: { label: string; value: React.ReactNode; suppress?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className="ui-meta text-xs text-[var(--color-text-secondary)]">{label}:</span>
       <span className="text-xs text-[var(--color-text-primary)]" suppressHydrationWarning={!!suppress}>{value}</span>
+    </div>
+  )
+}
+
+function Field({ label, value, suppress, long }: { label: string; value: string; suppress?: boolean; long?: boolean }) {
+  return (
+    <div className="grid gap-1">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</div>
+      <div className={`text-xs leading-[1.5] text-[var(--color-text-primary)]${long ? ' break-all' : ''}`} suppressHydrationWarning={!!suppress}>{value}</div>
     </div>
   )
 }
