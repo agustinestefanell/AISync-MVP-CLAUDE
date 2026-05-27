@@ -20,8 +20,8 @@ Last updated: 2026-05-26
 
 | Feature | Status | Notes |
 |---|---|---|
-| MAP view | ✅ Live | ReactFlow, agent cards, pan/zoom |
-| Tree view | ✅ Live | Compact node tree, wider boxes — commit 4f0f3dc |
+| MAP view | ✅ Live | Sorted by hierarchy code — commit 16a6840 |
+| Tree view | ✅ Live | Sorted by hierarchy code — commit 16a6840 |
 | SAT/MAT badge in ribbon | ✅ Live | commit 7197114 |
 | SAT structured context (chat API) | ✅ Live | Layers 1/3/4 — commit 0f40de5 |
 

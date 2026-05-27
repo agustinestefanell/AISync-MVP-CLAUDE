@@ -1888,3 +1888,45 @@ La card anterior usaba un layout flat (flex simple, metadata en grid básico, bo
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — Teams Map/Tree: sort por código jerárquico
+
+### Diagnóstico
+MAP y Tree recibían el array `teams` en el orden arbitrario retornado por Supabase. `computeTeamCodes` ya calculaba los códigos (A-00, A-01, B-00…) pero ese resultado no se usaba para ordenar la presentación visual.
+
+### Archivo modificado
+`src/components/teams/TeamsClient.tsx` — único archivo tocado.
+
+### Cambio aplicado
+Agregado `sortedTeams` como `useMemo` derivado después de `teamCodes` (línea 101):
+```ts
+const sortedTeams = useMemo(
+  () => [...teams].sort((a, b) => {
+    const codeA = teamCodes[a.id] ?? ''
+    const codeB = teamCodes[b.id] ?? ''
+    return codeA.localeCompare(codeB)
+  }),
+  [teams, teamCodes],
+)
+```
+- `MapView`: `teams={teams}` → `teams={sortedTeams}`
+- `TreeView`: `teams={teams}` → `teams={sortedTeams}`
+- Modales (AddTeamModal, EditTeamModal, ConnectTeamModal, IncomingRequestsPanel): siguen recibiendo `teams` original — no ordenar datos operacionales.
+
+### Demo First
+Demo MVP no tiene `TeamsClient` ni `computeTeamCodes`. Los sorts en la demo se aplican dentro de builders de datos estáticos. No hay patrón equivalente que portar — el cambio es específico del MVP.
+
+### Restricciones respetadas
+- Array original `teams` no mutado (`[...teams].sort`)
+- `useState` no tocado
+- Handlers no tocados
+- MAP layout, React Flow, Tree layout: no tocados
+- Colores, conexiones, numeración: no tocados
+
+### Build
+✓ `npm run build` limpio. Commit: 16a6840.
+
+### Estado
+Cerrado.
