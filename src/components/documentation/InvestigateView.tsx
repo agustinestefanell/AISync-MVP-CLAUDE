@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import type { DocCheckpoint } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 
@@ -73,7 +72,6 @@ interface Props {
 }
 
 export default function InvestigateView({ checkpoints, userEmail, teamCodes }: Props) {
-  const router = useRouter()
   const [search,         setSearch]         = useState('')
   const [filterProject,  setFilterProject]  = useState('')
   const [filterTeam,     setFilterTeam]     = useState('')
@@ -123,7 +121,7 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col min-h-0">
       {/* Stats */}
       <div className="shrink-0 px-6 py-4 grid grid-cols-4 gap-3 border-b border-[var(--color-border-default)]">
         <StatCard label="Threads"        value={stats.threads} />
@@ -250,16 +248,17 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
                   {/* Bottom strip: buttons */}
                   <div className="mt-2 flex flex-wrap gap-2 border-t border-[var(--color-border-subtle)] pt-2">
                     <button
-                      onClick={() => router.push(`/workspace/${c.workspace_id}`)}
+                      onClick={() => window.open(`/workspace/${c.workspace_id}`, '_blank', 'noopener,noreferrer')}
                       className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
                     >
                       Open Document →
                     </button>
-                    <a href="/audit"
+                    <button
+                      onClick={() => window.open('/audit', '_blank', 'noopener,noreferrer')}
                       className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
                     >
-                      Audit Log →
-                    </a>
+                      View in Audit Log →
+                    </button>
                   </div>
                 </div>
               ))}

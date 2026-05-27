@@ -118,18 +118,20 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
         </div>
 
         <div className="flex gap-2 pt-1">
-          <a
-            href={`/workspace/${cp.workspace_id}`}
+          <button
+            type="button"
+            onClick={() => window.open(`/workspace/${cp.workspace_id}`, '_blank', 'noopener,noreferrer')}
             className="flex-1 text-center text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded-lg transition-colors"
           >
             Open Document
-          </a>
-          <a
-            href="/audit"
+          </button>
+          <button
+            type="button"
+            onClick={() => window.open('/audit', '_blank', 'noopener,noreferrer')}
             className="flex-1 text-center text-xs border border-[var(--color-border-default)] hover:border-[var(--color-border-focus)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] py-2 rounded-lg transition-colors"
           >
             View in Audit Log
-          </a>
+          </button>
         </div>
       </div>
     </div>
@@ -181,12 +183,13 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
         )}
 
         <div className="pt-1">
-          <a
-            href="/audit"
-            className="block text-center text-xs border border-[var(--color-border-default)] hover:border-[var(--color-border-focus)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] py-2 rounded-lg transition-colors"
+          <button
+            type="button"
+            onClick={() => window.open('/audit', '_blank', 'noopener,noreferrer')}
+            className="w-full text-center text-xs border border-[var(--color-border-default)] hover:border-[var(--color-border-focus)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] py-2 rounded-lg transition-colors"
           >
             View in Audit Log
-          </a>
+          </button>
         </div>
       </div>
     </div>
@@ -402,13 +405,12 @@ export default function RepositoryView({
                               >
                                 View Details
                               </button>
-                              <a
-                                href="/audit"
-                                onClick={e => e.stopPropagation()}
+                              <button
+                                onClick={e => { e.stopPropagation(); window.open('/audit', '_blank', 'noopener,noreferrer') }}
                                 className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
                               >
-                                Audit Log →
-                              </a>
+                                View in Audit Log →
+                              </button>
                             </div>
                           </div>
                         </div>
