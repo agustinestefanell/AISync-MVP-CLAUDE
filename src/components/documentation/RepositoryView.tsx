@@ -288,7 +288,7 @@ export default function RepositoryView({
   const hasFilter = filterProject || filterTeam || filterType || filterState || filterDate
 
   return (
-    <div className="h-full min-h-0 flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col">
       {/* Stats */}
       <div className="shrink-0 px-6 py-4 grid grid-cols-4 gap-3 border-b border-[var(--color-border-default)]">
         <StatCard label="Results"        value={stats.results} />

@@ -121,7 +121,7 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
   }
 
   return (
-    <div className="h-full flex flex-col min-h-0">
+    <div className="flex-1 flex flex-col min-h-0">
       {/* Stats */}
       <div className="shrink-0 px-6 py-4 grid grid-cols-4 gap-3 border-b border-[var(--color-border-default)]">
         <StatCard label="Threads"        value={stats.threads} />

@@ -114,7 +114,7 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
   const groupsArr = Object.values(groups)
 
   return (
-    <div className="h-full min-h-0 flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col">
       {/* Stats */}
       <div className="shrink-0 px-6 py-4 grid grid-cols-3 gap-3 border-b border-[var(--color-border-default)]">
         <StatCard label="Audit Records"  value={stats.records} />
