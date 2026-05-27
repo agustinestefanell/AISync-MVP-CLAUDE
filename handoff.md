@@ -2169,3 +2169,23 @@ Las tres vistas: `h-full min-h-0 flex flex-col` → `flex-1 min-h-0 flex flex-co
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — HandoffPackageModal: inputs text color + botón accent
+
+### Archivos modificados
+- `src/components/workspace/HandoffPackageModal.tsx`
+
+### Cambios
+- Fix 1 — inputs Name, From (select), To (select), Context (textarea): `text-white` → `text-[var(--color-text-primary)]`, `focus:border-purple-500` → `focus:border-[var(--color-border-focus)]`
+- Fix 2 — botón submit: `bg-purple-700 hover:bg-purple-600` → `bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)]`
+
+### Restricciones respetadas
+- Lógica del modal, handlers, validación: no tocados
+
+### Build
+✓ `npm run build` limpio. Commit: e89e1ae.
+
+### Estado
+Cerrado.
