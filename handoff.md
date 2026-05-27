@@ -2115,3 +2115,33 @@ Cerrado.
 
 ### Estado
 Cerrado. Fix 4 (uniqueTeams) diferido — requiere extender `DocHandoffPackage` y `getHandoffPackages` query para incluir teams join.
+
+---
+
+## [2026-05-27] — RepositoryView: min-h-0 en panel izquierdo
+
+### Diagnóstico
+`RepositoryView.tsx` L302 tenía `flex flex-col` sin `min-h-0` en el contenedor del panel izquierdo (list + filters). CSS por defecto da `min-height: auto` a flex children, lo que impide que `flex-1 overflow-y-auto` (L340) calcule su altura y scrollee. AuditView no tiene este problema — su chain es lineal sin intermediario.
+
+### Archivos modificados
+- `src/components/documentation/RepositoryView.tsx`
+
+### Cambio
+- L302: `flex flex-col ${...} min-w-0` → `flex flex-col min-h-0 ${...} min-w-0`
+
+### Chain resultante
+```
+L291  h-full min-h-0 flex flex-col     ← root
+L300    flex-1 min-h-0 flex            ← content row
+L302      flex flex-col min-h-0 ...    ← left panel ✅
+L340        flex-1 overflow-y-auto     ← lista scrolleable
+```
+
+### AuditView
+No necesita fix. Chain: `root (min-h-0) → shrink-0 stats → shrink-0 filters → flex-1 overflow-y-auto` (directo, sin intermediario flex-col).
+
+### Build
+✓ `npm run build` limpio. Commit: 6992760.
+
+### Estado
+Cerrado.
