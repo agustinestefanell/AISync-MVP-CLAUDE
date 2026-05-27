@@ -28,6 +28,34 @@ function dateLabel(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 }
 
+function getTimelineSpan(items: DocCheckpoint[]): string {
+  const dates = items
+    .map(c => c.created_at ? new Date(c.created_at) : null)
+    .filter((d): d is Date => d !== null && !isNaN(d.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime())
+  if (!dates.length) return '—'
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+  const first = dates[0]
+  const last  = dates[dates.length - 1]
+  if (first.toDateString() === last.toDateString()) return fmt(first)
+  return `${fmt(first)} → ${fmt(last)}`
+}
+
+function getRelatedPieces(items: DocCheckpoint[]): number {
+  if (!items.length) return 0
+  const anchor = items[0]
+  return items.filter(c =>
+    (anchor.team_id && c.team_id === anchor.team_id) ||
+    (anchor.workspace_id && c.workspace_id === anchor.workspace_id)
+  ).length
+}
+
+function getRelatedActors(items: DocCheckpoint[]): number {
+  return new Set(
+    items.map(c => c.responsible).filter((v): v is string => Boolean(v?.trim()))
+  ).size
+}
+
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl px-5 py-4">
@@ -80,6 +108,12 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
     }
     return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]))
   }, [filtered])
+
+  const investigationContext = useMemo(() => ({
+    timelineSpan:  getTimelineSpan(filtered),
+    relatedPieces: getRelatedPieces(filtered),
+    relatedActors: getRelatedActors(filtered),
+  }), [filtered])
 
   const stats = {
     threads:     checkpoints.length,
@@ -140,6 +174,32 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
         </div>
       </div>
 
+      {/* Investigation Context */}
+      <div className="shrink-0 px-6 pb-4">
+        <section className="bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-[14px] px-4 py-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Investigation Context</h3>
+              <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">Calculated from the active filtered checkpoint set.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-6">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Timeline Span</div>
+                <div className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]" suppressHydrationWarning>{investigationContext.timelineSpan}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Related Pieces</div>
+                <div className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{investigationContext.relatedPieces}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Related Actors</div>
+                <div className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{investigationContext.relatedActors}</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
       {/* Timeline */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
         {grouped.length === 0 ? (
@@ -159,35 +219,47 @@ export default function InvestigateView({ checkpoints, userEmail, teamCodes }: P
 
             <div className="space-y-3">
               {items.map(c => (
-                <div key={c.id} className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl px-5 py-4 hover:border-[var(--color-border-focus)] transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-[var(--color-text-primary)]">{c.name}</p>
-                        <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PURPOSE_BADGE[c.purpose] ?? 'text-gray-600 bg-gray-50 border-gray-200'}`}>
-                          {c.purpose}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1">
-                        <InvMeta label="User"             value={userEmail} />
-                        <InvMeta label="Last Responsible" value={c.responsible ?? userEmail} />
-                        <InvMeta label="Document Type"    value={c.purpose} />
-                        <InvMeta label="Latest Reference" value={formatDate(c.created_at)} suppress />
-                        <InvMeta label="Investigation Lens" value={c.project_name} />
-                        <InvMeta label="Related Actors"   value={`${teamLabel(c.team_id, c.team_name, teamCodes)} · ${c.workspace_name}`} />
+                <div key={c.id} className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-[14px] px-4 py-3 hover:border-[var(--color-border-focus)] transition-colors">
+                  {/* Top: icon + title + purpose badge */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-2">
+                      <svg aria-hidden="true" viewBox="0 0 20 20" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6 2.75h5.25L15.5 7v10.25a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-13.5a1 1 0 0 1 1-1Z" />
+                        <path d="M11 2.75V7h4.5" />
+                        <path d="M7.5 10.25h5" />
+                        <path d="M7.5 13h5" />
+                      </svg>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-[var(--color-text-primary)] leading-snug">{c.name}</p>
+                        <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{c.project_name} · {teamLabel(c.team_id, c.team_name, teamCodes)} · {c.workspace_name}</p>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2 shrink-0">
-                      <button
-                        onClick={() => router.push(`/workspace/${c.workspace_id}`)}
-                        className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors text-right"
-                      >
-                        Open Document →
-                      </button>
-                      <a href="/audit" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors text-right">
-                        Audit Log →
-                      </a>
-                    </div>
+                    <span className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded-full border font-semibold uppercase tracking-[0.08em] ${PURPOSE_BADGE[c.purpose] ?? 'text-gray-600 bg-gray-50 border-gray-200'}`}>
+                      {c.purpose}
+                    </span>
+                  </div>
+                  {/* Metadata grid */}
+                  <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1">
+                    <InvMeta label="User"               value={userEmail} />
+                    <InvMeta label="Last Responsible"   value={c.responsible ?? userEmail} />
+                    <InvMeta label="Document Type"      value={c.purpose} />
+                    <InvMeta label="Latest Reference"   value={formatDate(c.created_at)} suppress />
+                    <InvMeta label="Investigation Lens" value={c.project_name} />
+                    <InvMeta label="Related Actors"     value={`${teamLabel(c.team_id, c.team_name, teamCodes)} · ${c.workspace_name}`} />
+                  </div>
+                  {/* Bottom strip: buttons */}
+                  <div className="mt-2 flex flex-wrap gap-2 border-t border-[var(--color-border-subtle)] pt-2">
+                    <button
+                      onClick={() => router.push(`/workspace/${c.workspace_id}`)}
+                      className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
+                    >
+                      Open Document →
+                    </button>
+                    <a href="/audit"
+                      className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
+                    >
+                      Audit Log →
+                    </a>
                   </div>
                 </div>
               ))}
