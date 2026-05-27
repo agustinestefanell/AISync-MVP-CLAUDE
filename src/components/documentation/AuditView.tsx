@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import type { DocCheckpoint, DocAuditEvent } from '@/lib/db/documentation'
 
 const EVENT_CONFIG: Record<string, { label: string; dotColor: string; badgeClass: string }> = {
@@ -52,7 +51,6 @@ interface Props {
 }
 
 export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props) {
-  const router = useRouter()
   const [filterState,  setFilterState]  = useState('')
   const [filterEvent,  setFilterEvent]  = useState('')
   const [filterTeam,   setFilterTeam]   = useState('')
@@ -198,14 +196,15 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
                     </button>
                   )}
                   {e.workspace_id && (
-                    <button onClick={() => router.push(`/workspace/${e.workspace_id}`)}
-                      className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors text-right">
+                    <button onClick={() => window.open(`/workspace/${e.workspace_id}`, '_blank', 'noopener,noreferrer')}
+                      className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40">
                       Open Document →
                     </button>
                   )}
-                  <a href="/audit" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors text-right">
+                  <button onClick={() => window.open('/audit', '_blank', 'noopener,noreferrer')}
+                    className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40">
                     Audit Log →
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>
@@ -230,8 +229,8 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
               <div className="shrink-0 flex items-center gap-2">
                 {detailWsId && (
                   <button
-                    onClick={() => { router.push(`/workspace/${detailWsId}?checkpoint=${detailCpId}`); setDetailCpId(null) }}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                    onClick={() => window.open(`/workspace/${detailWsId}?checkpoint=${detailCpId}`, '_blank', 'noopener,noreferrer')}
+                    className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
                   >
                     Resume →
                   </button>
