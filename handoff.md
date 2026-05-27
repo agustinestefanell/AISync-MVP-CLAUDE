@@ -2000,3 +2000,44 @@ RepositoryView mostraba objetos documentales como lista plana con `divide-y`. Ca
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — InvestigateView: Nivel 1 + Investigation Context
+
+### Diagnóstico
+InvestigateView ya tenía filtros, stats bar y agrupación por día funcionales. Faltaba mejorar visualmente las cards del listado y agregar una card compacta de contexto investigativo calculada en frontend. Investigation Context debía calcularse sobre `filtered` (el set activo filtrado), no sobre el total de checkpoints.
+
+### Demo First
+`InvestigationThreadCard` en `PageB.tsx:3685` — `rounded-[14px] border border-neutral-200 bg-white/80 px-3 py-2.5`, `DocumentListRowIcon` inline, título semibold, subtítulo project·team·workspace, grid metadata 2-4 cols, inner box para Related Actors/Timeline Range, botones `ui-button ui-button-primary text-white`. Investigation Context en demo: `investigateContextSummary` con Focus/Related actors/Related pieces/Timeline span en `ui-surface-subtle rounded-[18px]`. Patrón adaptado al MVP.
+
+### Archivo modificado
+`src/components/documentation/InvestigateView.tsx` — único archivo tocado.
+
+### Cambios
+- Agregados helpers frontend: `getTimelineSpan(items)`, `getRelatedPieces(items)`, `getRelatedActors(items)`
+- `getTimelineSpan`: min/max `created_at` del set filtrado, formato `d Mon YYYY → d Mon YYYY`
+- `getRelatedPieces`: count de items del set filtrado que comparten `team_id` o `workspace_id` con `filtered[0]` como anchor
+- `getRelatedActors`: `Set` de únicos de `responsible` en el set filtrado
+- `investigationContext` useMemo dependiente de `filtered` (reactivo a cambios de filtros)
+- Agregada card `Investigation Context` con 3 campos (Timeline Span, Related Pieces, Related Actors), `rounded-[14px]`, entre filtros y listado
+- Cards del listado: `rounded-xl` → `rounded-[14px]`, `px-5 py-4` → `px-4 py-3`
+- Agregado icono documental SVG inline (20x20, mismo que AuditView/RepositoryView)
+- Subtítulo reubicado debajo del título: `project · team · workspace`
+- PURPOSE_BADGE pill → `rounded-full` en top-right
+- Metadata grid existente: intacto, añadido `mt-2` para separación
+- Bottom strip con `border-t` para separar botones de metadata
+- Botones `Open Document →` y `Audit Log →`: texto plano → `ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40` (ambos primarios, sin jerarquía)
+- `router.push` preservado en Open Document handler
+
+### Restricciones respetadas
+- Lógica de filtros, handlers, agrupación por día, stats bar: no tocados
+- AuditView, RepositoryView, StructureView, KnowledgeMap: no tocados
+- MAP, Tree, Workspace, ribbons, route.ts, providers, streaming: no tocados
+- No se agregaron Investigative Sequence, Investigation Focus nuevo, ni métricas no calculables
+
+### Build
+✓ `npm run build` limpio. Solo warnings pre-existentes en CanvasViewport.tsx. Commit: eca16d6.
+
+### Estado
+Cerrado.
