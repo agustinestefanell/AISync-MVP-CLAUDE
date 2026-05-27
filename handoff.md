@@ -2077,3 +2077,41 @@ Cerrado.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — Documentation Mode: polish AuditView/RepositoryView buttons, scroll
+
+### Diagnóstico
+- AuditView conservaba texto "Audit Log →" inconsistente con el resto de la plataforma.
+- RepositoryView tenía botones "View in Audit Log" en los detail panels sin la clase visual R&F primaria.
+- Contenedores `h-full flex flex-col` en AuditView (L117) y RepositoryView (L291, L76, L143) faltaban `min-h-0`.
+- Fix 4 (uniqueTeams desde handoffPackages): descartado — `DocHandoffPackage` no tiene `team_id` en la interfaz; el campo existe en la DB pero no se incluye en la query de `getHandoffPackages`. No se modifica el tipo ni la query (fuera de alcance). `uniqueTeams` queda calculado solo desde `checkpoints`.
+
+### Archivos modificados
+- `src/components/documentation/AuditView.tsx`
+- `src/components/documentation/RepositoryView.tsx`
+
+### Cambios — AuditView
+- L117: `h-full flex flex-col` → `h-full min-h-0 flex flex-col`
+- L238: texto "Audit Log →" → "View in Audit Log →"
+
+### Cambios — RepositoryView
+- L76 (CheckpointDetailPanel): `h-full flex flex-col border-l...` → `h-full min-h-0 flex flex-col border-l...`
+- L143 (HandoffDetailPanel): mismo cambio
+- L291 (main): `h-full flex flex-col` → `h-full min-h-0 flex flex-col`
+- L131 (CheckpointDetailPanel "View in Audit Log"): clase `border text-secondary...` → `ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40`
+- L189 (HandoffDetailPanel "View in Audit Log"): mismo cambio
+- uniqueTeams: sin cambio (DocHandoffPackage no expone team_id en su interfaz)
+
+### Restricciones respetadas
+- Filtros, handlers, queries, data model: no tocados
+- Navegación ya validada: no tocada
+- Cards documentales, stats bar: no tocados
+- Todas las demás vistas: no tocadas
+
+### Build
+✓ `npm run build` limpio. Commit: 6517233.
+
+### Estado
+Cerrado. Fix 4 (uniqueTeams) diferido — requiere extender `DocHandoffPackage` y `getHandoffPackages` query para incluir teams join.
