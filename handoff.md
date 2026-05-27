@@ -2041,3 +2041,39 @@ InvestigateView ya tenía filtros, stats bar y agrupación por día funcionales.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — Documentation Mode: navegación nueva pestaña + Investigation Context scroll fix
+
+### Diagnóstico
+- InvestigateView usaba `router.push` y `<a href>` para navegación externa — reemplazaba la vista actual.
+- RepositoryView mantenía `<a href>` en detail panels y cards — mismo problema.
+- Investigation Context (nuevo `shrink-0`) empujaba el `flex-1 overflow-y-auto` y podía romper scroll por falta de `min-h-0` en el contenedor principal.
+
+### Archivos modificados
+- `src/components/documentation/InvestigateView.tsx`
+- `src/components/documentation/RepositoryView.tsx`
+
+### Cambios — InvestigateView
+- Eliminado `import { useRouter }` y `const router = useRouter()`
+- `router.push(...)` → `window.open(url, '_blank', 'noopener,noreferrer')` en "Open Document →"
+- `<a href="/audit">Audit Log →</a>` → `<button onClick={() => window.open(...)}>View in Audit Log →</button>`
+- Contenedor principal: `h-full flex flex-col` → `h-full flex flex-col min-h-0` (patrón demo: `flex h-full min-h-0 flex-col`)
+
+### Cambios — RepositoryView
+- CheckpointDetailPanel "Open Document": `<a href=...>` → `<button onClick={() => window.open(...)>`
+- CheckpointDetailPanel "View in Audit Log": `<a href="/audit">` → `<button onClick={() => window.open(...)>`
+- HandoffDetailPanel "View in Audit Log": `<a href="/audit">` → `<button onClick={() => window.open(...)>`; `block` → `w-full` para conservar ancho
+- Cards list "Audit Log →": `<a href="/audit" onClick={e => e.stopPropagation()}>` → `<button onClick={e => { e.stopPropagation(); window.open(...) }}>` + texto → "View in Audit Log →"
+
+### Restricciones respetadas
+- Lógica de filtros, handlers, agrupación por día, stats bar, detail panels: no tocados
+- AuditView, StructureView, KnowledgeMap: no tocados
+- MAP, Tree, Workspace, route.ts, providers, streaming: no tocados
+
+### Build
+✓ `npm run build` limpio. Solo warnings pre-existentes en CanvasViewport.tsx. Commit: 962bf32.
+
+### Estado
+Cerrado.

@@ -8,10 +8,10 @@ Last updated: 2026-05-26
 
 | Feature | Status | Notes |
 |---|---|---|
-| Repository View | ✅ Live | Document cards Nivel 1 — rounded-[14px], icon, pills, bottom strip — commit 2ea0413 |
+| Repository View | ✅ Live | Document cards Nivel 1 + nueva pestaña en acciones externas — commit 962bf32 |
 | **Structure View — DocumentationMirrorTree** | ✅ Closed | Pan/zoom/drag mirror tree, hierarchy codes, role-based labels — commit 7199eb9 |
 | Audit View | ✅ Live | Card rediseñada como ficha documental (2 franjas, grid 5 cols) — commit 88994fa |
-| Investigate View | ✅ Live | Nivel 1 cards + Investigation Context (Timeline Span, Related Pieces, Related Actors) — commit eca16d6 |
+| Investigate View | ✅ Live | Nivel 1 cards + Investigation Context + nueva pestaña + scroll fix — commit 962bf32 |
 | Knowledge Map | ✅ Live | ReactFlow graph, intentionally dark |
 
 ---
