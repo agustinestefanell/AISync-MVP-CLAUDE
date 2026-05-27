@@ -299,7 +299,7 @@ export default function RepositoryView({
 
       <div className="flex-1 min-h-0 flex">
         {/* Left: filters + list */}
-        <div className={`flex flex-col ${selectedItem ? 'w-1/2' : 'flex-1'} min-w-0 border-r border-[var(--color-border-subtle)]`}>
+        <div className={`flex flex-col min-h-0 ${selectedItem ? 'w-1/2' : 'flex-1'} min-w-0 border-r border-[var(--color-border-subtle)]`}>
           {/* Filters */}
           <div className="shrink-0 px-4 py-3 border-b border-[var(--color-border-subtle)] flex flex-wrap gap-2">
             <select value={filterProject} onChange={e => setFilterProject(e.target.value)}
