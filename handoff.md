@@ -1808,3 +1808,31 @@ AuditView mostraba `team_name` sin código jerárquico. `DocAuditEvent` no inclu
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-26] — AuditView: Open Document en nueva pestaña + botones estilo R&F
+
+### Diagnóstico
+Los botones "Open Document →", "Audit Log →" y "Resume →" (en el panel de detalle) usaban `router.push(url)` — que reemplaza la vista actual — y no tenían estilos de acción primaria. El estilo de referencia correcto es el de botones "Review & Forward".
+
+### Demo First
+`C:\proyectos\AISync\MVP\src\lib\auditLogLaunch.ts` y `teamWorkspaceLaunch.ts` — ambos usan `window.open('', '_blank')`. Confirma el patrón.
+
+### Cambios — solo `AuditView.tsx`
+- Importado eliminado: `useRouter` de `next/navigation`; `const router = useRouter()` eliminado
+- "Open Document →": `router.push(url)` → `window.open(url, '_blank', 'noopener,noreferrer')`; clase: tokens light → `ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40`
+- "Audit Log →": `<a href="/audit">` → `<button onClick={() => window.open('/audit', '_blank', 'noopener,noreferrer')}`; misma clase
+- "Resume →" (panel de detalle): `router.push(url); setDetailCpId(null)` → `window.open(url, '_blank', 'noopener,noreferrer')`; misma clase. `setDetailCpId(null)` eliminado (innecesario al abrir en nueva pestaña)
+
+### Restricciones respetadas
+- "View Details →" (abre panel inline, llama `openDetail(e)`): NO tocado — no cambia a `window.open`
+- Lógica de filtros, eventos, modal, mensajes: NO tocada
+- `teamCodes`, `teamLabel`, hierarchy codes: intactos
+- Otras vistas Documentation Mode / MAP / Workspace / route.ts: NO tocadas
+
+### Build
+✓ `tsc --noEmit` limpio. Commit: 579138c.
+
+### Estado
+Cerrado.
