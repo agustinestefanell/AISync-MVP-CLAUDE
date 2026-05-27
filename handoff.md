@@ -1746,3 +1746,37 @@ Cerrado. Fix 2 ya estaba implementado — no requirió cambios.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-26] — StructureView: códigos jerárquicos, orden y fix de agentLabel
+
+### Diagnóstico
+DocumentationMirrorTree estaba portado. Tres problemas de presentación:
+1. Team nodes no mostraban código jerárquico (A-00, B-01, etc.)
+2. agentLabel usaba `session.description ?? team.name` — incorrecto
+3. Teams no ordenados por código (solucionado: el builder ordena por teamLabel; con código en el label, el orden es correcto automáticamente)
+
+### Cambios — solo `StructureView.tsx`
+- `teamCodes` destructurado desde props (ya llegaba pero no se usaba)
+- `teamLabel`: `code ? "${code} · ${team.name}" : team.name`
+- `agentLabel`: `code ? "${code} · ${roleLabel}" : roleLabel`
+- `roleLabel`: `'Manager'` / `'Sub-Manager'` / `'Worker'` (derivado de `agent_role + team.parent_id`)
+- Sin uso de `session.description` ni `team.name` como agentLabel
+
+### Decisiones técnicas
+- `buildMirrorTree.ts` NO tocado. El builder ordena por `teamLabel` — con código incorporado al label, el orden queda correcto sin lógica adicional.
+- La demo NO usa códigos en labels (getTeamCode es para naming de archivos). Los códigos son requerimiento MVP-específico via `computeTeamCodes`.
+- `AgentSession` no tiene campo `name` — solo `description: string | null`. El fallback role-based es la única opción semánticamente correcta.
+
+### Restricciones respetadas
+- DocClient.tsx: NO tocado
+- DocumentationMirrorTree.tsx: NO tocado
+- TreeViewport / MirrorTreeNode / buildMirrorTree.ts: NO tocados
+- Otras vistas: NO tocadas
+
+### Build
+✓ `npm run build` limpio. Commit: 7199eb9.
+
+### Estado
+Cerrado.

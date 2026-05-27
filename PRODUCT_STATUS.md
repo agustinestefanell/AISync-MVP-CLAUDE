@@ -9,7 +9,7 @@ Last updated: 2026-05-26
 | Feature | Status | Notes |
 |---|---|---|
 | Repository View | ✅ Live | Checkpoint list with filters |
-| **Structure View — DocumentationMirrorTree** | ✅ Closed | Pan/zoom/drag mirror tree from teams/agents — commit 0d528e2 |
+| **Structure View — DocumentationMirrorTree** | ✅ Closed | Pan/zoom/drag mirror tree, hierarchy codes, role-based labels — commit 7199eb9 |
 | Audit View | ✅ Live | Audit log events |
 | Investigate View | ✅ Live | Document investigation panel |
 | Knowledge Map | ✅ Live | ReactFlow graph, intentionally dark |
