@@ -2222,3 +2222,49 @@ Frontend no está desconectado del backend. Queries correctas, RLS correcto. La 
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — Handoff packages: team data + uniqueTeams unificado
+
+### Diagnóstico
+`getHandoffPackages()` solo traía `workspaces(name)` sin join a teams. `DocHandoffPackage` no tenía `team_id/team_name/project_id/project_name`. `uniqueTeams` en RepositoryView e InvestigateView usaba solo checkpoints, dejando equipos de handoffs fuera del filtro.
+
+### Archivos tocados
+- `src/lib/db/documentation.ts`
+- `src/components/documentation/RepositoryView.tsx`
+- `src/components/documentation/InvestigateView.tsx`
+- `src/components/documentation/DocClient.tsx` — solo para pasar `handoffPackages` como prop a InvestigateView (excepción controlada)
+
+### Cambios
+
+**documentation.ts:**
+- Query: `workspaces(name)` → `workspaces(name, teams(id, name, projects(id, name)))`
+- `RawHandoffPackage`: extendido con campo `teams` anidado en workspaces
+- `DocHandoffPackage`: agregados `team_id/team_name/project_id/project_name` (todos `string | null`)
+- Mapping: normalización con Array.isArray (por si Supabase devuelve array), luego asignación de team/project data
+
+**RepositoryView.tsx:**
+- `uniqueTeams`: de solo `checkpoints` → `checkpoints + handoffPackages`
+
+**InvestigateView.tsx:**
+- Import: agregado `DocHandoffPackage`
+- Props: agregado `handoffPackages: DocHandoffPackage[]`
+- Destructuring: agregado `handoffPackages`
+- `uniqueTeams`: de solo `checkpoints` → `checkpoints + handoffPackages`
+
+**DocClient.tsx:**
+- Render de InvestigateView: agregado `handoffPackages={handoffPackages}`
+
+### Restricciones respetadas
+- UI no tocada. Cards no tocadas. Handlers no tocados.
+- Ninguna otra query modificada. Ninguna otra vista tocada.
+
+### Demo First
+Demo (Vite SPA) no tiene `getHandoffPackages` ni queries a Supabase — usa datos estáticos. No hay patrón de referencia; se procedió con ingeniería directa.
+
+### Build
+✓ `npm run build` limpio. Commit: 71aea80.
+
+### Estado
+Cerrado.

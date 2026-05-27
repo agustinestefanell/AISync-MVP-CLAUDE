@@ -8,10 +8,10 @@ Last updated: 2026-05-26
 
 | Feature | Status | Notes |
 |---|---|---|
-| Repository View | ✅ Live | Document cards Nivel 1 + R&F detail panel buttons + min-h-0 scroll fix — commit 6517233 |
+| Repository View | ✅ Live | Document cards Nivel 1 + R&F detail panel buttons + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80 |
 | **Structure View — DocumentationMirrorTree** | ✅ Closed | Pan/zoom/drag mirror tree, hierarchy codes, role-based labels — commit 7199eb9 |
 | Audit View | ✅ Live | Ficha documental + "View in Audit Log →" + min-h-0 scroll fix — commit 6517233 |
-| Investigate View | ✅ Live | Nivel 1 cards + Investigation Context + nueva pestaña + scroll fix — commit 962bf32 |
+| Investigate View | ✅ Live | Nivel 1 cards + Investigation Context + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80 |
 | Knowledge Map | ✅ Live | ReactFlow graph, intentionally dark |
 
 ---
