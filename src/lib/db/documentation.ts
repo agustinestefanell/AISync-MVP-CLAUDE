@@ -28,6 +28,7 @@ export interface DocAuditEvent {
   event_type: string
   workspace_id: string | null
   workspace_name: string | null
+  team_id: string | null
   team_name: string | null
   metadata: Record<string, unknown> | null
   created_at: string
@@ -147,7 +148,7 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
     .from('audit_log')
     .select(`
       id, event_type, workspace_id, metadata, created_at,
-      workspaces (name, teams (name))
+      workspaces (name, teams (id, name))
     `)
     .order('created_at', { ascending: false })
     .limit(200)
@@ -158,12 +159,13 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
     workspace_id: string | null
     metadata: Record<string, unknown> | null
     created_at: string
-    workspaces: { name: string; teams: { name: string } | null } | null
+    workspaces: { name: string; teams: { id: string; name: string } | null } | null
   }>).map(r => ({
     id:             r.id,
     event_type:     r.event_type,
     workspace_id:   r.workspace_id,
     workspace_name: r.workspaces?.name ?? null,
+    team_id:        r.workspaces?.teams?.id ?? null,
     team_name:      r.workspaces?.teams?.name ?? null,
     metadata:       r.metadata,
     created_at:     r.created_at,

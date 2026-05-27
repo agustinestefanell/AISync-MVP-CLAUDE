@@ -48,9 +48,10 @@ function StatCard({ label, value }: { label: string; value: number }) {
 interface Props {
   checkpoints: DocCheckpoint[]
   auditEvents: DocAuditEvent[]
+  teamCodes?:  Record<string, string>
 }
 
-export default function AuditView({ checkpoints, auditEvents }: Props) {
+export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props) {
   const router = useRouter()
   const [filterState,  setFilterState]  = useState('')
   const [filterEvent,  setFilterEvent]  = useState('')
@@ -162,7 +163,9 @@ export default function AuditView({ checkpoints, auditEvents }: Props) {
           const cpId = e.metadata?.checkpoint_id as string | undefined
           const cp   = cpId ? cpMap.get(cpId) : null
           const cpName = (e.metadata?.name as string) ?? (e.event_type === 'session_backup' ? 'Session Backup' : 'Session event')
-          const actor  = (e.metadata?.from_agent ?? e.metadata?.agent_role) as string | undefined
+          const actor     = (e.metadata?.from_agent ?? e.metadata?.agent_role) as string | undefined
+          const teamCode  = e.team_id ? teamCodes?.[e.team_id] : undefined
+          const teamLabel = teamCode ? `${teamCode} · ${e.team_name}` : e.team_name
 
           return (
             <div key={e.id} className="px-6 py-4 hover:bg-[var(--color-surface-soft)] transition-colors">
@@ -172,7 +175,7 @@ export default function AuditView({ checkpoints, auditEvents }: Props) {
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.badgeClass}`}>
                       {cfg.label}
                     </span>
-                    {e.team_name && <span className="text-xs text-[var(--color-text-secondary)]">{e.team_name}</span>}
+                    {teamLabel && <span className="text-xs text-[var(--color-text-secondary)]">{teamLabel}</span>}
                     {e.workspace_name && <span className="text-xs text-[var(--color-text-secondary)]">· {e.workspace_name}</span>}
                   </div>
                   <p className="text-sm font-semibold text-[var(--color-text-primary)]">{cpName}</p>
