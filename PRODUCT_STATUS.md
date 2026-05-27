@@ -41,7 +41,7 @@ Last updated: 2026-05-26
 
 | Feature | Status | Notes |
 |---|---|---|
-| Agent Panels (SAT/MAT) | ✅ Live | |
+| Agent Panels (SAT/MAT) | ✅ Live | Day markers + timestamps en chat — commit d1382f3 |
 | Prompt Library | ✅ Live | Modal in workspace + ribbon entry |
 | Context Files | ✅ Live | AppLayout wrapping — commit 20c91cb |
 | Add Context File | 🔲 Coming soon | UI stub in AgentPanel |

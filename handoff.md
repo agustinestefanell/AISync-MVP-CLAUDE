@@ -1930,3 +1930,36 @@ Demo MVP no tiene `TeamsClient` ni `computeTeamCodes`. Los sorts en la demo se a
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — AgentPanel: timestamps en mensajes del chat
+
+### Diagnóstico
+`created_at` ya existía en `DisplayMessage` (línea 72) y se asignaba en envío de usuario y assistant. Los day markers (`formatDayMarker`, `showDayMarker`, JSX visual) ya estaban completamente implementados desde el bloque de Day Markers anterior. Lo único faltante era el timestamp HH:MM por mensaje.
+
+### Demo First
+`AgentPanel.tsx` de la demo (línea 745): timestamp en meta row junto al senderLabel — `<span>{message.senderLabel}</span> <span>{message.timestamp}</span>`. Patrón portado directamente.
+
+### Archivo modificado
+`src/components/workspace/AgentPanel.tsx` — único archivo tocado.
+
+### Cambios
+- Agregado helper `formatMessageTime(iso)` → `toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })` junto a `formatDayMarker`
+- Meta row del mensaje: agregado `{msg.created_at && <span suppressHydrationWarning>{formatMessageTime(msg.created_at)}</span>}` junto al sender label
+- `suppressHydrationWarning`: necesario porque `toLocaleTimeString` puede diferir entre server y client por locale/timezone
+- Day markers ya implementados: no tocados
+
+### Restricciones respetadas
+- Lógica de envío: no tocada
+- Streaming: no tocado
+- Handlers: no tocados
+- Providers / route.ts: no tocados
+- Review & Forward, Prompt Library, Context Files: no tocados
+- WorkspaceShell: no tocado
+
+### Build
+✓ `npm run build` limpio. Commit: d1382f3.
+
+### Estado
+Cerrado.
