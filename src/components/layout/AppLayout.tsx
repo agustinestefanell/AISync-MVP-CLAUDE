@@ -42,7 +42,7 @@ export default function AppLayout({
       <main className={
         scrollable
           ? 'flex-1 overflow-auto'
-          : 'flex-1 overflow-hidden min-h-0'
+          : 'flex-1 overflow-hidden min-h-0 flex flex-col'
       }>
         {children}
       </main>
