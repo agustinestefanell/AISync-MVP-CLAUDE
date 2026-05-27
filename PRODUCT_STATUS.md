@@ -10,7 +10,7 @@ Last updated: 2026-05-26
 |---|---|---|
 | Repository View | ✅ Live | Checkpoint list with filters |
 | **Structure View — DocumentationMirrorTree** | ✅ Closed | Pan/zoom/drag mirror tree, hierarchy codes, role-based labels — commit 7199eb9 |
-| Audit View | ✅ Live | Open Document in new tab, R&F button style — commit 579138c |
+| Audit View | ✅ Live | Card rediseñada como ficha documental (2 franjas, grid 5 cols) — commit 88994fa |
 | Investigate View | ✅ Live | Document investigation panel |
 | Knowledge Map | ✅ Live | ReactFlow graph, intentionally dark |
 

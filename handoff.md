@@ -1836,3 +1836,55 @@ Los botones "Open Document →", "Audit Log →" y "Resume →" (en el panel de 
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-26] — AuditView: rediseño de card de evento según especificación técnica
+
+### Demo First
+`AuditEntryReferenceRow` en `PageB.tsx` línea 4592 — estructura exacta portada:
+- Grid 5 cols: identidad | actor+user | event+workspace | time+linkage | badges+botones
+- Franja inferior: Document State | Document Version | PATH
+- `DocumentListRowIcon` (SVG viewBox 20x20) portado inline
+- `DetailField` → helper `Field` nuevo (label arriba, valor abajo, 10px uppercase tracking)
+
+### Diagnóstico previo
+La card anterior usaba un layout flat (flex simple, metadata en grid básico, botones sin jerarquía). No transmitía lectura de ficha documental. Estructura visualmente pobre para Documentation Mode.
+
+### Archivos modificados
+- `src/components/documentation/AuditView.tsx` — único archivo modificado
+
+### Cambios realizados
+- Contenedor de lista: `divide-y divide-[...]` → `p-4 grid gap-3 content-start` (cards con gap en lugar de separadores)
+- Ternario del mapa: `filtered.map(...)` wrapped en `<div className="p-4 grid gap-3 content-start">` para soporte de gap
+- Card contenedor: `px-6 py-4 hover:bg-[...]` → `rounded-[14px] border border-[var(--color-border-subtle)] bg-[var(--color-surface)] overflow-hidden`
+- **Franja superior** — grid 5 columnas portado de la demo:
+  - Identidad: SVG inline (DocumentListRowIcon) + cpName + subtítulo (teamLabel · workspace_name · working-record)
+  - Columna Actor+User: helper `Field`
+  - Columna Event Type+Source Workspace: helper `Field`
+  - Columna Reference Time+Audit Linkage: helper `Field` con suppress
+  - Columna badges+botones: badges pill (STATE_BADGE + cfg.badgeClass) + 3 botones
+- **Franja inferior** — `border-t border-[var(--color-border-subtle)]`:
+  - Document State / Document Version / PATH (con break-all)
+  - `docPath` derivado de `cp.project_name / cp.team_name / cp.workspace_name` si hay checkpoint vinculado
+- Helper `Field` agregado (portado de `DetailField` demo, adaptado a tokens MVP)
+- `Meta` → `_Meta` (prefijo ESLint para función no usada — convención del proyecto)
+
+### Decisiones técnicas
+- `_Meta`: renombrado con prefijo `_` en lugar de eliminar — cumple regla ESLint sin destruir el helper
+- `docPath`: derivado de campos ya disponibles en `DocCheckpoint` (`project_name`, `team_name`, `workspace_name`) — sin nueva lógica ni queries
+- `View Details`: botón secundario (`text-[var(--color-text-secondary)]`) — no primario, para distinguir de las acciones de navegación
+- `Open Document` y `Audit Log`: primarios con `ui-button-primary ui-chat-action-button`
+
+### Restricciones respetadas
+- Handlers intactos: `openDetail`, `window.open`
+- Filtros intactos: `filterState`, `filterEvent`, `filterTeam`, `filterDate`
+- Modal de detalle intacto (líneas ~260–320)
+- `StatCard`, `formatDate`, `AGENT_LABEL`, `EVENT_CONFIG`, `STATE_BADGE`: no tocados
+- Otras vistas, MAP, Tree, Workspace, route.ts, providers, streaming: no tocados
+
+### Build
+✓ `npm run build` limpio. Commit: 88994fa.
+
+### Estado
+Cerrado.
