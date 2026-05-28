@@ -348,6 +348,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
             onForward={(messages, targetRole) => handlePanelForward(session, messages, targetRole)}
             onCreateHandoff={() => setShowHandoffModal(true)}
             onSaveVersion={openSaveModal}
+            onOpenSaveSelection={openSaveSelectionModal}
             teamId={workspace.team_id}
             teamType={teamType}
             getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(session.id)}

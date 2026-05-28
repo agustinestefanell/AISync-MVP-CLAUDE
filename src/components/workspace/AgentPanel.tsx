@@ -113,6 +113,7 @@ interface Props {
   onForward?:        (messages: ChatMessage[], targetRole: string) => void
   onCreateHandoff?:  () => void
   onSaveVersion?:    () => void
+  onOpenSaveSelection?: () => void
   // SAT/MAT structured context (Capa 3 + 4)
   teamId?:                  string
   teamType?:                'SAT' | 'MAT'
@@ -123,7 +124,7 @@ interface Props {
 const AgentPanel = forwardRef<AgentPanelHandle, Props>(
   ({
     session, initialMessages, workspaceLocked, onSelectionChange,
-    forwardTargets, onForward, onCreateHandoff, onSaveVersion,
+    forwardTargets, onForward, onCreateHandoff, onSaveVersion, onOpenSaveSelection,
     teamId, teamType, getOtherPanelsSnapshot,
   }, ref) => {
     const role         = ROLE_CONFIG[session.agent_role] ?? DEFAULT_ROLE
@@ -656,6 +657,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                 className="ui-button px-2 text-[11px] disabled:opacity-40"
                 style={{ color: hasSelection ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)' }}
                 disabled={!hasSelection}
+                onClick={onOpenSaveSelection}
                 title="Save selected messages"
               >
                 {hasSelection ? `Selection (${selectedCount})` : 'Save Selection'}
