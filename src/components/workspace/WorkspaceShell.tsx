@@ -330,7 +330,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           onClick={e => { if (e.target === e.currentTarget) closeSaveModal() }}
         >
           <div className="bg-white border border-gray-200 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl space-y-5">
-            <h2 className="text-base font-semibold text-white">Guardar checkpoint</h2>
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Guardar checkpoint</h2>
 
             {/* Nombre — obligatorio */}
             <div className="space-y-1.5">
@@ -347,10 +347,10 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                 }}
                 onKeyDown={e => { if (e.key === 'Enter') confirmSave() }}
                 placeholder="Ej: Análisis inicial v1"
-                className={`w-full bg-gray-50 border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors ${
+                className={`w-full bg-gray-50 border rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none transition-colors ${
                   nameError
                     ? 'border-red-500 focus:border-red-400'
-                    : 'border-gray-200 focus:border-indigo-500'
+                    : 'border-gray-200 focus:border-[var(--color-border-focus)]'
                 }`}
               />
               {nameError && (
@@ -364,7 +364,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
               <select
                 value={savePurpose}
                 onChange={e => setSavePurpose(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)] transition-colors"
               >
                 {PURPOSES.map(p => (
                   <option key={p} value={p}>{p}</option>
@@ -384,7 +384,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
               <button
                 onClick={confirmSave}
                 disabled={saveStatus === 'saving'}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+                className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
               >
                 {saveStatus === 'saving' ? 'Guardando…' : 'Guardar checkpoint'}
               </button>

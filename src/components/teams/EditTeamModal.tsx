@@ -331,7 +331,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
             <button
               onClick={handleSave}
               disabled={saving}
-              className="text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-lg transition-colors"
+              className="text-sm bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-lg transition-colors"
             >
               {saving ? 'Saving…' : 'Save changes'}
             </button>

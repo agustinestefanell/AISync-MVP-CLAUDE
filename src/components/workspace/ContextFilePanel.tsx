@@ -133,10 +133,10 @@ export default function ContextFilePanel({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
-          <h2 className="text-sm font-semibold text-white">Add Context File</h2>
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Add Context File</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors text-lg leading-none"
+            className="text-gray-400 hover:text-[var(--color-text-primary)] w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors text-lg leading-none"
           >
             ×
           </button>
@@ -207,7 +207,7 @@ export default function ContextFilePanel({
                   value={formTitle}
                   onChange={e => setFormTitle(e.target.value)}
                   placeholder="Defaults to file name"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-600 outline-none focus:border-[var(--color-border-focus)] transition-colors"
                 />
               </div>
 
@@ -219,7 +219,7 @@ export default function ContextFilePanel({
                   onChange={e => setFormNotes(e.target.value)}
                   placeholder="What is this file about?"
                   rows={3}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-indigo-500 transition-colors resize-none"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-600 outline-none focus:border-[var(--color-border-focus)] transition-colors resize-none"
                 />
               </div>
 
@@ -235,7 +235,7 @@ export default function ContextFilePanel({
               <button
                 onClick={handleUpload}
                 disabled={!file || uploading}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+                className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
               >
                 {uploading ? 'Uploading…' : 'Upload'}
               </button>
@@ -295,7 +295,7 @@ function ContextSection({
         <p className="text-xs text-gray-600 italic">{emptyNote}</p>
       ) : items.map(s => (
         <div key={s.id} className="py-1.5 border-b border-gray-800/60">
-          <p className="text-xs text-white truncate">{s.title}</p>
+          <p className="text-xs text-[var(--color-text-primary)] truncate">{s.title}</p>
           <p className="text-[10px] text-gray-500 mt-0.5">
             {s.file_type?.split('/').pop() ?? s.source_kind ?? '—'}
             {' · '}

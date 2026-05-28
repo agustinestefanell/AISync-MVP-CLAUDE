@@ -32,10 +32,10 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
     <div className="space-y-5">
       {/* Encabezado de sección */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">Mis Proyectos</h2>
+        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Mis Proyectos</h2>
         <button
           onClick={() => setShowForm(v => !v)}
-          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
           <span aria-hidden>+</span> Nuevo Proyecto
         </button>
@@ -51,12 +51,12 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleCreate() }}
-            className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 transition-colors"
+            className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors"
           />
           <button
             onClick={handleCreate}
             disabled={!name.trim() || isPending}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+            className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-40 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
           >
             {isPending ? 'Creando…' : 'Crear'}
           </button>
@@ -82,7 +82,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
         <div key={project.id} className="bg-white border border-gray-800 rounded-xl p-6 space-y-4">
           {/* Cabecera del proyecto */}
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-white">{project.name}</h3>
+            <h3 className="text-base font-semibold text-[var(--color-text-primary)]">{project.name}</h3>
             <span className="text-xs font-medium text-green-400 bg-green-950 border border-green-900 px-2.5 py-1 rounded-full">
               activo
             </span>
@@ -118,7 +118,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                       </span>
                       <Link
                         href={`/workspace/${ws.id}`}
-                        className="ml-auto text-xs text-indigo-400 hover:text-indigo-300 border border-indigo-900 hover:border-indigo-700 bg-indigo-950 hover:bg-indigo-900 px-2.5 py-0.5 rounded transition-colors"
+                        className="ml-auto text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-2.5 py-0.5 rounded transition-colors"
                       >
                         Abrir →
                       </Link>

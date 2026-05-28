@@ -264,10 +264,10 @@ export default function PromptLibrary({
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
-          <h2 className="text-sm font-semibold text-white">Prompt Library</h2>
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Prompt Library</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors text-lg leading-none"
+            className="text-gray-400 hover:text-[var(--color-text-primary)] w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors text-lg leading-none"
           >
             ×
           </button>
@@ -288,7 +288,7 @@ export default function PromptLibrary({
               <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Library</span>
               <button
                 onClick={openCreate}
-                className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-lg transition-colors"
+                className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-3 py-1 rounded-lg transition-colors"
               >
                 + New Prompt
               </button>
@@ -301,27 +301,27 @@ export default function PromptLibrary({
                   value={formTitle}
                   onChange={e => setFormTitle(e.target.value)}
                   placeholder="Title"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors"
                 />
                 <textarea
                   value={formBody}
                   onChange={e => setFormBody(e.target.value)}
                   placeholder="Prompt instructions…"
                   rows={4}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 transition-colors resize-none"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors resize-none"
                 />
                 <input
                   value={formNotes}
                   onChange={e => setFormNotes(e.target.value)}
                   placeholder="Notes (optional)"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors"
                 />
                 {formError && <p className="text-xs text-red-400">{formError}</p>}
                 <div className="flex gap-2">
                   <button
                     onClick={savePrompt}
                     disabled={saving}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                    className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
                   >
                     {saving ? 'Saving…' : editing ? 'Update' : 'Create'}
                   </button>
@@ -345,7 +345,7 @@ export default function PromptLibrary({
                 <div key={p.id} className="border border-gray-200 rounded-xl p-3 bg-gray-50/30 space-y-2">
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{p.title}</p>
+                      <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{p.title}</p>
                       <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{p.body}</p>
                     </div>
                     <button
@@ -367,14 +367,14 @@ export default function PromptLibrary({
                       <button
                         onClick={() => assignToWorker(p.id)}
                         disabled={workerAssignedIds.has(p.id)}
-                        className="text-[10px] px-2 py-0.5 rounded-lg bg-indigo-900/50 hover:bg-indigo-800/70 text-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="text-[10px] px-2 py-0.5 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         {workerAssignedIds.has(p.id) ? '✓ Worker' : '+ Worker'}
                       </button>
                       <button
                         onClick={() => assignToTeam(p.id)}
                         disabled={teamAssignedIds.has(p.id)}
-                        className="text-[10px] px-2 py-0.5 rounded-lg bg-purple-900/50 hover:bg-purple-800/70 text-purple-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="text-[10px] px-2 py-0.5 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         {teamAssignedIds.has(p.id) ? '✓ Team' : '+ Team'}
                       </button>
@@ -408,7 +408,7 @@ export default function PromptLibrary({
                         key={a.id}
                         className="flex items-center justify-between gap-2 py-1.5 border-b border-gray-800/60"
                       >
-                        <p className="text-xs text-white truncate flex-1">{a.prompt?.title ?? '—'}</p>
+                        <p className="text-xs text-[var(--color-text-primary)] truncate flex-1">{a.prompt?.title ?? '—'}</p>
                         <button
                           onClick={() => unassign(a.id)}
                           className="shrink-0 text-[10px] text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded transition-colors"
@@ -431,7 +431,7 @@ export default function PromptLibrary({
                         key={a.id}
                         className="flex items-center justify-between gap-2 py-1.5 border-b border-gray-800/60"
                       >
-                        <p className="text-xs text-white truncate flex-1">{a.prompt?.title ?? '—'}</p>
+                        <p className="text-xs text-[var(--color-text-primary)] truncate flex-1">{a.prompt?.title ?? '—'}</p>
                         <button
                           onClick={() => unassign(a.id)}
                           className="shrink-0 text-[10px] text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded transition-colors"
