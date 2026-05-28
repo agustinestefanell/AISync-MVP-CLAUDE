@@ -254,6 +254,7 @@ export default function SMPanel({
           borderRight: '1px solid var(--color-border-subtle)',
         }}
       >
+        <div className="h-1 w-full rounded-t-xl bg-[#92400e] shrink-0" />
         {!open ? (
           /* ── Collapsed state ──────────────────────────────────────────── */
           <div className="flex flex-col items-center justify-between px-2 py-3 h-full">
@@ -490,16 +491,20 @@ export default function SMPanel({
                 )}
 
                 {/* Search hint card */}
-                <div className="shrink-0 px-4 pt-3 pb-1">
-                  <div className="rounded-xl px-3 py-2 text-xs"
-                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                    <div className="font-medium text-[var(--color-text-primary)]">Search-optimized agent</div>
-                    <div className="mt-1 text-[var(--color-text-secondary)]">
-                      Type a document name, version, checkpoint, or any keyword.
-                    </div>
-                    <div className="mt-1 text-[var(--color-text-secondary)]">
-                      The agent will return a direct link to the matching item.
-                    </div>
+                <div className="mx-3 mb-2 rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 flex gap-3 items-start shrink-0">
+                  {/* Icono circular */}
+                  <div className="w-11 h-11 rounded-full border border-[var(--color-border)] bg-white flex items-center justify-center shrink-0">
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                      <circle cx="9" cy="9" r="5.5" stroke="#92400e" strokeWidth="1.5"/>
+                      <line x1="13.5" y1="13.5" x2="17.5" y2="17.5" stroke="#92400e" strokeWidth="1.5" strokeLinecap="round"/>
+                      <path d="M7 6.5 L7.5 5 L8 6.5 L9.5 7 L8 7.5 L7.5 9 L7 7.5 L5.5 7 Z" fill="#92400e"/>
+                    </svg>
+                  </div>
+                  {/* Texto */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-semibold text-[#92400e]">Search-optimized agent</span>
+                    <span className="text-xs text-[var(--color-text-secondary)]">Type a document name, version, checkpoint, or any keyword.</span>
+                    <span className="text-xs text-[var(--color-text-secondary)]">The agent will return a direct link to the matching item.</span>
                   </div>
                 </div>
 
