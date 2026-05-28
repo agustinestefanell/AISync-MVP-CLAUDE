@@ -2998,3 +2998,43 @@ La demo (`C:\proyectos\AISync\MVP`) es una SPA Vite sin audit log estructurado. 
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-28] — Feature: Saved Selections en Documentation Mode
+
+### Diagnóstico
+`saved_selections` existía como tabla y tenía route POST y evento audit_log, pero Documentation Mode no la consumía. Repository View e Investigate View solo mostraban checkpoints y handoff packages.
+
+### Demo First
+La demo (`C:\proyectos\AISync\MVP`) no tiene Documentation Mode ni RepositoryView/InvestigateView. No hay patrón equivalente que portar. La integración se diseñó siguiendo el patrón existente de `DocHandoffPackage` en ambas vistas.
+
+### Archivos tocados
+- `src/lib/db/documentation.ts` — interfaz `DocSavedSelection` + función `getSavedSelections(userId)`
+- `src/app/documentation/page.tsx` — import + `getSavedSelections` en `Promise.all` + prop `savedSelections` a DocClient
+- `src/components/documentation/DocClient.tsx` — import tipo, prop en interface, pass-through a RepositoryView e InvestigateView
+- `src/components/documentation/RepositoryView.tsx` — ListItem extendido a 3 tipos; `itemId`/`itemDate` actualizados; `allItems`/`uniqueTeams`/`filtered`/`displayItems`/sort extendidos; filtro 'Saved Selection' agregado; `SavedSelectionDetailPanel`; card render; detail panel render
+- `src/components/documentation/InvestigateView.tsx` — prop `savedSelections`; 'Saved Selection' en filtro; render condicional cuando `filterType === 'Saved Selection'`
+
+### Decisiones técnicas
+- `getSavedSelections` sigue el patrón de `getHandoffPackages` con `as unknown as RawSavedSelection[]` para el typing del join de Supabase.
+- `DocSavedSelection.messages: unknown[]` en lugar de `any[]` — más estricto, compatible con el typecheck.
+- En InvestigateView: render condicional separado del timeline de checkpoints (cuando `filterType === 'Saved Selection'`), no mezclado en el grupo por fecha — evita refactorizar la lógica de grouping que opera sobre `DocCheckpoint[]`.
+- `getMessagePreview` helper extraído como función pura en RepositoryView — accede a `messages[0].content` con cast defensivo `as Record<string, unknown>`.
+- Badge amber en ambas vistas: `text-amber-700 bg-amber-50 border-amber-200` (light) consistente con `save_selection` en AuditTimeline.
+
+### Alternativas descartadas
+- Mezclar saved_selections en el grouping por fecha de InvestigateView: requería refactorizar `filtered`, `grouped`, `investigationContext` para manejar union type — cambio arquitectural fuera de scope.
+- `messages: any[]` en el tipo: descartado para evitar violaciones de TypeScript strict.
+
+### Restricciones respetadas
+- `AuditView`, `StructureView`, `KnowledgeMap`: sin tocar.
+- Routes API, Supabase, migrations: sin tocar.
+- Lógica de filtrado existente: sin modificar, solo extendida.
+- `CodingWorkshop.md`: no modificado (feature nueva, no bug).
+
+### Build
+✓ `npm.cmd run build` limpio. 1 error TypeScript resuelto en el sort de `displayItems` (ternario de 3 ramas).
+
+### Estado
+Cerrado.

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import type { DocCheckpoint, DocAuditEvent, DocHandoffPackage } from '@/lib/db/documentation'
+import type { DocCheckpoint, DocAuditEvent, DocHandoffPackage, DocSavedSelection } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 import RepositoryView from './RepositoryView'
@@ -101,12 +101,13 @@ interface DocClientProps {
   handoffPackages: DocHandoffPackage[]
   auditEvents:     DocAuditEvent[]
   projects:        ProjectWithTeams[]
+  savedSelections: DocSavedSelection[]
   userName:        string
   userEmail:       string
   customProviders: CustomProvider[]
 }
 
-export default function DocClient({ checkpoints, handoffPackages, auditEvents, projects, userName, userEmail, customProviders }: DocClientProps) {
+export default function DocClient({ checkpoints, handoffPackages, auditEvents, projects, savedSelections, userName, userEmail, customProviders }: DocClientProps) {
   const [tab,                  setTab]                  = useState<Tab>('repository')
   const [helpTab,              setHelpTab]              = useState<Tab | null>(null)
   const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null)
@@ -197,10 +198,10 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
 
         {/* View */}
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} teamCodes={teamCodes} />}
+          {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} teamCodes={teamCodes} />}
           {tab === 'structure'   && <StructureView   checkpoints={checkpoints} projects={projects} userName={userName} userEmail={userEmail} teamCodes={teamCodes} />}
           {tab === 'audit'       && <AuditView        checkpoints={checkpoints} auditEvents={auditEvents} teamCodes={teamCodes} />}
-          {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
+          {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
           {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
         </div>
       </div>

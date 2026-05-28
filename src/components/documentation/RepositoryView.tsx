@@ -1,15 +1,20 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import type { DocCheckpoint, DocHandoffPackage } from '@/lib/db/documentation'
+import type { DocCheckpoint, DocHandoffPackage, DocSavedSelection } from '@/lib/db/documentation'
 
 // ── Discriminated union for the unified list ──────────────────────────────
 type ListItem =
-  | { kind: 'checkpoint'; cp: DocCheckpoint }
-  | { kind: 'handoff';    hp: DocHandoffPackage }
+  | { kind: 'checkpoint';      cp: DocCheckpoint }
+  | { kind: 'handoff';         hp: DocHandoffPackage }
+  | { kind: 'saved_selection'; ss: DocSavedSelection }
 
-function itemId(item: ListItem)   { return item.kind === 'checkpoint' ? item.cp.id   : item.hp.id }
-function itemDate(item: ListItem) { return item.kind === 'checkpoint' ? item.cp.created_at : item.hp.created_at }
+function itemId(item: ListItem) {
+  return item.kind === 'checkpoint' ? item.cp.id : item.kind === 'handoff' ? item.hp.id : item.ss.id
+}
+function itemDate(item: ListItem) {
+  return item.kind === 'checkpoint' ? item.cp.created_at : item.kind === 'handoff' ? item.hp.created_at : item.ss.created_at
+}
 
 // ── Badge maps ────────────────────────────────────────────────────────────
 const PURPOSE_BADGE: Record<string, string> = {
@@ -38,7 +43,16 @@ const AGENT_LABEL: Record<string, string> = {
   worker2: 'Worker 2',
 }
 
-const HANDOFF_BADGE = 'text-purple-700 bg-purple-50 border-purple-200'
+const HANDOFF_BADGE          = 'text-purple-700 bg-purple-50 border-purple-200'
+const SAVED_SELECTION_BADGE  = 'text-amber-700 bg-amber-50 border-amber-200'
+
+function getMessagePreview(messages: unknown[]): string {
+  const first = messages[0] as Record<string, unknown> | undefined
+  if (!first) return ''
+  const content = first.content ?? first.text ?? first.message ?? ''
+  if (typeof content !== 'string') return ''
+  return content.length > 200 ? content.slice(0, 200) + '…' : content
+}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-US', {
@@ -196,6 +210,42 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
   )
 }
 
+function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSelection; onClose: () => void; teamCodes?: Record<string, string> }) {
+  const preview = getMessagePreview(ss.messages)
+  return (
+    <div className="h-full min-h-0 flex flex-col border-l border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
+      <div className="shrink-0 px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-xs px-2 py-0.5 rounded border font-bold uppercase ${SAVED_SELECTION_BADGE}`}>
+              Saved Selection
+            </span>
+            <h3 className="text-sm font-bold text-[var(--color-text-primary)] leading-tight">{ss.name}</h3>
+          </div>
+          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{ss.workspace_name}</p>
+        </div>
+        <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm shrink-0">✕</button>
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <div className="space-y-3">
+          <Row label="Messages">{ss.messages.length} message{ss.messages.length !== 1 ? 's' : ''} saved</Row>
+          <Row label="Created" suppressWarn>{formatDate(ss.created_at)}</Row>
+          <Row label="Workspace">{ss.workspace_name}</Row>
+          {ss.team_name && <Row label="Team">{ss.team_id ? teamLabel(ss.team_id, ss.team_name, teamCodes) : ss.team_name}</Row>}
+        </div>
+        {preview && (
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">First Message Preview</p>
+            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed bg-[var(--color-surface-subtle)] border border-[var(--color-border-default)] rounded-xl px-4 py-3">
+              {preview}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Stat card ─────────────────────────────────────────────────────────────
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
@@ -210,6 +260,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
 interface Props {
   checkpoints:         DocCheckpoint[]
   handoffPackages:     DocHandoffPackage[]
+  savedSelections:     DocSavedSelection[]
   userName:            string
   userEmail:           string
   externalSelectedId?: string | null
@@ -218,7 +269,7 @@ interface Props {
 }
 
 export default function RepositoryView({
-  checkpoints, handoffPackages, userName, externalSelectedId, onFilterChange, teamCodes,
+  checkpoints, handoffPackages, savedSelections, userName, externalSelectedId, onFilterChange, teamCodes,
 }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -239,18 +290,20 @@ export default function RepositoryView({
     const m = new Map<string, string>()
     checkpoints.forEach(c => { if (c.team_id) m.set(c.team_id, c.team_name ?? '') })
     handoffPackages.forEach(h => { if (h.team_id) m.set(h.team_id, h.team_name ?? '') })
+    savedSelections.forEach(s => { if (s.team_id) m.set(s.team_id, s.team_name ?? '') })
     return Array.from(m.entries()).sort(([idA, nameA], [idB, nameB]) => {
       const codeA = teamCodes?.[idA] ?? nameA
       const codeB = teamCodes?.[idB] ?? nameB
       return codeA.localeCompare(codeB)
     })
-  }, [checkpoints, handoffPackages, teamCodes])
+  }, [checkpoints, handoffPackages, savedSelections, teamCodes])
 
   const allItems = useMemo((): ListItem[] => {
     const cps: ListItem[] = checkpoints.map(cp => ({ kind: 'checkpoint', cp }))
     const hps: ListItem[] = handoffPackages.map(hp => ({ kind: 'handoff', hp }))
-    return [...cps, ...hps].sort((a, b) => itemDate(b).localeCompare(itemDate(a)))
-  }, [checkpoints, handoffPackages])
+    const sss: ListItem[] = savedSelections.map(ss => ({ kind: 'saved_selection', ss }))
+    return [...cps, ...hps, ...sss].sort((a, b) => itemDate(b).localeCompare(itemDate(a)))
+  }, [checkpoints, handoffPackages, savedSelections])
 
   const filtered = useMemo(() => allItems.filter(item => {
     // Date filter applies to everything
@@ -261,6 +314,10 @@ export default function RepositoryView({
     if (item.kind === 'handoff') {
       // Handoffs appear only when type filter is unset or explicitly "Handoff Package"
       return !filterType || filterType === 'Handoff Package'
+    }
+
+    if (item.kind === 'saved_selection') {
+      return !filterType || filterType === 'Saved Selection'
     }
 
     // Checkpoint-specific filters
@@ -300,19 +357,27 @@ export default function RepositoryView({
               (c.project_name ?? '').toLowerCase().includes(q)
             )
           }
-          const h = item.hp
+          if (item.kind === 'handoff') {
+            const h = item.hp
+            return (
+              h.name.toLowerCase().includes(q) ||
+              (h.workspace_name ?? '').toLowerCase().includes(q) ||
+              (h.team_name ?? '').toLowerCase().includes(q)
+            )
+          }
+          const s = item.ss
           return (
-            h.name.toLowerCase().includes(q) ||
-            (h.workspace_name ?? '').toLowerCase().includes(q) ||
-            (h.team_name ?? '').toLowerCase().includes(q)
+            s.name.toLowerCase().includes(q) ||
+            (s.workspace_name ?? '').toLowerCase().includes(q) ||
+            (s.team_name ?? '').toLowerCase().includes(q)
           )
         })
       : filtered
 
     return [...searched].sort((a, b) => {
       if (sortOrder === 'name') {
-        const nameA = a.kind === 'checkpoint' ? a.cp.name : a.hp.name
-        const nameB = b.kind === 'checkpoint' ? b.cp.name : b.hp.name
+        const nameA = a.kind === 'checkpoint' ? a.cp.name : a.kind === 'handoff' ? a.hp.name : a.ss.name
+        const nameB = b.kind === 'checkpoint' ? b.cp.name : b.kind === 'handoff' ? b.hp.name : b.ss.name
         return nameA.localeCompare(nameB)
       }
       const dateA = itemDate(a)
@@ -369,6 +434,7 @@ export default function RepositoryView({
               <option value="Handoff">Handoff</option>
               <option value="Evidence">Evidence</option>
               <option value="Handoff Package">Handoff Package</option>
+              <option value="Saved Selection">Saved Selection</option>
             </select>
             <select value={filterState} onChange={e => setFilterState(e.target.value)}
               className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
@@ -476,6 +542,54 @@ export default function RepositoryView({
                             </div>
                           </div>
                         </div>
+                      ) : item.kind === 'saved_selection' ? (
+                        <div className="px-4 py-3">
+                          {/* Top row: SAVED SELECTION badge + title */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-start gap-2">
+                              <svg aria-hidden="true" viewBox="0 0 20 20" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h9A2.5 2.5 0 0 1 17 6.5v7a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 3 13.5v-7Z" />
+                                <path d="M7 9.5h6M7 12h4" />
+                              </svg>
+                              <div className="min-w-0">
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase mr-1.5 ${SAVED_SELECTION_BADGE}`}>SAVED SELECTION</span>
+                                <span className="text-sm font-semibold text-[var(--color-text-primary)]">{item.ss.name}</span>
+                              </div>
+                            </div>
+                            <span className="shrink-0 text-[9px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-[0.08em] text-amber-700 bg-amber-50 border-amber-200">
+                              {item.ss.messages.length} msgs
+                            </span>
+                          </div>
+                          {/* Preview */}
+                          {getMessagePreview(item.ss.messages) && (
+                            <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
+                              {getMessagePreview(item.ss.messages)}
+                            </p>
+                          )}
+                          {/* Pills: team + workspace */}
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {item.ss.team_name && (
+                              <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-sky-700">
+                                {item.ss.team_id ? teamLabel(item.ss.team_id, item.ss.team_name, teamCodes) : item.ss.team_name}
+                              </span>
+                            )}
+                            <span className="inline-flex items-center rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-2 py-0.5 text-[9px] font-medium text-[var(--color-text-secondary)]">
+                              {item.ss.workspace_name}
+                            </span>
+                          </div>
+                          {/* Bottom strip */}
+                          <div className="mt-2 flex flex-wrap items-end justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2">
+                            <div className="text-[10px] leading-[1.5] text-[var(--color-text-muted)]">
+                              <span suppressHydrationWarning><span className="font-semibold text-[var(--color-text-secondary)]">Created:</span> {formatDate(item.ss.created_at)}</span>
+                            </div>
+                            <button
+                              onClick={e => { e.stopPropagation(); setSelectedId(id) }}
+                              className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
+                            >
+                              View Details
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <div className="px-4 py-3">
                           {/* Top row: icon + HANDOFF badge + title + status badge */}
@@ -538,6 +652,9 @@ export default function RepositoryView({
             )}
             {selectedItem.kind === 'handoff' && (
               <HandoffDetailPanel hp={selectedItem.hp} onClose={() => setSelectedId(null)} />
+            )}
+            {selectedItem.kind === 'saved_selection' && (
+              <SavedSelectionDetailPanel ss={selectedItem.ss} onClose={() => setSelectedId(null)} teamCodes={teamCodes} />
             )}
           </div>
         )}

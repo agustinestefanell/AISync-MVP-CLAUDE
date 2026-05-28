@@ -157,6 +157,62 @@ export async function getHandoffPackages(): Promise<DocHandoffPackage[]> {
   })
 }
 
+export interface DocSavedSelection {
+  id:             string
+  name:           string
+  messages:       unknown[]
+  workspace_id:   string
+  workspace_name: string
+  team_id:        string | null
+  team_name:      string | null
+  project_id:     string | null
+  project_name:   string | null
+  created_at:     string
+  user_id:        string
+}
+
+interface RawSavedSelection {
+  id:           string
+  name:         string
+  messages:     unknown[]
+  workspace_id: string
+  team_id:      string | null
+  project_id:   string | null
+  created_at:   string
+  user_id:      string
+  workspaces: {
+    name: string
+    teams: { id: string; name: string; projects: { id: string; name: string } | null } | null
+  } | null
+}
+
+export async function getSavedSelections(userId: string): Promise<DocSavedSelection[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('saved_selections')
+    .select('id, name, messages, workspace_id, team_id, project_id, created_at, user_id, workspaces(name, teams(id, name, projects(id, name)))')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  return ((data ?? []) as unknown as RawSavedSelection[]).map(r => {
+    const team    = Array.isArray(r.workspaces?.teams) ? r.workspaces?.teams[0] : r.workspaces?.teams
+    const project = Array.isArray(team?.projects)      ? team?.projects[0]      : team?.projects
+    return {
+      id:             r.id,
+      name:           r.name,
+      messages:       Array.isArray(r.messages) ? r.messages : [],
+      workspace_id:   r.workspace_id,
+      workspace_name: r.workspaces?.name ?? '—',
+      team_id:        r.team_id ?? null,
+      team_name:      team?.name ?? null,
+      project_id:     r.project_id ?? null,
+      project_name:   project?.name ?? null,
+      created_at:     r.created_at,
+      user_id:        r.user_id,
+    }
+  })
+}
+
 export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
   const supabase = createClient()
   const { data } = await supabase
