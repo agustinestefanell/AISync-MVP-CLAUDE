@@ -2271,6 +2271,44 @@ Cerrado.
 
 ---
 
+## [2026-05-27] — OE: Hint card en SMPanel — Documentation Mode search guide
+
+### Diagnóstico
+SMPanel opera como agente de búsqueda documental vía `/api/sm-doc-chat`, pero la UI no informaba al usuario cómo consultar ni qué resultado esperar. Se agregó un hint card estático sin tocar lógica.
+
+### Demo First
+La demo no tiene `SMPanel` ni `sm-doc-chat`. No hay patrón que portar.
+
+### Archivos tocados
+- `src/components/sm/SMPanel.tsx`
+
+### Ubicación del card
+Insertado entre el bloque de `contextStatus` (filtrado/full) y el bloque `{/* Messages */}` — como `shrink-0`, siempre visible por encima del scroll del historial.
+
+### Cambios realizados
+- Bloque JSX estático agregado: `shrink-0 px-4 pt-3 pb-1` wrapper + card `rounded-xl` con `border: 1px solid var(--color-border)` + `background: var(--color-surface)`.
+- Texto exacto: "Search-optimized agent" / "Type a document name, version, checkpoint, or any keyword." / "The agent will return a direct link to the matching item."
+- No se agregó estado, condicionales, handlers ni imports.
+- `/api/sm-doc-chat` (línea 155): no tocado.
+
+### Restricciones respetadas
+- Lógica de chat: no tocada.
+- Props: no tocadas.
+- Estado del panel: no tocado.
+- Otras vistas, workspace, route.ts, providers: no tocados.
+- No se abrieron refactors laterales.
+
+### Build
+✅ Limpio. Solo warnings pre-existentes en CanvasViewport.tsx.
+
+### Commit
+`379d9c7` — fix: add sm panel documentation search hint
+
+### Riesgos pendientes
+- Validación manual en navegador (confirmar card visible en panel abierto, chat funcional).
+
+---
+
 ## [2026-05-27] — OE: Search bar + Project filter en Structure View
 
 ### Diagnóstico
