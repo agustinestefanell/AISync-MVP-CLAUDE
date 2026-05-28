@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-05-28 (SMPanel fused amber ribbon — commit 8ad6a98)
+Last updated: 2026-05-28 (Repository View search + sort — commit daeb732)
 
 ---
 
@@ -8,7 +8,7 @@ Last updated: 2026-05-28 (SMPanel fused amber ribbon — commit 8ad6a98)
 
 | Feature | Status | Notes |
 |---|---|---|
-| Repository View | ✅ Live | Document cards Nivel 1 + R&F detail panel buttons + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80 |
+| Repository View | ✅ Live | Search bar + sort (newest/oldest/name) + unified uniqueTeams — commit daeb732 |
 | **Structure View — DocumentationMirrorTree** | ✅ Closed | Pan/zoom/drag mirror tree + search/project filter — commit 2ba4a49 |
 | Audit View | ✅ Live | Ficha documental + team filter con códigos jerárquicos — commit 5fd5863 |
 | Investigate View | ✅ Live | Nivel 1 cards + Investigation Context + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80 |

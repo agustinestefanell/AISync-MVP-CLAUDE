@@ -2663,3 +2663,46 @@ SMPanel tenía dos bloques informativos separados: hint card de búsqueda docume
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-28] — OE: Search bar + Sort en Repository View
+
+### Diagnóstico
+Repository View tenía filtros estructurados por dropdown pero sin búsqueda textual ni ordenamiento. Se agregaron como transformación final sobre el array ya filtrado, preservando dropdowns existentes, detail panel y SM context.
+
+### Archivos revisados
+- `src/components/documentation/RepositoryView.tsx`
+- Demo MVP: `DocumentationTree.tsx` — sin equivalente de search/sort. Implementación propia.
+
+### Archivos tocados
+- `src/components/documentation/RepositoryView.tsx`
+- `handoff.md`
+- `PRODUCT_STATUS.md`
+
+### Cambios realizados
+- Se agregó `searchQuery` (useState '') y `sortOrder` (useState 'newest').
+- Se agregó `displayItems` useMemo: búsqueda textual sobre `filtered` + sort. Campos de checkpoint: `name`, `workspace_name`, `team_name`, `responsible`, `project_name`. Campos de handoff: `name`, `workspace_name`, `team_name`.
+- Sort por `newest` (fecha desc), `oldest` (fecha asc), `name` (nombre asc). Usa `itemDate()` existente.
+- Se agregaron controles UI en la barra de filtros: input con placeholder "Search by title, actor, workspace, or keyword..." y select con "Newest first / Oldest first / Name A–Z".
+- `resetFilters` actualizado para limpiar `searchQuery` y resetear `sortOrder` a 'newest'.
+- `hasFilter` actualizado para incluir `searchQuery`.
+- Render del listado cambia `filtered` por `displayItems`.
+- Estado vacío cambia a "No documents match your search."
+- `stats.results` sigue usando `filtered.length` (refleja total de dropdowns, no del search).
+
+### Decisión técnica
+Pipeline: dropdowns → searchQuery → sortOrder → render. `displayItems` es derivado de `filtered`, no lo reemplaza. `stats` sigue mostrando el conteo pre-search para mantener coherencia con SM context (`onFilterChange` sigue recibiendo `filtered`).
+
+### Restricciones respetadas
+- Dropdowns existentes sin tocar.
+- Detail panel sin tocar.
+- SM context / `onFilterChange` sin tocar.
+- Props sin tocar.
+- Sin refactors laterales.
+
+### Build
+✓ `npm.cmd run build` limpio. Commit: `daeb732`.
+
+### Estado
+Cerrado.
