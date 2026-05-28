@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-05-28 (saved_selections migration — commit ea138a3)
+Last updated: 2026-05-28 (save-selection API route — commit 5b4e872)
 
 ---
 

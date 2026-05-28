@@ -2746,3 +2746,40 @@ Pendiente — ejecutar SQL manual en Dashboard.
 
 ### Estado
 Parcial — migración local creada y pusheada. Aplicación en Supabase pendiente de ejecución manual en Dashboard.
+
+---
+
+## [2026-05-28] — OE B: API route save-selection
+
+### Diagnóstico
+Save Selection necesitaba un endpoint backend para persistir selecciones autenticadas en `saved_selections`. Se creó route `POST` aislada.
+
+### Archivos revisados
+- `src/app/api/` — todas las routes existentes para confirmar patrones
+- Patrón confirmado: `createClient` de `@/lib/supabase/server`, `supabase.auth.getUser()`, `NextResponse`
+
+### Archivos tocados
+- `src/app/api/save-selection/route.ts` (creado)
+- `handoff.md`
+- `PRODUCT_STATUS.md`
+
+### Cambios realizados
+- `POST /api/save-selection`: obtiene usuario autenticado, valida `workspace_id`/`name`/`messages`, inserta en `saved_selections` con `user_id: user.id`, retorna registro con status 201.
+- Guard 401 si no hay sesión. Guard 400 si faltan campos requeridos.
+- Solo método POST. Sin GET/PUT/PATCH/DELETE.
+
+### Restricciones respetadas
+- Sin métodos adicionales.
+- Sin código UI ni componentes.
+- Sin tocar providers, streaming ni chat route.
+- Sin modificar migraciones.
+- Sin refactors laterales.
+
+### Validación API manual
+No ejecutada — requiere sesión autenticada activa. Build confirma que la route existe y compila correctamente.
+
+### Build
+✓ `npm.cmd run build` limpio. `/api/save-selection` aparece en el output. Commit: `5b4e872`.
+
+### Estado
+Cerrado.
