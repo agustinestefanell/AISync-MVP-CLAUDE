@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-05-28 (save-selection API route — commit 5b4e872)
+Last updated: 2026-05-28 (Save Selection UI — commit c3e880b)
 
 ---
 
@@ -42,6 +42,7 @@ Last updated: 2026-05-28 (save-selection API route — commit 5b4e872)
 | Feature | Status | Notes |
 |---|---|---|
 | Agent Panels (SAT/MAT) | ✅ Live | Day markers + timestamps en chat — commit d1382f3 |
+| **Save Selection** | ✅ Live | Migration 019 + POST route + UI in WorkspaceShell — commit c3e880b. ⚠️ 019 migration must be applied in Supabase Dashboard |
 | **SMPanel (Documentation Mode)** | ✅ Live | Fused amber ribbon (hint + external warning) + accent top line — commit 8ad6a98 |
 | Prompt Library | ✅ Live | Light mode fixed — commit e68db2f |
 | Context Files | ✅ Live | Light mode fixed — commit e68db2f |

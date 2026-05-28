@@ -2783,3 +2783,42 @@ No ejecutada — requiere sesión autenticada activa. Build confirma que la rout
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-28] — OE C: Save Selection UI
+
+### Diagnóstico
+La tabla `saved_selections` y la route `/api/save-selection` ya estaban listas. WorkspaceShell no tenía UI para tomar los mensajes seleccionados de los paneles, pedir un nombre y persistirlos.
+
+### Archivos revisados
+- `src/components/workspace/WorkspaceShell.tsx` — estados, handlers, modales, patrón Save Version.
+- Demo MVP: `AgentPanel.tsx` tiene Save Selection dentro del panel. MVP activo lo ubica en WorkspaceShell — diferencia arquitectural consciente.
+
+### Archivos tocados
+- `src/components/workspace/WorkspaceShell.tsx`
+- `handoff.md`
+- `PRODUCT_STATUS.md`
+
+### Cambios realizados
+- Estados: `showSaveSelectionModal`, `saveSelectionName`, `pendingSelectionMessages: ChatMessage[]`, `savingSelection`.
+- `openSaveSelectionModal()`: itera `panelRefs.current`, recolecta `getSelectedMessages()`, abre modal si hay mensajes.
+- `handleSaveSelection()`: POST a `/api/save-selection` con `workspace_id`, `team_id`, `project_id: null`, `name`, `messages`.
+- Barra de acción (`_totalSelected > 0`): muestra conteo y botón `Save Selection` al pie del workspace.
+- Modal inline: patrón visual idéntico a Save Version (overlay, contenedor, input, botones accent/cancel). Botón disabled sin nombre o durante guardado.
+- Fix TypeScript: `any[]` → `ChatMessage[]` (tipo real de `AgentPanelHandle.getSelectedMessages()`).
+
+### Restricciones respetadas
+- `Save Version` intacto (verificado con grep).
+- `AgentPanel` no tocado.
+- Routing, otros modales, providers, streaming: sin cambios.
+- Sin refactors laterales.
+
+### Build
+✓ `npm.cmd run build` limpio (primer intento falló por `any` — corregido a `ChatMessage[]`). Commit: `c3e880b`.
+
+### Validación manual
+Pendiente en navegador — confirmar barra de selección, modal, payload y POST.
+
+### Estado
+Cerrado.
