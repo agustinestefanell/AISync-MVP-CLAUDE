@@ -2271,6 +2271,39 @@ Cerrado.
 
 ---
 
+## [2026-05-27] — OE: SMPanel visual upgrade — hint card a spec de producción
+
+### Diagnóstico
+El hint card existía (OE anterior) pero con `rounded-xl`, sin icono circular, sin título en `#92400e` y sin línea superior de acento. La OE llevó el card al nivel visual exacto de la spec.
+
+### Archivos tocados
+- `src/components/sm/SMPanel.tsx`
+
+### Cambio 1 — Hint card reemplazado
+- Anterior: `rounded-xl`, sin icono, título en `--color-text-primary`, layout columna.
+- Nuevo: `rounded-[14px]`, flex horizontal con icono circular (`w-11 h-11 rounded-full bg-white border`) + SVG inline (lupa + sparkle en `#92400e`) + texto en columna (`gap-1`). Título `text-sm font-semibold text-[#92400e]`. Dos líneas descriptivas en `--color-text-secondary`.
+- El bloque es `shrink-0` y está posicionado en el área connected, antes de `{/* Messages */}`.
+
+### Cambio 2 — Línea superior de acento agregada
+- No existía en el contenedor raíz del panel.
+- Agregada como primera línea: `<div className="h-1 w-full rounded-t-xl bg-[#92400e] shrink-0" />` inmediatamente dentro del `<div>` raíz del panel, antes del `{!open ? ...}`.
+
+### Restricciones respetadas
+- Lógica de chat, endpoint `/api/sm-doc-chat`, props, estado, input, submit, mensajes: no tocados.
+- Ningún otro bloque fuera del hint card y la línea de acento fue modificado.
+- No se abrieron refactors laterales.
+
+### Build
+✅ Limpio.
+
+### Commit
+`3da2f72` — feat: upgrade SMPanel hint card to production spec
+
+### Riesgos pendientes
+- Validación visual en navegador (icono, acento marrón, layout del card).
+
+---
+
 ## [2026-05-27] — OE: Hint card en SMPanel — Documentation Mode search guide
 
 ### Diagnóstico
