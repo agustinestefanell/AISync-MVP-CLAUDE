@@ -2706,3 +2706,43 @@ Pipeline: dropdowns → searchQuery → sortOrder → render. `displayItems` es 
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-28] — OE A: DB migration saved_selections
+
+### Diagnóstico
+Save Selection requiere persistencia propia. Se creó migración `019_saved_selections.sql` con tabla, RLS y policy de ownership por `auth.uid()`.
+
+### Archivos revisados
+- `supabase/migrations/` — último número era `018`, `019` confirmado libre.
+- Demo MVP: sin directorio `supabase/` — sin referencia.
+- Patrón RLS del proyecto activo confirmado en migraciones 001–018.
+
+### Archivos tocados
+- `supabase/migrations/019_saved_selections.sql` (creado)
+- `handoff.md`
+- `PRODUCT_STATUS.md`
+
+### Cambios realizados
+- Tabla `saved_selections`: `id`, `user_id` (FK auth.users CASCADE), `workspace_id` (FK workspaces CASCADE), `team_id` (FK teams CASCADE nullable), `project_id` (FK projects CASCADE nullable), `name`, `messages` (jsonb default '[]'), `created_at`.
+- RLS habilitado.
+- Policy `"Users can manage their own saved selections"` — FOR ALL, USING + WITH CHECK `auth.uid() = user_id`.
+
+### Supabase db push
+`npx supabase db push` falló: "Cannot find project ref. Have you run supabase link?" — CLI no enlazada al proyecto remoto en este entorno. La migración local está correcta. **Acción requerida:** ejecutar el SQL manualmente en Supabase Dashboard → SQL Editor antes de usar OEs B y C.
+
+### Dashboard confirmado
+Pendiente — ejecutar SQL manual en Dashboard.
+
+### Restricciones respetadas
+- No se tocó código de aplicación.
+- No se tocaron componentes ni API routes.
+- No se modificaron migraciones anteriores.
+- Sin refactors laterales.
+
+### Build
+✓ `npm.cmd run build` limpio. Commit: `ea138a3`.
+
+### Estado
+Parcial — migración local creada y pusheada. Aplicación en Supabase pendiente de ejecución manual en Dashboard.

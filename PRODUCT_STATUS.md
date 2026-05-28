@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-05-28 (Repository View search + sort — commit daeb732)
+Last updated: 2026-05-28 (saved_selections migration — commit ea138a3)
 
 ---
 
@@ -56,6 +56,7 @@ Last updated: 2026-05-28 (Repository View search + sort — commit daeb732)
 | 016_prompt_library.sql | ⚠️ Pending — must run in Supabase Dashboard |
 | 017_context_sources.sql | ⚠️ Pending |
 | ALTER TABLE agent_sessions ADD COLUMN description | ⚠️ Pending |
+| 019_saved_selections.sql | ⚠️ Pending — must run in Supabase Dashboard before OE B/C |
 
 ---
 
