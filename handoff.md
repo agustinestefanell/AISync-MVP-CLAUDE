@@ -2954,7 +2954,7 @@ try {
 - `PRODUCT_STATUS.md`: entrada Save Selection actualizada con nota de audit event.
 
 ### Build
-Pendiente — ver commit.
+✓ `npm.cmd run build` limpio. Commit: `d29c439`.
 
 ### Estado
 Cerrado.
