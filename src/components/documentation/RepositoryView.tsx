@@ -231,6 +231,8 @@ export default function RepositoryView({
   const [filterType,    setFilterType]    = useState('')
   const [filterState,   setFilterState]   = useState('')
   const [filterDate,    setFilterDate]    = useState('')
+  const [searchQuery,   setSearchQuery]   = useState('')
+  const [sortOrder,     setSortOrder]     = useState<'newest' | 'oldest' | 'name'>('newest')
 
   const uniqueProjects = useMemo(() => Array.from(new Map(checkpoints.map(c => [c.project_id, c.project_name])).entries()), [checkpoints])
   const uniqueTeams    = useMemo(() => {
@@ -284,6 +286,43 @@ export default function RepositoryView({
     selectedId ? allItems.find(item => itemId(item) === selectedId) ?? null : null
   , [selectedId, allItems])
 
+  const displayItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    const searched = q
+      ? filtered.filter(item => {
+          if (item.kind === 'checkpoint') {
+            const c = item.cp
+            return (
+              c.name.toLowerCase().includes(q) ||
+              (c.workspace_name ?? '').toLowerCase().includes(q) ||
+              (c.team_name ?? '').toLowerCase().includes(q) ||
+              (c.responsible ?? '').toLowerCase().includes(q) ||
+              (c.project_name ?? '').toLowerCase().includes(q)
+            )
+          }
+          const h = item.hp
+          return (
+            h.name.toLowerCase().includes(q) ||
+            (h.workspace_name ?? '').toLowerCase().includes(q) ||
+            (h.team_name ?? '').toLowerCase().includes(q)
+          )
+        })
+      : filtered
+
+    return [...searched].sort((a, b) => {
+      if (sortOrder === 'name') {
+        const nameA = a.kind === 'checkpoint' ? a.cp.name : a.hp.name
+        const nameB = b.kind === 'checkpoint' ? b.cp.name : b.hp.name
+        return nameA.localeCompare(nameB)
+      }
+      const dateA = itemDate(a)
+      const dateB = itemDate(b)
+      return sortOrder === 'oldest'
+        ? dateA.localeCompare(dateB)
+        : dateB.localeCompare(dateA)
+    })
+  }, [filtered, searchQuery, sortOrder])
+
   const stats = {
     results:     filtered.length,
     checkpoints: checkpoints.length,
@@ -293,8 +332,9 @@ export default function RepositoryView({
 
   function resetFilters() {
     setFilterProject(''); setFilterTeam(''); setFilterType(''); setFilterState(''); setFilterDate('')
+    setSearchQuery(''); setSortOrder('newest')
   }
-  const hasFilter = filterProject || filterTeam || filterType || filterState || filterDate
+  const hasFilter = filterProject || filterTeam || filterType || filterState || filterDate || searchQuery
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -338,6 +378,19 @@ export default function RepositoryView({
             </select>
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
               className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500" />
+            <input
+              type="text"
+              placeholder="Search by title, actor, workspace, or keyword..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500 min-w-[260px]"
+            />
+            <select value={sortOrder} onChange={e => setSortOrder(e.target.value as typeof sortOrder)}
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name">Name A–Z</option>
+            </select>
             {hasFilter && (
               <button onClick={resetFilters} className="text-xs text-gray-500 hover:text-gray-600 px-2">
                 Reset
@@ -347,13 +400,13 @@ export default function RepositoryView({
 
           {/* List */}
           <div className="flex-1 overflow-y-auto">
-            {filtered.length === 0 ? (
+            {displayItems.length === 0 ? (
               <div className="flex items-center justify-center h-full">
-                <p className="text-[var(--color-text-muted)] text-sm">No documents found.</p>
+                <p className="text-[var(--color-text-muted)] text-sm">No documents match your search.</p>
               </div>
             ) : (
               <div className="p-4 grid gap-3 content-start">
-                {filtered.map(item => {
+                {displayItems.map(item => {
                   const id       = itemId(item)
                   const isActive = selectedId === id
                   return (
