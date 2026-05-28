@@ -10,6 +10,7 @@ const EVENT_CONFIG: Record<string, { label: string; dotColor: string; badgeClass
   lock:           { label: 'Lock',                 dotColor: 'bg-red-500',    badgeClass: 'text-red-700 bg-red-50 border-red-200' },
   unlock:         { label: 'Unlock',               dotColor: 'bg-gray-500',   badgeClass: 'text-gray-600 bg-gray-50 border-gray-200' },
   review_forward: { label: 'Review & Forward',     dotColor: 'bg-purple-500', badgeClass: 'text-purple-700 bg-purple-50 border-purple-200' },
+  save_selection: { label: 'Save Selection',       dotColor: 'bg-amber-500',  badgeClass: 'text-amber-700 bg-amber-50 border-amber-200' },
 }
 
 const STATE_BADGE: Record<string, string> = {

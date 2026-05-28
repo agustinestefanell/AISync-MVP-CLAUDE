@@ -67,6 +67,7 @@ const EVENT_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   lock:           { label: 'Workspace locked',    badgeClass: 'text-red-400 bg-red-950 border-red-900' },
   unlock:         { label: 'Workspace unlocked',  badgeClass: 'text-gray-400 bg-gray-50 border-gray-200' },
   review_forward: { label: 'Review & Forward',    badgeClass: 'text-purple-400 bg-purple-950 border-purple-900' },
+  save_selection: { label: 'Save Selection',      badgeClass: 'text-amber-400 bg-amber-950 border-amber-900' },
 }
 const AGENT_LABEL: Record<string, string> = { manager: 'Manager', worker1: 'Worker 1', worker2: 'Worker 2' }
 

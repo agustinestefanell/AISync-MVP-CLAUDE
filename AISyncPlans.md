@@ -406,6 +406,7 @@ WorkspaceShell: openSaveSelectionModal()
   → POST /api/save-selection
       body: { workspace_id, team_id, project_id: null, name, messages }
   → DB: INSERT saved_selections
+  → audit_log: save_selection event (account_id, workspace_id, metadata: { saved_selection_id, name, message_count })
 ```
 
 ---

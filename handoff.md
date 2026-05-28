@@ -2958,3 +2958,43 @@ try {
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-28] — Fix: display de `save_selection` en Audit Timeline y Audit View
+
+### Diagnóstico
+El event type `save_selection` ya existía en `audit_log` (commit d29c439) pero no tenía entrada en `EVENT_CONFIG` en ninguna de las dos vistas de auditoría. En `AuditTimeline.tsx` aparecía con fallback raw string y no figuraba en el dropdown de filtros. En `AuditView.tsx` aparecía con estilo gris genérico.
+
+### Demo First
+La demo (`C:\proyectos\AISync\MVP`) es una SPA Vite sin audit log estructurado. No tiene `EVENT_CONFIG` ni patrón equivalente de configuración visual de eventos. No aplica portación. Referencia tomada del patrón existente en ambos archivos.
+
+### Archivos tocados
+- `src/components/audit/AuditTimeline.tsx` — agregado `save_selection` a `EVENT_CONFIG` (línea 70)
+- `src/components/documentation/AuditView.tsx` — agregado `save_selection` a `EVENT_CONFIG` (línea 13)
+- `AISyncPlans.md` — sección 4.7: flujo de save_selection actualizado con evento audit_log
+
+### Cambios realizados
+`AuditTimeline.tsx`: `save_selection: { label: 'Save Selection', badgeClass: 'text-amber-400 bg-amber-950 border-amber-900' }`
+`AuditView.tsx`: `save_selection: { label: 'Save Selection', dotColor: 'bg-amber-500', badgeClass: 'text-amber-700 bg-amber-50 border-amber-200' }`
+
+### Decisión técnica
+- Amber para `save_selection`: visualmente diferenciado de verde (checkpoint), azul (backup), indigo (resume), rojo (lock), purple (forward).
+- `AuditView.tsx` tiene campo extra `dotColor` (light theme) vs `AuditTimeline.tsx` (dark theme sin dotColor). Ambas entradas respetan la estructura exacta de su propio `EVENT_CONFIG`.
+- No se agregaron handlers de subtitle en `AuditTimeline.tsx` — el fallback `return e.event_type` (línea 94) es suficiente para MVP; agregar handlers de título/subtítulo está fuera del scope.
+
+### Alternativas descartadas
+- Subtitle handler para `save_selection` en `AuditTimeline.tsx`: fuera de scope, no solicitado.
+- Unificar los dos `EVENT_CONFIG` en un módulo compartido: refactor lateral, sin justificación en esta OE.
+
+### Restricciones respetadas
+- Lógica de filtrado sin tocar.
+- Queries y fetch sin tocar.
+- Otros event types sin tocar.
+- `CodingWorkshop.md` no modificado (ajuste visual/documental, no bug técnico).
+
+### Build
+✓ `npm.cmd run build` limpio.
+
+### Estado
+Cerrado.
