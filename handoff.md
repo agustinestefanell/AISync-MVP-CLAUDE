@@ -2505,3 +2505,123 @@ Ninguno. Los tokens CSS están definidos globalmente en `globals.css` y se aplic
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — OE: AuditView — Filtro Teams con código jerárquico
+
+### Archivos modificados
+- `src/components/documentation/AuditView.tsx`
+
+### Cambios
+- `uniqueTeams` reescrito de `Set<string>` a `Map` keyed por `team_id`, preservando id y name para cada opción.
+- Sort alfabético por `teamCodes?.[id] ?? name`.
+- `<option>` usa `value={t.name}` (filtrado por nombre, sin romper el filtro existente) y label `code · name`.
+
+### Fix técnico
+TypeScript rechazaba `e.team_id` como Map key porque puede ser `null`. Se resolvió con `.filter(e => e.team_name && e.team_id)` + cast `as string` en el `.map()`.
+
+### Build
+✓ limpio. Commit: `5fd5863`.
+
+### Estado
+Cerrado.
+
+---
+
+## [2026-05-27] — OE: Sort alfabético de teams en dropdowns (Documentation Mode)
+
+### Archivos modificados
+- `src/components/documentation/RepositoryView.tsx`
+- `src/components/documentation/InvestigateView.tsx`
+
+### Cambios
+Mismo patrón de sort en ambos archivos: `uniqueTeams` derivado de Map, ordenado por `teamCodes?.[idA] ?? nameA` con `localeCompare`. Se agregó `teamCodes` a las deps de `useMemo`.
+
+### Build
+✓ limpio. Commit incluido en `5fd5863` (AuditView batch).
+
+### Estado
+Cerrado.
+
+---
+
+## [2026-05-27] — OE: Structure View — Search bar + Project filter
+
+### Archivos modificados
+- `src/components/documentation/StructureView.tsx`
+
+### Cambios
+- Reescritura de 77 → ~140 líneas. Agrega capa de filtros antes de `DocumentationMirrorTree`.
+- Estado: `searchQuery`, `filterProject`.
+- `teamProjectMap`: Map `team_id → project_id` derivado de `projects` prop.
+- `filteredMirrorTeams`: filtra por proyecto y query de texto sobre `teamLabel`.
+- `filteredMirrorAgents`: filtra por `filteredTeamIds` — sin agentes huérfanos.
+- `DocumentationMirrorTree` recibe los conjuntos filtrados.
+- Filter bar visual consistente con AuditView/RepositoryView.
+- Empty state: "No teams match your search."
+
+### Alternativas descartadas
+Filtrar agentes directamente por texto/proyecto — descartado porque los agentes no tienen nombre propio significativo; el filtro correcto es por team.
+
+### Build
+✓ limpio. Commit: `2ba4a49`.
+
+### Estado
+Cerrado.
+
+---
+
+## [2026-05-27] — OE: SMPanel — Hint card + visual upgrade + accent top line
+
+### Archivos modificados
+- `src/components/sm/SMPanel.tsx`
+
+### Cambios (dos OEs consecutivas)
+1. **Hint card (producción)**: bloque insertado entre `contextStatus` y la lista de mensajes (dentro del bloque `{connection && ...}`). Icono circular con SVG de lupa + estrella en `#92400e`, título en `#92400e`, dos líneas de texto secundario.
+2. **Accent top line**: `<div className="h-1 w-full rounded-t-xl bg-[#92400e] shrink-0" />` como primer hijo del panel raíz.
+3. La hint card ya tenía spec de producción desde el inicio (no hubo versión intermedia en prod).
+
+### Decisión técnica
+Color `#92400e` (amber-800) alineado con la paleta amber del producto. Icono en SVG inline para evitar dependencia de librería. Posición dentro de `{connection && ...}` para que solo aparezca cuando hay agente activo.
+
+### Build
+✓ limpio. Commits: incluidos en `9bd59f2`.
+
+### Estado
+Cerrado.
+
+---
+
+## [2026-05-28] — OE: SMPanel — External provider warning banner
+
+### Archivos modificados
+- `src/components/sm/SMPanel.tsx`
+
+### Cambios
+Banner amarillo condicional insertado entre el bloque de Connection badge y el bloque `{/* Context indicator */}`:
+
+```tsx
+{!connection.isLocal && (
+  <div className="mx-3 mb-1 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 shrink-0">
+    <span className="shrink-0 mt-0.5">⚠️</span>
+    <span>External agent active — document context shared with provider.</span>
+  </div>
+)}
+```
+
+### Decisión técnica
+`!connection.isLocal` (no `!isLocal`) porque el punto de inserción ya está dentro del bloque `{connection && (...)}`. `connection` es el objeto completo de la conexión activa — `isLocal` es su propiedad booleana que distingue providers locales (Ollama, LM Studio) de externos (Anthropic, OpenAI, etc.).
+
+### Alternativas descartadas
+- Mostrar nombre del provider en el banner: descartado — demasiada info en una zona ya cargada.
+- Warning persistente fuera del bloque connection: descartado — sin conexión no aplica el riesgo.
+
+### Riesgos o deuda técnica
+Ninguno. El banner es solo visual, no afecta el flujo de chat.
+
+### Build
+✓ `npm run build` limpio. Commit: `fe972e4`.
+
+### Estado
+Cerrado.

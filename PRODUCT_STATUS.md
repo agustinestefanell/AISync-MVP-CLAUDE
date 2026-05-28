@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-05-27 (Structure View search + project filter — commit 2ba4a49)
+Last updated: 2026-05-28 (SMPanel external provider warning — commit fe972e4)
 
 ---
 
@@ -42,6 +42,7 @@ Last updated: 2026-05-27 (Structure View search + project filter — commit 2ba4
 | Feature | Status | Notes |
 |---|---|---|
 | Agent Panels (SAT/MAT) | ✅ Live | Day markers + timestamps en chat — commit d1382f3 |
+| **SMPanel (Documentation Mode)** | ✅ Live | Hint card + accent top line + external provider warning — commit fe972e4 |
 | Prompt Library | ✅ Live | Light mode fixed — commit e68db2f |
 | Context Files | ✅ Live | Light mode fixed — commit e68db2f |
 | Add Context File | 🔲 Coming soon | UI stub in AgentPanel |
