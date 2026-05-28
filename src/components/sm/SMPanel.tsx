@@ -442,6 +442,34 @@ export default function SMPanel({
             {/* Connected */}
             {connection && (
               <>
+                {/* Fused amber ribbon */}
+                <div className="mx-3 mb-2 rounded-[14px] border border-amber-200 bg-amber-50 p-3 flex flex-col gap-2 shrink-0">
+                  {!connection.isLocal && (
+                    <>
+                      <div className="flex items-start gap-2 text-xs text-amber-800">
+                        <span className="shrink-0 mt-0.5">⚠️</span>
+                        <span>External agent active — document context shared with provider.</span>
+                      </div>
+                      <div className="border-t border-amber-200" />
+                    </>
+                  )}
+                  <div className="flex gap-3 items-start">
+                    <div className="w-10 h-10 rounded-full border border-amber-200 bg-white flex items-center justify-center shrink-0">
+                      <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+                        <circle cx="9" cy="9" r="5.5" stroke="#92400e" strokeWidth="1.5"/>
+                        <line x1="13.5" y1="13.5" x2="17.5" y2="17.5" stroke="#92400e" strokeWidth="1.5" strokeLinecap="round"/>
+                        <path d="M7 6.5 L7.5 5 L8 6.5 L9.5 7 L8 7.5 L7.5 9 L7 7.5 L5.5 7 Z" fill="#92400e"/>
+                      </svg>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-semibold text-amber-900">Search-optimized agent</span>
+                      <span className="text-xs text-amber-800">Type a document name, version, checkpoint, or any keyword.</span>
+                      <span className="text-xs text-amber-800">The agent will return a direct link to the matching item.</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="border-t border-[var(--color-border)] mx-3 mb-2 shrink-0" />
+
                 {/* Connection badge */}
                 <div className="shrink-0 px-5 py-2 flex items-center justify-between gap-2"
                   style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
@@ -474,14 +502,6 @@ export default function SMPanel({
                   </div>
                 </div>
 
-                {/* External provider warning */}
-                {!connection.isLocal && (
-                  <div className="mx-3 mb-1 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 shrink-0">
-                    <span className="shrink-0 mt-0.5">⚠️</span>
-                    <span>External agent active — document context shared with provider.</span>
-                  </div>
-                )}
-
                 {/* Context indicator */}
                 {contextStatus && (
                   <div className="shrink-0 px-5 py-1.5"
@@ -497,24 +517,6 @@ export default function SMPanel({
                     )}
                   </div>
                 )}
-
-                {/* Search hint card */}
-                <div className="mx-3 mb-2 rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 flex gap-3 items-start shrink-0">
-                  {/* Icono circular */}
-                  <div className="w-11 h-11 rounded-full border border-[var(--color-border)] bg-white flex items-center justify-center shrink-0">
-                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                      <circle cx="9" cy="9" r="5.5" stroke="#92400e" strokeWidth="1.5"/>
-                      <line x1="13.5" y1="13.5" x2="17.5" y2="17.5" stroke="#92400e" strokeWidth="1.5" strokeLinecap="round"/>
-                      <path d="M7 6.5 L7.5 5 L8 6.5 L9.5 7 L8 7.5 L7.5 9 L7 7.5 L5.5 7 Z" fill="#92400e"/>
-                    </svg>
-                  </div>
-                  {/* Texto */}
-                  <div className="flex flex-col gap-1">
-                    <span className="text-sm font-semibold text-[#92400e]">Search-optimized agent</span>
-                    <span className="text-xs text-[var(--color-text-secondary)]">Type a document name, version, checkpoint, or any keyword.</span>
-                    <span className="text-xs text-[var(--color-text-secondary)]">The agent will return a direct link to the matching item.</span>
-                  </div>
-                </div>
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 space-y-4">
