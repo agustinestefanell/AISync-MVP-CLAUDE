@@ -2271,6 +2271,45 @@ Cerrado.
 
 ---
 
+## [2026-05-27] — OE: AuditView filtro Teams — labels con código jerárquico
+
+### Diagnóstico
+`uniqueTeams` se construía solo con `team_name`, perdiendo `team_id`. Eso impedía usar `teamCodes` para mostrar códigos jerárquicos en el dropdown del filtro de teams de Audit View.
+
+### Demo First
+La demo (`C:\proyectos\AISync\MVP\src`) no tiene filtro de teams con dropdown ni `uniqueTeams` — solo referencias a `team_id` como campo de datos en strings. No hay patrón que portar. Fix específico del MVP.
+
+### Archivos tocados
+- `src/components/documentation/AuditView.tsx`
+
+### Cambios realizados
+1. `uniqueTeams` ahora conserva `{ id: string, name: string }` — filtra eventos donde `team_id` Y `team_name` existen; usa `Map` keyed por `team_id` para deduplicar.
+2. El `<option>` del filtro de teams usa `key={t.id}`, `value={t.name}` (preserva filtrado existente) y muestra `teamCodes[id] · name` cuando existe código jerárquico.
+3. Fix TypeScript: `e.team_id` puede ser `null` — se añadió `e.team_id` al filter y se castea como `string` en el map, eliminando el error de tipo.
+
+### Restricciones respetadas
+- Lógica de filtrado (línea 77: `e.team_name !== filterTeam`): no tocada.
+- `value` del option mantiene `t.name` — el filtrado sigue funcionando por nombre.
+- Props, tipos, imports: no tocados.
+- Ninguna otra vista de Documentation Mode tocada.
+- No se abrieron refactors laterales.
+
+### Validaciones ejecutadas
+- Grep post-cambio: `key={t.id}` ✅, `value={t.name}` ✅, `teamCodes?.[t.id]` ✅
+- `npm.cmd run build`: limpio, sin errores TypeScript.
+- Validación manual pendiente en navegador (no hay server local corriendo).
+
+### Build
+✅ Limpio. Solo warnings pre-existentes en CanvasViewport.tsx.
+
+### Commit
+`5fd5863` — fix: show team codes in audit view filter
+
+### Riesgos pendientes
+- Validación manual en navegador pendiente (confirmar que el dropdown muestra `A-01 · Nombre del Team` y que el filtrado sigue funcionando).
+
+---
+
 ## [2026-05-27] — OE: Light mode — modals, Dashboard, Edit Team
 
 ### Archivos modificados

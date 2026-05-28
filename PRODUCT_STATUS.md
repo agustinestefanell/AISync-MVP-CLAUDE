@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-05-27
+Last updated: 2026-05-27 (AuditView team filter codes — commit 5fd5863)
 
 ---
 
@@ -10,7 +10,7 @@ Last updated: 2026-05-27
 |---|---|---|
 | Repository View | ✅ Live | Document cards Nivel 1 + R&F detail panel buttons + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80 |
 | **Structure View — DocumentationMirrorTree** | ✅ Closed | Pan/zoom/drag mirror tree, hierarchy codes, role-based labels — commit 7199eb9 |
-| Audit View | ✅ Live | Ficha documental + "View in Audit Log →" + min-h-0 scroll fix — commit 6517233 |
+| Audit View | ✅ Live | Ficha documental + team filter con códigos jerárquicos — commit 5fd5863 |
 | Investigate View | ✅ Live | Nivel 1 cards + Investigation Context + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80 |
 | Knowledge Map | ✅ Live | ReactFlow graph, intentionally dark |
 
