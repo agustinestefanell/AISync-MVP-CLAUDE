@@ -66,7 +66,13 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
   const cpMap = useMemo(() => new Map(checkpoints.map(c => [c.id, c])), [checkpoints])
 
   const uniqueTeams = useMemo(() =>
-    Array.from(new Set(auditEvents.map(e => e.team_name).filter(Boolean) as string[])),
+    Array.from(
+      new Map(
+        auditEvents
+          .filter(e => e.team_name && e.team_id)
+          .map(e => [e.team_id, { id: e.team_id as string, name: e.team_name! }])
+      ).values()
+    ),
   [auditEvents])
 
   const filtered = useMemo(() => auditEvents.filter(e => {
@@ -138,7 +144,11 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
         <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)}
           className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
           <option value="">All teams</option>
-          {uniqueTeams.map(t => <option key={t} value={t}>{t}</option>)}
+          {uniqueTeams.map(t => (
+            <option key={t.id} value={t.name}>
+              {teamCodes?.[t.id] ? `${teamCodes[t.id]} · ${t.name}` : t.name}
+            </option>
+          ))}
         </select>
         <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
           className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500" />
