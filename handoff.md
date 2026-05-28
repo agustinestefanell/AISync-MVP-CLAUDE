@@ -2271,6 +2271,49 @@ Cerrado.
 
 ---
 
+## [2026-05-27] — OE: Sort alfabético de teams en dropdowns de Documentation Mode
+
+### Diagnóstico
+Los dropdowns de teams en AuditView, RepositoryView e InvestigateView construían `uniqueTeams` en orden de inserción (determinado por el orden de los datos de origen). Con códigos jerárquicos disponibles en `teamCodes`, el orden correcto es alfabético por código.
+
+### Demo First
+La demo no tiene filtros de teams con dropdown en Documentation Mode. No hay patrón que portar. Fix específico del MVP.
+
+### Archivos tocados
+- `src/components/documentation/AuditView.tsx`
+- `src/components/documentation/RepositoryView.tsx`
+- `src/components/documentation/InvestigateView.tsx`
+
+### Cambios realizados
+- `AuditView`: `.sort((a, b) => (teamCodes?.[a.id] ?? a.name).localeCompare(...))` al final del Array.from. `teamCodes` agregado a deps del useMemo.
+- `RepositoryView`: `.sort(([idA, nameA], [idB, nameB]) => ...)` al final del Array.from(m.entries()). `teamCodes` agregado a deps.
+- `InvestigateView`: mismo patrón que RepositoryView.
+- Fallback: si no hay `teamCodes` para el id, ordena por `name`.
+
+### Restricciones respetadas
+- Lógica de filtrado: no tocada en ninguno de los tres archivos.
+- Props: no tocadas.
+- `value` de los options: no cambiado.
+- KnowledgeMap, StructureView, DocClient: no tocados.
+- No se abrieron refactors laterales.
+
+### Validaciones ejecutadas
+- Grep post-cambio: `localeCompare` presente en los tres archivos ✅
+- `teamCodes` en deps de cada useMemo ✅
+- `npm.cmd run build`: limpio, sin errores TypeScript.
+- Validación manual pendiente en navegador.
+
+### Build
+✅ Limpio. Solo warnings pre-existentes en CanvasViewport.tsx.
+
+### Commit
+`e6e9cc6` — fix: sort documentation team dropdowns by team code
+
+### Riesgos pendientes
+- Validación visual en navegador pendiente (confirmar orden A-00, A-01, B-00… en los tres dropdowns).
+
+---
+
 ## [2026-05-27] — OE: AuditView filtro Teams — labels con código jerárquico
 
 ### Diagnóstico

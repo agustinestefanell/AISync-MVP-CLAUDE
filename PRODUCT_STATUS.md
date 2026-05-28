@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-05-27 (AuditView team filter codes — commit 5fd5863)
+Last updated: 2026-05-27 (Documentation team dropdowns sorted by code — commit e6e9cc6)
 
 ---
 
