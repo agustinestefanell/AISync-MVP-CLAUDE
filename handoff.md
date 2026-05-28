@@ -2271,6 +2271,57 @@ Cerrado.
 
 ---
 
+## [2026-05-27] — OE: Search bar + Project filter en Structure View
+
+### Diagnóstico
+`StructureView` pasaba `mirrorTeams` y `mirrorAgents` directamente a `DocumentationMirrorTree` sin capa de filtrado. La vista no tenía search ni filtro de proyecto.
+
+### Demo First
+La demo tiene `DocumentationMirrorTree` sin filtros de búsqueda ni proyecto. No hay patrón que portar. Fix específico del MVP.
+
+### Archivos tocados
+- `src/components/documentation/StructureView.tsx`
+
+### Cambios realizados
+- `useState` agregado al import de React.
+- `searchQuery` y `filterProject` como estado local.
+- `teamProjectMap`: `Map<teamId, projectId>` derivado de `projects` (sin campos inventados).
+- `filteredMirrorTeams`: filtra por proyecto (AND) y por búsqueda en `teamLabel` (case-insensitive).
+- `filteredTeamIds`: `Set<string>` de ids filtrados para lookup O(1).
+- `filteredMirrorAgents`: solo agentes cuyos `teamId` está en `filteredTeamIds` — evita agentes huérfanos en el árbol.
+- Barra de filtros: input `Search teams or agents...` + select de proyectos (visible solo si `projects.length > 1`) + botón "Reset Search".
+- Estado vacío bajo filtros: "No teams match your search."
+- `DocumentationMirrorTree` recibe `filteredMirrorTeams` y `filteredMirrorAgents`.
+- Layout: `h-full` → `h-full flex flex-col`; tree container: `flex-1 min-h-0`.
+
+### Campos reales usados
+- `team.teamLabel` para búsqueda de teams (campo existente en `mirrorTeams`)
+- `agent.teamId` para relación agente → team (campo existente en `mirrorAgents`)
+- `project.id` y `project.name` para dropdown y lookup (campos existentes en `ProjectWithTeams`)
+
+### Restricciones respetadas
+- `DocumentationMirrorTree`: no tocado.
+- Props del componente: no tocadas.
+- `mirrorTeams` y `mirrorAgents` originales: no modificados (solo se crean derivados filtrados).
+- Filtro SAT/MAT: no implementado (campo `team_type` no confirmado en el data model).
+- Otras vistas de Documentation Mode: no tocadas.
+- No se abrieron refactors laterales.
+
+### Hallazgo SAT/MAT
+`ProjectWithTeams` → `TeamWithWorkspaces` → no expone `team_type` en su interface. El filtro SAT/MAT queda diferido hasta que se confirme el campo.
+
+### Build
+✅ Limpio. Solo warnings pre-existentes en CanvasViewport.tsx.
+
+### Commit
+`2ba4a49` — fix: add structure view search and project filter
+
+### Riesgos pendientes
+- Validación manual en navegador (búsqueda, filtro de proyecto, estado vacío, reset).
+- Filtro SAT/MAT diferido — requiere confirmar campo `team_type` en `TeamWithWorkspaces`.
+
+---
+
 ## [2026-05-27] — OE: Sort alfabético de teams en dropdowns de Documentation Mode
 
 ### Diagnóstico

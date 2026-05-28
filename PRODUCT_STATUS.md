@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-05-27 (Documentation team dropdowns sorted by code — commit e6e9cc6)
+Last updated: 2026-05-27 (Structure View search + project filter — commit 2ba4a49)
 
 ---
 
@@ -9,7 +9,7 @@ Last updated: 2026-05-27 (Documentation team dropdowns sorted by code — commit
 | Feature | Status | Notes |
 |---|---|---|
 | Repository View | ✅ Live | Document cards Nivel 1 + R&F detail panel buttons + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80 |
-| **Structure View — DocumentationMirrorTree** | ✅ Closed | Pan/zoom/drag mirror tree, hierarchy codes, role-based labels — commit 7199eb9 |
+| **Structure View — DocumentationMirrorTree** | ✅ Closed | Pan/zoom/drag mirror tree + search/project filter — commit 2ba4a49 |
 | Audit View | ✅ Live | Ficha documental + team filter con códigos jerárquicos — commit 5fd5863 |
 | Investigate View | ✅ Live | Nivel 1 cards + Investigation Context + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80 |
 | Knowledge Map | ✅ Live | ReactFlow graph, intentionally dark |
