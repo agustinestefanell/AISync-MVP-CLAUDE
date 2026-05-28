@@ -366,7 +366,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
             onClick={openSaveSelectionModal}
             className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
           >
-            Save Selection(s)
+            {_totalSelected === 1 ? 'Save Selection (1)' : `Save Selections (${_totalSelected})`}
           </button>
         </div>
       )}
