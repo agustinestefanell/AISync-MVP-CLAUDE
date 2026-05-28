@@ -4,6 +4,12 @@ Documento de referencia técnica para Workers nuevos o relevos. Basado en lectur
 
 Última actualización: 2026-05-28
 
+**Documentación interna relacionada:**
+- `PromtsOperativos.md`: archivo de referencia operacional que centraliza los prompts vigentes de Claude Code y GPT OE Maker para sesiones de desarrollo y redacción de OEs.
+- `CodingWorkshop.md`: registro acumulativo de bugs resueltos, causas raíz y lecciones técnicas.
+- `handoff.md`: historial operativo de OEs ejecutadas y decisiones técnicas.
+- `PRODUCT_STATUS.md`: estado de features del producto.
+
 ---
 
 ## 1. Stack y entorno
