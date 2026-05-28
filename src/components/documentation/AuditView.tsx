@@ -72,8 +72,12 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
           .filter(e => e.team_name && e.team_id)
           .map(e => [e.team_id, { id: e.team_id as string, name: e.team_name! }])
       ).values()
-    ),
-  [auditEvents])
+    ).sort((a, b) => {
+      const codeA = teamCodes?.[a.id] ?? a.name
+      const codeB = teamCodes?.[b.id] ?? b.name
+      return codeA.localeCompare(codeB)
+    }),
+  [auditEvents, teamCodes])
 
   const filtered = useMemo(() => auditEvents.filter(e => {
     const cpId = e.metadata?.checkpoint_id as string | undefined

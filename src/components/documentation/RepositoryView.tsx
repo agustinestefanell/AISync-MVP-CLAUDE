@@ -237,8 +237,12 @@ export default function RepositoryView({
     const m = new Map<string, string>()
     checkpoints.forEach(c => { if (c.team_id) m.set(c.team_id, c.team_name ?? '') })
     handoffPackages.forEach(h => { if (h.team_id) m.set(h.team_id, h.team_name ?? '') })
-    return Array.from(m.entries())
-  }, [checkpoints, handoffPackages])
+    return Array.from(m.entries()).sort(([idA, nameA], [idB, nameB]) => {
+      const codeA = teamCodes?.[idA] ?? nameA
+      const codeB = teamCodes?.[idB] ?? nameB
+      return codeA.localeCompare(codeB)
+    })
+  }, [checkpoints, handoffPackages, teamCodes])
 
   const allItems = useMemo((): ListItem[] => {
     const cps: ListItem[] = checkpoints.map(cp => ({ kind: 'checkpoint', cp }))
