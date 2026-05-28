@@ -2822,3 +2822,88 @@ Pendiente en navegador — confirmar barra de selección, modal, payload y POST.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-28] — MINI OE: Save Selection(s) label fix
+
+### Diagnóstico
+Botón en la barra de acción y botón confirm del modal decían "Save Selection". El producto gestiona múltiples mensajes seleccionados (cruce de paneles), por lo que el plural es correcto.
+
+### Archivos tocados
+- `src/components/workspace/WorkspaceShell.tsx`
+
+### Cambios realizados
+- Barra de acción: `Save Selection` → `Save Selection(s)`
+- Modal confirm button (idle): `Save Selection` → `Save Selection(s)`
+- Modal confirm button (loading): `Saving...` sin cambio.
+
+### Restricciones respetadas
+- Lógica de guardado: no tocada.
+- Modal, states, handlers: no tocados.
+- Sin refactors laterales.
+
+### Build
+✓ Commit: `e653806`.
+
+### Estado
+Cerrado.
+
+---
+
+## [2026-05-28] — Bug fix: Save Selection bar nunca aparecía (React setState updater purity)
+
+### Diagnóstico
+La barra de "Save Selection(s)" no aparecía al seleccionar mensajes. F12 no mostraba errores. `_totalSelected` en WorkspaceShell permanecía siempre en 0, aunque la selección en AgentPanel funcionaba visualmente (checkboxes).
+
+### Causa raíz
+`toggleSelection` en `AgentPanel.tsx` llamaba `onSelectionChange(next.size)` **dentro** del updater de `setSelectedIndices`. React trata los updaters como funciones puras — los efectos secundarios (como llamar a un `setState` del padre) pueden ser suprimidos silenciosamente, especialmente en StrictMode o concurrent features. El efecto se ejecutaba a veces en desarrollo pero nunca en producción ni consistentemente.
+
+### Archivos tocados
+- `src/components/workspace/AgentPanel.tsx`
+
+### Cambios realizados
+- Se eliminó `onSelectionChange(next.size)` del interior del updater de `setSelectedIndices`.
+- Se agregó `useEffect(() => { onSelectionChange(selectedIndices.size) }, [selectedIndices.size])` con `// eslint-disable-next-line react-hooks/exhaustive-deps` (dependencia intencional — solo `selectedIndices.size`, no la función callback).
+
+### Por qué useEffect
+Es el patrón correcto para notificar al padre de un cambio de estado interno. El estado ya fue aplicado cuando el efecto corre, garantizando que `onSelectionChange` recibe el valor definitivo, no el intermedio del updater.
+
+### Alternativas descartadas
+- Mover `onSelectionChange` fuera del updater pero en el mismo handler: podría ejecutarse antes de que React aplique el nuevo estado (race condition con closures).
+- Refactorizar a estado controlado (padre controla selectedIndices): cambio arquitectural mayor sin justificación en el MVP.
+
+### Riesgos o deuda técnica
+El `eslint-disable` es necesario porque la regla `exhaustive-deps` pediría incluir `onSelectionChange` como dependencia, pero hacerlo causaría re-renders infinitos si el padre no memoiza el callback. La supresión está documentada y es intencional.
+
+### Build
+✓ `npm run build` limpio. Commit: `bd24174`.
+
+### Estado
+Cerrado.
+
+---
+
+## [2026-05-28] — Bug fix: botón "Selection (N)" en AgentPanel sin onClick
+
+### Diagnóstico
+El botón que cambia a `Selection (N)` dentro de AgentPanel (línea ~655) no tenía `onClick`. El usuario lo clickeaba y no pasaba nada. La barra inferior de WorkspaceShell (`_totalSelected > 0`) era el punto de entrada correcto pero invisible — el usuario no llegaba a verla porque interactuaba con el botón del panel, no la barra.
+
+### Causa raíz
+`onOpenSaveSelection` nunca fue definido como prop en AgentPanel. El botón estaba visualmente habilitado cuando había selección pero era funcionalmente mudo.
+
+### Archivos tocados
+- `src/components/workspace/AgentPanel.tsx` — prop `onOpenSaveSelection?: () => void` agregado a interface y destructuring; `onClick={onOpenSaveSelection}` conectado al botón
+- `src/components/workspace/WorkspaceShell.tsx` — `onOpenSaveSelection={openSaveSelectionModal}` pasado en el render de cada AgentPanel
+
+### Restricciones respetadas
+- Lógica de `openSaveSelectionModal` sin tocar.
+- Barra inferior de WorkspaceShell intacta.
+- Otros props de AgentPanel sin tocar.
+- Sin refactors laterales.
+
+### Build
+✓ `npm run build` limpio. Commit: `6204de2`.
+
+### Estado
+Cerrado.
