@@ -2625,3 +2625,41 @@ Ninguno. El banner es solo visual, no afecta el flujo de chat.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-28] — OE: SMPanel fused amber ribbon
+
+### Diagnóstico
+SMPanel tenía dos bloques informativos separados: hint card de búsqueda documental (bg surface, borde neutro, icono circular) y warning banner externo (bg amber-50, border amber-200, condicionado por `!connection.isLocal`). Ambos explicaban aspectos del mismo agente pero generaban repetición visual y fragmentación de lectura.
+
+### Archivos revisados
+- `src/components/sm/SMPanel.tsx`
+- Demo: `C:\proyectos\AISync\MVP\src\components\TeamSubManagerPanel.tsx` — no tiene equivalente funcional (solo usa `ribbon` como color de borde, no como bloque informativo)
+
+### Archivos tocados
+- `src/components/sm/SMPanel.tsx`
+- `handoff.md`
+- `PRODUCT_STATUS.md`
+
+### Cambios realizados
+- Se eliminó el warning banner separado (`{!connection.isLocal && <div className="mx-3 mb-1...">}`).
+- Se eliminó el hint card separado (`<div className="mx-3 mb-2 rounded-[14px] border border-[var(--color-border)]...">`).
+- Se insertó un único ribbon amber fusionado al inicio del bloque `{connection && (...)}`, antes del connection badge.
+- Estructura resultante: ribbon → divider line → connection badge → context indicator → messages.
+- El warning interno (`⚠️ External agent active...`) se mantiene condicionado por `!connection.isLocal` con un `border-t border-amber-200` como separador interno.
+- El bloque `Search-optimized agent` es siempre visible cuando hay conexión activa.
+
+### Restricciones respetadas
+- `isLocal` no tocado.
+- Connection badge intacto.
+- Context indicator intacto.
+- Mensajes y input intactos.
+- Lógica de chat, endpoint `/api/sm-doc-chat`, props y estado: sin cambios.
+- No se abrieron refactors laterales.
+
+### Build
+✓ `npm.cmd run build` limpio. Commit: `8ad6a98`.
+
+### Estado
+Cerrado.
