@@ -2907,3 +2907,54 @@ El botón que cambia a `Selection (N)` dentro de AgentPanel (línea ~655) no ten
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-28] — OE: Audit log event para Save Selection
+
+### Diagnóstico
+`/api/save-selection/route.ts` insertaba en `saved_selections` pero no registraba ningún evento en `audit_log`. Los otros flujos principales (`save_version`, `handoff_package.created`, `lock`/`unlock`) ya tenían cobertura. `save_selection` era el gap.
+
+### Demo First
+La demo (`C:\proyectos\AISync\MVP`) es una SPA Vite sin API routes. No hay patrón equivalente que portar. Patrón de referencia tomado de `src/app/api/checkpoint/route.ts` (campo `account_id: user.id`, no `user_id`).
+
+### Archivos tocados
+- `src/app/api/save-selection/route.ts`
+
+### Cambios realizados
+Insertado bloque `try/catch` no-bloqueante después del insert exitoso en `saved_selections`:
+```typescript
+try {
+  await supabase.from('audit_log').insert({
+    account_id:   user.id,
+    workspace_id,
+    event_type:   'save_selection',
+    metadata:     {
+      saved_selection_id: data.id,
+      name,
+      message_count: Array.isArray(data.messages) ? data.messages.length : 0,
+    },
+  })
+} catch {
+  // Audit log failure must not block saved selection creation.
+}
+```
+
+### Decisión técnica
+- `try/catch` no-bloqueante: si el audit log falla (tabla no existe, RLS error, etc.), el guardado de selección igualmente retorna 201. El audit log es observabilidad, no funcionalidad crítica.
+- `account_id` = `user.id`: patrón canónico del proyecto (no `user_id`).
+- `message_count`: se calcula desde `data.messages` (respuesta del insert) con guard `Array.isArray` — más confiable que calcular desde el body original.
+
+### Alternativas descartadas
+- **`await` fuera de try/catch**: descartado — un error de audit log rompería el endpoint principal.
+- **Fire-and-forget sin await**: descartado — deja promesas flotantes que TypeScript/ESLint detectan como antipatrón.
+
+### Documentación actualizada
+- `AISyncPlans.md` §6.1: `/api/save-selection` ahora lista `saved_selections, audit_log`.
+- `PRODUCT_STATUS.md`: entrada Save Selection actualizada con nota de audit event.
+
+### Build
+Pendiente — ver commit.
+
+### Estado
+Cerrado.

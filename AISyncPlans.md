@@ -508,7 +508,7 @@ Ver sección 10.
 | GET/POST | `/api/context` | context_sources | Session |
 | POST | `/api/handoff-package` | handoff_packages | Session |
 | POST | `/api/messages` | messages | Session |
-| POST | `/api/save-selection` | saved_selections | Session |
+| POST | `/api/save-selection` | saved_selections, audit_log | Session |
 | GET/POST/DELETE | `/api/settings/keys` | user_api_keys | Session |
 | GET/POST/DELETE | `/api/settings/providers` | user_custom_providers | Session |
 | POST | `/api/sm-doc-chat` | — (streaming) | Session |
