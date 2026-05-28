@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 ---
 
@@ -42,8 +42,8 @@ Last updated: 2026-05-26
 | Feature | Status | Notes |
 |---|---|---|
 | Agent Panels (SAT/MAT) | ✅ Live | Day markers + timestamps en chat — commit d1382f3 |
-| Prompt Library | ✅ Live | Modal in workspace + ribbon entry |
-| Context Files | ✅ Live | AppLayout wrapping — commit 20c91cb |
+| Prompt Library | ✅ Live | Light mode fixed — commit e68db2f |
+| Context Files | ✅ Live | Light mode fixed — commit e68db2f |
 | Add Context File | 🔲 Coming soon | UI stub in AgentPanel |
 
 ---

@@ -2268,3 +2268,36 @@ Demo (Vite SPA) no tiene `getHandoffPackages` ni queries a Supabase — usa dato
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-27] — OE: Light mode — modals, Dashboard, Edit Team
+
+### Archivos modificados
+- `src/components/workspace/PromptLibrary.tsx`
+- `src/components/workspace/ContextFilePanel.tsx`
+- `src/components/workspace/WorkspaceShell.tsx`
+- `src/components/ProjectList.tsx`
+- `src/components/teams/EditTeamModal.tsx`
+
+### Decisión técnica
+Reemplazar todos los tokens de color hardcodeados de dark mode (`text-white`, `bg-indigo-*`, `bg-purple-*`, `focus:border-indigo-500`) por tokens CSS del sistema de diseño (`text-[var(--color-text-primary)]`, `bg-[var(--color-accent)]`, `hover:bg-[var(--color-accent-strong)]`, `focus:border-[var(--color-border-focus)]`).
+
+Alcance por archivo:
+- **PromptLibrary**: header h2, close button, `+ New Prompt` btn, form inputs/textarea, Create/Update btn, prompt titles en lista, `+ Worker` y `+ Team` buttons (de dark indigo/purple → tokens de superficie neutral)
+- **ContextFilePanel**: header h2, close button, Title input, Notes textarea, Upload btn, source title en lista
+- **WorkspaceShell** (solo modal "Guardar checkpoint"): h2, Name input, Purpose select, Guardar btn
+- **ProjectList**: "Mis Proyectos" h2, "Nuevo Proyecto" + "Crear" buttons, project name input, project name h3, "Abrir →" Link (de dark indigo → accent tokens con text-white)
+- **EditTeamModal**: "Save changes" button
+
+### Alternativas descartadas
+No aplica — fix de consistencia directo sin ambigüedad.
+
+### Riesgos o deuda técnica
+Ninguno. Los tokens CSS están definidos globalmente en `globals.css` y se aplican en light y dark mode según la variable.
+
+### Build
+✓ `npm run build` limpio. Commit: e68db2f.
+
+### Estado
+Cerrado.
