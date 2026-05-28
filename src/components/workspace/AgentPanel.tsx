@@ -660,7 +660,9 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                 onClick={onOpenSaveSelection}
                 title="Save selected messages"
               >
-                {hasSelection ? `Selection (${selectedCount})` : 'Save Selection'}
+                {hasSelection
+                  ? (selectedCount === 1 ? 'Save Selection (1)' : `Save Selections (${selectedCount})`)
+                  : 'Save Selection'}
               </button>
               <button
                 className="ui-button ui-button-primary px-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-white disabled:opacity-40"
