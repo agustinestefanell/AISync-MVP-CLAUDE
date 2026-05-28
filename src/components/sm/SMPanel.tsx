@@ -489,6 +489,20 @@ export default function SMPanel({
                   </div>
                 )}
 
+                {/* Search hint card */}
+                <div className="shrink-0 px-4 pt-3 pb-1">
+                  <div className="rounded-xl px-3 py-2 text-xs"
+                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                    <div className="font-medium text-[var(--color-text-primary)]">Search-optimized agent</div>
+                    <div className="mt-1 text-[var(--color-text-secondary)]">
+                      Type a document name, version, checkpoint, or any keyword.
+                    </div>
+                    <div className="mt-1 text-[var(--color-text-secondary)]">
+                      The agent will return a direct link to the matching item.
+                    </div>
+                  </div>
+                </div>
+
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 space-y-4">
                   {messages.length === 0 && !streaming && (
