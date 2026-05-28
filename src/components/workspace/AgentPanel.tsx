@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, forwardRef, useImperativeHandle, useRef, useState } from 'react'
+import { Fragment, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Copy, Check } from 'lucide-react'
 import type { AgentSession, Message } from '@/lib/db/types'
 import type { ChatMessage } from '@/lib/providers/types'
@@ -157,10 +157,12 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       setSelectedIndices(prev => {
         const next = new Set(prev)
         if (next.has(i)) { next.delete(i) } else { next.add(i) }
-        onSelectionChange(next.size)
         return next
       })
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { onSelectionChange(selectedIndices.size) }, [selectedIndices.size])
 
     // ── Imperative handle ────────────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
