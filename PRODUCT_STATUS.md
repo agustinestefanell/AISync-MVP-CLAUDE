@@ -54,10 +54,10 @@ Last updated: 2026-05-28 (Save Selection UI — commit c3e880b)
 
 | Migration | Status |
 |---|---|
-| 016_prompt_library.sql | ⚠️ Pending — must run in Supabase Dashboard |
-| 017_context_sources.sql | ⚠️ Pending |
-| ALTER TABLE agent_sessions ADD COLUMN description | ⚠️ Pending |
-| 019_saved_selections.sql | ⚠️ Pending — must run in Supabase Dashboard before OE B/C |
+| 016_prompt_library.sql | ✅ Applied |
+| 017_context_sources.sql | ✅ Applied |
+| 018_agent_session_description.sql | ✅ Applied |
+| 019_saved_selections.sql | ✅ Applied |
 
 ---
 

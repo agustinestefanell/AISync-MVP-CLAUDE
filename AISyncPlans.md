@@ -697,13 +697,4 @@ El streaming en `/api/chat/route.ts` usa `ReadableStream`. No agregar `await` en
 
 ### 10.3 Riesgos pendientes
 
-**Migraciones locales creadas pero NO ejecutadas en Supabase Dashboard:**
-
-| Migración | Impacto si no se ejecuta |
-|---|---|
-| 016 prompt_library | PromptLibrary no puede leer/escribir — falla silenciosamente (try/catch en route.ts) |
-| 017 context_sources | Context Files no funciona. Bucket no existe |
-| 018 agent_session_description | agent_sessions.description no existe — PATCH falla silenciosamente |
-| 019 saved_selections | POST /api/save-selection retorna error 500 |
-
-Acción: ejecutar SQL de cada migración en orden en Supabase Dashboard → SQL Editor.
+Migraciones 016–019 aplicadas en Supabase Dashboard. No hay migraciones pendientes de ejecución a 2026-05-28.
