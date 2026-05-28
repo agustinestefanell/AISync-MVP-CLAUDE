@@ -474,6 +474,14 @@ export default function SMPanel({
                   </div>
                 </div>
 
+                {/* External provider warning */}
+                {!connection.isLocal && (
+                  <div className="mx-3 mb-1 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 shrink-0">
+                    <span className="shrink-0 mt-0.5">⚠️</span>
+                    <span>External agent active — document context shared with provider.</span>
+                  </div>
+                )}
+
                 {/* Context indicator */}
                 {contextStatus && (
                   <div className="shrink-0 px-5 py-1.5"
