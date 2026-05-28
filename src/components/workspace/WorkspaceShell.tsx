@@ -47,6 +47,12 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const [nameError, setNameError]           = useState(false)
   const [saveModalError, setSaveModalError] = useState<string | null>(null)
 
+  // Modal de Save Selection
+  const [showSaveSelectionModal, setShowSaveSelectionModal]     = useState(false)
+  const [saveSelectionName, setSaveSelectionName]               = useState('')
+  const [pendingSelectionMessages, setPendingSelectionMessages] = useState<ChatMessage[]>([])
+  const [savingSelection, setSavingSelection]                   = useState(false)
+
   const panelRefs       = useRef<Record<string, AgentPanelHandle | null>>({})
   const selectionCounts = useRef<Record<string, number>>({})
 
@@ -156,6 +162,42 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     setShowSaveModal(false)
     setNameError(false)
     setSaveModalError(null)
+  }
+
+  // ── Save Selection ────────────────────────────────────────────────────────
+  const openSaveSelectionModal = () => {
+    const allMessages: ChatMessage[] = []
+    Object.values(panelRefs.current).forEach(ref => {
+      const msgs = ref?.getSelectedMessages?.() ?? []
+      allMessages.push(...msgs)
+    })
+    if (allMessages.length === 0) return
+    setPendingSelectionMessages(allMessages)
+    setSaveSelectionName('')
+    setShowSaveSelectionModal(true)
+  }
+
+  const handleSaveSelection = async () => {
+    if (!saveSelectionName.trim() || pendingSelectionMessages.length === 0) return
+    setSavingSelection(true)
+    try {
+      await fetch('/api/save-selection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspace_id: workspace.id,
+          team_id:      workspace.team_id ?? null,
+          project_id:   null,
+          name:         saveSelectionName.trim(),
+          messages:     pendingSelectionMessages,
+        }),
+      })
+      setShowSaveSelectionModal(false)
+      setSaveSelectionName('')
+      setPendingSelectionMessages([])
+    } finally {
+      setSavingSelection(false)
+    }
   }
 
   async function confirmSave() {
@@ -312,6 +354,66 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           />
         ))}
       </div>
+
+      {/* ── Save Selection bar ── */}
+      {_totalSelected > 0 && (
+        <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 rounded-xl border border-[var(--color-border-subtle)] bg-white">
+          <span className="text-xs text-[var(--color-text-secondary)]">
+            {_totalSelected} message{_totalSelected !== 1 ? 's' : ''} selected
+          </span>
+          <button
+            onClick={openSaveSelectionModal}
+            className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Save Selection
+          </button>
+        </div>
+      )}
+
+      {/* ── Modal de Save Selection ── */}
+      {showSaveSelectionModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={e => { if (e.target === e.currentTarget) setShowSaveSelectionModal(false) }}
+        >
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl space-y-5">
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Save Selection</h2>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              {pendingSelectionMessages.length} message{pendingSelectionMessages.length !== 1 ? 's' : ''} selected
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-600">
+                Selection name <span className="text-red-400">*</span>
+              </label>
+              <input
+                autoFocus
+                type="text"
+                value={saveSelectionName}
+                onChange={e => setSaveSelectionName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSaveSelection() }}
+                placeholder="Selection name..."
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none transition-colors focus:border-[var(--color-border-focus)]"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={handleSaveSelection}
+                disabled={!saveSelectionName.trim() || savingSelection}
+                className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+              >
+                {savingSelection ? 'Saving...' : 'Save Selection'}
+              </button>
+              <button
+                onClick={() => setShowSaveSelectionModal(false)}
+                disabled={savingSelection}
+                className="px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 text-sm rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal de Handoff Package ── */}
       {showHandoffModal && (
