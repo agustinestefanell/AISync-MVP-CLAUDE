@@ -365,7 +365,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
             onClick={openSaveSelectionModal}
             className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
           >
-            Save Selection
+            Save Selection(s)
           </button>
         </div>
       )}
@@ -401,7 +401,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                 disabled={!saveSelectionName.trim() || savingSelection}
                 className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
               >
-                {savingSelection ? 'Saving...' : 'Save Selection'}
+                {savingSelection ? 'Saving...' : 'Save Selection(s)'}
               </button>
               <button
                 onClick={() => setShowSaveSelectionModal(false)}
