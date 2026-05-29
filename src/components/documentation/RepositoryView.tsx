@@ -221,11 +221,18 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
           </div>
         )}
 
-        <div className="pt-1">
+        <div className="flex gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => window.open(`/workspace/${hp.workspace_id}`, '_blank', 'noopener,noreferrer')}
+            className="flex-1 text-center text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded-lg transition-colors"
+          >
+            Open Workspace →
+          </button>
           <button
             type="button"
             onClick={() => window.open('/audit', '_blank', 'noopener,noreferrer')}
-            className="w-full text-center ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
+            className="flex-1 text-center ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
           >
             View in Audit Log
           </button>
@@ -268,6 +275,16 @@ function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSel
             />
           </div>
         )}
+
+        <div className="flex gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => window.open(`/workspace/${ss.workspace_id}`, '_blank', 'noopener,noreferrer')}
+            className="flex-1 text-center text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded-lg transition-colors"
+          >
+            Open Workspace →
+          </button>
+        </div>
       </div>
     </div>
   )

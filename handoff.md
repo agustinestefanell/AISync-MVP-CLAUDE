@@ -3259,3 +3259,35 @@ La demo no tiene `MiniChatPreview`, `CheckpointDetailPanel`, `HandoffDetailPanel
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Open Workspace en Repository View detail panels
+
+### Diagnóstico
+`HandoffDetailPanel` solo tenía `View in Audit Log` (ancho completo, `w-full`). `SavedSelectionDetailPanel` no tenía ningún botón de navegación. `CheckpointDetailPanel` tenía `Open Document` + `View in Audit Log` en flex row — el estándar del proyecto.
+
+### Demo First
+La demo no tiene detail panels equivalentes. No aplica portación.
+
+### Archivos tocados
+- `src/components/documentation/RepositoryView.tsx`
+  - `HandoffDetailPanel`: cambiado de `<div className="pt-1">` con botón único `w-full` a `<div className="flex gap-2 pt-1">` con dos botones: `Open Workspace →` (`bg-indigo-600`) + `View in Audit Log` (clase `ui-button-primary`). Mismo layout que `CheckpointDetailPanel`.
+  - `SavedSelectionDetailPanel`: agregado `<div className="flex gap-2 pt-1">` con botón `Open Workspace →` antes del cierre del scrollable div.
+
+### Decisiones técnicas
+- `hp.workspace_id` y `ss.workspace_id` son `string` en sus tipos — sin guard condicional necesario.
+- Clase `bg-indigo-600 hover:bg-indigo-500` idéntica a `Open Document` de checkpoint para consistencia visual.
+- `noopener,noreferrer` presente en ambos.
+- `CheckpointDetailPanel`: sin tocar.
+
+### Restricciones respetadas
+- Filtros, sorting, cards, MiniChatPreview, previews: sin tocar.
+- `documentation.ts`: sin tocar.
+- `CodingWorkshop.md`: no modificado.
+
+### Build
+✓ `npm.cmd run build` limpio.
+
+### Estado
+Cerrado.
