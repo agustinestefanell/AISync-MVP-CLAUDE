@@ -3428,3 +3428,37 @@ La demo tiene `agent_role` en su modelo de datos pero sin join equivalent a `che
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Agent role en Saved Selection messages
+
+### Diagnóstico
+`openSaveSelectionModal()` en WorkspaceShell usaba `Object.values(panelRefs.current)` — sin el `sessionId`, por lo que no había forma de resolver qué `agent_session` correspondía a cada panel y adjuntar `agent_role` a los mensajes guardados. `SavedSelectionDetailPanel` tampoco pasaba `agentRole` a `MiniChatPreview`.
+
+### Demo First
+La demo no tiene `openSaveSelectionModal`, `MiniChatPreview` ni `SavedSelectionDetailPanel`. No aplica portación.
+
+### Archivos tocados
+- `src/lib/providers/types.ts`: `ChatMessage` extendido con `agent_role?: string`.
+- `src/components/workspace/WorkspaceShell.tsx`: `openSaveSelectionModal()` — `Object.values` → `Object.entries` para obtener `sessionId`; por cada panel se busca la `agent_session` correspondiente y se adjunta `agent_role` a cada mensaje vía spread `{ ...m, agent_role: agentRole }`.
+- `src/components/documentation/RepositoryView.tsx`: `SavedSelectionDetailPanel` — cast extendido a `{ role?, content?, agent_role? }[]`; `agentRole: m.agent_role ?? undefined` pasado a `MiniChatPreview`.
+
+### Decisiones técnicas
+- `agent_role` es `?: string` en `ChatMessage` — campos opcionales para no romper mensajes ya guardados ni el contrato de streaming.
+- `Object.entries` en lugar de `Object.values`: necesario para obtener `sessionId` que actúa como key del `panelRefs.current` map.
+- `workspace.agent_sessions?.find(s => s.id === sessionId)`: lookup exacto por ID de sesión — cada panel tiene su propia sesión.
+- Los saves anteriores sin `agent_role` en sus mensajes continúan funcionando con fallback `'AI'`.
+- Streaming no afectado: `agent_role` es un campo extra ignorado por los providers.
+
+### Restricciones respetadas
+- `documentation.ts`: sin tocar.
+- `CheckpointDetailPanel`, `HandoffDetailPanel`: sin tocar.
+- Save Selection API route: sin tocar.
+- `CodingWorkshop.md`: no modificado.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

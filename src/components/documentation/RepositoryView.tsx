@@ -286,9 +286,10 @@ function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSel
           <div>
             <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Conversation</p>
             <MiniChatPreview
-              messages={(ss.messages as { role?: string; content?: string }[]).map(m => ({
-                role:    m.role    ?? 'user',
-                content: m.content ?? '',
+              messages={(ss.messages as { role?: string; content?: string; agent_role?: string }[]).map(m => ({
+                role:      m.role      ?? 'user',
+                content:   m.content   ?? '',
+                agentRole: m.agent_role ?? undefined,
               }))}
             />
           </div>

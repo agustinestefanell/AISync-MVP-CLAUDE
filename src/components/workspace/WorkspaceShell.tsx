@@ -167,9 +167,11 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   // ── Save Selection ────────────────────────────────────────────────────────
   const openSaveSelectionModal = () => {
     const allMessages: ChatMessage[] = []
-    Object.values(panelRefs.current).forEach(ref => {
+    Object.entries(panelRefs.current).forEach(([sessionId, ref]) => {
       const msgs = ref?.getSelectedMessages?.() ?? []
-      allMessages.push(...msgs)
+      const session = workspace.agent_sessions?.find(s => s.id === sessionId)
+      const agentRole = session?.agent_role ?? undefined
+      allMessages.push(...msgs.map(m => ({ ...m, agent_role: agentRole })))
     })
     if (allMessages.length === 0) return
     setPendingSelectionMessages(allMessages)
