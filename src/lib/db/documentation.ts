@@ -108,8 +108,9 @@ export interface DocHandoffPackage {
   team_name: string | null
   project_id: string | null
   project_name: string | null
-  message_count: number
-  created_at: string
+  message_count:   number
+  content_preview?: string
+  created_at:      string
 }
 
 interface RawHandoffPackage {
@@ -151,8 +152,17 @@ export async function getHandoffPackages(): Promise<DocHandoffPackage[]> {
       team_name:      team?.name      ?? null,
       project_id:     project?.id     ?? null,
       project_name:   project?.name   ?? null,
-      message_count:  Array.isArray(r.messages) ? r.messages.length : 0,
-      created_at:     r.created_at,
+      message_count:   Array.isArray(r.messages) ? r.messages.length : 0,
+      content_preview: (() => {
+        const msgs = Array.isArray(r.messages) ? r.messages : []
+        const last = msgs[msgs.length - 1] as Record<string, unknown> | undefined
+        if (!last) return undefined
+        const content = last.content ?? last.text ?? last.message ?? ''
+        return typeof content === 'string' && content.length > 0
+          ? content.slice(0, 600) + (content.length > 600 ? '…' : '')
+          : undefined
+      })(),
+      created_at:      r.created_at,
     }
   })
 }

@@ -3113,3 +3113,42 @@ Mismo patrón que `RepositoryView.tsx`: mapa local en el componente, fallback al
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — OE B: Handoff Package content_preview en Repository View
+
+### Diagnóstico
+Las cards de Handoff Package en Repository View mostraban nombre, agentes, workspace, message_count y fecha, pero ningún preview del contenido. Los mensajes ya estaban disponibles en la query (`messages` incluido en el select de `getHandoffPackages`), pero el mapper solo extraía el conteo y descartaba el resto.
+
+### Demo First
+La demo no tiene `getHandoffPackages`, `DocHandoffPackage` ni vistas equivalentes. No aplica portación.
+
+### Archivos tocados
+- `src/lib/db/documentation.ts`
+  - `DocHandoffPackage`: agregado `content_preview?: string` (línea 112).
+  - Mapper de `getHandoffPackages()`: IIFE que extrae `last.content ?? last.text ?? last.message`, trunca a 600 chars, retorna `undefined` si no hay contenido. No modifica la query — `messages` ya estaba en el select.
+- `src/components/documentation/RepositoryView.tsx`
+  - Card de handoff: bloque condicional `{item.hp.content_preview && <p className="line-clamp-3">}` insertado entre las pills y el bottom strip.
+
+### Decisión técnica
+- IIFE en el mapper (server-side): el preview se calcula en el DB layer, no en el componente. `DocHandoffPackage` no expone `messages[]` completo — solo el string truncado.
+- `as Record<string, unknown>` en lugar de `as any`: consistente con el patrón de `getMessagePreview` en RepositoryView.
+- `line-clamp-3`: 3 líneas visibles, igual que el patrón de Saved Selection pero con más líneas dado que el handoff tiende a tener mensajes más densos.
+- `content.length > 600 ? '…'`: mismo carácter que `getMessagePreview`.
+
+### Alternativas descartadas
+- Exponer `messages: unknown[]` en `DocHandoffPackage`: descartado — el componente no necesita el array completo, solo el preview.
+- `getMessagePreview` reutilizado en el componente: descartado — el mapper server-side es el lugar correcto para esta transformación en handoffs.
+
+### Restricciones respetadas
+- `InvestigateView`, `AuditView`, `DocClient`, `page.tsx`: sin tocar.
+- `messages[]` no expuesto en `DocHandoffPackage`.
+- Filtros, sorting, otros tipos: sin tocar.
+- `CodingWorkshop.md`: no modificado.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.
