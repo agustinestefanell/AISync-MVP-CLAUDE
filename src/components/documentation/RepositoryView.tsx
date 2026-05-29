@@ -209,6 +209,8 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
           <Row label="Messages">
             {hp.message_count} message{hp.message_count !== 1 ? 's' : ''} included
           </Row>
+          <Row label="Project">{hp.project_name ?? '—'}</Row>
+          <Row label="Team">{hp.team_name ?? '—'}</Row>
           <Row label="Workspace">{hp.workspace_name}</Row>
         </div>
 
@@ -270,9 +272,10 @@ function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSel
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
         <div className="space-y-3">
           <Row label="Messages">{ss.messages.length} message{ss.messages.length !== 1 ? 's' : ''} saved</Row>
-          <Row label="Created" suppressWarn>{formatDate(ss.created_at)}</Row>
+          <Row label="Project">{ss.project_name ?? '—'}</Row>
+          <Row label="Team">{ss.team_name ? (ss.team_id ? teamLabel(ss.team_id, ss.team_name, teamCodes) : ss.team_name) : '—'}</Row>
           <Row label="Workspace">{ss.workspace_name}</Row>
-          {ss.team_name && <Row label="Team">{ss.team_id ? teamLabel(ss.team_id, ss.team_name, teamCodes) : ss.team_name}</Row>}
+          <Row label="Created" suppressWarn>{formatDate(ss.created_at)}</Row>
         </div>
         {ss.messages.length > 0 && (
           <div>

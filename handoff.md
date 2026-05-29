@@ -3358,3 +3358,34 @@ La demo no tiene `CheckpointDetailPanel` ni detail panels documentales. No aplic
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Metadata jerárquica en Handoff y Saved Selection detail panels
+
+### Diagnóstico
+`HandoffDetailPanel` mostraba From/To, Status, Created, Messages y Workspace, pero no Project ni Team aunque ambos campos estaban disponibles en `DocHandoffPackage`. `SavedSelectionDetailPanel` mostraba Messages, Created, Workspace y Team (condicional), pero tampoco mostraba Project.
+
+### Demo First
+La demo no tiene detail panels equivalentes. No aplica portación.
+
+### Archivos tocados
+- `src/components/documentation/RepositoryView.tsx`
+  - `HandoffDetailPanel`: agregados `<Row label="Project">` y `<Row label="Team">` antes de `<Row label="Workspace">`. Orden final: From→To, Status, Created, Messages, **Project, Team**, Workspace.
+  - `SavedSelectionDetailPanel`: agregado `<Row label="Project">`. Team normalizado de condicional `{ss.team_name && ...}` a siempre visible con fallback `'—'`. Orden reordenado: Messages, **Project, Team**, Workspace, Created.
+
+### Decisiones técnicas
+- `hp.project_name ?? '—'` / `ss.project_name ?? '—'`: ambos campos son `string | null` en sus tipos.
+- `SavedSelectionDetailPanel` Team: cambio de `{ss.team_name && ...}` a `{ss.team_name ? teamLabel(...) : '—'}` — consistente con el patrón de los otros panels.
+- `CheckpointDetailPanel`: sin tocar — ya tiene Project y Team en Secondary Metadata.
+
+### Restricciones respetadas
+- `CheckpointDetailPanel`: sin tocar.
+- `documentation.ts`, filtros, sorting, cards: sin tocar.
+- `CodingWorkshop.md`: no modificado.
+
+### Build
+✓ `npm.cmd run build` limpio.
+
+### Estado
+Cerrado.
