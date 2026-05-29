@@ -11,7 +11,7 @@ Last updated: 2026-05-28 (Save Selection UI — commit c3e880b)
 | Repository View | ✅ Live | Search bar + sort (newest/oldest/name) + unified uniqueTeams — commit daeb732. Saved Selections integrated as third document type — commit 4ec8d2d. Purpose labels translated, preview uses last message 600 chars — commit 91b72fa |
 | **Structure View — DocumentationMirrorTree** | ✅ Closed | Pan/zoom/drag mirror tree + search/project filter — commit 2ba4a49 |
 | Audit View | ✅ Live | Ficha documental + team filter con códigos jerárquicos — commit 5fd5863 |
-| Investigate View | ✅ Live | Nivel 1 cards + Investigation Context + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80. Saved Selections filter + render added — commit 4ec8d2d. Saved Selections visible in default view — commit 91b72fa |
+| Investigate View | ✅ Live | Nivel 1 cards + Investigation Context + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80. Saved Selections filter + render added — commit 4ec8d2d. Saved Selections visible in default view — commit 91b72fa. Purpose labels translated to English — pending commit |
 | Knowledge Map | ✅ Live | ReactFlow graph, intentionally dark |
 
 ---

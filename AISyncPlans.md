@@ -290,7 +290,7 @@ DocClient (Client)
 
 **Reglas de display en Repository View**: los previews de objetos con `messages` usan el último mensaje disponible truncado a 600 caracteres. Los labels de `purpose` se traducen visualmente via `PURPOSE_LABELS` local (sin modificar datos en DB).
 
-**Reglas de display en Investigate View**: cuando `filterType === ''` (All Types), la vista base muestra checkpoints agrupados por fecha y, al final, una sección "Saved Selections" con todas las saved_selections. Cuando `filterType === 'Saved Selection'`, muestra solo saved_selections.
+**Reglas de display en Investigate View**: cuando `filterType === ''` (All Types), la vista base muestra checkpoints agrupados por fecha y, al final, una sección "Saved Selections" con todas las saved_selections. Cuando `filterType === 'Saved Selection'`, muestra solo saved_selections. Los labels de `purpose` se traducen mediante `PURPOSE_LABELS` local (igual que en RepositoryView) — no se modifica la DB.
 
 ### 3.6 SMPanel
 

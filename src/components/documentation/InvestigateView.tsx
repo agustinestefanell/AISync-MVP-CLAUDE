@@ -11,6 +11,17 @@ const PURPOSE_BADGE: Record<string, string> = {
   'Evidence':       'text-orange-700 bg-orange-50 border-orange-200',
 }
 
+const PURPOSE_LABELS: Record<string, string> = {
+  'Checkpoint':           'Checkpoint',
+  'Handoff':              'Handoff',
+  'Session Backup':       'Session Backup',
+  'Evidence':             'Evidence',
+  'Documentación':        'Documentation',
+  'Retomar después':      'Resume Later',
+  'Soporte de auditoría': 'Audit Support',
+  'Evidencia':            'Evidence',
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-US', {
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -260,14 +271,14 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
                       </div>
                     </div>
                     <span className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded-full border font-semibold uppercase tracking-[0.08em] ${PURPOSE_BADGE[c.purpose] ?? 'text-gray-600 bg-gray-50 border-gray-200'}`}>
-                      {c.purpose}
+                      {PURPOSE_LABELS[c.purpose] ?? c.purpose}
                     </span>
                   </div>
                   {/* Metadata grid */}
                   <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1">
                     <InvMeta label="User"               value={userEmail} />
                     <InvMeta label="Last Responsible"   value={c.responsible ?? userEmail} />
-                    <InvMeta label="Document Type"      value={c.purpose} />
+                    <InvMeta label="Document Type"      value={PURPOSE_LABELS[c.purpose] ?? c.purpose} />
                     <InvMeta label="Latest Reference"   value={formatDate(c.created_at)} suppress />
                     <InvMeta label="Investigation Lens" value={c.project_name} />
                     <InvMeta label="Related Actors"     value={`${teamLabel(c.team_id, c.team_name, teamCodes)} · ${c.workspace_name}`} />

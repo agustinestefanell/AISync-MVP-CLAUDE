@@ -3082,3 +3082,34 @@ La demo no tiene Documentation Mode ni vistas equivalentes. No aplica portación
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — OE A: InvestigateView purpose labels en inglés
+
+### Diagnóstico
+`InvestigateView` mostraba `{c.purpose}` crudo en dos puntos: el badge de propósito y la metadata "Document Type". Checkpoints con purpose guardado en español (`Documentación`, `Retomar después`, etc.) aparecían en la UI sin traducir.
+
+### Demo First
+La demo no tiene vistas equivalentes a InvestigateView ni patrón `PURPOSE_LABELS`. No aplica portación.
+
+### Archivos tocados
+- `src/components/documentation/InvestigateView.tsx`
+  - `PURPOSE_LABELS` agregado junto a `PURPOSE_BADGE` (línea 14).
+  - Línea 274: `{c.purpose}` → `{PURPOSE_LABELS[c.purpose] ?? c.purpose}` (badge).
+  - Línea 281: `value={c.purpose}` → `value={PURPOSE_LABELS[c.purpose] ?? c.purpose}` (InvMeta "Document Type").
+
+### Decisión técnica
+Mismo patrón que `RepositoryView.tsx`: mapa local en el componente, fallback al valor raw si la key no existe. La lógica de filtro en línea 115 (`c.purpose !== filterType`) queda intacta — compara valores raw, correcto.
+
+### Restricciones respetadas
+- Filtros: sin tocar.
+- `PURPOSE_BADGE`: sin tocar (sigue usando valor raw como key de estilos).
+- `RepositoryView`, `DocClient`, `documentation.ts`, `page.tsx`: sin tocar.
+- `CodingWorkshop.md`: no modificado (ajuste de label visible, no bug técnico).
+
+### Build
+✓ `npm.cmd run build` limpio.
+
+### Estado
+Cerrado.
