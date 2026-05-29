@@ -530,6 +530,12 @@ export default function RepositoryView({
                               {item.cp.workspace_name}
                             </span>
                           </div>
+                          {/* Preview */}
+                          {item.cp.content_preview && (
+                            <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)] leading-relaxed line-clamp-3">
+                              {item.cp.content_preview}
+                            </p>
+                          )}
                           {/* Bottom strip: metadata + buttons */}
                           <div className="mt-2 flex flex-wrap items-end justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2">
                             <div className="text-[10px] leading-[1.5] text-[var(--color-text-muted)] flex flex-wrap gap-x-3 gap-y-0.5">

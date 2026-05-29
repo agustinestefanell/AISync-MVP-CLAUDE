@@ -18,9 +18,10 @@ export interface DocCheckpoint {
   team_id: string
   team_name: string
   team_type: string
-  project_id: string
-  project_name: string
-  created_at: string
+  project_id:       string
+  project_name:     string
+  created_at:       string
+  content_preview?: string
 }
 
 export interface DocAuditEvent {
@@ -45,6 +46,7 @@ interface RawCheckpoint {
   responsible: string | null
   workspace_id: string
   created_at: string
+  checkpoint_messages: { content: string; role: string; position: number }[] | null
   workspaces: {
     id: string
     name: string
@@ -65,6 +67,7 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
       id, name, purpose,
       doc_state, object_type, sensitivity, version_label, responsible,
       workspace_id, created_at,
+      checkpoint_messages(content, role, position),
       workspaces (
         id, name,
         teams (
@@ -89,9 +92,20 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
     team_id:        r.workspaces?.teams?.id ?? '',
     team_name:      r.workspaces?.teams?.name ?? '—',
     team_type:      r.workspaces?.teams?.type ?? 'SAT',
-    project_id:     r.workspaces?.teams?.projects?.id ?? '',
-    project_name:   r.workspaces?.teams?.projects?.name ?? '—',
-    created_at:     r.created_at,
+    project_id:      r.workspaces?.teams?.projects?.id ?? '',
+    project_name:    r.workspaces?.teams?.projects?.name ?? '—',
+    created_at:      r.created_at,
+    content_preview: (() => {
+      const msgs = Array.isArray(r.checkpoint_messages) ? r.checkpoint_messages : []
+      const assistantMsgs = msgs.filter(m => m.role === 'assistant')
+      const sorted = [...assistantMsgs].sort((a, b) => a.position - b.position)
+      const last = sorted[sorted.length - 1]
+      if (!last) return undefined
+      const content = last.content ?? ''
+      return content.length > 0
+        ? content.slice(0, 600) + (content.length > 600 ? '…' : '')
+        : undefined
+    })(),
   }))
 }
 

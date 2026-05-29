@@ -3175,3 +3175,40 @@ Cerrado.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — OE C: Checkpoint content_preview en Repository View
+
+### Diagnóstico
+`getDocCheckpoints()` no traía mensajes de `checkpoint_messages`. Las cards de checkpoint en Repository View no podían mostrar preview de contenido. La columna `content` existe en `checkpoint_messages` como `text not null`; la columna de orden es `position` (no `created_at` — ese campo no existe en `checkpoint_messages`).
+
+### Demo First
+La demo no tiene `getDocCheckpoints`, `DocCheckpoint` ni vistas equivalentes. No aplica portación.
+
+### Desviación de la OE
+La OE especificaba `checkpoint_messages(content, role, created_at)`. La tabla no tiene `created_at` — solo `position`. Se usó `checkpoint_messages(content, role, position)` y se ordena por `position` en el mapper.
+
+### Archivos tocados
+- `src/lib/db/documentation.ts`
+  - `DocCheckpoint`: agregado `content_preview?: string`.
+  - `RawCheckpoint`: agregado `checkpoint_messages: { content, role, position }[] | null`.
+  - `.select()`: agregado `checkpoint_messages(content, role, position)`.
+  - Mapper: filtra `role === 'assistant'`, ordena por `position`, toma el último, trunca a 600 chars.
+- `src/components/documentation/RepositoryView.tsx`
+  - Card de checkpoint: `{item.cp.content_preview && <p className="line-clamp-3">}` insertado entre pills y bottom strip.
+
+### Decisiones técnicas
+- `position` en lugar de `created_at`: `checkpoint_messages` no tiene timestamp.
+- Solo `role === 'assistant'`: preview del contenido del agente, no del usuario.
+- `checkpoint_messages[]` no expuesto en `DocCheckpoint`: solo el string truncado.
+
+### Restricciones respetadas
+- `InvestigateView`, `AuditView`, `DocClient`, `page.tsx`: sin tocar.
+- `CodingWorkshop.md`: no modificado.
+
+### Build
+✓ `npm.cmd run build` limpio.
+
+### Estado
+Cerrado.
