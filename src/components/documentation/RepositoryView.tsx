@@ -142,6 +142,13 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
           </div>
         </div>
 
+        {cp.checkpoint_messages.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Conversation</p>
+            <MiniChatPreview messages={cp.checkpoint_messages} />
+          </div>
+        )}
+
         <div className="flex gap-2 pt-1">
           <button
             type="button"
@@ -207,6 +214,13 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
           </div>
         )}
 
+        {hp.messages.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Conversation</p>
+            <MiniChatPreview messages={hp.messages} />
+          </div>
+        )}
+
         <div className="pt-1">
           <button
             type="button"
@@ -222,7 +236,6 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
 }
 
 function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSelection; onClose: () => void; teamCodes?: Record<string, string> }) {
-  const preview = getMessagePreview(ss.messages)
   return (
     <div className="h-full min-h-0 flex flex-col border-l border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
       <div className="shrink-0 px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-start justify-between gap-4">
@@ -244,15 +257,39 @@ function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSel
           <Row label="Workspace">{ss.workspace_name}</Row>
           {ss.team_name && <Row label="Team">{ss.team_id ? teamLabel(ss.team_id, ss.team_name, teamCodes) : ss.team_name}</Row>}
         </div>
-        {preview && (
+        {ss.messages.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">First Message Preview</p>
-            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed bg-[var(--color-surface-subtle)] border border-[var(--color-border-default)] rounded-xl px-4 py-3">
-              {preview}
-            </p>
+            <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Conversation</p>
+            <MiniChatPreview
+              messages={(ss.messages as { role?: string; content?: string }[]).map(m => ({
+                role:    m.role    ?? 'user',
+                content: m.content ?? '',
+              }))}
+            />
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Mini chat preview ─────────────────────────────────────────────────────
+function MiniChatPreview({ messages }: { messages: { role: string; content: string }[] }) {
+  if (!messages.length) return null
+  const displayed = messages.slice(-8)
+  return (
+    <div className="mt-3 border-t border-[var(--color-border-subtle)] pt-3 max-h-64 overflow-y-auto flex flex-col gap-2">
+      {displayed.map((msg, i) => (
+        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
+            msg.role === 'user'
+              ? 'bg-[var(--color-accent)] text-white'
+              : 'bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)]'
+          }`}>
+            {msg.content.slice(0, 300)}{msg.content.length > 300 ? '…' : ''}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

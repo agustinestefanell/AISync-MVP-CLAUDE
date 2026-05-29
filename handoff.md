@@ -3212,3 +3212,50 @@ La OE especificaba `checkpoint_messages(content, role, created_at)`. La tabla no
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Mini chat preview en Repository View detail panels
+
+### Diagnóstico
+Los detail panels de Repository View solo mostraban metadata y un preview de texto plano. Los usuarios no podían leer el hilo conversacional del objeto documental sin salir al workspace. El campo `content_preview` daba el último mensaje truncado, pero no el intercambio completo.
+
+### Demo First
+La demo no tiene `MiniChatPreview`, `CheckpointDetailPanel`, `HandoffDetailPanel` ni `SavedSelectionDetailPanel`. No aplica portación.
+
+### Archivos tocados
+- `src/lib/db/documentation.ts`
+  - `DocCheckpoint`: agregado `checkpoint_messages: { role, content, position }[]`.
+  - `getDocCheckpoints()` mapper: expone `checkpoint_messages` ordenados por `position`.
+  - `DocHandoffPackage`: agregado `messages: { role, content }[]`.
+  - `getHandoffPackages()` mapper: normaliza `messages` desde `r.messages` (raw unknown[]) a `{ role, content }[]` usando `Record<string, unknown>[]` cast.
+- `src/components/documentation/RepositoryView.tsx`
+  - `MiniChatPreview`: subcomponente local. Últimos 8 mensajes, burbujas user/assistant, truncado a 300 chars cada burbuja, max-h-64 overflow scroll.
+  - `CheckpointDetailPanel`: sección "Conversation" con `MiniChatPreview` si hay mensajes.
+  - `HandoffDetailPanel`: sección "Conversation" con `MiniChatPreview` si hay mensajes.
+  - `SavedSelectionDetailPanel`: reemplazado `getMessagePreview` + bloque de texto plano por `MiniChatPreview` con cast `{ role?, content? }[]`.
+
+### Decisiones técnicas
+- `slice(-8)`: últimos 8 mensajes para no abrumar el panel lateral.
+- Burbujas `bg-[var(--color-accent)] text-white` para user, `bg-[var(--color-surface-subtle)] border` para assistant — consistente con el sistema de tokens del proyecto.
+- `max-h-64 overflow-y-auto`: el mini chat es scrollable dentro del panel, sin romper el layout.
+- Render condicional `{hp.messages.length > 0 && ...}`: no muestra sección vacía.
+- `as { role?: string; content?: string }[]` para `ss.messages`: tipado conservador sobre `unknown[]`.
+- `getMessagePreview` no fue eliminado — sigue usándose en las cards de la lista para el preview de Saved Selections.
+
+### Alternativas descartadas
+- Mostrar todos los mensajes sin límite: descartado — el panel lateral es estrecho.
+- Crear componente externo: descartado — OE prohíbe archivos nuevos.
+- Exponer `messages[]` raw en `DocHandoffPackage` sin normalizar: descartado por seguridad de tipos.
+
+### Restricciones respetadas
+- `InvestigateView`, `AuditView`, `DocClient`, `page.tsx`: sin tocar.
+- Filtros, sorting, cards existentes: sin tocar.
+- `content_preview` en ambos tipos: sin eliminar.
+- `CodingWorkshop.md`: no modificado.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

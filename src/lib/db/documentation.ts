@@ -20,8 +20,9 @@ export interface DocCheckpoint {
   team_type: string
   project_id:       string
   project_name:     string
-  created_at:       string
-  content_preview?: string
+  created_at:          string
+  content_preview?:    string
+  checkpoint_messages: { role: string; content: string; position: number }[]
 }
 
 export interface DocAuditEvent {
@@ -106,6 +107,9 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
         ? content.slice(0, 600) + (content.length > 600 ? '…' : '')
         : undefined
     })(),
+    checkpoint_messages: Array.isArray(r.checkpoint_messages)
+      ? [...r.checkpoint_messages].sort((a, b) => a.position - b.position)
+      : [],
   }))
 }
 
@@ -122,9 +126,10 @@ export interface DocHandoffPackage {
   team_name: string | null
   project_id: string | null
   project_name: string | null
-  message_count:   number
+  message_count:    number
   content_preview?: string
-  created_at:      string
+  messages:         { role: string; content: string }[]
+  created_at:       string
 }
 
 interface RawHandoffPackage {
@@ -176,6 +181,12 @@ export async function getHandoffPackages(): Promise<DocHandoffPackage[]> {
           ? content.slice(0, 600) + (content.length > 600 ? '…' : '')
           : undefined
       })(),
+      messages: Array.isArray(r.messages)
+        ? (r.messages as Record<string, unknown>[]).map(m => ({
+            role:    typeof m.role    === 'string' ? m.role    : 'user',
+            content: typeof m.content === 'string' ? m.content : '',
+          }))
+        : [],
       created_at:      r.created_at,
     }
   })
