@@ -3038,3 +3038,47 @@ La demo (`C:\proyectos\AISync\MVP`) no tiene Documentation Mode ni RepositoryVie
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Grupo A fixes: Repository preview + purpose labels + Investigate default view
+
+### Diagnóstico
+Tres desajustes post-integración de Saved Selections en Documentation Mode:
+1. `getMessagePreview` usaba `messages[0]` (primer mensaje, corto, poco relevante) y truncaba a 200 chars.
+2. Valores de `purpose` guardados en español (`'Documentación'`, `'Retomar después'`, etc.) aparecían crudos en la UI.
+3. `InvestigateView` con `filterType === ''` no mostraba saved selections.
+
+### Demo First
+La demo no tiene Documentation Mode ni vistas equivalentes. No aplica portación.
+
+### Archivos tocados
+- `src/components/documentation/RepositoryView.tsx`
+  - `getMessagePreview`: cambiado de `messages[0]` a `messages[messages.length - 1]`, truncado de 200 a 600 chars.
+  - `PURPOSE_LABELS` agregado como mapa de traducción local.
+  - Render de `cp.purpose` e `item.cp.purpose` envuelto con `PURPOSE_LABELS[...] ?? purpose`.
+- `src/components/documentation/InvestigateView.tsx`
+  - Timeline reestructurado: cuando `filterType === ''`, muestra checkpoint groups + sección "Saved Selections" al final.
+  - `SavedSelectionCard` extraído como subcomponente para reutilización entre vista base y filtro explícito.
+  - Empty state actualizado: solo aparece cuando no hay checkpoints NI saved selections que mostrar.
+
+### Decisiones técnicas
+- `messages[messages.length - 1]`: el último mensaje es el más relevante como preview (típicamente la respuesta del asistente).
+- `PURPOSE_LABELS` local en RepositoryView: no en DB, no en documentation.ts — solo transformación visual en el componente que lo necesita.
+- `SavedSelectionCard` como subcomponente inline: evita duplicar el JSX entre el bloque `filterType === 'Saved Selection'` y la sección base. No es un refactor arquitectural.
+- Sección "Saved Selections" al final del timeline con el mismo separador de línea/texto que los date headers — consistencia visual sin diseño nuevo.
+
+### Alternativas descartadas
+- Mezclar saved_selections en el grouping por fecha: requería refactorizar tipos del grouping (`DocCheckpoint[]` → union type). Fuera de scope.
+- Agregar `PURPOSE_LABELS` a `documentation.ts`: innecesario, es una transformación de display, no de datos.
+
+### Restricciones respetadas
+- `DocClient`, `documentation.ts`, `page.tsx`, `AuditView`, `StructureView`, `KnowledgeMap`: sin tocar.
+- Lógica de filtros del dropdown: sin tocar.
+- `CodingWorkshop.md`: no modificado (fixes visuales/funcionales, no bugs técnicos).
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

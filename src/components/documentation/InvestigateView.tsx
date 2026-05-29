@@ -219,31 +219,19 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
           ) : (
             <div className="space-y-3">
               {savedSelections.map(s => (
-                <div key={s.id} className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-[14px] px-4 py-3 hover:border-[var(--color-border-focus)] transition-colors">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <span className="text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase mr-1.5 text-amber-700 bg-amber-50 border-amber-200">SAVED SELECTION</span>
-                      <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{s.name}</span>
-                      <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{s.workspace_name}{s.team_name ? ` · ${s.team_name}` : ''}</p>
-                    </div>
-                    <span className="shrink-0 text-[9px] px-2 py-0.5 rounded-full border font-semibold uppercase text-amber-700 bg-amber-50 border-amber-200">
-                      {s.messages.length} msgs
-                    </span>
-                  </div>
-                  <div className="mt-2 flex gap-x-6 gap-y-0.5 flex-wrap border-t border-[var(--color-border-subtle)] pt-2">
-                    <InvMeta label="Workspace" value={s.workspace_name} />
-                    {s.team_name && <InvMeta label="Team" value={s.team_name} />}
-                    <InvMeta label="Created" value={new Date(s.created_at).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })} suppress />
-                  </div>
-                </div>
+                <SavedSelectionCard key={s.id} s={s} />
               ))}
             </div>
           )
-        ) : grouped.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-[var(--color-text-muted)] text-sm">No documents match your search.</p>
-          </div>
-        ) : grouped.map(([day, items]) => (
+        ) : (
+          <>
+            {grouped.length === 0 && (filterType !== '' || savedSelections.length === 0) ? (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-[var(--color-text-muted)] text-sm">No documents match your search.</p>
+              </div>
+            ) : (
+              <>
+                {grouped.map(([day, items]) => (
           <div key={day} className="mb-8">
             {/* Date header */}
             <div className="flex items-center gap-3 mb-4">
@@ -303,7 +291,47 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
               ))}
             </div>
           </div>
-        ))}
+                ))}
+                {filterType === '' && savedSelections.length > 0 && (
+                  <div className="mt-8">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-px flex-1 bg-[var(--color-border-subtle)]" />
+                      <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Saved Selections</p>
+                      <div className="h-px flex-1 bg-[var(--color-border-subtle)]" />
+                    </div>
+                    <div className="space-y-3">
+                      {savedSelections.map(s => (
+                        <SavedSelectionCard key={s.id} s={s} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SavedSelectionCard({ s }: { s: import('@/lib/db/documentation').DocSavedSelection }) {
+  return (
+    <div className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-[14px] px-4 py-3 hover:border-[var(--color-border-focus)] transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className="text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase mr-1.5 text-amber-700 bg-amber-50 border-amber-200">SAVED SELECTION</span>
+          <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{s.name}</span>
+          <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{s.workspace_name}{s.team_name ? ` · ${s.team_name}` : ''}</p>
+        </div>
+        <span className="shrink-0 text-[9px] px-2 py-0.5 rounded-full border font-semibold uppercase text-amber-700 bg-amber-50 border-amber-200">
+          {s.messages.length} msgs
+        </span>
+      </div>
+      <div className="mt-2 flex gap-x-6 gap-y-0.5 flex-wrap border-t border-[var(--color-border-subtle)] pt-2">
+        <InvMeta label="Workspace" value={s.workspace_name} />
+        {s.team_name && <InvMeta label="Team" value={s.team_name} />}
+        <InvMeta label="Created" value={new Date(s.created_at).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })} suppress />
       </div>
     </div>
   )

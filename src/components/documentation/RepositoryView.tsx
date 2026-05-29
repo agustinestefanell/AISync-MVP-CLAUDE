@@ -46,12 +46,23 @@ const AGENT_LABEL: Record<string, string> = {
 const HANDOFF_BADGE          = 'text-purple-700 bg-purple-50 border-purple-200'
 const SAVED_SELECTION_BADGE  = 'text-amber-700 bg-amber-50 border-amber-200'
 
+const PURPOSE_LABELS: Record<string, string> = {
+  'Checkpoint':            'Checkpoint',
+  'Handoff':               'Handoff',
+  'Session Backup':        'Session Backup',
+  'Evidence':              'Evidence',
+  'Documentación':         'Documentation',
+  'Retomar después':       'Resume Later',
+  'Soporte de auditoría':  'Audit Support',
+  'Evidencia':             'Evidence',
+}
+
 function getMessagePreview(messages: unknown[]): string {
-  const first = messages[0] as Record<string, unknown> | undefined
-  if (!first) return ''
-  const content = first.content ?? first.text ?? first.message ?? ''
+  const last = messages[messages.length - 1] as Record<string, unknown> | undefined
+  if (!last) return ''
+  const content = last.content ?? last.text ?? last.message ?? ''
   if (typeof content !== 'string') return ''
-  return content.length > 200 ? content.slice(0, 200) + '…' : content
+  return content.length > 600 ? content.slice(0, 600) + '…' : content
 }
 
 function formatDate(iso: string) {
@@ -115,7 +126,7 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
           </Row>
           <Row label="Purpose">
             <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PURPOSE_BADGE[cp.purpose] ?? 'text-gray-600 bg-gray-50 border-gray-200'}`}>
-              {cp.purpose}
+              {PURPOSE_LABELS[cp.purpose] ?? cp.purpose}
             </span>
           </Row>
         </div>
@@ -510,7 +521,7 @@ export default function RepositoryView({
                           {/* Pills: purpose + team + workspace */}
                           <div className="mt-1.5 flex flex-wrap gap-1.5">
                             <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] ${PURPOSE_BADGE[item.cp.purpose] ?? 'text-gray-600 border-gray-200 bg-gray-50'}`}>
-                              {item.cp.purpose}
+                              {PURPOSE_LABELS[item.cp.purpose] ?? item.cp.purpose}
                             </span>
                             <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-sky-700">
                               {teamLabel(item.cp.team_id, item.cp.team_name, teamCodes)}
