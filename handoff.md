@@ -3291,3 +3291,40 @@ La demo no tiene detail panels equivalentes. No aplica portación.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Actor labels en MiniChatPreview
+
+### Diagnóstico
+`MiniChatPreview` mostraba burbujas con alineación visual pero sin identificar el actor. En handoff packages es especialmente relevante saber qué agente emitió cada mensaje.
+
+### Demo First
+La demo no tiene `MiniChatPreview` ni detail panels documentales equivalentes. No aplica portación.
+
+### Archivos tocados
+- `src/components/documentation/RepositoryView.tsx`
+  - `MiniChatPreview`: firma extendida con `agentLabel?: string` (default `'AI'`). Cada burbuja ahora muestra un label de actor encima: `'You'` para `role === 'user'`, `agentLabel` para el resto. El layout externo (`flex justify-end/start`) se preserva; el label y la burbuja quedan en un `flex flex-col items-end/start gap-0.5`.
+  - `HandoffDetailPanel`: pasa `agentLabel={AGENT_LABEL[hp.from_agent as keyof typeof AGENT_LABEL] ?? 'AI'}` — reutiliza la constante ya existente en el archivo.
+
+### Decisiones técnicas
+- `AGENT_LABEL` ya existía en línea 40 (`manager → 'Manager'`, `worker1 → 'Worker 1'`, `worker2 → 'Worker 2'`). No se creó mapa nuevo.
+- `agentLabel = 'AI'` como default: checkpoint y saved selection no tienen agente específico identificable en el contrato actual — `'AI'` es el fallback correcto.
+- Label sobre la burbuja (no dentro): mantiene el texto de la burbuja limpio y el label distinguible visualmente.
+- `max-w-full` en la burbuja interior en lugar de `max-w-[85%]` (el límite lo impone el contenedor externo `flex justify-end/start`).
+
+### Alternativas descartadas
+- Label dentro de la burbuja: reduce espacio útil para contenido y mezcla metadata con mensaje.
+- Pasar `agentLabel` a checkpoint y saved selection: `checkpoint_messages` no tiene info de agente específico en el contrato actual — el default `'AI'` es correcto.
+
+### Restricciones respetadas
+- `documentation.ts`: sin tocar.
+- Filtros, sorting, cards: sin tocar.
+- `CheckpointDetailPanel`, `SavedSelectionDetailPanel`: sin tocar (usan default).
+- `CodingWorkshop.md`: no modificado.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

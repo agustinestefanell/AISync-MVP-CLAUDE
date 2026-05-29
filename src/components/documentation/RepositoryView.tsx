@@ -217,7 +217,10 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
         {hp.messages.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Conversation</p>
-            <MiniChatPreview messages={hp.messages} />
+            <MiniChatPreview
+              messages={hp.messages}
+              agentLabel={AGENT_LABEL[hp.from_agent as keyof typeof AGENT_LABEL] ?? 'AI'}
+            />
           </div>
         )}
 
@@ -291,19 +294,34 @@ function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSel
 }
 
 // ── Mini chat preview ─────────────────────────────────────────────────────
-function MiniChatPreview({ messages }: { messages: { role: string; content: string }[] }) {
+function MiniChatPreview({
+  messages,
+  agentLabel = 'AI',
+}: {
+  messages: { role: string; content: string }[]
+  agentLabel?: string
+}) {
   if (!messages.length) return null
   const displayed = messages.slice(-8)
   return (
     <div className="mt-3 border-t border-[var(--color-border-subtle)] pt-3 max-h-64 overflow-y-auto flex flex-col gap-2">
       {displayed.map((msg, i) => (
         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
-            msg.role === 'user'
-              ? 'bg-[var(--color-accent)] text-white'
-              : 'bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)]'
-          }`}>
-            {msg.content.slice(0, 300)}{msg.content.length > 300 ? '…' : ''}
+          <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} gap-0.5`}>
+            <span className={`text-[10px] font-semibold px-1 ${
+              msg.role === 'user'
+                ? 'text-[var(--color-text-muted)]'
+                : 'text-[var(--color-accent)]'
+            }`}>
+              {msg.role === 'user' ? 'You' : agentLabel}
+            </span>
+            <div className={`max-w-full rounded-xl px-3 py-2 text-xs leading-relaxed ${
+              msg.role === 'user'
+                ? 'bg-[var(--color-accent)] text-white'
+                : 'bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)]'
+            }`}>
+              {msg.content.slice(0, 300)}{msg.content.length > 300 ? '…' : ''}
+            </div>
           </div>
         </div>
       ))}
