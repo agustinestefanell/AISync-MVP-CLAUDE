@@ -3328,3 +3328,33 @@ La demo no tiene `MiniChatPreview` ni detail panels documentales equivalentes. N
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Two-column layout CheckpointDetailPanel
+
+### Diagnóstico
+`CheckpointDetailPanel` tenía metadata principal y metadata secundaria en columna única, haciendo el panel más largo de lo necesario. Con mini chat y botones, el scroll era excesivo para un panel lateral.
+
+### Demo First
+La demo no tiene `CheckpointDetailPanel` ni detail panels documentales. No aplica portación.
+
+### Archivos tocados
+- `src/components/documentation/RepositoryView.tsx`
+  - Contenedor cambiado de `space-y-5` a `flex flex-col gap-5`.
+  - Metadata principal (todos los `Row` hasta Purpose) → columna izquierda de `grid grid-cols-2 gap-4`.
+  - Bloque `Secondary Metadata` → columna derecha del mismo grid.
+  - `MiniChatPreview` → full width debajo del grid.
+  - Botones de acción → full width debajo del mini chat.
+
+### Restricciones respetadas
+- `HandoffDetailPanel`, `SavedSelectionDetailPanel`: sin tocar.
+- Contenido de Row, handlers, labels: sin tocar.
+- Filtros, sorting, cards: sin tocar.
+- `CodingWorkshop.md`: no modificado.
+
+### Build
+✓ `npm.cmd run build` limpio.
+
+### Estado
+Cerrado.

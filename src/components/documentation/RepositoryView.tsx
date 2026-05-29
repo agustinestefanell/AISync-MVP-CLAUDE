@@ -107,41 +107,47 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
         <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm shrink-0">✕</button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-        <div className="space-y-3">
-          <Row label="State">
-            <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold uppercase ${STATE_BADGE[cp.doc_state] ?? STATE_BADGE.active}`}>
-              {cp.doc_state.replace('_', ' ')}
-            </span>
-          </Row>
-          <Row label="Version">{cp.version_label}</Row>
-          <Row label="Created" suppressWarn>{formatDate(cp.created_at)}</Row>
-          <Row label="Owner">{userName}</Row>
-          <Row label="Responsible">{cp.responsible ?? userName}</Row>
-          <Row label="Sensitivity">
-            <span className="text-xs text-[var(--color-text-secondary)] uppercase tracking-wide">{cp.sensitivity}</span>
-          </Row>
-          <Row label="Object type">
-            <span className="text-xs text-[var(--color-text-secondary)] capitalize">{cp.object_type}</span>
-          </Row>
-          <Row label="Purpose">
-            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PURPOSE_BADGE[cp.purpose] ?? 'text-gray-600 bg-gray-50 border-gray-200'}`}>
-              {PURPOSE_LABELS[cp.purpose] ?? cp.purpose}
-            </span>
-          </Row>
-        </div>
+      <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+        {/* Two-column: main metadata + secondary metadata */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Left: main metadata */}
+          <div className="space-y-3">
+            <Row label="State">
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold uppercase ${STATE_BADGE[cp.doc_state] ?? STATE_BADGE.active}`}>
+                {cp.doc_state.replace('_', ' ')}
+              </span>
+            </Row>
+            <Row label="Version">{cp.version_label}</Row>
+            <Row label="Created" suppressWarn>{formatDate(cp.created_at)}</Row>
+            <Row label="Owner">{userName}</Row>
+            <Row label="Responsible">{cp.responsible ?? userName}</Row>
+            <Row label="Sensitivity">
+              <span className="text-xs text-[var(--color-text-secondary)] uppercase tracking-wide">{cp.sensitivity}</span>
+            </Row>
+            <Row label="Object type">
+              <span className="text-xs text-[var(--color-text-secondary)] capitalize">{cp.object_type}</span>
+            </Row>
+            <Row label="Purpose">
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PURPOSE_BADGE[cp.purpose] ?? 'text-gray-600 bg-gray-50 border-gray-200'}`}>
+                {PURPOSE_LABELS[cp.purpose] ?? cp.purpose}
+              </span>
+            </Row>
+          </div>
 
-        <div>
-          <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Secondary Metadata</p>
-          <div className="bg-[var(--color-surface-subtle)] border border-[var(--color-border-default)] rounded-xl px-4 py-3 space-y-2.5">
-            <MetaRow label="Team"         value={teamLabel(cp.team_id, cp.team_name, teamCodes)} />
-            <MetaRow label="Object Type"  value={cp.object_type} />
-            <MetaRow label="Project"      value={cp.project_name} />
-            <MetaRow label="Workspace"    value={cp.workspace_name} />
-            <MetaRow label="Checkpoint ID" value={cp.id} mono />
+          {/* Right: secondary metadata */}
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Secondary Metadata</p>
+            <div className="bg-[var(--color-surface-subtle)] border border-[var(--color-border-default)] rounded-xl px-4 py-3 space-y-2.5">
+              <MetaRow label="Team"          value={teamLabel(cp.team_id, cp.team_name, teamCodes)} />
+              <MetaRow label="Object Type"   value={cp.object_type} />
+              <MetaRow label="Project"       value={cp.project_name} />
+              <MetaRow label="Workspace"     value={cp.workspace_name} />
+              <MetaRow label="Checkpoint ID" value={cp.id} mono />
+            </div>
           </div>
         </div>
 
+        {/* Full width: conversation */}
         {cp.checkpoint_messages.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Conversation</p>
@@ -149,6 +155,7 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
           </div>
         )}
 
+        {/* Full width: action buttons */}
         <div className="flex gap-2 pt-1">
           <button
             type="button"
