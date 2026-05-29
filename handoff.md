@@ -3152,3 +3152,26 @@ La demo no tiene `getHandoffPackages`, `DocHandoffPackage` ni vistas equivalente
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Fix: labels Handoff vs Handoff Package en Repository View
+
+### Diagnóstico
+`RepositoryView` usaba el label `Handoff`/`HANDOFF` para los objetos de `handoff_packages`, confundiéndolo con checkpoints que tienen `purpose: 'Handoff'`. Dos puntos de render afectados: el badge en el detail panel (`HandoffDetailPanel`) y el badge en la card de la lista.
+
+### Archivos tocados
+- `src/components/documentation/RepositoryView.tsx`
+  - Línea 173 (`HandoffDetailPanel`): `Handoff` → `Handoff Package`
+  - Línea 616 (card badge en lista): `HANDOFF` → `HANDOFF PACKAGE`
+
+### Restricciones respetadas
+- Dropdown: sin tocar — línea 447 ya decía `Handoff Package` correctamente.
+- `PURPOSE_BADGE['Handoff']` y `PURPOSE_LABELS['Handoff']`: sin tocar — son para checkpoints con purpose `'Handoff'`.
+- Lógica de filtros, queries, sorting: sin tocar.
+
+### Build
+✓ `npm.cmd run build` limpio.
+
+### Estado
+Cerrado.

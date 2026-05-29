@@ -170,7 +170,7 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-xs px-2 py-0.5 rounded border font-bold uppercase ${HANDOFF_BADGE}`}>
-              Handoff
+              Handoff Package
             </span>
             <h3 className="text-sm font-bold text-[var(--color-text-primary)] leading-tight">{hp.name}</h3>
           </div>
@@ -613,7 +613,7 @@ export default function RepositoryView({
                                 <path d="M7.5 13h5" />
                               </svg>
                               <div className="min-w-0">
-                                <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase mr-1.5 ${HANDOFF_BADGE}`}>HANDOFF</span>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase mr-1.5 ${HANDOFF_BADGE}`}>HANDOFF PACKAGE</span>
                                 <span className="text-sm font-semibold text-[var(--color-text-primary)]">{item.hp.name}</span>
                               </div>
                             </div>
