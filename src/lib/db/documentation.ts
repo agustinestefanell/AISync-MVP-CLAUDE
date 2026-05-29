@@ -22,7 +22,7 @@ export interface DocCheckpoint {
   project_name:     string
   created_at:          string
   content_preview?:    string
-  checkpoint_messages: { role: string; content: string; position: number }[]
+  checkpoint_messages: { role: string; content: string; position: number; agent_role?: string }[]
 }
 
 export interface DocAuditEvent {
@@ -47,7 +47,7 @@ interface RawCheckpoint {
   responsible: string | null
   workspace_id: string
   created_at: string
-  checkpoint_messages: { content: string; role: string; position: number }[] | null
+  checkpoint_messages: { content: string; role: string; position: number; session_id: string | null; agent_sessions: { agent_role: string } | null }[] | null
   workspaces: {
     id: string
     name: string
@@ -68,7 +68,7 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
       id, name, purpose,
       doc_state, object_type, sensitivity, version_label, responsible,
       workspace_id, created_at,
-      checkpoint_messages(content, role, position),
+      checkpoint_messages(content, role, position, session_id, agent_sessions(agent_role)),
       workspaces (
         id, name,
         teams (
@@ -108,7 +108,14 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
         : undefined
     })(),
     checkpoint_messages: Array.isArray(r.checkpoint_messages)
-      ? [...r.checkpoint_messages].sort((a, b) => a.position - b.position)
+      ? [...r.checkpoint_messages]
+          .sort((a, b) => a.position - b.position)
+          .map(m => ({
+            role:       m.role,
+            content:    m.content,
+            position:   m.position,
+            agent_role: m.agent_sessions?.agent_role ?? undefined,
+          }))
       : [],
   }))
 }

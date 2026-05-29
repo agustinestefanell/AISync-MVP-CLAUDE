@@ -705,3 +705,7 @@ El streaming en `/api/chat/route.ts` usa `ReadableStream`. No agregar `await` en
 ### 10.3 Riesgos pendientes
 
 Migraciones 016–019 aplicadas en Supabase Dashboard. No hay migraciones pendientes de ejecución a 2026-05-28.
+
+### Checkpoint messages — agent_role
+
+`getDocCheckpoints()` incluye `checkpoint_messages(content, role, position, session_id, agent_sessions(agent_role))`. El campo `agent_role` se mapea por mensaje y se expone en `DocCheckpoint.checkpoint_messages`. `CheckpointDetailPanel` usa este campo para: (1) mostrar labels reales de agente en `MiniChatPreview` via `AGENT_LABEL[msg.agentRole]`; (2) mostrar row `AI Agent` en Secondary Metadata. `agent_sessions` y `session_id` no se exponen en `DocCheckpoint` — solo `agent_role` como dato de UI mínimo.

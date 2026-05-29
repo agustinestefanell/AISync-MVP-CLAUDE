@@ -143,6 +143,11 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
               <MetaRow label="Project"       value={cp.project_name} />
               <MetaRow label="Workspace"     value={cp.workspace_name} />
               <MetaRow label="Checkpoint ID" value={cp.id} mono />
+              {(() => {
+                const firstAssistant = cp.checkpoint_messages.find(m => m.role === 'assistant')
+                if (!firstAssistant?.agent_role) return null
+                return <MetaRow label="AI Agent" value={AGENT_LABEL[firstAssistant.agent_role] ?? firstAssistant.agent_role} />
+              })()}
             </div>
           </div>
         </div>
@@ -151,7 +156,7 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
         {cp.checkpoint_messages.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Conversation</p>
-            <MiniChatPreview messages={cp.checkpoint_messages} />
+            <MiniChatPreview messages={cp.checkpoint_messages.map(m => ({ ...m, agentRole: m.agent_role }))} />
           </div>
         )}
 
@@ -308,7 +313,7 @@ function MiniChatPreview({
   messages,
   agentLabel = 'AI',
 }: {
-  messages: { role: string; content: string }[]
+  messages: { role: string; content: string; agentRole?: string }[]
   agentLabel?: string
 }) {
   if (!messages.length) return null
@@ -323,7 +328,7 @@ function MiniChatPreview({
                 ? 'text-[var(--color-text-muted)]'
                 : 'text-[var(--color-accent)]'
             }`}>
-              {msg.role === 'user' ? 'You' : agentLabel}
+              {msg.role === 'user' ? 'You' : (AGENT_LABEL[msg.agentRole ?? ''] ?? agentLabel)}
             </span>
             <div className={`max-w-full rounded-xl px-3 py-2 text-xs leading-relaxed ${
               msg.role === 'user'

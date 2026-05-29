@@ -3389,3 +3389,42 @@ La demo no tiene detail panels equivalentes. No aplica portación.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Agent role en checkpoint messages
+
+### Diagnóstico
+`MiniChatPreview` en checkpoints mostraba `'AI'` como label genérico para todos los mensajes de assistant. El join `checkpoint_messages → agent_sessions` es directo vía `session_id` FK, lo que permite obtener `agent_role` por mensaje.
+
+### Demo First
+La demo tiene `agent_role` en su modelo de datos pero sin join equivalent a `checkpoint_messages → agent_sessions`. No aplica portación.
+
+### Archivos tocados
+- `src/lib/db/documentation.ts`
+  - `RawCheckpoint.checkpoint_messages`: agregados `session_id: string | null` y `agent_sessions: { agent_role: string } | null`.
+  - `.select()`: cambiado de `checkpoint_messages(content, role, position)` a `checkpoint_messages(content, role, position, session_id, agent_sessions(agent_role))`.
+  - `DocCheckpoint.checkpoint_messages`: extendido con `agent_role?: string`.
+  - Mapper: `checkpoint_messages` ahora mapea `agent_role: m.agent_sessions?.agent_role ?? undefined` por mensaje.
+- `src/components/documentation/RepositoryView.tsx`
+  - `MiniChatPreview`: tipo de `messages` extendido con `agentRole?: string`.
+  - Label de burbuja: `agentLabel` → `AGENT_LABEL[msg.agentRole ?? ''] ?? agentLabel`.
+  - `CheckpointDetailPanel`: `MiniChatPreview` recibe `messages={cp.checkpoint_messages.map(m => ({ ...m, agentRole: m.agent_role }))}`.
+  - `CheckpointDetailPanel` Secondary Metadata: IIFE que agrega `MetaRow label="AI Agent"` cuando existe `agent_role` en el primer mensaje assistant.
+
+### Decisiones técnicas
+- `agent_role` en `DocCheckpoint.checkpoint_messages` es `?: string` — opcional porque checkpoints sin mensajes o sin join existente devuelven `undefined`.
+- IIFE `(() => { ... })()` en JSX para el MetaRow de AI Agent: evita variable de estado o lógica innecesaria fuera del render.
+- `agent_sessions` y `session_id` no se exponen en `DocCheckpoint` — solo `agent_role` como dato de UI mínimo.
+- `content_preview` no fue afectado — usa el raw array de Supabase antes del mapper.
+
+### Restricciones respetadas
+- `HandoffDetailPanel`, `SavedSelectionDetailPanel`: sin tocar.
+- Filtros, sorting, cards: sin tocar.
+- `CodingWorkshop.md`: no modificado.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.
