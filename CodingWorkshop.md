@@ -189,3 +189,17 @@ Cada entrada documenta lo que fue difícil, por qué falló, cómo se resolvió 
 - **Commit:** `71aea80`
 
 - **Lección:** Cuando se agrega un objeto nuevo a una vista que ya tiene filtros, verificar que la query de ese objeto incluya **todos los campos** que los filtros necesitan. En particular, los filtros de entidades relacionadas (team, project) requieren los IDs, no solo los nombres. Un join faltante en la query es invisible en TypeScript si la interfaz tampoco tiene el campo — el tipo simplemente no lo expone y el campo queda ausente en silencio.
+
+### 7. `checkpoint_messages` no tiene `created_at` — el orden canónico es `position`
+
+- **Problema:** OE C pedía agregar `checkpoint_messages(content, role, created_at)` al select de `getDocCheckpoints()` para computar un preview del último mensaje. El campo `created_at` no existe en la tabla.
+
+- **Causa raíz:** `checkpoint_messages` fue diseñada como snapshot inmutable (migración 003). El orden de los mensajes se preserva mediante el campo `position int not null`, no mediante timestamp. La tabla no tiene `created_at` porque el tiempo de creación no es relevante — los mensajes son una copia fija del historial en el momento del checkpoint.
+
+- **Consecuencia:** Si la query hubiera incluido `created_at`, Supabase habría retornado un error en runtime. Se detectó durante la lectura de la migración antes de ejecutar el select, evitando el error.
+
+- **Proceso de solución:** Lectura directa de `supabase/migrations/003_checkpoints.sql` antes de modificar el select. Columnas confirmadas: `id`, `checkpoint_id`, `session_id`, `role`, `content`, `position`. No hay `created_at`.
+
+- **Solución final:** Select con `checkpoint_messages(content, role, position)`. En el mapper, filtrar `role === 'assistant'`, ordenar por `position` ascendente, tomar el último elemento. Commit `98b38ca`.
+
+- **Lección:** Antes de agregar cualquier campo a un select de Supabase en `documentation.ts`, verificar la migración correspondiente. Los tipos TypeScript del proyecto son `unknown` / `as unknown as Raw*` — no hay generación automática de tipos desde el schema. La única fuente de verdad sobre columnas disponibles son los archivos `.sql` en `supabase/migrations/`.
