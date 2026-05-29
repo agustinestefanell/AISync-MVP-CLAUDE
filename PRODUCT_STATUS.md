@@ -42,7 +42,7 @@ Last updated: 2026-05-28 (Save Selection UI — commit c3e880b)
 | Feature | Status | Notes |
 |---|---|---|
 | Agent Panels (SAT/MAT) | ✅ Live | Day markers + timestamps en chat — commit d1382f3 |
-| **Save Selection** | ✅ Live | Migration 019 + POST route + UI in WorkspaceShell — commit c3e880b. Audit log event `save_selection` added — commit d29c439. Visual display in Audit Timeline + Audit View (amber badge) — commit fcb9029. Agent role preserved in messages — pending commit |
+| **Save Selection** | ✅ Live | Migration 019 + POST route + UI in WorkspaceShell — commit c3e880b. Audit log event `save_selection` added — commit d29c439. Visual display in Audit Timeline + Audit View (amber badge) — commit fcb9029. Agent role preserved in messages — commit 904a429 |
 | **SMPanel (Documentation Mode)** | ✅ Live | Fused amber ribbon (hint + external warning) + accent top line — commit 8ad6a98 |
 | Prompt Library | ✅ Live | Light mode fixed — commit e68db2f |
 | Context Files | ✅ Live | Light mode fixed — commit e68db2f |
