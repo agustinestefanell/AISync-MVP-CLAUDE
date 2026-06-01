@@ -566,9 +566,40 @@ export default function RepositoryView({
           {/* List */}
           <div className="flex-1 overflow-y-auto">
             {displayItems.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-[var(--color-text-muted)] text-sm">No documents match your search.</p>
-              </div>
+              allItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                  <span className="text-4xl">📄</span>
+                  <p className="text-[var(--color-text-primary)] font-medium">No documents yet</p>
+                  <p className="text-sm text-[var(--color-text-secondary)] max-w-xs">
+                    Save a checkpoint, handoff, or selection from the Workspace to see it here.
+                  </p>
+                </div>
+              ) : hasFilter ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                  <span className="text-4xl">🔍</span>
+                  <p className="text-[var(--color-text-primary)] font-medium">No results found</p>
+                  <p className="text-sm text-[var(--color-text-secondary)] max-w-xs">
+                    Try different filters or search terms.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setFilterProject('')
+                      setFilterTeam('')
+                      setFilterType('')
+                      setFilterState('')
+                      setFilterDate('')
+                      setSearchQuery('')
+                    }}
+                    className="mt-2 text-sm text-[var(--color-accent)] underline hover:opacity-75"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <p className="text-sm text-[var(--color-text-secondary)]">No results.</p>
+                </div>
+              )
             ) : (
               <div className="p-4 grid gap-3 content-start">
                 {displayItems.map(item => {

@@ -3609,3 +3609,44 @@ No disponible en esta sesión. Requiere navegación real en `/admin` con usuario
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Empty states bifurcados en Repository View
+
+### Diagnóstico
+`RepositoryView` tenía un único empty state genérico (`"No documents match your search."`) para todos los casos de lista vacía: cuenta sin documentos, filtros sin resultados y edge cases. No diferenciaba la causa ni ofrecía acción.
+
+### Demo First
+La demo (`C:\proyectos\AISync\MVP`) no tiene `RepositoryView` ni patrón equivalente de empty states bifurcados. No aplica portación.
+
+### Archivos tocados
+- `src/components/documentation/RepositoryView.tsx`
+  - Bloque vacío en L568–571 reemplazado por ternario anidado de tres casos:
+    1. `allItems.length === 0` → "No documents yet" + subtítulo orientado a acción.
+    2. `hasFilter` (truthy) → "No results found" + subtítulo + botón `Clear filters` que resetea los 6 filtros y `searchQuery`.
+    3. Edge case → "No results."
+  - `hasFilter` ya existía en L501 — reutilizado sin cambios.
+  - Setters usados en Clear filters: `setFilterProject`, `setFilterTeam`, `setFilterType`, `setFilterState`, `setFilterDate`, `setSearchQuery`.
+
+### Archivos no tocados
+- `src/lib/db/documentation.ts`: sin tocar.
+- `InvestigateView`, `AuditView`, `DocClient`, `page.tsx`: sin tocar.
+- Filtros, sorting, cards, detail panels: sin tocar.
+- `CodingWorkshop.md`: sin tocar (mejora UX, no bug técnico).
+
+### Decisiones técnicas
+- Idioma inglés en los mensajes — consistente con el resto de la UI del producto.
+- Emoji como icono inline (📄, 🔍) — sin dependencia de librería de íconos.
+- `py-16` en lugar de `h-full` — evita que el empty state se estire en listas muy cortas con pocos filtros activos.
+- Edge case (`!hasFilter && allItems.length > 0 && displayItems.length === 0`): se mantiene como fallback mínimo — es teóricamente imposible con la lógica actual pero cubre casos de bug futuro.
+
+### Alternativas descartadas
+- Un solo estado con texto diferente según `hasFilter`: descartado — el ícono y el subtítulo aportan más contexto que solo cambiar el texto del título.
+- Botón "Clear filters" en el estado de cuenta vacía: descartado — no hay filtros que limpiar en ese estado.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.
