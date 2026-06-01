@@ -203,3 +203,21 @@ Cada entrada documenta lo que fue difícil, por qué falló, cómo se resolvió 
 - **Solución final:** Select con `checkpoint_messages(content, role, position)`. En el mapper, filtrar `role === 'assistant'`, ordenar por `position` ascendente, tomar el último elemento. Commit `98b38ca`.
 
 - **Lección:** Antes de agregar cualquier campo a un select de Supabase en `documentation.ts`, verificar la migración correspondiente. Los tipos TypeScript del proyecto son `unknown` / `as unknown as Raw*` — no hay generación automática de tipos desde el schema. La única fuente de verdad sobre columnas disponibles son los archivos `.sql` en `supabase/migrations/`.
+
+---
+
+### 8. Falso 403 en admin prompts route — lookup de rol con client RLS en route handler
+
+- **Problema:** `POST /api/admin/prompts` devolvía `403` aunque el usuario autenticado tenía `role = 'owner'` en la tabla `accounts`. El Admin Panel cargaba correctamente (server component), pero al intentar guardar un prompt el UI mostraba rojo con Forbidden. Los `updated_at` en DB nunca cambiaban — todas las filas seguían en el timestamp del seed original (`2026-05-10 18:59:50`).
+
+- **Causa raíz:** La route usaba `supabase` (client con cookies del request) para el lookup de rol en `accounts` después de verificar identidad con `supabase.auth.getUser()`. En route handlers de Next.js App Router, el client con cookies no siempre resuelve correctamente el contexto de sesión para queries RLS posteriores a la autenticación. El `SELECT` sobre `accounts` retornaba `null` aunque el usuario existía, el `user.id` era correcto y el registro tenía `role = 'owner'`. La condición `!account || !['owner', 'admin'].includes(account.role)` evaluaba `true` → 403.
+
+- **Consecuencia:** Ningún prompt de sistema había podido ser editado desde Admin. El UI mostraba verde en saves anteriores (si los hubo con otro flujo) o siempre rojo. La feature de admin prompts era completamente no funcional.
+
+- **Proceso de solución:** Diagnóstico por capas: primero se descartó env var faltante (`adminClient` ya funcionaba para el select y el update). Luego se descartó mismatch de `role` values (los roles en DB eran exactamente `manager`, `worker`, etc.). Luego se descartó trigger en la tabla. El 403 apareció en consola de Network → confirmó que el problema era antes del update, en el check de autorización. Lectura directa de la route confirmó que el lookup de `accounts` usaba `supabase` (client con cookies), no `adminClient`.
+
+- **Solución final:** En `src/app/api/admin/prompts/route.ts`, se movió la instanciación de `adminClient = createAdminClient()` antes del lookup de rol, y se reemplazó `supabase.from('accounts')` por `adminClient.from('accounts')`. Se eliminó la segunda instanciación redundante de `adminClient` que existía líneas más abajo. `supabase.auth.getUser()` no fue tocado — sigue siendo el punto de verificación de identidad.
+
+- **Commit:** ver handoff.md — `fix: use adminClient for role lookup in admin prompts route`
+
+- **Lección:** En route handlers de Next.js App Router, no asumir que el client con cookies (`createClient()`) resolverá el contexto RLS de forma confiable para queries posteriores a la autenticación. Para lookups server-side de rol/ownership donde la identidad ya fue verificada con `auth.getUser()`, usar `adminClient` de forma acotada. El patrón seguro: `auth.getUser()` con `supabase` para identidad → `adminClient` para lookup de rol en `accounts` → lógica de autorización en código → operaciones de negocio con `adminClient`.

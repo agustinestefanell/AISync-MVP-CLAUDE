@@ -10,8 +10,9 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // 2. Verify role — query with user's own session (respects RLS)
-  const { data: account } = await supabase
+  // 2. Verify role — use adminClient to bypass RLS; identity already verified above
+  const adminClient = createAdminClient()
+  const { data: account } = await adminClient
     .from('accounts')
     .select('role')
     .eq('id', user.id)
@@ -38,7 +39,6 @@ export async function POST(req: Request) {
   }
 
   // 3. Fetch current version for audit trail
-  const adminClient = createAdminClient()
   const { data: current } = await adminClient
     .from('system_prompts')
     .select('role_prompt, base_layer')

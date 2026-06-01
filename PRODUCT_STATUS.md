@@ -65,6 +65,14 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 
 ---
 
+## Admin
+
+| Feature | Estado | Evidencia | Notas |
+|---|---|---|---|
+| Admin prompts route — role lookup | ✅ Live | `src/app/api/admin/prompts/route.ts` | Fix: lookup de `accounts.role` usa `adminClient` en vez de client con cookies. Falso 403 para usuarios `owner` resuelto. Ver CodingWorkshop.md entrada #8. |
+
+---
+
 ## Migrations pending execution in Supabase
 
 | Migration | Status |

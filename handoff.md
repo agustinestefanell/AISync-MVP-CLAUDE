@@ -3462,3 +3462,110 @@ La demo no tiene `openSaveSelectionModal`, `MiniChatPreview` ni `SavedSelectionD
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — OE Documental: DECISIONS.md + PRODUCT_STATUS.md evidence audit
+
+### Archivos leídos
+- `handoff.md` (completo)
+- `AISyncPlans.md` (completo)
+- `PRODUCT_STATUS.md` (completo)
+
+### Archivos creados
+- `DECISIONS.md`
+
+### Archivos modificados
+- `PRODUCT_STATUS.md`
+
+### Archivos no modificados
+- `handoff.md`, `AISyncPlans.md`, `PromtsOperativos.md`, `CodingWorkshop.md`, código fuente.
+
+### Cambios realizados en `DECISIONS.md`
+10 decisiones registradas:
+1. Repo activo vs repos de demo (2026-05-17)
+2. SAT vs MAT como atributos operativos reales (2026-05-20)
+3. Control Plane vs Content Plane (2026-05-20)
+4. Save Version vs Session Backup vs Saved Selection (2026-05-28)
+5. project_id = null en Saved Selections — MVP (2026-05-28)
+6. Handoff vs Handoff Package — semántica y labels (2026-05-29)
+7. Agent labels via session_id en checkpoint messages (2026-05-29)
+8. "Show less power, not less truth" — registro documental (2026-05-29)
+9. "Albañilería before terminaciones" — registro documental (2026-05-29)
+10. Scope de Cross Verification diferido — registro documental (2026-05-29)
+
+### Cambios realizados en `PRODUCT_STATUS.md`
+- `Last updated` actualizado a 2026-05-29.
+- Sección `Estado Legend` agregada con 7 estados definidos.
+- Columna `Evidencia` agregada a todas las tablas (commit hash o ruta verificable).
+- `Add Context File`: estado cambiado de `🔲 Coming soon` a `Partial` — evidencia: OE B 2026-05-21 (handoff.md) + migración 017 aplicada.
+- `Cross Verification (full scope)`: nueva fila con estado `Needs Review` y evidencia `DECISIONS.md`.
+- `Known deferred items`: actualizados con referencias a `DECISIONS.md` y tabla Workspace.
+
+### Decisiones técnicas
+- Decisiones sin fecha explícita en documentos fuente: registradas con fecha 2026-05-29 como "fecha de registro documental" con nota explícita en el archivo.
+- `Add Context File` no se bajó de estado sin evidencia: la evidencia es handoff.md OE B ("botón ahora funcional") + migración 017 aplicada. Estado `Partial` por `project_id` missing en cadena de props.
+- No se inventaron commits. Todos los hashes provienen del PRODUCT_STATUS.md anterior o de handoff.md.
+
+### Alternativas descartadas
+- Convertir `DECISIONS.md` en roadmap — descartado. Solo decisiones ya tomadas.
+- Degradar features sin evidencia — descartado. Solo se cambió `Add Context File` con evidencia documentada en handoff.md.
+- Incluir `.claude/settings.local.json` en el commit — descartado. No es parte del scope.
+
+### Riesgos o deuda técnica
+- `DECISIONS.md` crecerá con el tiempo. Si se vuelve muy largo, considerar splitting por dominio.
+- Los estados `UI-only` y `Broken` están en la leyenda pero sin features asignadas actualmente.
+
+### Build
+No ejecutado. OE documental pura.
+
+### Commit
+`da9ec77` — docs: add decisions registry and update product status evidence
+
+### Estado
+Cerrado.
+
+---
+
+## [2026-05-29] — Fix: Falso 403 en admin prompts route por lookup de rol
+
+### Diagnóstico
+`POST /api/admin/prompts` devolvía `403` aunque el usuario autenticado tenía `role = 'owner'`. Los `updated_at` en `system_prompts` mostraban el timestamp del seed original — ninguna edición había persistido. Network tab confirmó 403, no un problema silencioso de DB.
+
+### Demo First
+La demo (`C:\proyectos\AISync\MVP`) no tiene routes API ni `adminClient`. No aplica portación.
+
+### Causa raíz
+La route usaba `supabase` (client con cookies) para el lookup de rol en `accounts` después de verificar identidad con `supabase.auth.getUser()`. En route handlers de Next.js App Router, el client con cookies no resuelve confiablemente el contexto RLS para queries posteriores. El SELECT sobre `accounts` retornaba `null` → condición `!account` evaluaba `true` → 403.
+
+### Archivos tocados
+- `src/app/api/admin/prompts/route.ts`
+  - `adminClient = createAdminClient()` movido antes del lookup de rol.
+  - `supabase.from('accounts')` → `adminClient.from('accounts')`.
+  - Segunda instanciación redundante de `adminClient` (línea 42 original) eliminada.
+  - `supabase.auth.getUser()`: sin tocar.
+  - Lógica de autorización, update, audit event: sin tocar.
+
+### Decisiones técnicas
+- `auth.getUser()` con `supabase` para identidad — correcto, sigue igual.
+- `adminClient` para lookup de rol — bypasea RLS de forma acotada, después de que la identidad ya fue verificada.
+- No se tocaron otras routes. El patrón queda documentado en `AISyncPlans.md` §6.2 y `CodingWorkshop.md` entrada #8 para referencia futura.
+
+### Alternativas descartadas
+- Agregar policy RLS que permita self-read en `accounts` — descartado. Requeriría migración y cambio de arquitectura. El fix con `adminClient` es más directo y seguro.
+- Cambiar el guard de autorización — descartado. La lógica es correcta, el problema era el cliente.
+
+### Riesgos o deuda técnica
+- Otras routes que usan `supabase` para lookups en `accounts` o tablas RLS-protegidas pueden tener el mismo problema silencioso. No se revisaron en esta OE — fuera de scope.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Commit
+`fix: use adminClient for role lookup in admin prompts route`
+
+### Validación manual
+No disponible en esta sesión. Build y revisión de route validados. La verificación funcional requiere usuario con `role = 'owner'` en producción.
+
+### Estado
+Cerrado.
