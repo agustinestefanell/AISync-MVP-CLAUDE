@@ -239,3 +239,21 @@ Cada entrada documenta lo que fue difícil, por qué falló, cómo se resolvió 
 - **Commit:** `fix: refresh router after prompt save to bust Next.js cache`
 
 - **Lección:** En Next.js App Router, toda mutación client-side que modifica datos consumidos por server components requiere `router.refresh()` (o `revalidatePath()` desde server actions) para que los cambios sean visibles en navegación interna sin hard refresh. Sin esto, el App Router sirve siempre la versión cacheada.
+
+---
+
+### 10. R&F forwarded context invisible al modelo
+
+- **Problema:** Los mensajes enviados mediante Review & Forward aparecían en la UI del Worker receptor, pero el modelo no los recibía como contexto. El Worker veía "[Forwarded from Manager]" en pantalla pero el modelo respondía sin ese contexto.
+
+- **Causa raíz:** `AgentPanel` mantiene dos estados separados: `messages` (display visual) y `apiMessages` (historial enviado al API del modelo). `appendUserMessage` — el método imperativo usado por `handlePanelForward` en WorkspaceShell — solo actualizaba `messages`. `apiMessages` no se tocaba, por lo que el historial enviado al modelo en el siguiente `sendPrompt` no incluía el mensaje forwarded.
+
+- **Consecuencia:** El forwarded context era invisible al modelo en todos los R&F. El Worker veía el mensaje visualmente pero el modelo respondía como si no existiera.
+
+- **Proceso de solución:** Lectura directa de `AgentPanel.tsx`. Estados `messages` (L134) y `apiMessages` (L147) confirmados como separados. `appendUserMessage` en `useImperativeHandle` (L172) confirmado como actualizando solo `messages`. `setApiMessages` disponible en el mismo scope. Fix: una línea adicional.
+
+- **Solución final:** En `appendUserMessage` dentro de `useImperativeHandle`, agregar `setApiMessages(prev => [...prev, { role: 'user', content }])` inmediatamente después de `setMessages`.
+
+- **Commit:** `fix: sync apiMessages on appendUserMessage for R&F forwarded context`
+
+- **Lección:** Cuando existe separación entre estado visual (`messages`) y estado operativo enviado al modelo (`apiMessages`), toda función que inyecte mensajes debe actualizar ambas capas. `appendUserMessage` es el único punto de entrada externo al panel — cualquier inyección que no pase por `sendPrompt` debe sincronizar ambos estados explícitamente.

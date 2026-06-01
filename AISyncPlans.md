@@ -261,6 +261,8 @@ AgentPanel (forwardRef → AgentPanelHandle)
   └── ContextFilePanel modal (Fragment, fuera del panel)
 ```
 
+**Estado dual en AgentPanel**: `messages` (display) y `apiMessages` (historial enviado al modelo) son estados separados. Toda función que inyecte mensajes externamente — como `appendUserMessage` — debe actualizar ambos estados. `sendPrompt` los mantiene sincronizados por diseño; las inyecciones imperativas (R&F) deben hacerlo explícitamente.
+
 **Handle imperativo** (`AgentPanelHandle`):
 - `getLastAssistantMessage()` — último mensaje del asistente
 - `appendUserMessage(content)` — inyectar mensaje de usuario

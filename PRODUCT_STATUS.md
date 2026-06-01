@@ -38,6 +38,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | MAP view | ✅ Live | commit 16a6840 | Sorted by hierarchy code — commit 16a6840 |
 | Tree view | ✅ Live | commit 16a6840 | Sorted by hierarchy code — commit 16a6840 |
 | SAT/MAT badge in ribbon | ✅ Live | commit 7197114 | commit 7197114 |
+| Review & Forward — forwarded context | ✅ Live | `src/components/workspace/AgentPanel.tsx` | Fix: `appendUserMessage` ahora sincroniza `messages` y `apiMessages`. El contexto forwarded llega al modelo. |
 | SAT structured context (chat API) | ✅ Live | commit 0f40de5 | Layers 1/3/4 — commit 0f40de5 |
 
 ---

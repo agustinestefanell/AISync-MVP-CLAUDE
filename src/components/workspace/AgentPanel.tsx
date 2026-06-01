@@ -169,8 +169,10 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     useImperativeHandle(ref, () => ({
       getLastAssistantMessage: () =>
         [...messages].reverse().find(m => m.role === 'assistant')?.content,
-      appendUserMessage: (content: string) =>
-        setMessages(prev => [...prev, { role: 'user', content, created_at: new Date().toISOString() }]),
+      appendUserMessage: (content: string) => {
+        setMessages(prev => [...prev, { role: 'user', content, created_at: new Date().toISOString() }])
+        setApiMessages(prev => [...prev, { role: 'user', content }])
+      },
       getAllMessages:    () => messages,
       restoreMessages: (msgs: ChatMessage[]) => {
         setMessages(msgs.map(m => ({ role: m.role, content: m.content })))

@@ -3650,3 +3650,41 @@ La demo (`C:\proyectos\AISync\MVP`) no tiene `RepositoryView` ni patrón equival
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Fix: R&F forwarded context invisible al modelo
+
+### Diagnóstico
+Mensajes enviados via Review & Forward aparecían en UI del Worker receptor pero el modelo respondía sin ese contexto. Confirmado por el usuario: el "[Forwarded from Manager]" se veía en pantalla pero el modelo ignoraba el contenido.
+
+### Demo First
+La demo usa un único array de mensajes sin separación display/api (SPA con respuestas hardcodeadas). No aplica portación.
+
+### Causa raíz
+`AgentPanel` mantiene dos estados: `messages` (display, L134) y `apiMessages` (historial al modelo, L147). `appendUserMessage` en `useImperativeHandle` (L172) solo actualizaba `messages`. El mensaje forwarded nunca entraba en `apiMessages`, por lo que el modelo no lo recibía.
+
+### Archivos tocados
+- `src/components/workspace/AgentPanel.tsx`
+  - `appendUserMessage` extendido de arrow function de una línea a bloque con dos `setState`:
+    - `setMessages(prev => [...prev, { role: 'user', content, created_at: new Date().toISOString() }])`
+    - `setApiMessages(prev => [...prev, { role: 'user', content }])`
+
+### Archivos no tocados
+- `handleSend` / `sendPrompt`: sin tocar.
+- `WorkspaceShell` / `handlePanelForward`: sin tocar.
+- Lógica de R&F UI: sin tocar.
+- Otras vistas, providers, API routes: sin tocar.
+
+### Decisiones técnicas
+- Formato `{ role: 'user', content }` en `apiMessages` — consistente con el contrato `ChatMessage` ya usado en L148 y L245.
+- No se modificó el orden: `setMessages` primero (display inmediato), `setApiMessages` después (historial para el próximo send).
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Commit
+`fix: sync apiMessages on appendUserMessage for R&F forwarded context`
+
+### Estado
+Cerrado.
