@@ -221,3 +221,21 @@ Cada entrada documenta lo que fue difícil, por qué falló, cómo se resolvió 
 - **Commit:** ver handoff.md — `fix: use adminClient for role lookup in admin prompts route`
 
 - **Lección:** En route handlers de Next.js App Router, no asumir que el client con cookies (`createClient()`) resolverá el contexto RLS de forma confiable para queries posteriores a la autenticación. Para lookups server-side de rol/ownership donde la identidad ya fue verificada con `auth.getUser()`, usar `adminClient` de forma acotada. El patrón seguro: `auth.getUser()` con `supabase` para identidad → `adminClient` para lookup de rol en `accounts` → lógica de autorización en código → operaciones de negocio con `adminClient`.
+
+---
+
+### 9. Admin prompts mostraba datos viejos por cache de Next.js App Router
+
+- **Problema:** La edición de system prompts persistía en DB correctamente, pero al navegar dentro de la app de vuelta a `/admin`, el usuario veía la versión anterior del prompt. El cambio solo era visible después de un hard refresh (F5).
+
+- **Causa raíz:** Next.js App Router cachea server components. Después del save exitoso, la DB quedaba actualizada pero el App Router seguía sirviendo el server component cacheado con los datos viejos. No había ninguna señal para que el router invalidara su caché y re-fetche desde el servidor.
+
+- **Consecuencia:** El sistema daba la impresión de que el guardado no había funcionado. El usuario tenía que hacer hard refresh para ver el cambio, lo que genera desconfianza en la feature.
+
+- **Proceso de solución:** El save funcionaba (la DB lo confirmaba). El problema era post-save: falta de invalidación del router. Solución estándar en Next.js App Router para mutaciones client-side que afectan server components: `router.refresh()` después del éxito.
+
+- **Solución final:** En `src/components/admin/AdminClient.tsx`, en `PromptsSection`: (1) import `useRouter` de `next/navigation`; (2) `const router = useRouter()` al inicio del componente; (3) `router.refresh()` inmediatamente después de `setSaveMsg({ ok: true, text: 'Saved successfully' })`.
+
+- **Commit:** `fix: refresh router after prompt save to bust Next.js cache`
+
+- **Lección:** En Next.js App Router, toda mutación client-side que modifica datos consumidos por server components requiere `router.refresh()` (o `revalidatePath()` desde server actions) para que los cambios sean visibles en navegación interna sin hard refresh. Sin esto, el App Router sirve siempre la versión cacheada.

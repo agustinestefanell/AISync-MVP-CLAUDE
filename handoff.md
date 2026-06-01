@@ -3569,3 +3569,43 @@ No disponible en esta sesión. Build y revisión de route validados. La verifica
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Fix: Admin prompts cache — router.refresh() después de save exitoso
+
+### Diagnóstico
+La edición de system prompts persistía en DB (confirmado: `updated_at` actualizaba correctamente). Pero al navegar de vuelta a `/admin`, el usuario veía la versión anterior del prompt. Solo un hard refresh (F5) mostraba el valor actualizado. El save era funcional — el problema era post-save.
+
+### Demo First
+La demo (`C:\proyectos\AISync\MVP`) es Vite SPA, no usa Next.js App Router ni `useRouter`. No aplica portación.
+
+### Causa raíz
+Next.js App Router cachea server components. Sin una señal de invalidación post-mutación, el router servía la versión cacheada de `/admin` al navegar dentro de la app.
+
+### Archivos tocados
+- `src/components/admin/AdminClient.tsx`
+  - Import `useRouter` de `next/navigation` agregado (línea 4).
+  - `const router = useRouter()` al inicio de `PromptsSection` (línea 197).
+  - `router.refresh()` inmediatamente después de `setSaveMsg({ ok: true, text: 'Saved successfully' })` (línea 226).
+
+### Archivos no tocados
+- `src/app/api/admin/prompts/route.ts`: sin tocar.
+- Lógica de save, validaciones, permisos: sin tocar.
+- Otros componentes: sin tocar.
+
+### Decisiones técnicas
+- `router.refresh()` solo en el branch de éxito (`else { ... }`): no se llama en error ni en el bloque `finally`.
+- No se usó `revalidatePath()` — requeriría un server action; `router.refresh()` desde el client component es el patrón correcto para este caso.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Commit
+`fix: refresh router after prompt save to bust Next.js cache`
+
+### Validación manual
+No disponible en esta sesión. Requiere navegación real en `/admin` con usuario `owner`.
+
+### Estado
+Cerrado.

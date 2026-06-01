@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type {
   UserMetrics,
   UsageMetrics,
@@ -193,6 +194,7 @@ function UsersSection({ accounts }: { accounts: AccountRow[] }) {
 
 // ── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
 function PromptsSection({ prompts }: { prompts: SystemPromptRow[] }) {
+  const router = useRouter()
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
   const [baseLayer,    setBaseLayer]    = useState('')
   const [rolePrompt,   setRolePrompt]   = useState('')
@@ -221,6 +223,7 @@ function PromptsSection({ prompts }: { prompts: SystemPromptRow[] }) {
         setSaveMsg({ ok: false, text: body.error ?? 'Save failed' })
       } else {
         setSaveMsg({ ok: true, text: 'Saved successfully' })
+        router.refresh()
       }
     } catch {
       setSaveMsg({ ok: false, text: 'Network error' })
