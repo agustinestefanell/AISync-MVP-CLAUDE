@@ -3990,3 +3990,39 @@ Los textos guía de las 5 vistas de Documentation Mode no orientaban con suficie
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-02] — PageSubtitle modal system + Documentation Mode guide
+
+### OE ejecutada
+PageSubtitle modal system + Documentation Mode guide
+
+### Archivos modificados
+- `src/components/layout/TopRibbon.tsx`
+- `src/components/documentation/DocClient.tsx`
+- `src/app/documentation/page.tsx`
+
+### Decisión técnica tomada
+`DocClient` toma el rol de layout completo para Documentation Mode (TopRibbon + BottomRibbon + contenido), en lugar de delegarlo a `AppLayout`. Esto permite que `DocClient`, como client component, maneje `showMainGuide` state y pase `pageSubtitleOnClick` directamente a `TopRibbon` sin violar la separación server/client de Next.js.
+
+`page.tsx` ya no usa `AppLayout` para Documentation Mode — retorna `<DocClient pageName="DOCUMENTATION MODE" .../>` directamente.
+
+### Patrón reusable incorporado
+`TopRibbon` ahora soporta `pageSubtitleOnClick?: () => void`. Prioridad: si existe `pageSubtitleHref`, renderiza link. Si existe `pageSubtitleOnClick` sin `pageSubtitleHref`, renderiza button. Si ninguna, renderiza span.
+
+### Alternativas descartadas
+- Pasar callback desde `page.tsx` (server component) a `AppLayout` → `TopRibbon`: inválido en Next.js.
+- Modificar `AppLayout` para pasar `pageSubtitleOnClick` como prop: no resuelve el problema raíz (la función debe originarse en un client component).
+- Crear un archivo nuevo `DocPageWrapper.tsx`: innecesario; `DocClient` ya es client component y puede tomar el rol de wrapper.
+
+### Riesgos conocidos / deuda técnica
+- Documentation Mode ya no usa `AppLayout`. Si `AppLayout` cambia en futuras OEs (estilos, BottomRibbon, etc.), Documentation Mode necesita actualizarse por separado. Bajo riesgo en el corto plazo.
+- El patrón `pageSubtitleOnClick` está disponible en `TopRibbon` pero no está conectado en otras páginas todavía (Workspace, Audit Log, Teams Map). Esas conexiones son OEs futuras.
+
+### Validaciones
+- Build: exitoso sin errores TypeScript.
+- Greps confirman presencia de `pageSubtitleOnClick` en `TopRibbon`, `DocClient` y conexión entre ambos.
+- Modal principal "How to use Documentation Mode" separado de los modales per-view.
+- Guías por vista intactas. Data layer, API routes y Supabase no tocados.
+

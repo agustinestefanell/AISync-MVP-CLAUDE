@@ -113,3 +113,13 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Motivo:** el dato de consumo es una métrica de confianza. Un valor aproximado daña credibilidad y contamina la base para costos futuros (por sesión, por team, por plan).
 - **Alternativas descartadas:** (A) usar `max_tokens` como estimación — demasiado bruto, mide techo no uso real. (B) request separado sin streaming — artificial, caro y arquitectónicamente sucio.
 - **Consecuencia:** feature diferido hasta cerrar backlog estructural. Se implementará en 3 fases: tabla + contrato → captura por provider → UI modal.
+
+---
+
+## 2026-06-02 — Page subtitle actions for page-level help modals
+
+- **Decisión:** `TopRibbon` debe soportar `pageSubtitleOnClick` como patrón estándar para abrir modales de ayuda por página. Si existe `pageSubtitleHref`, el link tiene prioridad sobre el callback.
+- **Motivo:** Permite reutilizar el subtítulo superior como punto de acceso consistente a guías de página sin crear botones secundarios dispersos. Para Documentation Mode específicamente, la única forma válida de conectar el callback con el modal es que el client component (`DocClient`) maneje su propio `TopRibbon` y `BottomRibbon`, dado que `page.tsx` es un server component y no puede pasar funciones como props.
+- **Alternativas descartadas:** Crear botones de ayuda específicos y distintos por página — descartado, genera inconsistencia visual. Usar solo links externos — descartado, los modales in-page son más contextuales. Pasar callback desde server component — inválido en Next.js. Modificar `AppLayout` para pasar `pageSubtitleOnClick` — no resuelve el problema raíz.
+- **Consecuencia:** Main Workspace, Audit Log, Teams Map y futuras páginas pueden usar el subtítulo como disparador de ayuda contextual en OEs futuras. Para cada una, el client component principal de la página deberá gestionar su propio `TopRibbon` o se deberá evaluar si `AppLayout` puede recibir el callback desde un client wrapper. Documentation Mode ya implementa este patrón: `DocClient` gestiona `TopRibbon` + `BottomRibbon` directamente.
+

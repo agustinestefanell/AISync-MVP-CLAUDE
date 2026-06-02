@@ -29,6 +29,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Investigate View | ✅ Live | commit 71aea80 | Nivel 1 cards + Investigation Context + unified uniqueTeams (checkpoints+handoffs) — commit 71aea80. Saved Selections filter + render added — commit 4ec8d2d. Saved Selections visible in default view — commit 91b72fa. Purpose labels translated to English — commit dacfa11 |
 | Knowledge Map | ✅ Live | `src/components/documentation/KnowledgeMap.tsx` | ReactFlow graph, intentionally dark |
 | Cross Verification (full scope) | Needs Review | `DECISIONS.md` | Scope diferido; requiere capítulo propio de diseño, modelo de datos y criterios de verificación antes de implementar. |
+| Page subtitle modal system — `TopRibbon.pageSubtitleOnClick` | ✅ Closed | commit feat: add page subtitle modal system and documentation mode guide | `TopRibbon` soporta `pageSubtitleOnClick` como patrón reusable para modales de ayuda por página. `pageSubtitleHref` mantiene prioridad. Documentation Mode usa el subtítulo como disparador del modal principal "How to use Documentation Mode". `DocClient` toma el rol de layout completo (TopRibbon + BottomRibbon). |
 
 ---
 

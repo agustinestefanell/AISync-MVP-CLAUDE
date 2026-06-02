@@ -11,6 +11,8 @@ import AuditView from './AuditView'
 import InvestigateView from './InvestigateView'
 import SMPanel from '@/components/sm/SMPanel'
 import type { CustomProvider } from '@/components/sm/SMPanel'
+import TopRibbon from '@/components/layout/TopRibbon'
+import BottomRibbon from '@/components/layout/BottomRibbon'
 
 const KnowledgeMap = dynamic(() => import('./KnowledgeMap'), { ssr: false })
 
@@ -94,7 +96,26 @@ If needed, you can always ask the Documentation Mode Sub-Manager to help you fin
 
 const MAX_CONTEXT = 100
 
+const MAIN_GUIDE = `Documentation Mode is the place where AISync turns saved work into a structured, searchable and traceable documentary base.
+
+Use it when you need to find, understand, review or reconstruct work that has already been saved from the Workspace.
+
+It is organized into five views:
+
+Repository View is the main working view. Use it to quickly find and open checkpoints, handoff packages, saved selections and other documentary objects.
+
+Structure View helps you understand where things live inside the archive tree.
+
+Audit View helps you reconstruct what happened around a documentary object over time.
+
+Investigate View helps you study a topic, decision, client issue or process in depth by connecting related pieces.
+
+Knowledge Map helps you explore relationships between documents, teams, conversations and outcomes. This view is under development.
+
+If you are not sure where to start, start with Repository View.`
+
 interface DocClientProps {
+  pageName:        string
   checkpoints:     DocCheckpoint[]
   handoffPackages: DocHandoffPackage[]
   auditEvents:     DocAuditEvent[]
@@ -105,9 +126,10 @@ interface DocClientProps {
   customProviders: CustomProvider[]
 }
 
-export default function DocClient({ checkpoints, handoffPackages, auditEvents, projects, savedSelections, userName, userEmail, customProviders }: DocClientProps) {
+export default function DocClient({ pageName, checkpoints, handoffPackages, auditEvents, projects, savedSelections, userName, userEmail, customProviders }: DocClientProps) {
   const [tab,                  setTab]                  = useState<Tab>('repository')
   const [helpTab,              setHelpTab]              = useState<Tab | null>(null)
+  const [showMainGuide,        setShowMainGuide]        = useState(false)
   const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null)
   const [filteredCheckpoints,  setFilteredCheckpoints]  = useState<DocCheckpoint[]>(checkpoints)
 
@@ -158,53 +180,96 @@ export default function DocClient({ checkpoints, handoffPackages, auditEvents, p
   const helpContent = helpTab ? TABS.find(t => t.id === helpTab) : null
 
   return (
-    <div className="flex-1 min-h-0 flex overflow-hidden">
-      {/* Left: SM Panel */}
-      <SMPanel
-        pageContext={pageContext}
-        pageName="Documentation Mode"
-        customProviders={customProviders}
-        checkpoints={smCheckpoints}
-        onSelectCheckpoint={handleSelectCheckpoint}
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
+      <TopRibbon
+        pageName={pageName}
+        pageSubtitle="How to use Documentation Mode"
+        pageSubtitleOnClick={() => setShowMainGuide(true)}
+        userName={userName}
       />
 
-      {/* Right: tab bar + view */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        {/* Tab bar */}
-        <div className="shrink-0 border-b border-[var(--color-border-default)] px-6 py-2.5 flex items-center justify-center gap-5">
-          {TABS.map(t => (
-            <div key={t.id} className="grid min-w-max justify-items-center gap-1">
+      <main className="flex-1 overflow-hidden min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+          {/* Left: SM Panel */}
+          <SMPanel
+            pageContext={pageContext}
+            pageName="Documentation Mode"
+            customProviders={customProviders}
+            checkpoints={smCheckpoints}
+            onSelectCheckpoint={handleSelectCheckpoint}
+          />
+
+          {/* Right: tab bar + view */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            {/* Tab bar */}
+            <div className="shrink-0 border-b border-[var(--color-border-default)] px-6 py-2.5 flex items-center justify-center gap-5">
+              {TABS.map(t => (
+                <div key={t.id} className="grid min-w-max justify-items-center gap-1">
+                  <button
+                    onClick={() => setTab(t.id)}
+                    className={`h-8 px-3.5 rounded-[10px] text-[0.75rem] font-medium transition-colors border ${
+                      tab === t.id
+                        ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-white shadow-sm'
+                        : 'bg-white border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-soft)] hover:text-[var(--color-text-primary)]'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                  <button
+                    onClick={() => setHelpTab(t.id)}
+                    className="text-[10px] text-[var(--color-text-muted)] underline underline-offset-2 text-center cursor-pointer transition-colors hover:text-[var(--color-accent)]"
+                  >
+                    How to use {t.label}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* View */}
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} teamCodes={teamCodes} />}
+              {tab === 'structure'   && <StructureView   checkpoints={checkpoints} projects={projects} userName={userName} userEmail={userEmail} teamCodes={teamCodes} />}
+              {tab === 'audit'       && <AuditView        checkpoints={checkpoints} auditEvents={auditEvents} teamCodes={teamCodes} />}
+              {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
+              {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <BottomRibbon />
+
+      {/* Main guide modal */}
+      {showMainGuide && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={e => { if (e.target === e.currentTarget) setShowMainGuide(false) }}
+        >
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+            <div className="px-6 py-5 border-b border-[var(--color-border-default)] flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
+                  How to use Documentation Mode
+                </h3>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Operational guidance</p>
+              </div>
               <button
-                onClick={() => setTab(t.id)}
-                className={`h-8 px-3.5 rounded-[10px] text-[0.75rem] font-medium transition-colors border ${
-                  tab === t.id
-                    ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-white shadow-sm'
-                    : 'bg-white border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-soft)] hover:text-[var(--color-text-primary)]'
-                }`}
+                onClick={() => setShowMainGuide(false)}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm px-1 transition-colors shrink-0"
               >
-                {t.label}
-              </button>
-              <button
-                onClick={() => setHelpTab(t.id)}
-                className="text-[10px] text-[var(--color-text-muted)] underline underline-offset-2 text-center cursor-pointer transition-colors hover:text-[var(--color-accent)]"
-              >
-                How to use {t.label}
+                ✕
               </button>
             </div>
-          ))}
+            <div className="px-6 py-5">
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
+                {MAIN_GUIDE}
+              </p>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* View */}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} teamCodes={teamCodes} />}
-          {tab === 'structure'   && <StructureView   checkpoints={checkpoints} projects={projects} userName={userName} userEmail={userEmail} teamCodes={teamCodes} />}
-          {tab === 'audit'       && <AuditView        checkpoints={checkpoints} auditEvents={auditEvents} teamCodes={teamCodes} />}
-          {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
-          {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
-        </div>
-      </div>
-
-      {/* Help modal */}
+      {/* Per-view help modal */}
       {helpContent && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"

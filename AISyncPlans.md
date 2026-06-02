@@ -234,6 +234,10 @@ AppLayout
 
 **Regla crítica**: toda página que necesita scroll interno debe usar `scrollable={false}` en AppLayout. El `flex flex-col` en `<main>` es lo que permite que `flex-1` en los hijos resuelva la altura.
 
+**Excepción — Documentation Mode**: `DocClient` gestiona su propio layout completo (TopRibbon + main + BottomRibbon) en lugar de delegar a `AppLayout`. Motivo: necesita manejar `pageSubtitleOnClick` para el modal principal "How to use Documentation Mode", lo cual requiere ser un client component con acceso directo a `TopRibbon`. `page.tsx` de Documentation Mode retorna `<DocClient .../>` directamente sin wrapper `AppLayout`.
+
+**Patrón reusable — `TopRibbon.pageSubtitleOnClick`**: `TopRibbon` acepta `pageSubtitleOnClick?: () => void`. Prioridad: `pageSubtitleHref` (link) > `pageSubtitleOnClick` (button) > texto plano. Usar este patrón para disparar modales de ayuda por página desde el subtítulo del ribbon. Ver `DECISIONS.md` entrada 2026-06-02.
+
 ### 3.3 Workspace
 
 ```

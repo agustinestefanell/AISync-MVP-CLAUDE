@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import { getDocCheckpoints, getDocAuditEvents, getHandoffPackages, getSavedSelections } from '@/lib/db/documentation'
 import { getProjectsWithHierarchy } from '@/lib/db/projects'
 import DocClient from '@/components/documentation/DocClient'
-import AppLayout from '@/components/layout/AppLayout'
 
 export default async function DocumentationPage() {
   const supabase = createClient()
@@ -26,22 +25,16 @@ export default async function DocumentationPage() {
   const userEmail = (account as { name?: string; email?: string } | null)?.email ?? user.email ?? '—'
 
   return (
-    <AppLayout
+    <DocClient
       pageName="DOCUMENTATION MODE"
-      pageSubtitle="Multiple production views over one shared documentary base"
+      checkpoints={checkpoints}
+      handoffPackages={handoffPackages}
+      auditEvents={auditEvents}
+      projects={projects}
+      savedSelections={savedSelections}
       userName={userName}
-      scrollable={false}
-    >
-      <DocClient
-        checkpoints={checkpoints}
-        handoffPackages={handoffPackages}
-        auditEvents={auditEvents}
-        projects={projects}
-        savedSelections={savedSelections}
-        userName={userName}
-        userEmail={userEmail}
-        customProviders={customProviders}
-      />
-    </AppLayout>
+      userEmail={userEmail}
+      customProviders={customProviders}
+    />
   )
 }

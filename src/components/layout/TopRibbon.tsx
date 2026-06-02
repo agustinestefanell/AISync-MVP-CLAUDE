@@ -1,15 +1,16 @@
 interface TopRibbonProps {
-  pageName:          string
-  pageSubtitle?:     string
-  pageSubtitleHref?: string
-  projectName?:      string
-  userName?:         string
-  accentColor?:      string
-  badge?:            string
+  pageName:               string
+  pageSubtitle?:          string
+  pageSubtitleHref?:      string
+  pageSubtitleOnClick?:   () => void
+  projectName?:           string
+  userName?:              string
+  accentColor?:           string
+  badge?:                 string
 }
 
 export default function TopRibbon({
-  pageName, pageSubtitle, pageSubtitleHref, projectName, userName, accentColor, badge,
+  pageName, pageSubtitle, pageSubtitleHref, pageSubtitleOnClick, projectName, userName, accentColor, badge,
 }: TopRibbonProps) {
   const rightInfo = [
     projectName ? `Project: ${projectName}` : null,
@@ -66,9 +67,19 @@ export default function TopRibbon({
               >
                 {pageSubtitle}
               </a>
-            ) : (
-              <span className="text-xs leading-none mt-0.5" style={{ color: textSecondary }}>{pageSubtitle}</span>
-            )
+            ) : pageSubtitleOnClick
+              ? (
+                <button
+                  type="button"
+                  onClick={pageSubtitleOnClick}
+                  className="text-xs underline underline-offset-2 leading-none mt-0.5 transition-opacity hover:opacity-75 cursor-pointer"
+                  style={{ color: textSecondary }}
+                >
+                  {pageSubtitle}
+                </button>
+              ) : (
+                <span className="text-xs leading-none mt-0.5" style={{ color: textSecondary }}>{pageSubtitle}</span>
+              )
         )}
       </div>
 
