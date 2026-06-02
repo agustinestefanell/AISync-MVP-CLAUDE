@@ -3688,3 +3688,55 @@ La demo usa un único array de mensajes sin separación display/api (SPA con res
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Audit Log UX + Save Version inglés
+
+### Diagnóstico
+Tres problemas de acabado operativo: (1) modal Save Version con labels en español; (2) botones Day View con texto plano y color inline; (3) chips Month View abrían el modal de detalle en vez de navegar al Day View.
+
+### Demo First
+Demo (`C:\proyectos\AISync\MVP`):
+- "Save Version" en inglés confirmado en `AgentPanel.tsx`, `SecondaryWorkspacePanel.tsx`.
+- `setFocusDate(eventDate); setViewMode('day')` confirmado en `PageC.tsx` L497–498 — portado directamente.
+- Sticky en PageB.tsx: `xl:sticky xl:top-0` — patrón de referencia para header.
+
+### Archivos tocados
+
+**`src/components/workspace/WorkspaceShell.tsx`**
+- Título modal: `"Guardar checkpoint"` → `"Save Version"`
+- Label nombre: `"Nombre del checkpoint *"` → `"Checkpoint name *"`
+- Placeholder: `"Ej: Análisis inicial v1"` → `"e.g. Initial analysis v1"`
+- Error inline: `"El nombre es obligatorio"` → `"Name is required"`
+- Label propósito: `"Propósito"` → `"Purpose"`
+- Botón submit idle: `"Guardar checkpoint"` → `"Save"`
+- Botón loading: `"Guardando…"` → `"Saving…"`
+- Botón cancel: `"Cancelar"` → `"Cancel"`
+- Error handler L217: `"No hay mensajes para guardar en este checkpoint."` → `"No messages to save in this checkpoint."`
+- Error handler L242: `"Error al guardar"` → `"Error saving"`
+- Error container: `bg-red-950 border-red-900 text-red-400` → tokens light-safe con fallback CSS vars
+
+**`src/components/audit/AuditTimeline.tsx`**
+- Botones Day View (L316–328): texto plano/color inline → `bg-[var(--color-accent)] text-white text-xs font-medium px-3 py-1.5 rounded-lg`
+- Texto botón: `"View Detail →"` → `"View Details"`
+- Header controles (L369): `mb-4 space-y-3` → `sticky top-0 z-10 bg-[var(--color-app-bg)] pb-3 space-y-3`
+- `renderMonthChip` (L239): `openDetail(event)` → `setFocusDate(new Date(event.date)); setViewMode('day')` — portado de PageC.tsx L497–498
+
+### Archivos no tocados
+- Save Selection modal: sin tocar.
+- `Resume Work` behavior: sin tocar.
+- `renderWeekCard` openDetail (L260): sin tocar.
+- Lógica de calendario, filtros, handlers: sin tocar.
+- `CodingWorkshop.md`: sin tocar (mejoras copy/UX, no bugs técnicos).
+
+### Decisiones técnicas
+- Error container: tokens con CSS var fallback inline (`var(--color-error-bg,#fee2e2)`) para no depender de token no definido aún en `tokens.css`.
+- Sticky header: `pb-3` reemplaza el `mb-4` original para mantener el espaciado visual.
+- `View Detail →` → `"View Details"` (sin flecha): más consistente con el label de la demo (`"View Details"` en PageB.tsx L2277).
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

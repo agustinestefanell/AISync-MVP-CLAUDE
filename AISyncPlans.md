@@ -548,6 +548,10 @@ export async function POST(request: Request) {
 
 **Patrón admin con doble client:** En routes que requieren verificar rol de admin/owner, usar `supabase.auth.getUser()` para identidad y `adminClient` para el lookup de rol en `accounts`. No usar el client con cookies para queries RLS después de autenticar — puede retornar `null` en route handlers de App Router aunque el usuario y el registro existan. Ver entrada #8 en `CodingWorkshop.md`.
 
+**Save Version modal:** labels visibles deben estar en inglés. El modal se abre desde `AgentPanel` via `onSaveVersion` → `openSaveModal()` en WorkspaceShell. El payload (`name`, `purpose`, `panels`) no cambia con la traducción de labels.
+
+**Audit Log — navegación Month → Day:** los chips del Month View deben navegar al Day View del día correspondiente via `setFocusDate(new Date(event.date)); setViewMode('day')`. El header del contenedor de controles usa `sticky top-0 z-10` para permanecer visible durante scroll. Patrón portado de `PageC.tsx` de la demo (L497–498).
+
 **Cache invalidation en mutaciones client-side:** En Next.js App Router, las mutaciones client-side que afectan datos consumidos por server components deben ejecutar `router.refresh()` después del éxito para invalidar el caché del router. Sin esto, la navegación interna sirve la versión cacheada con datos viejos. Ver entrada #9 en `CodingWorkshop.md`.
 
 ---

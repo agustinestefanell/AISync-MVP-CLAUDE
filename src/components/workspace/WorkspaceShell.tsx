@@ -214,7 +214,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     }))
     const totalMessages = panels.reduce((n, p) => n + p.messages.length, 0)
     if (totalMessages === 0) {
-      setSaveModalError('No hay mensajes para guardar en este checkpoint.')
+      setSaveModalError('No messages to save in this checkpoint.')
       return
     }
 
@@ -239,7 +239,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       setSaveStatus('saved')
       closeSaveModal()
     } catch (err) {
-      setSaveModalError(err instanceof Error ? err.message : 'Error al guardar')
+      setSaveModalError(err instanceof Error ? err.message : 'Error saving')
       setSaveStatus('idle')
     } finally {
       if (saveStatus === 'saving') {
@@ -435,12 +435,12 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           onClick={e => { if (e.target === e.currentTarget) closeSaveModal() }}
         >
           <div className="bg-white border border-gray-200 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl space-y-5">
-            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Guardar checkpoint</h2>
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Save Version</h2>
 
-            {/* Nombre — obligatorio */}
+            {/* Name — required */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-600">
-                Nombre del checkpoint <span className="text-red-400">*</span>
+                Checkpoint name <span className="text-red-400">*</span>
               </label>
               <input
                 autoFocus
@@ -451,7 +451,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                   if (e.target.value.trim()) setNameError(false)
                 }}
                 onKeyDown={e => { if (e.key === 'Enter') confirmSave() }}
-                placeholder="Ej: Análisis inicial v1"
+                placeholder="e.g. Initial analysis v1"
                 className={`w-full bg-gray-50 border rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none transition-colors ${
                   nameError
                     ? 'border-red-500 focus:border-red-400'
@@ -459,13 +459,13 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                 }`}
               />
               {nameError && (
-                <p className="text-xs text-red-400">El nombre es obligatorio</p>
+                <p className="text-xs text-red-400">Name is required</p>
               )}
             </div>
 
-            {/* Propósito */}
+            {/* Purpose */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-600">Propósito</label>
+              <label className="text-sm font-medium text-gray-600">Purpose</label>
               <select
                 value={savePurpose}
                 onChange={e => setSavePurpose(e.target.value)}
@@ -477,9 +477,9 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
               </select>
             </div>
 
-            {/* Error de API */}
+            {/* API error */}
             {saveModalError && (
-              <p className="text-xs text-red-400 bg-red-950 border border-red-900 rounded-lg px-3 py-2">
+              <p className="text-xs bg-[var(--color-error-bg,#fee2e2)] border border-[var(--color-error-border,#fca5a5)] text-[var(--color-error-text,#991b1b)] rounded-lg px-3 py-2">
                 {saveModalError}
               </p>
             )}
@@ -491,14 +491,14 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                 disabled={saveStatus === 'saving'}
                 className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
               >
-                {saveStatus === 'saving' ? 'Guardando…' : 'Guardar checkpoint'}
+                {saveStatus === 'saving' ? 'Saving…' : 'Save'}
               </button>
               <button
                 onClick={closeSaveModal}
                 disabled={saveStatus === 'saving'}
                 className="px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 text-sm rounded-lg transition-colors disabled:opacity-50"
               >
-                Cancelar
+                Cancel
               </button>
             </div>
           </div>

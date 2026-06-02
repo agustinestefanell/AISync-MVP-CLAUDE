@@ -236,7 +236,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
         key={event.id}
         className="w-full truncate rounded-[5px] border px-1 py-0.5 text-left text-[9px] font-medium leading-tight"
         style={{ borderColor: c.border, backgroundColor: c.bg, color: '#1e293b' }}
-        onClick={ev => { ev.stopPropagation(); openDetail(event) }}
+        onClick={ev => { ev.stopPropagation(); setFocusDate(new Date(event.date)); setViewMode('day') }}
         title={`${event.time} ${cfg?.label ?? event.event_type}`}
       >
         <span className="font-semibold mr-0.5">{event.time}</span>
@@ -312,16 +312,16 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
         </div>
 
         {cp && (
-          <div className="mt-3 flex gap-3">
+          <div className="mt-3 flex gap-2">
             <button
               onClick={() => openDetail(event)}
-              className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
             >
-              View Detail →
+              View Details
             </button>
             <button
               onClick={() => retomar(event)}
-              className="text-xs text-green-400 hover:text-green-300 font-medium transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
             >
               Resume Work →
             </button>
@@ -366,7 +366,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
   return (
     <>
       {/* ── Controls: period label + view toggle + prev/next/today ── */}
-      <div className="mb-4 space-y-3">
+      <div className="sticky top-0 z-10 bg-[var(--color-app-bg)] pb-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="text-sm font-semibold text-gray-900">
