@@ -3960,3 +3960,33 @@ La demo no tiene `PromptLibrary` equivalente. No aplica portación.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-02] — How to use content update — Documentation Mode
+
+### Diagnóstico
+Los textos guía de las 5 vistas de Documentation Mode no orientaban con suficiente claridad el uso práctico de cada vista. El campo `guide` de cada tab en `TABS` necesitaba actualizarse con copy más contextual.
+
+### Demo First
+`PageB.tsx` tiene los mismos títulos `modalTitle: 'How to use [Vista]'`. Los contenidos de los guides son datos del MVP activo — no aplica portación.
+
+### Archivos tocados
+**`src/components/documentation/DocClient.tsx`**
+- `TABS[0].guide` (repository): reemplazado con guía narrativa + uso práctico + pregunta central + instrucción Sub-Manager.
+- `TABS[1].guide` (structure): reemplazado con guía breve de orientación y árbol.
+- `TABS[2].guide` (audit): reemplazado con guía narrativa diferenciando Audit View de Audit Log global.
+- `TABS[3].guide` (investigate): reemplazado con guía narrativa de reconstrucción profunda de temas.
+- `TABS[4].guide` (knowledge): reemplazado con guía narrativa de relaciones visuales + nota de desarrollo.
+
+### Archivos no tocados
+- `id`, `label`, estructura de `TABS`: sin tocar.
+- Modal, handlers, estado: sin tocar.
+- Vistas individuales (RepositoryView, StructureView, AuditView, InvestigateView, KnowledgeMap): sin tocar.
+- `CodingWorkshop.md`: sin tocar (actualización de copy, no bug técnico).
+
+### Build
+✓ `npm.cmd run build` limpio.
+
+### Estado
+Cerrado.

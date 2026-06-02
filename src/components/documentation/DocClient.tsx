@@ -20,77 +20,75 @@ const TABS: { id: Tab; label: string; guide: string }[] = [
   {
     id: 'repository',
     label: 'Repository View',
-    guide: `Main operational view. Filterable list of documents by project, team,
-type, status, and date. Side detail panel opens on selection.
+    guide: `Imagine you are working on a new deliverable and you need to find something you created two months ago, but you do not remember exactly which team or session it came from. You only remember that it was related to real estate business strategy analysis, that you worked on it in June last year, and that it belonged to Project MK. In that case, you go to Repository View. You search by keyword, narrow the results by project, date, team, or document type, and quickly locate the right document without needing to reconstruct the whole history first.
 
-It is the view for finding things quickly and working with them immediately.
-When you enter here, the goal is not deep analysis; the goal is fast access.
-You see a clear list of documents, search by name or keyword, filter by
-project, team, type, date, or status, and open exactly what you need without
-wasting time. In everyday language, it is like the main working table of the
-archive. You do not come here to reconstruct the whole story. You come here
-to locate the right document, confirm its basic context, and use it. That is
-why this should be the main daily-use view.`,
+Repository View is the main working view of Documentation Mode. It is designed for fast access and daily use. This is where you go when you need to find a document quickly, confirm its basic context, and work with it immediately.
+
+Here you can search by name or keyword, filter by project, team, type, status, or date, and open the exact item you need without navigating the full archive structure. When you select a document, the side detail panel helps you confirm what it is, where it belongs, and whether it is the correct item before taking the next step.
+
+Use this view when your question is simple:
+Where is the document I need, and can I open it now?
+
+In practical terms, Repository View is like the main working table of the archive. You do not come here to study the full structure, reconstruct the whole timeline, or analyze every relationship between documents. You come here to locate the right item, check its essential context, and use it with minimum friction.
+
+If you are new to Documentation Mode and you are not sure where to start, start here.
+
+If needed, you can always ask the Documentation Mode Sub-Manager to help you find documents using keywords.`,
   },
   {
     id: 'structure',
     label: 'Structure View',
-    guide: `Hierarchical view focused on organization, provenance, and document
-structure across project, team, and workspace.
+    guide: `Location, orientation, and folder tree.
 
-It is the view for understanding where each thing comes from and how
-everything is organized. Here the priority is not speed, but orientation.
-You look at the structure of the system: project, team, folder, origin,
-hierarchy, and relationship between parts. It helps you understand how
-documents are grouped and why they belong where they belong. In simple terms,
-it is like looking at the shelves and the archive tree instead of looking at
-one document at a time. You use this view when you need to orient yourself,
-understand provenance, and see the general order behind the repository.`,
+Use this view to see where things live inside the archive tree.`,
   },
   {
     id: 'audit',
     label: 'Audit View',
-    guide: `Document-centric event trace inside Documentation Mode. Shows events
-associated with documents and their operational history. Distinct from
-the global Audit Log at /audit.
+    guide: `Imagine you open a document and realize you do not need the document itself first — you need to understand what happened around it. You want to know when it was created, reviewed, moved, approved, or forwarded, and in what order those steps took place. In that case, you go to Audit View.
 
-It is the view for reconstructing what happened. You use it to see who
-touched something, what was reviewed, what was moved, what was approved,
-what was forwarded, and when each step took place. Its purpose is not only
-to show that an object exists, but to show the trace of actions around it.
-In everyday language, it is like reviewing the movement history of a case
-file. This is the right view when you need accountability, chronology, and
-operational traceability. It stays closely connected to Audit Log, because
-both are part of the same logic of reconstruction.`,
+Audit View is the view for reconstructing what happened around a document. It is not the same as the global Audit Log at /audit. The global Audit Log helps you understand what happened across the system and from where work can be resumed. Audit View, inside Documentation Mode, helps you understand the trace of actions connected to a specific document or documentary object.
+
+Here you use events, chronology, and linked actions to understand the operational history of a document: who touched it, what kind of step took place, when it happened, and how that document moved through the process.
+
+This is the right view when your question is not just What is this? but rather:
+What happened to this document over time?
+
+In practical terms, Audit View is like checking the movement history of a case file. You use it when you need accountability, chronology, and operational traceability around a documentary object, not when you simply want to find a file quickly or understand the archive structure.
+
+If needed, you can always ask the Documentation Mode Sub-Manager to help you find documents using keywords.`,
   },
   {
     id: 'investigate',
     label: 'Investigate View',
-    guide: `Deep analysis view for studying a topic: related documents, temporal
-evolution, and contextual reconstruction.
+    guide: `Imagine you are working on a client issue, a strategic decision, or a long process that was developed across different moments, teams, or documents. You are no longer looking for just one file, and you are not only trying to understand structure or trace. You want to understand the whole matter: what belongs to it, how it evolved, what came before and after, and which pieces are part of the same line of work even if they are spread across different places. In that case, you go to Investigate View.
 
-It is the view for studying a topic in depth. Here you are not looking only
-for one specific file, and you are not focused only on structure or chronology.
-You are trying to understand a complete matter: which documents are connected,
-how something evolved over time, what context existed before and after, and
-what pieces belong to the same line of work even if they live in different
-places. In simple terms, it is like opening an investigation table around one
-issue. It helps you analyze a decision, a client, a problem, or a process as
-a whole, not just as isolated documents.`,
+Investigate View is the view for studying a topic in depth. It helps you move from isolated documents to a wider understanding of one issue, one process, one client, one decision, or one evolving body of work.
+
+Here you use related documents, temporal evolution, and contextual reconstruction to understand how a matter developed over time. Instead of asking only Where is the file? or What happened to this document?, you ask:
+What is the full story around this topic?
+
+In practical terms, Investigate View is like opening an investigation table around one issue. You use it when you need to connect documents, follow a line of work across time, and understand how different pieces belong to the same matter even if they were produced in different contexts.
+
+This is not the main daily-use view for quick retrieval. It is the view you open when you need depth, context, and a broader reconstruction of meaning.
+
+If needed, you can always ask the Documentation Mode Sub-Manager to help you find documents using keywords.`,
   },
   {
     id: 'knowledge',
     label: 'Knowledge Map',
-    guide: `Visual graph of relationships between documents and related entities.
+    guide: `Imagine you are no longer trying to find one document or understand one timeline. Instead, you need to see the wider pattern behind a topic. You want to understand how documents, teams, conversations, outcomes, and related pieces connect to each other across the repository. In that case, you go to Knowledge Map.
 
-It is the view for seeing relationships between things in a visual way. It
-is not designed for basic daily work, but for understanding connections that
-are harder to detect in a normal list. It helps you see which document comes
-from which one, which team participated, which conversation produced which
-result, what is linked to what, and where the wider pattern is. In plain
-everyday language, it is like a visual map of connections across the archive.
-It is useful when you need the wider picture, not just one file. It is a
-secondary analytical layer, and it does not replace Repository View.`,
+Knowledge Map is the visual relationship view of Documentation Mode. It helps you see connections that are harder to detect in a normal list, a structural tree, or a chronological trace. You use it when you need to understand how one piece leads to another, what is linked to what, and where the larger pattern is.
+
+Here you can explore the repository as a graph of connected elements. Instead of asking only Where is this file?, Where does it belong?, or What happened to it?, you ask:
+How is this connected to the rest of the system?
+
+In practical terms, Knowledge Map is like looking at the relationship map of the archive. It helps you see which documents are linked, which teams participated, which conversations produced which results, and how different objects relate across the broader documentary base.
+
+This view is currently under development. Full functionality coming soon.
+
+If needed, you can always ask the Documentation Mode Sub-Manager to help you find documents using keywords.`,
   },
 ]
 

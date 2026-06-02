@@ -288,6 +288,8 @@ DocClient (Client)
             knowledge   → KnowledgeMap (dynamic, ssr:false)
 ```
 
+**How to use guides por vista:** Repository = recuperación rápida y acceso diario. Structure = ubicación y árbol jerárquico. Audit = trazabilidad documental interna (distinta del Audit Log global). Investigate = reconstrucción profunda de temas. Knowledge Map = relaciones visuales entre objetos del repositorio. Los guides viven en el array `TABS` de `DocClient.tsx` como campos `guide` en template literals.
+
 **Flujo de contexto SM**: `DocClient.pageContext` se construye con `filteredCheckpoints` (post-filtros de RepositoryView). `onFilterChange` notifica al padre cuando cambian los filtros. SM busca solo dentro del contexto activo.
 
 **Objetos documentales visibles en Documentation Mode**: `checkpoints`, `handoff_packages` y `saved_selections` son los tres tipos que se listan en Repository View e Investigate View. `saved_selections` se obtiene con `getSavedSelections(user.id)` en el server component y se propaga como prop `savedSelections` por DocClient.
