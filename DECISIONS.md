@@ -104,3 +104,12 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Motivo:** El scope de Cross Verification no estaba definido con suficiente precisión para implementarlo dentro de los bloques de Documentation Mode existentes. Mezclarlo como fix menor dentro de Repository View o Investigate View generaría deuda arquitectural difícil de deshacer.
 - **Alternativas descartadas:** Implementarlo dentro de fixes menores de Documentation Mode — descartado porque requiere diseño de modelo de datos propio, queries dedicadas y UI específica. No es un toggle en un componente existente.
 - **Consecuencia:** No hay tablas, queries ni UI para Cross Verification en el MVP actual. El estado en `PRODUCT_STATUS.md` es `Needs Review`. Pendiente de OE propia con definición explícita de scope, modelo de datos y criterios de verificación aceptable.
+
+---
+
+## 2026-06-02 — Token counters: versión correcta por fases
+
+- **Decisión:** implementar captura real de tokens desde el stream, no aproximaciones.
+- **Motivo:** el dato de consumo es una métrica de confianza. Un valor aproximado daña credibilidad y contamina la base para costos futuros (por sesión, por team, por plan).
+- **Alternativas descartadas:** (A) usar `max_tokens` como estimación — demasiado bruto, mide techo no uso real. (B) request separado sin streaming — artificial, caro y arquitectónicamente sucio.
+- **Consecuencia:** feature diferido hasta cerrar backlog estructural. Se implementará en 3 fases: tabla + contrato → captura por provider → UI modal.

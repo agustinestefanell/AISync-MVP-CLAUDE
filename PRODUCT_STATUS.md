@@ -90,6 +90,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 
 ## Known deferred items
 
+- Deferred: Token counters — captura real de uso por provider (Anthropic, OpenAI, Groq, Gemini). Requiere modificar providers de streaming. 3 fases: DB + contrato → captura por provider → modal UI. Diferido post-backlog estructural.
 - MAP Open button: `window.open(..., '_blank')` may be blocked by popup blocker. Future fix: `router.push`.
 - Prompt Library: ribbon entry is a modal (temporary). Dedicated `/prompts` page pending.
 - Capa 2 (Prompts Library injection in chat): architecture defined, not wired.
