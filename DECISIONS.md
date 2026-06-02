@@ -123,3 +123,16 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Alternativas descartadas:** Crear botones de ayuda específicos y distintos por página — descartado, genera inconsistencia visual. Usar solo links externos — descartado, los modales in-page son más contextuales. Pasar callback desde server component — inválido en Next.js. Modificar `AppLayout` para pasar `pageSubtitleOnClick` — no resuelve el problema raíz.
 - **Consecuencia:** Main Workspace, Audit Log, Teams Map y futuras páginas pueden usar el subtítulo como disparador de ayuda contextual en OEs futuras. Para cada una, el client component principal de la página deberá gestionar su propio `TopRibbon` o se deberá evaluar si `AppLayout` puede recibir el callback desde un client wrapper. Documentation Mode ya implementa este patrón: `DocClient` gestiona `TopRibbon` + `BottomRibbon` directamente.
 
+
+---
+
+## 2026-06-02 — Visión estratégica: AISync + Claude Code via VS Code
+
+- **Decisión:** Registrar como visión estratégica confirmada la integración de Claude Code (VS Code) como Worker real dentro de un Team de AISync.
+- **Concepto:** Un Manager redacta una OE en el Workspace, la envía via Review & Forward al Worker Claude Code. Claude Code la recibe, la ejecuta en el repositorio y devuelve el reporte al panel del Manager. Todo queda trazado en Audit Log con checkpoints vinculados a cambios reales en el repo.
+- **Habilitadores ya disponibles:** R&F funcionando, Context Files en AISync, ProjectStartProtocol.docx, Claude Code como agente real via MCP.
+- **Lo que falta:** Bridge técnico entre panel de Worker en AISync y Claude Code en VS Code — webhook o MCP server que escuche mensajes del panel y los reenvíe al terminal.
+- **Acelerador clave:** ProjectStartProtocol pre-cargado como Context File en el Worker Claude Code — garantiza estándares operativos desde el primer mensaje sin ramp-up manual.
+- **Alternativas descartadas:** Integración via copy-paste manual entre AISync y VS Code — no escala, no es trazable, rompe el flujo de gobernanza.
+- **Consecuencia:** AISync pasa de ser gobernanza sobre chat a ser gobernanza sobre trabajo real de código. Es la demostración más concreta de la propuesta de valor del producto.
+- **Estado:** Diferido — Fase 3+. Requiere bridge técnico. Registrado como visión estratégica confirmada.
