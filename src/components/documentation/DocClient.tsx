@@ -96,23 +96,18 @@ If needed, you can always ask the Documentation Mode Sub-Manager to help you fin
 
 const MAX_CONTEXT = 100
 
-const MAIN_GUIDE = `Documentation Mode is the place where AISync turns saved work into a structured, searchable and traceable documentary base.
+const MAIN_GUIDE = `Documentation Mode is for moments like these:
 
-Use it when you need to find, understand, review or reconstruct work that has already been saved from the Workspace.
+→ You worked on something important a few days ago and now you want to find it again, but this time in a more structured environment.
+→ You already saved useful material and now you want to explore it beyond the live chat.
+→ You are not looking for one message, but for a document, an output, a related piece, or a clearer view of how several things connect.
+→ You want to stop thinking in terms of active conversation and start thinking in terms of organized documentation.
+→ You need to review past work, understand how pieces belong together, or preserve something in a way that is easier to navigate later.
+→ You want to move from "something I worked on before" to "something I can now inspect, understand, and reuse."
 
-It is organized into five views:
+This is what Documentation Mode is for: giving structure and visibility to work that would otherwise remain buried inside past conversations.
 
-Repository View is the main working view. Use it to quickly find and open checkpoints, handoff packages, saved selections and other documentary objects.
-
-Structure View helps you understand where things live inside the archive tree.
-
-Audit View helps you reconstruct what happened around a documentary object over time.
-
-Investigate View helps you study a topic, decision, client issue or process in depth by connecting related pieces.
-
-Knowledge Map helps you explore relationships between documents, teams, conversations and outcomes. This view is under development.
-
-If you are not sure where to start, start with Repository View.`
+In practical terms, Documentation Mode is where work stops being just past activity and starts becoming something you can navigate, understand, preserve, and use again later.`
 
 interface DocClientProps {
   pageName:        string
