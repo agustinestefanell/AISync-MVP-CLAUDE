@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import { getActiveProjectId } from '@/lib/db/teams'
 import { getProjectsWithHierarchy } from '@/lib/db/projects'
 import TeamsClient from '@/components/teams/TeamsClient'
-import AppLayout from '@/components/layout/AppLayout'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 
 export default async function TeamsPage() {
@@ -21,13 +20,11 @@ export default async function TeamsPage() {
   const activeProject = projects.find(p => p.id === projectId)
 
   return (
-    <AppLayout
+    <TeamsClient
       pageName="TEAMS MAP"
-      pageSubtitle="How to use Teams Map (click here)"
       projectName={activeProject?.name}
-      scrollable={false}
-    >
-      <TeamsClient projectId={projectId} initialTeams={allTeams} />
-    </AppLayout>
+      projectId={projectId}
+      initialTeams={allTeams}
+    />
   )
 }

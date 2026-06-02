@@ -240,6 +240,8 @@ AppLayout
 
 **Excepción — Main Workspace**: `WorkspaceClient` (thin wrapper creado en esta OE) gestiona layout completo (TopRibbon + main + BottomRibbon). `WorkspaceShell` conserva su interfaz intacta. `page.tsx` retorna `<WorkspaceClient pageName accentColor badge .../>` directamente. Subtítulo superior: `How to work in Workspace` via `pageSubtitleOnClick`. `BottomRibbon` recibe `accentColor` para mantener consistencia visual del ribbon coloreado por team.
 
+**Excepción — Teams Map**: `TeamsClient` gestiona layout completo (TopRibbon + ribbon operativo interno + BottomRibbon). `TeamsClient` ya tenía su propio ribbon interno con botón "How to use Teams Map" (sin onClick). El subtítulo del `TopRibbon` superior es el punto de acceso oficial al modal `How to use Teams Map` via `pageSubtitleOnClick`. El botón interno queda pendiente de conectar en OE futura. `page.tsx` retorna `<TeamsClient pageName projectName .../>` directamente.
+
 **Patrón reusable — `TopRibbon.pageSubtitleOnClick`**: `TopRibbon` acepta `pageSubtitleOnClick?: () => void`. Prioridad: `pageSubtitleHref` (link) > `pageSubtitleOnClick` (button) > texto plano. Usar este patrón para disparar modales de ayuda por página desde el subtítulo del ribbon. Ver `DECISIONS.md` entrada 2026-06-02.
 
 ### 3.3 Workspace

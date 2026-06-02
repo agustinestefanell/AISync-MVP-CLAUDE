@@ -9,7 +9,22 @@ import AddTeamModal from './AddTeamModal'
 import EditTeamModal from './EditTeamModal'
 import ConnectTeamModal, { type Connection } from './ConnectTeamModal'
 import IncomingRequestsPanel from './IncomingRequestsPanel'
+import TopRibbon from '@/components/layout/TopRibbon'
+import BottomRibbon from '@/components/layout/BottomRibbon'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
+
+const TEAMS_GUIDE = `Imagine you have been working for a while and now the structure has grown. There are several teams, managers, workers, and branches, and you want to understand where everything is without getting lost. In that case, you usually start with Tree. Tree gives you a simpler and lighter view of the structure, so you can locate the part you are looking for more quickly. Once you already know where you are and want to inspect that area more clearly, you move to Map. Map shows the same structure in a richer and more detailed way.
+
+Teams Map is the page that helps you understand the internal structure of the system. It shows how the General Manager, the Workers, and additional teams are organized. You do not always need this page as the very first step, but it becomes useful when you want to understand the structure more clearly and work with it more deliberately.
+
+AISync includes two ways to read the same team structure:
+
+→ Tree is the simplified structural view. It helps you locate and read the structure faster, with less visual weight.
+→ Map is the richer structural view. It helps you inspect the same structure in a more detailed and visual way.
+
+Use this page when you want to understand how the system is organized, check how teams relate to each other, review the relation between managers and workers, or create and edit teams more consciously.
+
+In practical terms, Teams Map makes the structure of AISync visible. It reminds you that AISync is not only a chat interface. It is a structured work system.`
 
 const MapView = dynamic(() => import('./MapView'), { ssr: false })
 
@@ -24,11 +39,13 @@ export interface ExternalConnection {
 }
 
 interface TeamsClientProps {
-  projectId: string
+  pageName:     string
+  projectName?: string
+  projectId:    string
   initialTeams: TeamWithWorkspaces[]
 }
 
-export default function TeamsClient({ projectId, initialTeams }: TeamsClientProps) {
+export default function TeamsClient({ pageName, projectName, projectId, initialTeams }: TeamsClientProps) {
   const [teams, setTeams]             = useState<TeamWithWorkspaces[]>(initialTeams)
   const [connections, setConnections] = useState<Connection[]>([])
   const [view, setView]               = useState<ViewMode>('map')
@@ -39,6 +56,7 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
   const [zoomIn, setZoomIn]   = useState(0)
   const [zoomOut, setZoomOut] = useState(0)
   const [zoomReset, setZoomReset] = useState(0)
+  const [showMainGuide, setShowMainGuide] = useState(false)
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -150,7 +168,13 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
   }, 0)
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
+      <TopRibbon
+        pageName={pageName}
+        pageSubtitle="How to use Teams Map"
+        pageSubtitleOnClick={() => setShowMainGuide(true)}
+        projectName={projectName}
+      />
 
       {/* ── Ribbon operativo ─────────────────────────────────────────────────── */}
       <div
@@ -353,6 +377,38 @@ export default function TeamsClient({ projectId, initialTeams }: TeamsClientProp
           onRejected={handleRejected}
         />
       )}
+
+      {/* Main guide modal */}
+      {showMainGuide && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={e => { if (e.target === e.currentTarget) setShowMainGuide(false) }}
+        >
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+            <div className="px-6 py-5 border-b border-[var(--color-border-default)] flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
+                  How to use Teams Map
+                </h3>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Operational guidance</p>
+              </div>
+              <button
+                onClick={() => setShowMainGuide(false)}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm px-1 transition-colors shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
+                {TEAMS_GUIDE}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <BottomRibbon />
     </div>
   )
 }

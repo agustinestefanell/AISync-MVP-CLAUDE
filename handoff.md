@@ -4088,3 +4088,32 @@ Creado `WorkspaceClient.tsx` como thin client wrapper entre `page.tsx` y `Worksp
 - `showMainGuide`, `pageSubtitleOnClick`, `How to work in Workspace` confirmados por grep.
 - `WorkspaceShell`, `AgentPanel`, `PromptLibrary`, streaming, providers intactos.
 
+
+---
+
+## [2026-06-02] — Teams Map How to use modal
+
+### OE ejecutada
+Teams Map How to use modal
+
+### Archivos modificados
+- `src/app/teams/page.tsx`
+- `src/components/teams/TeamsClient.tsx`
+
+### Decisión técnica tomada
+Mismo patrón aplicado en Audit Log y Documentation Mode. `TeamsClient` ya era un client component con su propio ribbon interno. Se agregaron `pageName` y `projectName` como props, se importaron `TopRibbon` y `BottomRibbon`, se cambió el outer div de `h-full` a `h-screen flex flex-col overflow-hidden`, y se agregó `showMainGuide` state + modal. `page.tsx` ya no usa `AppLayout`.
+
+### Nota arquitectural
+`TeamsClient` tiene su propio ribbon operativo interno (con botón "How to use Teams Map" ya existente pero sin onClick). Ese botón no fue conectado en esta OE — el scope es solo el subtítulo del `TopRibbon` superior via `pageSubtitleOnClick`. Conexión del botón interno queda para OE futura si aplica.
+
+### Alternativas descartadas
+- Pasar callback desde `page.tsx` (server component): inválido en Next.js.
+
+### Riesgos conocidos
+- Teams Map ya no usa `AppLayout`. Mismo riesgo que Audit Log y Documentation Mode.
+
+### Validaciones
+- Build: exitoso sin errores TypeScript.
+- Patrones `showMainGuide`, `pageSubtitleOnClick`, `How to use Teams Map` confirmados por grep.
+- Tree View, Map View, React Flow, modales existentes (Add/Edit/Connect/Incoming) intactos.
+
