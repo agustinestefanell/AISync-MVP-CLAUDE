@@ -3909,3 +3909,28 @@ L178 (trigger externo), L214 (definición), L340 (Check Work en Day View card), 
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Panel lateral disponible en Week View
+
+### Diagnóstico
+`setSelectedEvent(event)` funcionaba en Week View pero el panel no aparecía porque el JSX `{selectedEvent && (...)}` estaba dentro del bloque exclusivo `{viewMode === 'day' && (...)}`.
+
+### Demo First
+`PageC.tsx` — `selectedEvent` es estado global compartido; el panel detail está a nivel del retorno principal del componente, no dentro de un condicional de vista. Patrón portado.
+
+### Cambio
+`src/components/audit/AuditTimeline.tsx` — reestructuración del bloque Week + Day View:
+- Los bloques separados `{viewMode === 'week' && (...)}` y `{viewMode === 'day' && (...)}` fueron reemplazados por un único wrapper `{(viewMode === 'week' || viewMode === 'day') && (<div className="flex gap-4">...)}`.
+- Dentro del `flex-1 min-w-0`: condicionales internos `{viewMode === 'week' && (...)}` y `{viewMode === 'day' && (...)}` con el contenido exacto de cada vista.
+- Panel lateral: `{selectedEvent && (...)}` a nivel del `flex gap-4`, fuera de los condicionales de vista.
+
+### Month View
+Sin tocar — permanece en su propio bloque `{viewMode === 'month' && (...)}`.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

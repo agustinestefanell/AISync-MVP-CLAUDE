@@ -509,67 +509,74 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
         </div>
       )}
 
-      {/* ── Week View (ported from demo renderWeekView) ── */}
-      {viewMode === 'week' && (
-        <div className="overflow-x-auto">
-          <div className="grid min-w-[700px] grid-cols-7 gap-2">
-            {weekDates.map(date => {
-              const key   = buildDateKey(date)
-              const evs   = byDate.get(key) ?? []
-              const focus = isSameDay(date, focusDate)
-              return (
-                <div
-                  key={key}
-                  className="min-h-[300px] rounded-[12px] border p-2"
-                  style={{
-                    background:  '#ffffff',
-                    borderColor: focus ? 'rgb(107,114,128)' : 'rgb(209,213,219)',
-                  }}
-                >
-                  <button
-                    className="w-full rounded-[8px] px-2 py-1.5 text-left hover:bg-white/5 transition-colors"
-                    onClick={() => { setFocusDate(date); setViewMode('day') }}
-                  >
-                    <div className="text-[10px] uppercase tracking-wider text-gray-500">
-                      {DAY_NAMES[date.getDay()]}
-                    </div>
-                    <div className="mt-0.5 text-sm font-semibold text-gray-800">
-                      {MONTH_NAMES[date.getMonth()].slice(0, 3)} {date.getDate()}
-                    </div>
-                  </button>
-                  <div className="mt-2 space-y-1.5">
-                    {evs.length > 0
-                      ? evs.map(e => renderWeekCard(e))
-                      : (
-                        <div className="rounded-[8px] border border-dashed border-gray-300 px-2 py-4 text-xs text-gray-400 text-center">
-                          —
-                        </div>
-                      )
-                    }
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Day View (ported from demo renderDayView) ── */}
-      {viewMode === 'day' && (
+      {/* ── Week + Day Views — shared flex layout with side panel ── */}
+      {(viewMode === 'week' || viewMode === 'day') && (
         <div className="flex gap-4">
-          {/* Event list */}
-          <div className="flex-1 min-w-0 space-y-3">
-          {dayEvents.length > 0
-            ? dayEvents.map(e => renderDayCard(e))
-            : (
-              <div className="rounded-[14px] border border-dashed border-gray-300 flex items-center justify-center min-h-[160px]">
-                <p className="text-gray-500 text-sm">No events on this day.</p>
-              </div>
-            )
-          }
-          </div>{/* end event list */}
+          {/* View content — flex-1 */}
+          <div className="flex-1 min-w-0">
 
-          {/* Side panel */}
+            {/* Week View (ported from demo renderWeekView) */}
+            {viewMode === 'week' && (
+              <div className="overflow-x-auto">
+                <div className="grid min-w-[700px] grid-cols-7 gap-2">
+                  {weekDates.map(date => {
+                    const key   = buildDateKey(date)
+                    const evs   = byDate.get(key) ?? []
+                    const focus = isSameDay(date, focusDate)
+                    return (
+                      <div
+                        key={key}
+                        className="min-h-[300px] rounded-[12px] border p-2"
+                        style={{
+                          background:  '#ffffff',
+                          borderColor: focus ? 'rgb(107,114,128)' : 'rgb(209,213,219)',
+                        }}
+                      >
+                        <button
+                          className="w-full rounded-[8px] px-2 py-1.5 text-left hover:bg-white/5 transition-colors"
+                          onClick={() => { setFocusDate(date); setViewMode('day') }}
+                        >
+                          <div className="text-[10px] uppercase tracking-wider text-gray-500">
+                            {DAY_NAMES[date.getDay()]}
+                          </div>
+                          <div className="mt-0.5 text-sm font-semibold text-gray-800">
+                            {MONTH_NAMES[date.getMonth()].slice(0, 3)} {date.getDate()}
+                          </div>
+                        </button>
+                        <div className="mt-2 space-y-1.5">
+                          {evs.length > 0
+                            ? evs.map(e => renderWeekCard(e))
+                            : (
+                              <div className="rounded-[8px] border border-dashed border-gray-300 px-2 py-4 text-xs text-gray-400 text-center">
+                                —
+                              </div>
+                            )
+                          }
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Day View (ported from demo renderDayView) */}
+            {viewMode === 'day' && (
+              <div className="space-y-3">
+              {dayEvents.length > 0
+                ? dayEvents.map(e => renderDayCard(e))
+                : (
+                  <div className="rounded-[14px] border border-dashed border-gray-300 flex items-center justify-center min-h-[160px]">
+                    <p className="text-gray-500 text-sm">No events on this day.</p>
+                  </div>
+                )
+              }
+              </div>
+            )}
+
+          </div>{/* end view content */}
+
+          {/* Side panel — shared between Day and Week */}
           {selectedEvent && (
             <div className="w-80 shrink-0 border-l border-[var(--color-border)] pl-4">
               <div className="sticky top-4">

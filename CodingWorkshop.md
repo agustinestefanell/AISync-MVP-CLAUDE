@@ -301,3 +301,21 @@ Cada entrada documenta lo que fue difícil, por qué falló, cómo se resolvió 
 - **Commit:** `fix: audit log day view button cleanup - rename view details to check work`
 
 - **Lección:** Las acciones de Audit Log deben separarse por nivel: abrir workspace (lista), revisar preview (lista → modal), retomar checkpoint (modal → workspace). Si se mezclan en un solo nivel, la UI pierde claridad operativa y genera dead code. Nunca agregar botones en iteraciones sin revisar si ya existe uno con la misma función.
+
+---
+
+### 13. Audit Log — panel lateral compartido entre Day View y Week View
+
+- **Problema:** Week View ejecutaba correctamente `setSelectedEvent(event)`, pero el panel lateral no aparecía. El estado cambiaba pero ningún DOM mostraba el resultado.
+
+- **Causa raíz:** El JSX del panel lateral (`w-80 shrink-0`) estaba dentro del bloque exclusivo `{viewMode === 'day' && (...)}`. En Week View el estado `selectedEvent` se actualizaba, pero el DOM del panel no existía en ese contexto de render.
+
+- **Consecuencia:** La interacción de Week View parecía rota aunque el setter funcionaba correctamente.
+
+- **Proceso de solución:** Reestructurar el layout para que Week View y Day View compartan el mismo wrapper `flex gap-4`, con el panel lateral a un nivel común por encima de los condicionales de vista específicos.
+
+- **Solución final:** Reemplazar los condicionales separados `{viewMode === 'week' && (...)}` y `{viewMode === 'day' && (...)}` por un único wrapper `{(viewMode === 'week' || viewMode === 'day') && (<div className="flex gap-4">...)}` que contiene: `flex-1 min-w-0` con los condicionales de Week y Day internos, y el panel lateral compartido fuera de esos condicionales pero dentro del flex.
+
+- **Commit:** `fix: make side panel available in week view`
+
+- **Lección:** Cuando un estado es compartido entre vistas, el JSX que lo consume debe estar disponible en el nivel de render correspondiente a todas esas vistas. Si el DOM del panel vive dentro del condicional de una sola vista, las demás pueden actualizar el estado sin efecto visible. La solución es elevar el DOM del panel al nivel del wrapper que las agrupa.
