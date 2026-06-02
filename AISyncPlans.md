@@ -238,6 +238,8 @@ AppLayout
 
 **Excepción — Audit Log**: `AuditClient` gestiona su propio layout completo (TopRibbon + main + BottomRibbon). Mismo patrón que Documentation Mode. `page.tsx` de Audit Log retorna `<AuditClient pageName="AUDIT LOG" .../>` directamente. Subtítulo superior: `How to use Audit Log` via `pageSubtitleOnClick`.
 
+**Excepción — Main Workspace**: `WorkspaceClient` (thin wrapper creado en esta OE) gestiona layout completo (TopRibbon + main + BottomRibbon). `WorkspaceShell` conserva su interfaz intacta. `page.tsx` retorna `<WorkspaceClient pageName accentColor badge .../>` directamente. Subtítulo superior: `How to work in Workspace` via `pageSubtitleOnClick`. `BottomRibbon` recibe `accentColor` para mantener consistencia visual del ribbon coloreado por team.
+
 **Patrón reusable — `TopRibbon.pageSubtitleOnClick`**: `TopRibbon` acepta `pageSubtitleOnClick?: () => void`. Prioridad: `pageSubtitleHref` (link) > `pageSubtitleOnClick` (button) > texto plano. Usar este patrón para disparar modales de ayuda por página desde el subtítulo del ribbon. Ver `DECISIONS.md` entrada 2026-06-02.
 
 ### 3.3 Workspace

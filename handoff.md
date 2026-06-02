@@ -4057,3 +4057,34 @@ La OE autorizaba `AuditTimeline.tsx` como archivo de código, pero el componente
 - Modal principal separado del modal de detalle existente.
 - `openDetail`, filtros, calendario y side panel intactos.
 
+
+---
+
+## [2026-06-02] — Main Workspace How to work modal
+
+### OE ejecutada
+Main Workspace How to use modal
+
+### Archivos modificados
+- `src/app/workspace/[id]/page.tsx`
+- `src/components/workspace/WorkspaceClient.tsx` (creado nuevo)
+
+### Decisión técnica tomada
+Creado `WorkspaceClient.tsx` como thin client wrapper entre `page.tsx` y `WorkspaceShell`. Sigue exactamente el patrón de `AuditClient.tsx`. `page.tsx` ya no usa `AppLayout` — retorna `<WorkspaceClient pageName accentColor badge workspace initialMessages initialCheckpointId />` directamente. `WorkspaceClient` gestiona layout completo (TopRibbon + BottomRibbon + contenido) y el estado `showMainGuide`.
+
+### Alternativas descartadas
+- Pasar callback desde `page.tsx` (server component): inválido en Next.js.
+- Modificar `WorkspaceShell` directamente: prohibido, contiene lógica operativa crítica del workspace.
+
+### Nota arquitectural
+`WorkspaceClient` es un thin wrapper — no contiene lógica de workspace. Solo maneja `showMainGuide` state + layout. `WorkspaceShell` conserva su interfaz intacta (`workspace`, `initialMessages`, `initialCheckpointId`). El modal tiene `max-h-[60vh] overflow-y-auto` porque el contenido del guide es más largo que los de Audit Log y Documentation Mode.
+
+### Riesgos conocidos
+- Workspace ya no usa `AppLayout`. Si `AppLayout` cambia en futuras OEs, Workspace necesita actualizarse por separado. Bajo riesgo a corto plazo.
+- `BottomRibbon` acepta `accentColor` — pasado desde `WorkspaceClient` para mantener consistencia visual con el ribbon coloreado del workspace.
+
+### Validaciones
+- Build: exitoso sin errores TypeScript.
+- `showMainGuide`, `pageSubtitleOnClick`, `How to work in Workspace` confirmados por grep.
+- `WorkspaceShell`, `AgentPanel`, `PromptLibrary`, streaming, providers intactos.
+

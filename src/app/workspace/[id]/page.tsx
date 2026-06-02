@@ -2,8 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getWorkspaceWithAgents } from '@/lib/db/workspaces'
 import { getMessages } from '@/lib/db/messages'
-import WorkspaceShell from '@/components/workspace/WorkspaceShell'
-import AppLayout from '@/components/layout/AppLayout'
+import WorkspaceClient from '@/components/workspace/WorkspaceClient'
 import { CORPORATE_PALETTES } from '@/lib/teams/getProjectColor'
 import type { Message } from '@/lib/db/types'
 
@@ -67,18 +66,13 @@ export default async function WorkspacePage({
   }
 
   return (
-    <AppLayout
+    <WorkspaceClient
       pageName={pageName}
-      pageSubtitle="How to use Main Workspace (click here)"
-      scrollable={false}
       accentColor={accentColor}
       badge={teamType}
-    >
-      <WorkspaceShell
-        workspace={workspace}
-        initialMessages={initialMessages}
-        initialCheckpointId={searchParams.checkpoint}
-      />
-    </AppLayout>
+      workspace={workspace}
+      initialMessages={initialMessages}
+      initialCheckpointId={searchParams.checkpoint}
+    />
   )
 }
