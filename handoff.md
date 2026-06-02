@@ -3934,3 +3934,29 @@ Sin tocar — permanece en su propio bloque `{viewMode === 'month' && (...)}`.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Prompt Library UX fixes
+
+### Diagnóstico
+Modal se cerraba con click en backdrop (pérdida accidental de edición). Textarea demasiado chico para prompts largos (`rows={4}`, `resize-none`).
+
+### Demo First
+La demo no tiene `PromptLibrary` equivalente. No aplica portación.
+
+### Archivos tocados
+**`src/components/workspace/PromptLibrary.tsx`**
+- L261: `onClick={e => { if (e.target === e.currentTarget) onClose() }}` → `onClick={e => e.stopPropagation()}`
+- L310: `rows={4}` → `rows={10}`
+- L311: `resize-none` → `resize-y`
+
+### Archivos no tocados
+- `onClose`, botón `✕`, `CANCEL`, `SAVE`: sin tocar.
+- `CodingWorkshop.md`: sin tocar (mejora UX puntual).
+
+### Build
+✓ Limpio.
+
+### Estado
+Cerrado.

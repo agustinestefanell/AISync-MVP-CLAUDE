@@ -258,7 +258,7 @@ export default function PromptLibrary({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      onClick={e => e.stopPropagation()}
     >
       <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-4xl mx-4 shadow-2xl flex flex-col overflow-hidden" style={{ height: '80vh' }}>
 
@@ -307,8 +307,8 @@ export default function PromptLibrary({
                   value={formBody}
                   onChange={e => setFormBody(e.target.value)}
                   placeholder="Prompt instructions…"
-                  rows={4}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors resize-none"
+                  rows={10}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors resize-y"
                 />
                 <input
                   value={formNotes}

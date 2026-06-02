@@ -261,6 +261,8 @@ AgentPanel (forwardRef → AgentPanelHandle)
   └── ContextFilePanel modal (Fragment, fuera del panel)
 ```
 
+**Prompt Library modal:** no debe cerrarse por click en backdrop (`onClick={e => e.stopPropagation()}`); el cierre depende solo de acciones explícitas (`CANCEL` o `✕`). El textarea de prompt usa `rows={10}` y `resize-y` para edición extensa.
+
 **Estado dual en AgentPanel**: `messages` (display) y `apiMessages` (historial enviado al modelo) son estados separados. Toda función que inyecte mensajes externamente — como `appendUserMessage` — debe actualizar ambos estados. `sendPrompt` los mantiene sincronizados por diseño; las inyecciones imperativas (R&F) deben hacerlo explícitamente.
 
 **Handle imperativo** (`AgentPanelHandle`):
