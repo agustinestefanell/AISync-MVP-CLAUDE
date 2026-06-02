@@ -323,6 +323,12 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
               onClick={() => retomar(event)}
               className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
             >
+              Check Work →
+            </button>
+            <button
+              onClick={() => retomar(event)}
+              className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
+            >
               Resume Work →
             </button>
           </div>
@@ -395,9 +401,9 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
 
             {/* Prev / Today / Next */}
             <div className="flex rounded-full border border-gray-200 bg-white p-0.5">
-              <button onClick={goToPrev}                        className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-white transition-colors">Prev</button>
-              <button onClick={() => setFocusDate(new Date())} className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-white transition-colors">Today</button>
-              <button onClick={goToNext}                        className="h-7 rounded-full px-3 text-xs text-gray-400 hover:text-white transition-colors">Next</button>
+              <button onClick={goToPrev}                        className="h-7 rounded-full px-3 text-xs text-[var(--color-text-primary)] font-medium hover:opacity-75 transition-opacity">Prev</button>
+              <button onClick={() => setFocusDate(new Date())} className="h-7 rounded-full px-3 text-xs text-[var(--color-text-primary)] font-medium hover:opacity-75 transition-opacity">Today</button>
+              <button onClick={goToNext}                        className="h-7 rounded-full px-3 text-xs text-[var(--color-text-primary)] font-medium hover:opacity-75 transition-opacity">Next</button>
             </div>
           </div>
         </div>

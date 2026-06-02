@@ -3740,3 +3740,39 @@ Demo (`C:\proyectos\AISync\MVP`):
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Purpose dropdown inglés + Check Work button + nav buttons visibility
+
+### Diagnóstico
+Tres inconsistencias menores: (1) `PURPOSES` array en español; (2) faltaba acción visual `Check Work →` en Day View; (3) botones Prev/Today/Next con clases de contraste para dark mode.
+
+### Demo First
+La demo no tiene los purpose labels ni `Check Work`. Botones de navegación usan `goToPrevious` pero sin clases dark residuales. No aplica portación directa.
+
+### Archivos tocados
+
+**`src/components/workspace/WorkspaceShell.tsx`**
+- `PURPOSES` array: `'Evidencia'→'Evidence'`, `'Reutilizar'→'Reuse'`, `'Retomar después'→'Resume Later'`, `'Documentación'→'Documentation'`, `'Soporte de auditoría'→'Audit Support'`
+- `'Checkpoint'` y `'Handoff'` sin tocar.
+
+**`src/components/audit/AuditTimeline.tsx`**
+- Day View: agregado botón `Check Work →` con handler `retomar(event)` — exactamente igual a `Resume Work →`, dentro del mismo bloque `{cp && (...)}`.
+- Botones Prev/Today/Next: `text-gray-400 hover:text-white transition-colors` → `text-[var(--color-text-primary)] font-medium hover:opacity-75 transition-opacity` (replace_all — solo afectó los 3 botones de nav).
+
+### Archivos no tocados
+- Save Selection modal: sin tocar.
+- Lógica de `retomar`: sin tocar.
+- Lógica de calendario, filtros: sin tocar.
+- `CodingWorkshop.md`: sin tocar (mejoras copy/UX).
+
+### Decisiones técnicas
+- `Check Work →` usa el mismo handler `retomar(event)` que `Resume Work →` — la OE indica reutilizar exactamente el mismo handler. Ambos navegan a `/workspace/[id]?checkpoint=[id]`.
+- `replace_all: true` en botones nav: la clase `text-gray-400 hover:text-white transition-colors` solo existía en esos 3 botones — confirmado por grep post-cambio.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

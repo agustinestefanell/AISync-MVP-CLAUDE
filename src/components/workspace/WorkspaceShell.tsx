@@ -14,12 +14,12 @@ const AGENT_LABEL: Record<string, string> = {
 
 const PURPOSES = [
   'Checkpoint',
-  'Evidencia',
-  'Reutilizar',
+  'Evidence',
+  'Reuse',
   'Handoff',
-  'Retomar después',
-  'Documentación',
-  'Soporte de auditoría',
+  'Resume Later',
+  'Documentation',
+  'Audit Support',
 ] as const
 
 

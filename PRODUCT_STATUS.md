@@ -58,7 +58,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Feature | Estado | Evidencia | Notas |
 |---|---|---|---|
 | Agent Panels (SAT/MAT) | ✅ Live | commit d1382f3 | Day markers + timestamps en chat — commit d1382f3 |
-| Save Version modal — english labels | ✅ Live | `src/components/workspace/WorkspaceShell.tsx` | Modal translated to English; API error container replaced dark mode residual with light-safe tokens. |
+| Save Version modal — english labels | ✅ Live | `src/components/workspace/WorkspaceShell.tsx` | Modal translated to English; API error container replaced dark mode residual with light-safe tokens. Purpose dropdown uses English labels (Evidence, Reuse, Resume Later, Documentation, Audit Support). |
 | **Save Selection** | ✅ Live | commit 904a429 | Migration 019 + POST route + UI in WorkspaceShell — commit c3e880b. Audit log event `save_selection` added — commit d29c439. Visual display in Audit Timeline + Audit View (amber badge) — commit fcb9029. Agent role preserved in messages — commit 904a429 |
 | **SMPanel (Documentation Mode)** | ✅ Live | commit 8ad6a98 | Fused amber ribbon (hint + external warning) + accent top line — commit 8ad6a98 |
 | Prompt Library | ✅ Live | commit e68db2f | Light mode fixed — commit e68db2f |
@@ -71,7 +71,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 
 | Feature | Estado | Evidencia | Notas |
 |---|---|---|---|
-| Audit Log — Day view UX + Month navigation | ✅ Live | `src/components/audit/AuditTimeline.tsx` | Day View buttons use solid accent style. Header sticky during scroll. Month chip navigates to Day view via `setFocusDate` + `setViewMode('day')`. |
+| Audit Log — Day view UX + Month navigation | ✅ Live | `src/components/audit/AuditTimeline.tsx` | Day View buttons use solid accent style. Header sticky during scroll. Month chip navigates to Day view. `Check Work →` added alongside `Resume Work →`. Prev/Today/Next use light-safe text. |
 | Admin prompts route — role lookup | ✅ Live | `src/app/api/admin/prompts/route.ts` | Fix: lookup de `accounts.role` usa `adminClient` en vez de client con cookies. Falso 403 para usuarios `owner` resuelto. Ver CodingWorkshop.md entrada #8. |
 | Admin prompts — cache post-save | ✅ Live | `src/components/admin/AdminClient.tsx` | Fix: `router.refresh()` después de save exitoso. Evita que App Router sirva datos cacheados al navegar de vuelta a `/admin`. Ver CodingWorkshop.md entrada #9. |
 
