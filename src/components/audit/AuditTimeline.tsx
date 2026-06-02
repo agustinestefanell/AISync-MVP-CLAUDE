@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import type { AuditEventRow } from '@/lib/db/audit'
 import { getProjectColorTokens, teamCodeToPaletteIndex } from '@/lib/teams/getProjectColor'
 
@@ -111,8 +110,6 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
   onFilterChange?:      (filtered: AuditEventRow[]) => void
   teamCodes?:           Record<string, string>
 }) {
-  const router = useRouter()
-
   // Calendar state — focusDate starts null to avoid server/client hydration mismatch
   const [viewMode,  setViewMode]  = useState<ViewMode>('month')
   const [focusDate, setFocusDate] = useState<Date | null>(null)
@@ -215,7 +212,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
   function retomar(e: AuditEventRow) {
     const cpId = e.metadata?.checkpoint_id as string
     if (!cpId || !e.workspace_id) return
-    router.push(`/workspace/${e.workspace_id}?checkpoint=${cpId}`)
+    window.open(`/workspace/${e.workspace_id}?checkpoint=${cpId}`, '_blank', 'noopener,noreferrer')
   }
 
   // Team label helper: "A-01 · Team Name" or just name
@@ -311,28 +308,38 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
           )}
         </div>
 
-        {cp && (
-          <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
+          {event.workspace_id && (
             <button
-              onClick={() => openDetail(event)}
+              onClick={() => window.open(`/workspace/${event.workspace_id}`, '_blank', 'noopener,noreferrer')}
               className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
             >
-              View Details
+              Open Workspace →
             </button>
-            <button
-              onClick={() => retomar(event)}
-              className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
-            >
-              Check Work →
-            </button>
-            <button
-              onClick={() => retomar(event)}
-              className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
-            >
-              Resume Work →
-            </button>
-          </div>
-        )}
+          )}
+          {cp && (
+            <>
+              <button
+                onClick={() => openDetail(event)}
+                className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
+              >
+                View Details
+              </button>
+              <button
+                onClick={() => retomar(event)}
+                className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
+              >
+                Check Work →
+              </button>
+              <button
+                onClick={() => retomar(event)}
+                className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
+              >
+                Resume Work →
+              </button>
+            </>
+          )}
+        </div>
       </div>
     )
   }
@@ -577,7 +584,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
               <div className="shrink-0 flex items-center gap-2">
                 {detailWsId && (
                   <button
-                    onClick={() => { router.push(`/workspace/${detailWsId}?checkpoint=${detailCpId}`); closeDetail() }}
+                    onClick={() => window.open(`/workspace/${detailWsId}?checkpoint=${detailCpId}`, '_blank', 'noopener,noreferrer')}
                     className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                   >
                     Resume Work →

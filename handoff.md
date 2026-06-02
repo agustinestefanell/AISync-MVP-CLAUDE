@@ -3776,3 +3776,38 @@ La demo no tiene los purpose labels ni `Check Work`. Botones de navegación usan
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Audit Log navegación Workspace en nueva pestaña
+
+### Diagnóstico
+`retomar(event)` usaba `router.push` — desplazaba la pestaña actual. Los botones de Day View estaban todos dentro de `{cp && (...)}`, dejando `review_forward`, `save_selection`, `lock`, `unlock` y `session_backup` sin ninguna acción navegable.
+
+### Demo First
+`crossVerificationLaunch.ts` en la demo usa `window.open('', '_blank')` como patrón. No hay equivalente directo de Audit Log con router.push. No aplica portación directa.
+
+### Archivos tocados
+**`src/components/audit/AuditTimeline.tsx`**
+- Import `useRouter` de `next/navigation`: eliminado.
+- `const router = useRouter()`: eliminado.
+- `retomar(event)` L215: `router.push(...)` → `window.open(..., '_blank', 'noopener,noreferrer')`.
+- Modal detalle L580: `router.push(...)` → `window.open(...)`. `closeDetail()` eliminado del handler (modal queda abierto en la pestaña original).
+- Day View L314: `Open Workspace →` agregado fuera del bloque `{cp && (...)}`, condicionado solo por `event.workspace_id`.
+- `{cp && (...)}` reestructurado: `View Details`, `Check Work →`, `Resume Work →` dentro de `<>...</>` fragment.
+
+### Matriz de botones resultante
+- `save_version` / `resume_work`: `Open Workspace →` + `View Details` + `Check Work →` + `Resume Work →`
+- `review_forward`, `save_selection`, `lock`, `unlock`, `session_backup`: `Open Workspace →`
+- Eventos sin `workspace_id`: sin botones
+
+### Archivos no tocados
+- Lógica de calendario, filtros: sin tocar.
+- Documentation Mode, workspace components: sin tocar.
+- `CodingWorkshop.md`: entrada #11 agregada (patrón de navegación importante).
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript. `useRouter` eliminado sin warning.
+
+### Estado
+Cerrado.

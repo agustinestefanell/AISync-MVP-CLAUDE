@@ -257,3 +257,26 @@ Cada entrada documenta lo que fue difícil, por qué falló, cómo se resolvió 
 - **Commit:** `fix: sync apiMessages on appendUserMessage for R&F forwarded context`
 
 - **Lección:** Cuando existe separación entre estado visual (`messages`) y estado operativo enviado al modelo (`apiMessages`), toda función que inyecte mensajes debe actualizar ambas capas. `appendUserMessage` es el único punto de entrada externo al panel — cualquier inyección que no pase por `sendPrompt` debe sincronizar ambos estados explícitamente.
+
+---
+
+### 11. Audit Log — navegación Workspace en nueva pestaña
+
+- **Problema:** Audit Log podía desplazar la pestaña actual al abrir Workspace/checkpoint, usando `router.push` internamente. El usuario perdía Audit Log como referencia activa al retomar o revisar trabajo. Además, eventos de tipo `review_forward`, `save_selection`, `lock` y otros no tenían ningún botón de navegación al workspace de origen.
+
+- **Causa raíz:** `retomar(event)` y el botón del modal de detalle usaban `router.push`, que reemplaza la URL de la pestaña actual. El bloque de botones de Day View estaba condicionado por `{cp && (...)}` (solo eventos con `checkpoint_id`), dejando todos los demás tipos de evento sin botón de navegación.
+
+- **Consecuencia:** El usuario perdía Audit Log como contexto al retomar trabajo. Eventos como `review_forward` y `save_selection` no tenían ninguna acción navegable desde Day View.
+
+- **Proceso de solución:** Reemplazo de `router.push` por `window.open` en `retomar()` y en el modal de detalle. Separación de botones: `Open Workspace →` fuera del bloque `cp`, condicionado solo por `workspace_id`; `Check Work →` y `Resume Work →` dentro del bloque `cp` (solo checkpoints). Eliminación de `useRouter` al quedar sin uso.
+
+- **Solución final:**
+  - `retomar(event)`: `router.push(...)` → `window.open(..., '_blank', 'noopener,noreferrer')`
+  - Modal de detalle L580: mismo reemplazo, sin `closeDetail()` (la pestaña actual preserva el modal)
+  - Day View: `Open Workspace →` para todos los eventos con `workspace_id`, fuera del bloque `{cp && (...)}`
+  - `Check Work →` y `Resume Work →` permanecen dentro de `{cp && (...)}` — solo para checkpoints
+  - `useRouter` eliminado de imports y declaración
+
+- **Commit:** `fix: open workspace in new tab from audit log, add open workspace button to all events`
+
+- **Lección:** Audit Log debe funcionar como superficie de trazabilidad persistente. Las aperturas hacia Workspace deben usar `window.open` para preservar esa superficie. Separar claramente: `Open Workspace →` (solo necesita `workspace_id`) de acciones que requieren `checkpoint_id`. Nunca usar `router.push` desde superficies de trazabilidad que el usuario debe mantener abiertas.

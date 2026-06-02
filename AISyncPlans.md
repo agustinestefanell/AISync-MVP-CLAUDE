@@ -550,6 +550,8 @@ export async function POST(request: Request) {
 
 **Save Version modal:** labels visibles deben estar en inglés. `PURPOSES` array: `['Checkpoint', 'Evidence', 'Reuse', 'Handoff', 'Resume Later', 'Documentation', 'Audit Support']`. Los valores `Checkpoint` y `Handoff` se preservan en inglés; los demás se mantienen en inglés para consistencia con la UI. El modal se abre desde `AgentPanel` via `onSaveVersion` → `openSaveModal()` en WorkspaceShell. El payload (`name`, `purpose`, `panels`) no cambia con la traducción de labels.
 
+**Audit Log — navegación Workspace:** toda apertura hacia Workspace desde Audit Log usa `window.open(..., '_blank', 'noopener,noreferrer')`. `Open Workspace →` aplica a todos los eventos con `workspace_id`; `Check Work →` y `Resume Work →` quedan reservados para eventos con `checkpoint_id` en metadata. Audit Log permanece abierto en la pestaña original como superficie de trazabilidad.
+
 **Audit Log — navegación Month → Day:** los chips del Month View deben navegar al Day View del día correspondiente via `setFocusDate(new Date(event.date)); setViewMode('day')`. El header del contenedor de controles usa `sticky top-0 z-10` para permanecer visible durante scroll. Patrón portado de `PageC.tsx` de la demo (L497–498).
 
 **Cache invalidation en mutaciones client-side:** En Next.js App Router, las mutaciones client-side que afectan datos consumidos por server components deben ejecutar `router.refresh()` después del éxito para invalidar el caché del router. Sin esto, la navegación interna sirve la versión cacheada con datos viejos. Ver entrada #9 en `CodingWorkshop.md`.
