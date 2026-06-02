@@ -3886,3 +3886,26 @@ No hay equivalente en la demo. No aplica portación.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Week View card abre panel lateral en vez de modal
+
+### Diagnóstico
+Week View usaba `openDetail(event)` — abría el modal de detalle. Day View ya usaba `setSelectedEvent(event)` — panel lateral. Inconsistencia entre vistas.
+
+### Demo First
+`PageC.tsx` L399 `renderWeekEvent` usa `setSelectedEventId` — confirma que la demo abre panel lateral desde Week View. Patrón portado.
+
+### Cambio
+`src/components/audit/AuditTimeline.tsx` — línea 272:
+- `openDetail(event)` → `setSelectedEvent(event)` en `renderWeekCard` onClick.
+
+### `openDetail` sigue intacto
+L178 (trigger externo), L214 (definición), L340 (Check Work en Day View card), L624 (Check Work en panel lateral).
+
+### Build
+✓ Limpio.
+
+### Estado
+Cerrado.

@@ -269,7 +269,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
         key={event.id}
         className="w-full rounded-[10px] border bg-white px-2.5 py-2 text-left text-xs"
         style={{ borderColor: c.border, boxShadow: `inset 0 2px 0 ${c.accent}` }}
-        onClick={ev => { ev.stopPropagation(); openDetail(event) }}
+        onClick={ev => { ev.stopPropagation(); setSelectedEvent(event) }}
       >
         <div className="font-semibold text-neutral-900">{event.time}</div>
         <div className="mt-0.5 font-medium text-neutral-800 truncate">{cfg?.label ?? event.event_type}</div>
