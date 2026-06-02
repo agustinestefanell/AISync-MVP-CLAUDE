@@ -11,7 +11,6 @@ const AuditClient = dynamic(
 )
 import { getAuditEvents } from '@/lib/db/audit'
 import { getProjectsWithHierarchy } from '@/lib/db/projects'
-import AppLayout from '@/components/layout/AppLayout'
 
 export default async function AuditPage() {
   const supabase = createClient()
@@ -29,17 +28,12 @@ export default async function AuditPage() {
   const checkpoints     = (rawCheckpoints    ?? []) as { id: string; name: string }[]
 
   return (
-    <AppLayout
+    <AuditClient
       pageName="AUDIT LOG"
-      pageSubtitle="How to use Audit Log (click here)"
-      scrollable={false}
-    >
-      <AuditClient
-        events={events}
-        customProviders={customProviders}
-        checkpoints={checkpoints}
-        projects={projects}
-      />
-    </AppLayout>
+      events={events}
+      customProviders={customProviders}
+      checkpoints={checkpoints}
+      projects={projects}
+    />
   )
 }

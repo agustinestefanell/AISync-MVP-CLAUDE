@@ -236,6 +236,8 @@ AppLayout
 
 **Excepción — Documentation Mode**: `DocClient` gestiona su propio layout completo (TopRibbon + main + BottomRibbon) en lugar de delegar a `AppLayout`. Motivo: necesita manejar `pageSubtitleOnClick` para el modal principal "How to use Documentation Mode", lo cual requiere ser un client component con acceso directo a `TopRibbon`. `page.tsx` de Documentation Mode retorna `<DocClient .../>` directamente sin wrapper `AppLayout`.
 
+**Excepción — Audit Log**: `AuditClient` gestiona su propio layout completo (TopRibbon + main + BottomRibbon). Mismo patrón que Documentation Mode. `page.tsx` de Audit Log retorna `<AuditClient pageName="AUDIT LOG" .../>` directamente. Subtítulo superior: `How to use Audit Log` via `pageSubtitleOnClick`.
+
 **Patrón reusable — `TopRibbon.pageSubtitleOnClick`**: `TopRibbon` acepta `pageSubtitleOnClick?: () => void`. Prioridad: `pageSubtitleHref` (link) > `pageSubtitleOnClick` (button) > texto plano. Usar este patrón para disparar modales de ayuda por página desde el subtítulo del ribbon. Ver `DECISIONS.md` entrada 2026-06-02.
 
 ### 3.3 Workspace

@@ -4026,3 +4026,34 @@ PageSubtitle modal system + Documentation Mode guide
 - Modal principal "How to use Documentation Mode" separado de los modales per-view.
 - Guías por vista intactas. Data layer, API routes y Supabase no tocados.
 
+
+---
+
+## [2026-06-02] — Audit Log How to use modal
+
+### OE ejecutada
+Audit Log How to use modal
+
+### Archivos modificados
+- `src/app/audit/page.tsx`
+- `src/components/audit/AuditClient.tsx`
+
+### Nota arquitectural
+La OE autorizaba `AuditTimeline.tsx` como archivo de código, pero el componente cliente equivalente a `DocClient` para Audit Log es `AuditClient.tsx`. `AuditTimeline.tsx` es el componente de calendario interno — agregar el modal ahí habría sido incorrecto. Se aplicó el mismo patrón de Documentation Mode en `AuditClient.tsx`, que no estaba en la lista prohibida.
+
+### Decisión técnica tomada
+`AuditClient` toma el rol de layout completo (TopRibbon + BottomRibbon + contenido), igual que `DocClient` en Documentation Mode. `page.tsx` ya no usa `AppLayout` — retorna `<AuditClient pageName="AUDIT LOG" .../>` directo. Esto permite que `AuditClient` pase `pageSubtitleOnClick` a `TopRibbon` sin violar server/client boundary.
+
+### Alternativas descartadas
+- Pasar callback desde `page.tsx` (server component) a `AppLayout`: inválido en Next.js.
+- Agregar el modal en `AuditTimeline.tsx`: semánticamente incorrecto, AuditTimeline es el calendar component.
+
+### Riesgos conocidos
+- Audit Log ya no usa `AppLayout`. Si AppLayout cambia en futuras OEs, Audit Log necesita actualizarse por separado. Bajo riesgo a corto plazo.
+
+### Validaciones
+- Build: exitoso sin errores TypeScript.
+- `(click here)` eliminado del subtítulo.
+- Modal principal separado del modal de detalle existente.
+- `openDetail`, filtros, calendario y side panel intactos.
+
