@@ -3847,3 +3847,42 @@ Demo usa `View Details` y `Resume Work` como labels separados en niveles distint
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Panel lateral derecho en Audit Log Day View
+
+### Diagnóstico
+Day View no tenía lectura lateral persistente de eventos. El usuario dependía del modal de `Check Work` para ver cualquier metadata.
+
+### Demo First
+No hay equivalente en la demo. No aplica portación.
+
+### Archivos tocados
+**`src/components/audit/AuditTimeline.tsx`**
+- Import `ReactNode` de `react` agregado.
+- Helper `Row` local agregado (arriba de los date helpers, fuera del componente).
+- Estado `selectedEvent: NormalizedEvent | null` agregado.
+- `renderDayCard`: card principal con `onClick={() => setSelectedEvent(event)}`, `cursor-pointer`, `ring-1 ring-[var(--color-accent)]` cuando seleccionado. Botones internos con `e.stopPropagation()`.
+- Day View: layout cambiado de `space-y-3` a `flex gap-4` con `flex-1 min-w-0` (lista) + panel lateral `w-80 shrink-0` condicional.
+- Panel lateral: metadata rows (Created, Team, Workspace, Checkpoint, Purpose, Messages, To Agent) + botones `Open Workspace →` y `Check Work`.
+- Corrección JSX: comentario `{/* ... */}` después de `</div>` dentro de `&&()` — eliminado.
+- Corrección TypeScript: `workspace_name` no existe en `AuditEventRow` — reemplazado por `workspaces?.name`. `metadata.*` es `unknown` — condicionales con `!!`, render con `String()`.
+
+### Archivos no tocados
+- Modal `{detailCpId && (...)}`: sin tocar.
+- `openDetail`: sin tocar.
+- Week View, Month View, filtros, calendario: sin tocar.
+- `CodingWorkshop.md`: sin tocar (mejora UX, no bug técnico).
+
+### Decisiones técnicas
+- `selectedEvent` tipado como `NormalizedEvent` (no `AuditEventRow`) para mantener consistencia con `renderDayCard`.
+- `!!` para condicionales de `metadata.x` (tipo `unknown`) — necesario para que TypeScript acepte la expresión como `ReactNode`.
+- `String()` en lugar de `as string` para convertir `unknown` a string en JSX — más seguro.
+- `workspaces?.name` en lugar de `workspace_name` — campo real de `AuditEventRow` según `src/lib/db/audit.ts`.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

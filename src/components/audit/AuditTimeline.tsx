@@ -1,8 +1,20 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import type { ReactNode } from 'react'
 import type { AuditEventRow } from '@/lib/db/audit'
 import { getProjectColorTokens, teamCodeToPaletteIndex } from '@/lib/teams/getProjectColor'
+
+// ─── Row helper — metadata rows for side panel ───────────────────────────────
+
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-[var(--color-border)] py-2 text-sm">
+      <span className="text-[var(--color-text-secondary)] shrink-0">{label}</span>
+      <span className="text-[var(--color-text-primary)] text-right break-words">{children}</span>
+    </div>
+  )
+}
 
 // ─── Date helpers (ported from demo PageC.tsx — Date native, no libraries) ────
 
@@ -122,6 +134,9 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
   // Filter state
   const [filterType,   setFilterType]   = useState('all')
   const [filterTeamId, setFilterTeamId] = useState('all')
+
+  // Side panel state
+  const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null)
 
   // Detail modal state (preserved from original)
   const [detailCpId,    setDetailCpId]    = useState<string | null>(null)
@@ -274,7 +289,10 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
     return (
       <div
         key={event.id}
-        className="rounded-[14px] border bg-white px-4 py-4"
+        onClick={() => setSelectedEvent(event)}
+        className={`rounded-[14px] border bg-white px-4 py-4 cursor-pointer transition-shadow ${
+          selectedEvent?.id === event.id ? 'ring-1 ring-[var(--color-accent)]' : ''
+        }`}
         style={{ borderColor: c.border, boxShadow: `inset 0 3px 0 ${c.accent}` }}
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -311,7 +329,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
         <div className="mt-3 flex flex-wrap gap-2">
           {event.workspace_id && (
             <button
-              onClick={() => window.open(`/workspace/${event.workspace_id}`, '_blank', 'noopener,noreferrer')}
+              onClick={e => { e.stopPropagation(); window.open(`/workspace/${event.workspace_id}`, '_blank', 'noopener,noreferrer') }}
               className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
             >
               Open Workspace →
@@ -319,7 +337,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
           )}
           {cp && (
             <button
-              onClick={() => openDetail(event)}
+              onClick={e => { e.stopPropagation(); openDetail(event) }}
               className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
             >
               Check Work
@@ -538,7 +556,9 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
 
       {/* ── Day View (ported from demo renderDayView) ── */}
       {viewMode === 'day' && (
-        <div className="space-y-3">
+        <div className="flex gap-4">
+          {/* Event list */}
+          <div className="flex-1 min-w-0 space-y-3">
           {dayEvents.length > 0
             ? dayEvents.map(e => renderDayCard(e))
             : (
@@ -547,6 +567,70 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
               </div>
             )
           }
+          </div>{/* end event list */}
+
+          {/* Side panel */}
+          {selectedEvent && (
+            <div className="w-80 shrink-0 border-l border-[var(--color-border)] pl-4">
+              <div className="sticky top-4">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-accent)]">
+                      {EVENT_CONFIG[selectedEvent.event_type]?.label ?? selectedEvent.event_type}
+                    </span>
+                    <p className="text-sm font-semibold text-[var(--color-text-primary)] mt-0.5">
+                      {(selectedEvent.metadata?.name as string) ?? selectedEvent.event_type}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedEvent(null)}
+                    className="text-[var(--color-text-secondary)] hover:opacity-75 ml-2"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="space-y-0">
+                  <Row label="Created">{new Date(selectedEvent.created_at).toLocaleString()}</Row>
+                  <Row label="Team">{selectedEvent.team_name ?? '—'}</Row>
+                  <Row label="Workspace">{selectedEvent.workspaces?.name ?? '—'}</Row>
+                  {!!selectedEvent.metadata?.name && (
+                    <Row label="Checkpoint">{String(selectedEvent.metadata.name)}</Row>
+                  )}
+                  {!!selectedEvent.metadata?.purpose && (
+                    <Row label="Purpose">{String(selectedEvent.metadata.purpose)}</Row>
+                  )}
+                  {selectedEvent.metadata?.message_count !== undefined && (
+                    <Row label="Messages">{String(selectedEvent.metadata.message_count)}</Row>
+                  )}
+                  {!!selectedEvent.metadata?.to_agent && (
+                    <Row label="To Agent">
+                      {AGENT_LABEL[String(selectedEvent.metadata.to_agent)] ?? String(selectedEvent.metadata.to_agent)}
+                    </Row>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-2 mt-4">
+                  {selectedEvent.workspace_id && (
+                    <button
+                      onClick={() => window.open(`/workspace/${selectedEvent.workspace_id}`, '_blank', 'noopener,noreferrer')}
+                      className="w-full px-3 py-2 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90"
+                    >
+                      Open Workspace →
+                    </button>
+                  )}
+                  {!!selectedEvent.metadata?.checkpoint_id && (
+                    <button
+                      onClick={() => openDetail(selectedEvent)}
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--color-accent)] text-[var(--color-accent)] text-xs font-medium hover:opacity-90"
+                    >
+                      Check Work
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
