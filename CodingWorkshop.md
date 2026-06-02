@@ -280,3 +280,24 @@ Cada entrada documenta lo que fue difícil, por qué falló, cómo se resolvió 
 - **Commit:** `fix: open workspace in new tab from audit log, add open workspace button to all events`
 
 - **Lección:** Audit Log debe funcionar como superficie de trazabilidad persistente. Las aperturas hacia Workspace deben usar `window.open` para preservar esa superficie. Separar claramente: `Open Workspace →` (solo necesita `workspace_id`) de acciones que requieren `checkpoint_id`. Nunca usar `router.push` desde superficies de trazabilidad que el usuario debe mantener abiertas.
+
+---
+
+### 12. Audit Log — arquitectura final de botones en Day View
+
+- **Problema:** Day View acumuló botones duplicados después de iteraciones sucesivas: `View Details`, `Check Work →` y `Resume Work →` convivían en la lista de eventos con acciones parcialmente solapadas. El usuario veía hasta tres botones para un checkpoint, con dos que hacían lo mismo (`Check Work →` y `Resume Work →` llamaban al mismo handler).
+
+- **Causa raíz:** Las OEs anteriores agregaron botones en pasos separados (`Check Work →` duplicando `retomar`, `Resume Work →` como botón extra) sin consolidar la arquitectura final. `retomar(event)` quedó definido pero terminó sin uso real en la lista — su función ya estaba cubierta por `window.open` directo en el modal.
+
+- **Consecuencia:** La UI de Audit Log mostraba hasta cuatro botones por evento checkpoint: `Open Workspace →`, `View Details`, `Check Work →` y `Resume Work →`. Dos de ellos hacían lo mismo. `retomar` pasó a ser dead code que ESLint rechazaba.
+
+- **Proceso de solución:** Consolidar tres capas claras: (1) lista de eventos, (2) modal de preview, (3) workspace operativo. Eliminar duplicados. Renombrar para que el label indique claramente la intención de cada acción.
+
+- **Solución final:**
+  - Day View lista: `Open Workspace →` (todos los eventos con `workspace_id`) + `Check Work` (solo checkpoints, abre modal vía `openDetail`)
+  - Modal: `Resume Work →` (única acción de retomar, `window.open` directo)
+  - `retomar(event)` renombrado a `_retomar` (dead code marcado por convención ESLint del proyecto)
+
+- **Commit:** `fix: audit log day view button cleanup - rename view details to check work`
+
+- **Lección:** Las acciones de Audit Log deben separarse por nivel: abrir workspace (lista), revisar preview (lista → modal), retomar checkpoint (modal → workspace). Si se mezclan en un solo nivel, la UI pierde claridad operativa y genera dead code. Nunca agregar botones en iteraciones sin revisar si ya existe uno con la misma función.

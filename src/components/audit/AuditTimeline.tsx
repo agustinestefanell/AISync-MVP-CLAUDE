@@ -209,7 +209,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
     setDetailLoading(false)
   }
   function closeDetail() { setDetailCpId(null); setDetailMsgs([]) }
-  function retomar(e: AuditEventRow) {
+  function _retomar(e: AuditEventRow) {
     const cpId = e.metadata?.checkpoint_id as string
     if (!cpId || !e.workspace_id) return
     window.open(`/workspace/${e.workspace_id}?checkpoint=${cpId}`, '_blank', 'noopener,noreferrer')
@@ -318,26 +318,12 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
             </button>
           )}
           {cp && (
-            <>
-              <button
-                onClick={() => openDetail(event)}
-                className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
-              >
-                View Details
-              </button>
-              <button
-                onClick={() => retomar(event)}
-                className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
-              >
-                Check Work →
-              </button>
-              <button
-                onClick={() => retomar(event)}
-                className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
-              >
-                Resume Work →
-              </button>
-            </>
+            <button
+              onClick={() => openDetail(event)}
+              className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
+            >
+              Check Work
+            </button>
           )}
         </div>
       </div>

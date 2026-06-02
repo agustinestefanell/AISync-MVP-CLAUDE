@@ -3811,3 +3811,39 @@ Cerrado.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-05-29] — Audit Log Day View button cleanup
+
+### Diagnóstico
+Day View tenía cuatro botones para eventos checkpoint: `Open Workspace →`, `View Details`, `Check Work →` y `Resume Work →`. Los últimos dos llamaban al mismo handler `retomar(event)`. ESLint rechazaba el build porque `retomar` quedó como dead code tras la OE anterior.
+
+### Demo First
+Demo usa `View Details` y `Resume Work` como labels separados en niveles distintos. No hay `Check Work` ni `Open Workspace`. No aplica portación directa.
+
+### Archivos tocados
+**`src/components/audit/AuditTimeline.tsx`**
+- Bloque `{cp && (...)}` en Day View: reemplazado de cuatro botones a un único botón `Check Work` con handler `openDetail(event)`.
+- `retomar(event)` → `_retomar(event)` (dead code marcado por convención ESLint `^_`).
+- `Open Workspace →`: sin tocar.
+- Modal `Resume Work →` (L573–576): sin tocar — ya usa `window.open` directo.
+
+### Arquitectura resultante
+- **Lista Day View:** `Open Workspace →` (workspace_id) + `Check Work` (cp → modal)
+- **Modal:** `Resume Work →` (cp → workspace en nueva pestaña)
+
+### Archivos no tocados
+- `openDetail`, lógica del modal: sin tocar.
+- Filtros, calendario, Month View: sin tocar.
+- Documentation Mode, workspace components: sin tocar.
+
+### Decisiones técnicas
+- `_retomar` en lugar de eliminar la función: la función está definida y podría reutilizarse en el modal en iteraciones futuras. El prefijo `_` cumple la regla ESLint sin destruirla.
+- `Check Work` sin flecha (→): es una acción que abre un panel local (modal), no navega a otra página — la flecha implicaría navegación externa.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.
