@@ -4217,3 +4217,14 @@ Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
 - Layout final: [Left: título + SAT/MAT burbuja] [Center: flex-1 justify-center — links] [Right: controles].
 - Wiring de modales intacto.
 
+
+---
+
+## [2026-06-03] — Teams Map ribbon links final
+
+### Fix visual
+- Botón "SAT vs MAT" removido de dentro de la burbuja. Burbuja queda solo con texto plano.
+- Dos links agrupados fuera de la burbuja, a su derecha: "SAT vs MAT: How they work..." y "How to create or grow Teams".
+- Zona centro eliminada (ya no necesaria).
+- Zona derecha usa `ml-auto` para empujar controles a la derecha sin flex-1 central.
+
