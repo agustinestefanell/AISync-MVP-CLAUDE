@@ -273,6 +273,8 @@ AgentPanel (forwardRef → AgentPanelHandle)
 
 **Prompt Library modal:** no debe cerrarse por click en backdrop (`onClick={e => e.stopPropagation()}`); el cierre depende solo de acciones explícitas (`CANCEL` o `✕`). El textarea de prompt usa `rows={10}` y `resize-y` para edición extensa.
 
+**Prompt Library — reset de formulario:** `savePrompt()` debe resetear `editing`, `formTitle`, `formBody` y `formNotes` después de `setShowForm(false)` y antes de `await loadData()`. La asignación de prompts a Workers/Teams se gestiona desde las cards de la lista — no desde un panel secundario de assignments.
+
 **Estado dual en AgentPanel**: `messages` (display) y `apiMessages` (historial enviado al modelo) son estados separados. Toda función que inyecte mensajes externamente — como `appendUserMessage` — debe actualizar ambos estados. `sendPrompt` los mantiene sincronizados por diseño; las inyecciones imperativas (R&F) deben hacerlo explícitamente.
 
 **Auto-respond on forward**: `appendUserMessage` delega a `sendPrompt(content)` cuando `autoRespond=true` (default). `sendPrompt` maneja inserción de mensajes + API call — NO llamar los dos en secuencia para evitar duplicación. El delay de 50ms respeta el ciclo de estado de React. `autoRespond=false` mantiene el comportamiento original de solo insertar sin enviar. Cada panel muestra indicador `Auto-respond: ON` en el header. La función real es `sendPrompt(content: string)` — no existe `handleSend` en `AgentPanel`.

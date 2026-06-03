@@ -4252,3 +4252,17 @@ Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
 - z-index `z-[60]` usado para que el modal de guía quede sobre el modal principal (`z-50`).
 - Lógica de guardado, SAVE/CANCEL, asignaciones intactas.
 
+
+---
+
+## [2026-06-03] — PromptLibrary bug fix + UI cleanup
+
+### Bug fix
+- `savePrompt()` ahora resetea `editing`, `formTitle`, `formBody`, `formNotes` después de `setShowForm(false)` y antes de `await loadData()`.
+- Función `unassign` preservada con eslint-disable — panel visual que la usaba fue removido, pero la lógica se mantiene disponible.
+
+### UI cleanup
+- Panel derecho "Active in this context" / "Assigned to this Worker" reemplazado por advertencia simple: "Use this panel to create and manage prompts. To assign a prompt to a specific agent or team, use the buttons on each prompt card."
+- Modal usa fondo `var(--color-surface-secondary,#f5f5f5)` en lugar de `bg-white`.
+- Lógica assign/unassign, `loadWorkerAssignments`, `loadTeamAssignments` intactos.
+

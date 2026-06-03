@@ -347,3 +347,34 @@ Verificar que `sendPrompt(content: string)` es la función correcta (acepta cont
 
 ### Lección
 Cuando `sendPrompt` ya maneja la inserción del mensaje Y el envío, no llamar `appendUserMessage` + `sendPrompt` en secuencia — duplica mensajes. La función imperativa debe delegar completamente a `sendPrompt` o manejar todo ella misma. No mezclar ambos. El delay de 50ms antes de `sendPrompt` resuelve el timing sin setear estados intermedios que creen race conditions.
+
+---
+
+## Prompt Library — estado residual después de guardar prompt
+
+### Problema
+Después de guardar un prompt, el formulario podía conservar estado residual de edición o contenido anterior.
+
+### Causa raíz
+`savePrompt()` cerraba el formulario con `setShowForm(false)`, pero no reseteaba completamente los estados internos `editing`, `formTitle`, `formBody` y `formNotes`.
+
+### Consecuencia
+Al abrir nuevamente el formulario, el usuario podía encontrar datos previos, generando confusión y riesgo de editar o crear prompts con contenido residual.
+
+### Proceso de solución
+Se agregó reset completo del estado del formulario después del guardado exitoso y antes de recargar datos con `loadData()`.
+
+### Solución final
+- `editing` vuelve a `null`.
+- `formTitle` vuelve a string vacío.
+- `formBody` vuelve a string vacío.
+- `formNotes` vuelve a string vacío.
+- `loadData()` se mantiene para refrescar el listado.
+- Se simplificó el panel derecho de assignments con una advertencia operativa.
+- `unassign` preservada con eslint-disable (lógica intacta, UI removida).
+
+### Commit
+`fix: prompt library form state reset and ui cleanup`
+
+### Lección
+Cerrar una UI de formulario no equivale a limpiar su estado. Cuando un formulario sirve para crear y editar, el cierre posterior al guardado debe resetear explícitamente todos los estados relevantes para evitar residuos entre operaciones.
