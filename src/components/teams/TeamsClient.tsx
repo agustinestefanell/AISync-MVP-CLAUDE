@@ -255,15 +255,9 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
         <div className="hidden sm:flex flex-col gap-0.5">
           <button
             className="text-left text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2"
-            onClick={() => setShowMainGuide(true)}
-          >
-            How to use Teams Map
-          </button>
-          <button
-            className="text-left text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2"
             onClick={() => setShowCreateTeamsGuide(true)}
           >
-            How to create Teams
+            How to create or grow Teams
           </button>
         </div>
 
@@ -281,7 +275,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
             className="mt-0.5 text-[9px] text-teal-600 hover:underline underline-offset-2"
             onClick={() => setShowSatMatGuide(true)}
           >
-            Differences and uses
+            SAT vs MAT: How they work and how to use them →
           </button>
         </div>
 

@@ -4173,3 +4173,14 @@ Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
 - Los tres `setShow*` confirmados por grep.
 - Títulos de modales confirmados.
 
+
+---
+
+## [2026-06-03] — Teams Map ribbon layout fix
+
+### Fix visual/layout
+- Col 2 del ribbon interno: eliminado botón "How to use Teams Map" (duplicaba el subtítulo del TopRibbon). Renombrado "How to create Teams" → "How to create or grow Teams".
+- Col 3 del ribbon interno: renombrado "Differences and uses" → "SAT vs MAT: How they work and how to use them →".
+- Wiring de modales (`setShowMainGuide`, `setShowSatMatGuide`, `setShowCreateTeamsGuide`) intacto.
+- Build ejecutado y validado.
+
