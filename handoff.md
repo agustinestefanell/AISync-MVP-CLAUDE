@@ -4147,3 +4147,29 @@ No modificado. `handlePanelForward` ya llama `targetRef.appendUserMessage(...)` 
 - Sin toggle UI, `autoRespond` siempre es `true` — el estado `[autoRespond]` (sin setter) es por diseño de esta OE.
 - Riesgo teórico de doble respuesta si `appendUserMessage` se llama más de una vez por el mismo forward — bajo riesgo dado el flujo actual de R&F.
 
+
+---
+
+## [2026-06-03] — Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
+
+### OE ejecutada
+Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
+
+### Archivos modificados
+- `src/components/teams/TeamsClient.tsx`
+
+### Cambios realizados
+- Botón "How to use Teams Map" del ribbon interno conectado a `setShowMainGuide(true)` (modal ya existente).
+- Estado `showSatMatGuide` + botón "Differences and uses" conectado + modal "Single Agent Team (SAT) and Multiple Agent Team (MAT)".
+- Estado `showCreateTeamsGuide` + botón "How to create Teams" conectado + modal "How to create or grow Teams".
+- Copy aprobado pegado completo en ambos modales sin modificaciones.
+- Patrón visual reutilizado del modal principal existente.
+
+### Archivos no tocados
+- Tree View, Map View, React Flow, lógica de teams, AddTeamModal, EditTeamModal.
+
+### Validaciones
+- Build: exitoso sin errores TypeScript.
+- Los tres `setShow*` confirmados por grep.
+- Títulos de modales confirmados.
+
