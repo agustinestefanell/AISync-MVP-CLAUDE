@@ -91,6 +91,51 @@ Use a new team under an existing Manager when the work is a new branch of the sa
 A practical note
 Keep each team focused on one subject or area. If the work grows, it is usually better to grow the structure by creating new branches in the right place than to overload one team with too many unrelated tasks.`
 
+const CONNECT_GUIDE = `Imagine you need to work with someone outside your own AISync account, but you do not want to merge structures, mix all repositories, or open a loose cross-account channel. You want one clear, governed connection between one local team and one external team. In that case, you use Connect Team.
+
+Connect Team is the place where you create a simple and credible link between a local host team and an external team. It is not meant to simulate a full integration between accounts. It is meant to define one controlled relationship clearly: who the external account is, what type of connection you want, what scope is shared, and which objects from the selected local team are allowed to cross that link.
+
+How to use it
+
+1. Enter the external user email
+2. Choose the connection type
+→ Project-bound connection: limited to one project
+→ Persistent partner connection: stable collaboration between accounts
+3. Select the Host Team
+This is the local team that will host the connection. It becomes the entry point, exit point, and operational base of that link.
+4. Choose the shared scope
+→ No shared repository
+→ Shared project repository: defines a shared project scope for authorized materials. No live shared repository is created.
+5. Choose the Shared Objects of the Selected Team
+→ Handoff Package
+→ Review Request
+→ Approved Deliverable
+→ Prompt Package
+→ Project Context Package
+6. Send the request
+
+Important practical rule
+
+A connection is always anchored to one local team. That team is the host of the relationship. If the account has several external links, each one should remain attached to its own host team.
+
+How the operational channel works
+
+At this stage, the correct channel is:
+Submanager ↔ Submanager
+
+Not:
+→ Manager ↔ Manager
+→ Worker ↔ Worker
+→ free cross-account access
+
+This keeps the connection ordered and prevents the General Manager from becoming overloaded with unrelated external threads.
+
+What to expect in Teams Map
+
+The external team will appear in Teams Map. The view of external teams is intentionally simplified at this stage.
+
+In practical terms, Connect Team is how you create a governed link between one of your teams and an external team, without turning AISync into a fully shared multi-account workspace.`
+
 interface TeamsClientProps {
   pageName:     string
   projectName?: string
@@ -112,6 +157,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   const [showMainGuide,        setShowMainGuide]        = useState(false)
   const [showSatMatGuide,      setShowSatMatGuide]      = useState(false)
   const [showCreateTeamsGuide, setShowCreateTeamsGuide] = useState(false)
+  const [showConnectGuide,     setShowConnectGuide]     = useState(false)
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -276,6 +322,12 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
               onClick={() => setShowCreateTeamsGuide(true)}
             >
               How to create or grow Teams
+            </button>
+            <button
+              className="text-left text-[11px] leading-4 text-teal-600 underline underline-offset-2 hover:opacity-75"
+              onClick={() => setShowConnectGuide(true)}
+            >
+              How to Connect Team
             </button>
           </div>
         </div>
@@ -517,6 +569,36 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
             </div>
             <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
               <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">{CREATE_TEAMS_GUIDE}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connect Team guide modal */}
+      {showConnectGuide && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={e => { if (e.target === e.currentTarget) setShowConnectGuide(false) }}
+        >
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+            <div className="px-6 py-5 border-b border-[var(--color-border-default)] flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
+                  How to Connect Team
+                </h3>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Operational guidance</p>
+              </div>
+              <button
+                onClick={() => setShowConnectGuide(false)}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm px-1 transition-colors shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
+                {CONNECT_GUIDE}
+              </p>
             </div>
           </div>
         </div>

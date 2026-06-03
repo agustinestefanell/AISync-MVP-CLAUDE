@@ -4228,3 +4228,15 @@ Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
 - Zona centro eliminada (ya no necesaria).
 - Zona derecha usa `ml-auto` para empujar controles a la derecha sin flex-1 central.
 
+
+---
+
+## [2026-06-03] — Connect Team How to use modal
+
+### Feature
+- Estado `showConnectGuide` agregado.
+- Botón "How to Connect Team" agregado al grupo de links del ribbon.
+- Modal "How to Connect Team" con copy aprobado completo: flujo de creación, tipos de conexión, host team, shared scope, shared objects, regla de canal operativo (Submanager ↔ Submanager).
+- Patrón visual reutilizado de los otros modales de `TeamsClient.tsx`.
+- Otros modales, burbuja SAT/MAT, controles y Tree/Map/React Flow intactos.
+
