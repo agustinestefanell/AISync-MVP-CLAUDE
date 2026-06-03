@@ -4206,3 +4206,14 @@ Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
 - Col 3 (SAT/MAT) y Col 5 (controles) agrupados en zona derecha con `flex items-center gap-3`.
 - Wiring de modales intacto. Contenido de ninguna zona tocado.
 
+
+---
+
+## [2026-06-03] — Teams Map ribbon final layout fix
+
+### Fix visual
+- Burbuja SAT/MAT movida de zona derecha a zona izquierda (junto a título + subtítulo).
+- Links de ayuda en zona centro tienen `underline` permanente (antes solo `hover:underline`).
+- Layout final: [Left: título + SAT/MAT burbuja] [Center: flex-1 justify-center — links] [Right: controles].
+- Wiring de modales intacto.
+

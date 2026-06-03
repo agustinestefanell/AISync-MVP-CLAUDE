@@ -240,30 +240,16 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 4px 12px rgba(15,23,42,0.05)',
         }}
       >
-        {/* Zona izquierda — identidad del módulo */}
-        <div className="min-w-0 shrink-0">
-          <h2 className="text-[13px] font-bold uppercase tracking-[0.12em] text-neutral-900 leading-none">
-            Teams Map
-          </h2>
-          <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
-            Operational Elasticity View
+        {/* Zona izquierda — identidad + burbuja SAT/MAT */}
+        <div className="shrink-0 flex items-center gap-3">
+          <div className="min-w-0">
+            <h2 className="text-[13px] font-bold uppercase tracking-[0.12em] text-neutral-900 leading-none">
+              Teams Map
+            </h2>
+            <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+              Operational Elasticity View
+            </div>
           </div>
-        </div>
-
-        {/* Zona centro — links de ayuda */}
-        <div className="flex-1 hidden sm:flex justify-center">
-          <div className="flex flex-col items-center gap-0.5">
-            <button
-              className="text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2"
-              onClick={() => setShowCreateTeamsGuide(true)}
-            >
-              How to create or grow Teams
-            </button>
-          </div>
-        </div>
-
-        {/* Zona derecha — SAT/MAT + controles */}
-        <div className="flex items-center gap-3 shrink-0">
 
           {/* Burbuja SAT/MAT */}
           <div
@@ -276,12 +262,28 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
             <div>SAT = Single Agent Team</div>
             <div>MAT = Multiple Agent Team</div>
             <button
-              className="mt-0.5 text-[9px] text-teal-600 hover:underline underline-offset-2"
+              className="mt-0.5 text-[9px] text-teal-600 underline underline-offset-2 hover:opacity-75"
               onClick={() => setShowSatMatGuide(true)}
             >
               SAT vs MAT: How they work and how to use them →
             </button>
           </div>
+        </div>
+
+        {/* Zona centro — links de ayuda */}
+        <div className="flex-1 hidden sm:flex justify-center">
+          <div className="flex flex-col items-center gap-0.5">
+            <button
+              className="text-[11px] leading-4 text-teal-600 underline underline-offset-2 hover:opacity-75"
+              onClick={() => setShowCreateTeamsGuide(true)}
+            >
+              How to create or grow Teams
+            </button>
+          </div>
+        </div>
+
+        {/* Zona derecha — controles */}
+        <div className="flex items-center gap-3 shrink-0">
 
           {/* Controles */}
           <div className="flex flex-wrap items-center justify-end gap-2">
