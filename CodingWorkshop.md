@@ -378,3 +378,16 @@ Se agregó reset completo del estado del formulario después del guardado exitos
 
 ### Lección
 Cerrar una UI de formulario no equivale a limpiar su estado. Cuando un formulario sirve para crear y editar, el cierre posterior al guardado debe resetear explícitamente todos los estados relevantes para evitar residuos entre operaciones.
+
+---
+
+## Prompt Library — panel de assignments eliminado y restaurado
+
+### Problema
+Panel "Active in this context" fue eliminado en OE de UI cleanup asumiendo que era redundante.
+
+### Causa raíz
+Error de criterio: el panel mostraba información operativa crítica (qué workers y teams tienen cada prompt asignado activo). Sin esa información el usuario no puede gestionar assignments correctamente — no sabe qué está activo, ni puede hacer Unassign desde la interfaz.
+
+### Lección
+Antes de eliminar paneles de información, verificar si el contenido es operativamente necesario. En este caso el problema era el diseño, no el contenido. El panel fue restaurado usando `git show HEAD~4` para recuperar el JSX exacto.

@@ -4281,3 +4281,14 @@ Fondo del contenedor principal del modal cambiado de `var(--color-surface-second
 - Modal principal (librería): revertido a `bg-white`.
 - Modal de guía ("How to use Prompt Library"): `bg-[#f0f0f0]`.
 
+
+---
+
+## [2026-06-03] — Restaurar panel assignments en Prompt Library
+
+Panel "Active in this context" restaurado completo desde HEAD~4:
+- Sección "Assigned to this Worker" con `workerAssignments.map()` + botón Unassign.
+- Sección "Inherited from Team" con `teamAssignments.map()` + botón Unassign.
+- Eliminado eslint-disable (ya no necesario — `unassign` está en uso).
+- Fix de estado residual del formulario (`savePrompt` reset) se conserva intacto.
+

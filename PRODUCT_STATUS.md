@@ -70,7 +70,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | **SMPanel (Documentation Mode)** | ✅ Live | commit 8ad6a98 | Fused amber ribbon (hint + external warning) + accent top line — commit 8ad6a98 |
 | Prompt Library | ✅ Live | commit e68db2f | Light mode fixed — commit e68db2f. Modal no cierra por click en backdrop; textarea ampliado a rows=10 con resize-y. |
 | Prompt Library — How to use modal | ✅ Closed | commit feat: add how to use modal to prompt library | Link "How to use Prompt Library" en header del modal principal. Modal de guía con copy aprobado. |
-| Prompt Library — Form state reset + UI cleanup | ✅ Closed | commit fix: prompt library guide modal background color | Reset completo de formulario después de guardar. Panel derecho reemplazado por advertencia simple. Modal principal `bg-white`, modal de guía `bg-[#f0f0f0]`. |
+| Prompt Library — Form state reset + assignments panel | ✅ Closed | commit fix: restore assignments panel in prompt library | Reset completo de formulario después de guardar. Panel "Active in this context" restaurado (Assigned to Worker + Inherited from Team + Unassign). Modal de guía `bg-[#f0f0f0]`. |
 | Context Files | ✅ Live | commit e68db2f | Light mode fixed — commit e68db2f |
 | Add Context File | Partial | `src/components/workspace/AgentPanel.tsx` | Button in AgentPanel opens ContextFilePanel — implemented OE B (2026-05-21). Upload and Team/Session scopes functional. Project scope always empty: `project_id` not passed in prop chain workspace → AgentPanel → ContextFilePanel. Migration 017 applied in Supabase. |
 

@@ -245,7 +245,6 @@ export default function PromptLibrary({
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function unassign(assignmentId: string) {
     setError(null)
     try {
@@ -399,10 +398,65 @@ export default function PromptLibrary({
             </div>
           </div>
 
-          {/* Right — Usage note */}
-          <div className="flex flex-col overflow-hidden min-h-0 px-4 py-4" style={{ width: '280px', minWidth: '280px' }}>
-            <div className="text-[11px] text-[var(--color-text-secondary)] italic p-3 border border-[var(--color-border)] rounded-lg bg-[var(--color-surface-secondary,#f8f8f8)]">
-              Use this panel to create and manage prompts. To assign a prompt to a specific agent or team, use the buttons on each prompt card.
+          {/* Right — Active in this context */}
+          <div className="flex flex-col overflow-hidden min-h-0" style={{ width: '280px', minWidth: '280px' }}>
+            <div className="px-4 py-2.5 border-b border-gray-800 shrink-0">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Active in this context</span>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5 min-h-0">
+
+              {!sessionId && !teamId ? (
+                <p className="text-xs text-gray-600 italic pt-2">Open a workspace to see active prompts.</p>
+              ) : (
+                <>
+                  {/* Assigned to this Worker */}
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                      Assigned to this Worker
+                    </p>
+                    {workerAssignments.length === 0 ? (
+                      <p className="text-xs text-gray-600 italic">None assigned</p>
+                    ) : workerAssignments.map(a => (
+                      <div
+                        key={a.id}
+                        className="flex items-center justify-between gap-2 py-1.5 border-b border-gray-800/60"
+                      >
+                        <p className="text-xs text-[var(--color-text-primary)] truncate flex-1">{a.prompt?.title ?? '—'}</p>
+                        <button
+                          onClick={() => unassign(a.id)}
+                          className="shrink-0 text-[10px] text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded transition-colors"
+                        >
+                          Unassign
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Inherited from Team */}
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                      Inherited from Team
+                    </p>
+                    {teamAssignments.length === 0 ? (
+                      <p className="text-xs text-gray-600 italic">None assigned</p>
+                    ) : teamAssignments.map(a => (
+                      <div
+                        key={a.id}
+                        className="flex items-center justify-between gap-2 py-1.5 border-b border-gray-800/60"
+                      >
+                        <p className="text-xs text-[var(--color-text-primary)] truncate flex-1">{a.prompt?.title ?? '—'}</p>
+                        <button
+                          onClick={() => unassign(a.id)}
+                          className="shrink-0 text-[10px] text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded transition-colors"
+                        >
+                          Unassign
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
             </div>
           </div>
 
