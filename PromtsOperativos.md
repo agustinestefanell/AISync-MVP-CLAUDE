@@ -374,3 +374,15 @@ Toda OE termina con push. Sin excepción.
 - El prompt de GPT OE Maker se carga al inicio de cada sesión de redacción de OEs
 - Cualquier modificación a estos prompts debe ser aprobada por el Director Técnico
 - La versión vigente siempre es la que está en este archivo
+
+---
+
+## 4. Regla de cierre obligatorio — toda intervención
+
+Toda intervención — OE formal o directiva suelta — debe cerrar con:
+
+- Actualización de `handoff.md`
+- Actualización de `PRODUCT_STATUS.md`
+- Actualización de `AISyncPlans.md` si consolida patrón
+- `CodingWorkshop.md` si hay bug o lección técnica
+- Commit + push
