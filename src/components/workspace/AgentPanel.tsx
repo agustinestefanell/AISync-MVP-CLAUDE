@@ -142,6 +142,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     const [forwardTarget, setForwardTarget]   = useState(forwardTargets?.[0]?.role ?? '')
     const [showRefreshConfirm, setShowRefreshConfirm]   = useState(false)
     const [copiedIndex, setCopiedIndex]                 = useState<number | null>(null)
+    const [autoRespond]                                 = useState(true)
     const [showPromptLibrary,    setShowPromptLibrary]    = useState(false)
     const [showContextFilePanel, setShowContextFilePanel] = useState(false)
     const [apiMessages, setApiMessages]               = useState<ChatMessage[]>(
@@ -170,8 +171,13 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       getLastAssistantMessage: () =>
         [...messages].reverse().find(m => m.role === 'assistant')?.content,
       appendUserMessage: (content: string) => {
-        setMessages(prev => [...prev, { role: 'user', content, created_at: new Date().toISOString() }])
-        setApiMessages(prev => [...prev, { role: 'user', content }])
+        if (autoRespond) {
+          // sendPrompt handles message insertion + API call — no duplication
+          setTimeout(() => sendPrompt(content), 50)
+        } else {
+          setMessages(prev => [...prev, { role: 'user', content, created_at: new Date().toISOString() }])
+          setApiMessages(prev => [...prev, { role: 'user', content }])
+        }
       },
       getAllMessages:    () => messages,
       restoreMessages: (msgs: ChatMessage[]) => {
@@ -351,6 +357,11 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                   {hasSelection && (
                     <span className="ml-2" style={{ color: role.accentColor }}>
                       · {selectedCount} sel.
+                    </span>
+                  )}
+                  {autoRespond && (
+                    <span className="ml-2 text-[9px] px-1.5 py-0.5 rounded border border-[var(--color-border-default)] text-[var(--color-text-muted)]">
+                      Auto-respond: ON
                     </span>
                   )}
                 </div>

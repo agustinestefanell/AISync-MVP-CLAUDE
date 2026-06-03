@@ -275,6 +275,8 @@ AgentPanel (forwardRef → AgentPanelHandle)
 
 **Estado dual en AgentPanel**: `messages` (display) y `apiMessages` (historial enviado al modelo) son estados separados. Toda función que inyecte mensajes externamente — como `appendUserMessage` — debe actualizar ambos estados. `sendPrompt` los mantiene sincronizados por diseño; las inyecciones imperativas (R&F) deben hacerlo explícitamente.
 
+**Auto-respond on forward**: `appendUserMessage` delega a `sendPrompt(content)` cuando `autoRespond=true` (default). `sendPrompt` maneja inserción de mensajes + API call — NO llamar los dos en secuencia para evitar duplicación. El delay de 50ms respeta el ciclo de estado de React. `autoRespond=false` mantiene el comportamiento original de solo insertar sin enviar. Cada panel muestra indicador `Auto-respond: ON` en el header. La función real es `sendPrompt(content: string)` — no existe `handleSend` en `AgentPanel`.
+
 **Handle imperativo** (`AgentPanelHandle`):
 - `getLastAssistantMessage()` — último mensaje del asistente
 - `appendUserMessage(content)` — inyectar mensaje de usuario

@@ -4117,3 +4117,33 @@ Mismo patrón aplicado en Audit Log y Documentation Mode. `TeamsClient` ya era u
 - Patrones `showMainGuide`, `pageSubtitleOnClick`, `How to use Teams Map` confirmados por grep.
 - Tree View, Map View, React Flow, modales existentes (Add/Edit/Connect/Incoming) intactos.
 
+
+---
+
+## [2026-06-03] — Auto-respond on forward
+
+### OE ejecutada
+Auto-respond on forward with visible indicator in agent panel
+
+### Archivos modificados
+- `src/components/workspace/AgentPanel.tsx`
+
+### Decisión técnica tomada
+`sendPrompt(content)` maneja tanto la inserción del mensaje como el ciclo de streaming — llamar `appendUserMessage` + `sendPrompt` habría duplicado mensajes. Con `autoRespond=true`, `appendUserMessage` llama solo `sendPrompt(content)` con 50ms de delay para respetar el ciclo de estado de React. Con `autoRespond=false`, mantiene el comportamiento original (solo inserta, no envía).
+
+`useImperativeHandle` sin deps actualiza el handle en cada render, por lo que la closure de `sendPrompt` siempre es fresca. No hay race condition: el delay de 50ms es previo a cualquier inserción de mensajes (esa inserción la hace `sendPrompt`).
+
+### Función real usada
+`sendPrompt(content: string)` — acepta contenido directo. No existe `handleSend` en `AgentPanel.tsx`.
+
+### WorkspaceShell
+No modificado. `handlePanelForward` ya llama `targetRef.appendUserMessage(...)` correctamente en línea 134.
+
+### Alternativas descartadas
+- Llamar `setInput(content)` + `sendMessage()`: innecesariamente indirecto; `sendPrompt(content)` es la función correcta.
+- Agregar deps a `useImperativeHandle`: no necesario dado que la función se actualiza en cada render sin deps.
+
+### Riesgos conocidos
+- Sin toggle UI, `autoRespond` siempre es `true` — el estado `[autoRespond]` (sin setter) es por diseño de esta OE.
+- Riesgo teórico de doble respuesta si `appendUserMessage` se llama más de una vez por el mismo forward — bajo riesgo dado el flujo actual de R&F.
+

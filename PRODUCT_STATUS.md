@@ -42,6 +42,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Teams Map — How to use modal | ✅ Closed | commit feat: add how to use modal to teams map | Modal principal `How to use Teams Map` accesible desde subtítulo superior via `pageSubtitleOnClick`. `TeamsClient` gestiona layout completo (TopRibbon + BottomRibbon). Tree View, Map View, React Flow intactos. |
 | SAT/MAT badge in ribbon | ✅ Live | commit 7197114 | commit 7197114 |
 | Review & Forward — forwarded context | ✅ Live | `src/components/workspace/AgentPanel.tsx` | Fix: `appendUserMessage` ahora sincroniza `messages` y `apiMessages`. El contexto forwarded llega al modelo. |
+| Review & Forward — auto-respond | ✅ Closed | commit feat: auto-respond on forward with visible indicator in agent panel | `appendUserMessage` dispara `sendPrompt(content)` automáticamente cuando `autoRespond=true` (default). Sin duplicación de mensajes. Indicador `Auto-respond: ON` visible en header de cada panel. |
 | SAT structured context (chat API) | ✅ Live | commit 0f40de5 | Layers 1/3/4 — commit 0f40de5 |
 
 ---

@@ -319,3 +319,31 @@ Cada entrada documenta lo que fue difícil, por qué falló, cómo se resolvió 
 - **Commit:** `fix: make side panel available in week view`
 
 - **Lección:** Cuando un estado es compartido entre vistas, el JSX que lo consume debe estar disponible en el nivel de render correspondiente a todas esas vistas. Si el DOM del panel vive dentro del condicional de una sola vista, las demás pueden actualizar el estado sin efecto visible. La solución es elevar el DOM del panel al nivel del wrapper que las agrupa.
+
+---
+
+## Workspace — auto-response after Review & Forward
+
+### Problema
+Cuando un panel recibía un mensaje vía Review & Forward, el mensaje se insertaba en el panel destino pero el agente no respondía automáticamente.
+
+### Causa raíz
+`appendUserMessage` actualizaba `messages` y `apiMessages` del panel, pero no disparaba el ciclo de envío. El agente receptor quedaba con el mensaje visible en el chat pero sin iniciar su respuesta.
+
+### Consecuencia
+El flujo Agent → Agent quedaba incompleto: el usuario tenía que intervenir manualmente para que el receptor respondiera, rompiendo la continuidad operativa del team.
+
+### Proceso de solución
+Verificar que `sendPrompt(content: string)` es la función correcta (acepta contenido directo, maneja inserción + API + streaming). Confirmar que llamar `appendUserMessage` + `sendPrompt` duplicaría mensajes. Diseñar `appendUserMessage` para que con `autoRespond=true` delegue directamente a `sendPrompt(content)` con 50ms de delay.
+
+### Solución final
+- Con `autoRespond=true` (default): `appendUserMessage` llama `setTimeout(() => sendPrompt(content), 50)`. `sendPrompt` maneja todo — inserción de mensaje visible, actualización de `apiMessages`, streaming.
+- Con `autoRespond=false`: comportamiento original — solo inserta, no envía.
+- Indicador `Auto-respond: ON` agregado en header de cada panel.
+- No se toca `WorkspaceShell.tsx` — `handlePanelForward` ya llama `appendUserMessage` correctamente.
+
+### Commit
+`feat: auto-respond on forward with visible indicator in agent panel`
+
+### Lección
+Cuando `sendPrompt` ya maneja la inserción del mensaje Y el envío, no llamar `appendUserMessage` + `sendPrompt` en secuencia — duplica mensajes. La función imperativa debe delegar completamente a `sendPrompt` o manejar todo ella misma. No mezclar ambos. El delay de 50ms antes de `sendPrompt` resuelve el timing sin setear estados intermedios que creen race conditions.
