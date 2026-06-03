@@ -4266,3 +4266,10 @@ Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
 - Modal usa fondo `var(--color-surface-secondary,#f5f5f5)` en lugar de `bg-white`.
 - Lógica assign/unassign, `loadWorkerAssignments`, `loadTeamAssignments` intactos.
 
+
+---
+
+## [2026-06-03] — Prompt Library modal background fix
+
+Fondo del contenedor principal del modal cambiado de `var(--color-surface-secondary,#f5f5f5)` a `#f0f0f0` (valor fijo más oscuro para mayor contraste).
+
