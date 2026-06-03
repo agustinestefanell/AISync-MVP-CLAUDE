@@ -4184,3 +4184,14 @@ Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
 - Wiring de modales (`setShowMainGuide`, `setShowSatMatGuide`, `setShowCreateTeamsGuide`) intacto.
 - Build ejecutado y validado.
 
+
+---
+
+## [2026-06-03] — Teams Map ribbon links centrados
+
+### Fix visual
+- Agregado `relative` al contenedor del ribbon operativo.
+- Col 2 (links de ayuda) cambiado a `absolute left-1/2 -translate-x-1/2` + `items-center` — mismo patrón de centrado que TopRibbon.
+- Eliminado `text-left` del botón (innecesario con centrado).
+- Wiring de modales intacto. Col 3 (SAT/MAT), Tree/Map/React Flow sin cambios.
+

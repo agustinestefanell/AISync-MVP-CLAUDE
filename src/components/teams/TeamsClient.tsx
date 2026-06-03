@@ -233,7 +233,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
 
       {/* ── Ribbon operativo ─────────────────────────────────────────────────── */}
       <div
-        className="shrink-0 grid items-center gap-x-4 gap-y-2 px-4 py-2
+        className="relative shrink-0 grid items-center gap-x-4 gap-y-2 px-4 py-2
           sm:grid-cols-[auto_auto_auto_1fr_auto]"
         style={{
           borderBottom: '1px solid rgba(15,23,42,0.10)',
@@ -251,10 +251,10 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           </div>
         </div>
 
-        {/* Col 2 — Links de ayuda */}
-        <div className="hidden sm:flex flex-col gap-0.5">
+        {/* Col 2 — Links de ayuda (centrado absoluto en el ribbon) */}
+        <div className="hidden sm:flex flex-col items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
           <button
-            className="text-left text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2"
+            className="text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2"
             onClick={() => setShowCreateTeamsGuide(true)}
           >
             How to create or grow Teams
