@@ -4273,3 +4273,11 @@ Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
 
 Fondo del contenedor principal del modal cambiado de `var(--color-surface-secondary,#f5f5f5)` a `#f0f0f0` (valor fijo más oscuro para mayor contraste).
 
+
+---
+
+## [2026-06-03] — Prompt Library guide modal background fix
+
+- Modal principal (librería): revertido a `bg-white`.
+- Modal de guía ("How to use Prompt Library"): `bg-[#f0f0f0]`.
+

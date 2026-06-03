@@ -266,7 +266,7 @@ export default function PromptLibrary({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={e => e.stopPropagation()}
     >
-      <div className="bg-[#f0f0f0] border border-gray-200 rounded-2xl w-full max-w-4xl mx-4 shadow-2xl flex flex-col overflow-hidden" style={{ height: '80vh' }}>
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-4xl mx-4 shadow-2xl flex flex-col overflow-hidden" style={{ height: '80vh' }}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
@@ -415,7 +415,7 @@ export default function PromptLibrary({
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={e => { if (e.target === e.currentTarget) setShowGuide(false) }}
         >
-          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+          <div className="bg-[#f0f0f0] border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
             <div className="px-6 py-5 border-b border-[var(--color-border-default)] flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
