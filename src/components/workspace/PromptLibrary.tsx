@@ -50,6 +50,7 @@ export default function PromptLibrary({
   const [loading,           setLoading]           = useState(false)
   const [error,             setError]             = useState<string | null>(null)
 
+  const [showGuide,  setShowGuide]  = useState(false)
   const [showForm,   setShowForm]   = useState(false)
   const [editing,    setEditing]    = useState<Prompt | null>(null)
   const [formTitle,  setFormTitle]  = useState('')
@@ -264,7 +265,15 @@ export default function PromptLibrary({
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
-          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Prompt Library</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Prompt Library</h2>
+            <button
+              className="text-[11px] text-teal-600 underline underline-offset-2 hover:opacity-75"
+              onClick={() => setShowGuide(true)}
+            >
+              How to use Prompt Library
+            </button>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-[var(--color-text-primary)] w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors text-lg leading-none"
@@ -449,6 +458,45 @@ export default function PromptLibrary({
 
         </div>
       </div>
+
+      {/* Guide modal */}
+      {showGuide && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={e => { if (e.target === e.currentTarget) setShowGuide(false) }}
+        >
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+            <div className="px-6 py-5 border-b border-[var(--color-border-default)] flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
+                  How to use Prompt Library
+                </h3>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Operational guidance</p>
+              </div>
+              <button
+                onClick={() => setShowGuide(false)}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm px-1 transition-colors shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">{`Use Prompt Library to assign reusable prompts to:
+→ one Worker
+→ one Team
+→ multiple Workers
+→ multiple Teams
+→ or any combination of them
+
+You can associate the same prompt in many places without rewriting it. You can also de-associate it from any Worker or Team when it should no longer apply there.
+
+Use a team prompt when the whole team should follow the same instruction. Use a worker prompt when one agent needs a more specific role or specialization.
+
+In practical terms, Prompt Library lets you reuse, assign, and remove prompts in a controlled way instead of rewriting them manually.`}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

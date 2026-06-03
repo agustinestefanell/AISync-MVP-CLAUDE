@@ -4240,3 +4240,15 @@ Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
 - Patrón visual reutilizado de los otros modales de `TeamsClient.tsx`.
 - Otros modales, burbuja SAT/MAT, controles y Tree/Map/React Flow intactos.
 
+
+---
+
+## [2026-06-03] — Prompt Library How to use modal
+
+### Feature
+- Estado `showGuide` agregado en `PromptLibrary.tsx`.
+- Link "How to use Prompt Library" agregado en el header del modal principal, junto al título.
+- Modal de guía con copy aprobado: asignación a Workers/Teams, reutilización sin reescritura, prompts de team vs worker.
+- z-index `z-[60]` usado para que el modal de guía quede sobre el modal principal (`z-50`).
+- Lógica de guardado, SAVE/CANCEL, asignaciones intactas.
+
