@@ -233,16 +233,15 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
 
       {/* ── Ribbon operativo ─────────────────────────────────────────────────── */}
       <div
-        className="relative shrink-0 grid items-center gap-x-4 gap-y-2 px-4 py-2
-          sm:grid-cols-[auto_auto_auto_1fr_auto]"
+        className="shrink-0 flex items-center gap-4 px-4 py-2"
         style={{
           borderBottom: '1px solid rgba(15,23,42,0.10)',
           background: 'linear-gradient(180deg, rgba(250,252,254,0.98) 0%, rgba(240,245,249,0.98) 100%)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 4px 12px rgba(15,23,42,0.05)',
         }}
       >
-        {/* Col 1 — Identidad del módulo */}
-        <div className="min-w-0">
+        {/* Zona izquierda — identidad del módulo */}
+        <div className="min-w-0 shrink-0">
           <h2 className="text-[13px] font-bold uppercase tracking-[0.12em] text-neutral-900 leading-none">
             Teams Map
           </h2>
@@ -251,115 +250,118 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           </div>
         </div>
 
-        {/* Col 2 — Links de ayuda (centrado absoluto en el ribbon) */}
-        <div className="hidden sm:flex flex-col items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
-          <button
-            className="text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2"
-            onClick={() => setShowCreateTeamsGuide(true)}
-          >
-            How to create or grow Teams
-          </button>
+        {/* Zona centro — links de ayuda */}
+        <div className="flex-1 hidden sm:flex justify-center">
+          <div className="flex flex-col items-center gap-0.5">
+            <button
+              className="text-[11px] leading-4 text-teal-600 hover:underline underline-offset-2"
+              onClick={() => setShowCreateTeamsGuide(true)}
+            >
+              How to create or grow Teams
+            </button>
+          </div>
         </div>
 
-        {/* Col 3 — Leyenda SAT/MAT */}
-        <div
-          className="hidden sm:block shrink-0 rounded-[10px] border px-2.5 py-1.5 text-[10px] leading-[1.5] text-neutral-600"
-          style={{
-            borderColor: 'rgba(15,23,42,0.10)',
-            background: 'rgba(255,255,255,0.88)',
-          }}
-        >
-          <div>SAT = Single Agent Team</div>
-          <div>MAT = Multiple Agent Team</div>
-          <button
-            className="mt-0.5 text-[9px] text-teal-600 hover:underline underline-offset-2"
-            onClick={() => setShowSatMatGuide(true)}
-          >
-            SAT vs MAT: How they work and how to use them →
-          </button>
-        </div>
+        {/* Zona derecha — SAT/MAT + controles */}
+        <div className="flex items-center gap-3 shrink-0">
 
-        {/* Col 4 — spacer */}
-        <div className="hidden sm:block" />
-
-        {/* Col 5 — Controles */}
-        <div className="flex flex-wrap items-center justify-end gap-2">
-
-          {/* Map / Tree toggle */}
+          {/* Burbuja SAT/MAT */}
           <div
-            className="flex rounded-full border p-1"
-            style={{ borderColor: 'rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.86)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72)' }}
+            className="hidden sm:block shrink-0 rounded-[10px] border px-2.5 py-1.5 text-[10px] leading-[1.5] text-neutral-600"
+            style={{
+              borderColor: 'rgba(15,23,42,0.10)',
+              background: 'rgba(255,255,255,0.88)',
+            }}
           >
-            {(['map', 'tree'] as ViewMode[]).map(mode => (
+            <div>SAT = Single Agent Team</div>
+            <div>MAT = Multiple Agent Team</div>
+            <button
+              className="mt-0.5 text-[9px] text-teal-600 hover:underline underline-offset-2"
+              onClick={() => setShowSatMatGuide(true)}
+            >
+              SAT vs MAT: How they work and how to use them →
+            </button>
+          </div>
+
+          {/* Controles */}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+
+            {/* Map / Tree toggle */}
+            <div
+              className="flex rounded-full border p-1"
+              style={{ borderColor: 'rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.86)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72)' }}
+            >
+              {(['map', 'tree'] as ViewMode[]).map(mode => (
+                <button
+                  key={mode}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    view === mode ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                  onClick={() => setView(mode)}
+                >
+                  {mode === 'map' ? 'Map' : 'Tree'}
+                </button>
+              ))}
+            </div>
+
+            {/* Teams / Workers count */}
+            <div
+              className="rounded-[10px] border px-3 py-2 text-xs text-neutral-700"
+              style={{ borderColor: 'rgba(15,23,42,0.10)', background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(244,247,250,0.95) 100%)' }}
+            >
+              Teams {teams.length} / Workers {workerCount}
+            </div>
+
+            {/* Zoom buttons */}
+            <div
+              className="flex items-center gap-1 rounded-full border p-1"
+              style={{ borderColor: 'rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.86)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72)' }}
+            >
               <button
-                key={mode}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                  view === mode ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-                onClick={() => setView(mode)}
-              >
-                {mode === 'map' ? 'Map' : 'Tree'}
-              </button>
-            ))}
-          </div>
+                className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
+                title="Zoom In"
+                onClick={() => setZoomIn(n => n + 1)}
+              >+</button>
+              <button
+                className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
+                title="Zoom Out"
+                onClick={() => setZoomOut(n => n + 1)}
+              >−</button>
+              <button
+                className="h-8 rounded-full px-3 text-xs text-neutral-700 hover:bg-neutral-100"
+                onClick={() => setZoomReset(n => n + 1)}
+              >Reset</button>
+            </div>
 
-          {/* Teams / Workers count */}
-          <div
-            className="rounded-[10px] border px-3 py-2 text-xs text-neutral-700"
-            style={{ borderColor: 'rgba(15,23,42,0.10)', background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(244,247,250,0.95) 100%)' }}
-          >
-            Teams {teams.length} / Workers {workerCount}
-          </div>
-
-          {/* Zoom buttons */}
-          <div
-            className="flex items-center gap-1 rounded-full border p-1"
-            style={{ borderColor: 'rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.86)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72)' }}
-          >
+            {/* Requests */}
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
-              title="Zoom In"
-              onClick={() => setZoomIn(n => n + 1)}
-            >+</button>
+              onClick={() => setShowIncoming(true)}
+              className="relative flex h-9 items-center gap-1.5 rounded-[10px] border border-neutral-200 bg-white px-3 text-xs text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+            >
+              Requests
+              {incomingPending > 0 && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold leading-none text-white">
+                  {incomingPending}
+                </span>
+              )}
+            </button>
+
+            {/* Connect */}
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
-              title="Zoom Out"
-              onClick={() => setZoomOut(n => n + 1)}
-            >−</button>
+              onClick={() => setShowConnect(true)}
+              className="flex h-9 items-center gap-1.5 rounded-[10px] border border-teal-200 bg-teal-50 px-3 text-xs font-medium text-teal-700 hover:bg-teal-100 transition-colors"
+            >
+              ↔ Connect
+            </button>
+
+            {/* Add Team */}
             <button
-              className="h-8 rounded-full px-3 text-xs text-neutral-700 hover:bg-neutral-100"
-              onClick={() => setZoomReset(n => n + 1)}
-            >Reset</button>
+              onClick={() => setShowAdd(true)}
+              className="flex h-9 items-center gap-1.5 rounded-[10px] bg-neutral-900 px-4 text-xs font-semibold text-white hover:bg-neutral-700 transition-colors"
+            >
+              + Add Team
+            </button>
           </div>
-
-          {/* Requests */}
-          <button
-            onClick={() => setShowIncoming(true)}
-            className="relative flex h-9 items-center gap-1.5 rounded-[10px] border border-neutral-200 bg-white px-3 text-xs text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
-          >
-            Requests
-            {incomingPending > 0 && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold leading-none text-white">
-                {incomingPending}
-              </span>
-            )}
-          </button>
-
-          {/* Connect */}
-          <button
-            onClick={() => setShowConnect(true)}
-            className="flex h-9 items-center gap-1.5 rounded-[10px] border border-teal-200 bg-teal-50 px-3 text-xs font-medium text-teal-700 hover:bg-teal-100 transition-colors"
-          >
-            ↔ Connect
-          </button>
-
-          {/* Add Team */}
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex h-9 items-center gap-1.5 rounded-[10px] bg-neutral-900 px-4 text-xs font-semibold text-white hover:bg-neutral-700 transition-colors"
-          >
-            + Add Team
-          </button>
         </div>
       </div>
 

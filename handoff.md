@@ -4195,3 +4195,14 @@ Teams Map ribbon buttons + SAT/MAT + How to create Teams modals
 - Eliminado `text-left` del botón (innecesario con centrado).
 - Wiring de modales intacto. Col 3 (SAT/MAT), Tree/Map/React Flow sin cambios.
 
+
+---
+
+## [2026-06-03] — Teams Map ribbon flex layout fix
+
+### Fix visual/layout
+- Ribbon operativo convertido de CSS Grid (`grid-cols-[auto_auto_auto_1fr_auto]`) a flex de tres zonas: [Left: identidad] [Center: flex-1 justify-center — links] [Right: SAT/MAT burbuja + controles].
+- Eliminado Col 4 (spacer vacío, innecesario en flex).
+- Col 3 (SAT/MAT) y Col 5 (controles) agrupados en zona derecha con `flex items-center gap-3`.
+- Wiring de modales intacto. Contenido de ninguna zona tocado.
+
