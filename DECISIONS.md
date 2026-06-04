@@ -178,3 +178,16 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Campos mínimos:** attachment_id, message_id, session_id, workspace_id, account_id, filename, mime_type, size, hash, provider, provider_file_id, created_at, expires_at, status
 - **Alternativas descartadas:** (A) solo trazar al hacer Save Version — deja ciego todo adjunto que se usó pero no se checkpointó. (B) cada adjunto crea documento automático en Doc Mode — llena Documentation Mode de basura automática.
 - **Estado:** Diferido — implementar después de cerrar capítulo de búsqueda en internet.
+
+---
+
+## 2026-06-04 — Trazabilidad de búsquedas web
+
+- **Decisión:** Toda búsqueda web ejecutada por el tool loop debe generar evento de trazabilidad, incluyendo los links fuente utilizados.
+- **Qué registrar:** query enviada a Tavily, timestamp, provider del agente que la solicitó, session_id, workspace_id, resultados (o referencia a ellos), sources: [{title, url}].
+- **Cuándo:** en el momento de ejecución del tool loop en `chat/route.ts`, antes o después de llamar `tool.execute()`.
+- **Dónde:** misma arquitectura que attachment traceability — evento en `audit_log` o tabla propia `session_tool_calls`.
+- **Campos mínimos:** tool_call_id, tool_name, query, session_id, workspace_id, account_id, provider, model, created_at, result_summary, sources: [{title, url}].
+- **Cambio de contrato requerido:** `ToolExecutor.execute()` debe retornar `{ content: string, sources?: {title: string, url: string}[] }` en lugar de solo `string`. Afecta `src/lib/tools/types.ts`, `src/lib/tools/web-search.ts` y `src/app/api/chat/route.ts`.
+- **Alternativas descartadas:** no trazar búsquedas ni links — deja ciego el uso de herramientas externas y la fuente real de información usada por el modelo.
+- **Estado:** Diferido — implementar junto con trazabilidad de adjuntos post-capítulo de búsqueda.
