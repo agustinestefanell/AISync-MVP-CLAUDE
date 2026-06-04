@@ -106,17 +106,40 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | `checkpoint_messages` RLS — ownership guard via `p.account_id = auth.uid()` | ✅ Closed | 2026-06-04, migration 020, manually applied in Supabase production |
 | `checkpoint/[id]` route — explicit 403 on unauthorized access | ✅ Closed | 2026-06-04, `src/app/api/checkpoint/[id]/route.ts` |
 | Prompt Library — assignments panel context message in BottomRibbon | ✅ Closed | 2026-06-04, `src/components/workspace/PromptLibrary.tsx` |
-| Multimodal — ChatMessage attachments + Anthropic provider base | Partial | 2026-06-04, `types.ts` + `anthropic.ts` — UI de adjuntos en AgentPanel pendiente |
-| Multimodal — UI de adjuntos en AgentPanel | Partial | 2026-06-04, `AgentPanel.tsx` — validación runtime con Anthropic pendiente |
-| Multimodal — OpenAI image attachments | Partial | 2026-06-04, `openai.ts` — PDF/Files API diferido; Groq sin soporte hasta OE futura |
-| Multimodal — Google Gemini inlineData | Partial | 2026-06-04, `google.ts` — attachments históricos diferidos; mensaje actual con imágenes y PDFs habilitado |
-| Multimodal — Fix sendPrompt guard (attachments sin texto) | ✅ Closed | 2026-06-04, `AgentPanel.tsx` |
-| Multimodal — OpenAI PDF fallback message | ✅ Closed | 2026-06-04, `openai.ts` — PDF sin soporte via image_url notifica al usuario |
-| Tool Registry — Tavily web search base | Partial | 2026-06-04, `src/lib/tools/` — registry creado; integración con providers/chat runtime pendiente |
-| Tool loop — chat route + Anthropic complete() | Partial | 2026-06-04, `chat/route.ts` + `anthropic.ts` — UI toggle y soporte OpenAI/Google pendientes |
-| Web Search toggle — AgentPanel UI | ✅ Closed | 2026-06-04, `AgentPanel.tsx` — conecta `webSearchEnabled` al tool loop |
-| Tool complete() — OpenAI + Google | Partial | 2026-06-04, `openai.ts` + `google.ts` — validación runtime pendiente |
-| Multimodal — Drag & drop en AgentPanel | ✅ Closed | 2026-06-04, `AgentPanel.tsx` |
+
+---
+
+## Multimodal — File Attachments
+
+| Feature | Status | Notes |
+|---|---|---|
+| `ChatAttachment` type + `ChatMessage.attachments?` | ✅ Closed | `types.ts` — campo opcional, retrocompatible |
+| Anthropic — image + document blocks | ✅ Closed | `anthropic.ts` — `sdkMessages` con content blocks |
+| OpenAI — image attachments via `image_url` | ✅ Closed | `openai.ts` — solo imágenes; PDF fallback con mensaje informativo |
+| OpenAI — PDF via Files API | Deferred | Requiere Files API OE futura |
+| Google Gemini — inlineData en lastMessage | ✅ Closed | `google.ts` — imágenes + PDFs; attachments históricos limitación MVP |
+| Groq — attachments | Deferred | Modelos sin soporte de visión; comentario técnico agregado |
+| AgentPanel UI — clip button + chips + drag & drop | ✅ Closed | `AgentPanel.tsx` — input file oculto, chips removibles, drag & drop |
+| AgentPanel — sendPrompt guard fix | ✅ Closed | `AgentPanel.tsx` — `(!content && !atts.length)` permite envío solo-adjunto |
+| Attachment traceability | Deferred | Ver `DECISIONS.md` 2026-06-04 — 3 capas, tabla `session_attachments`, post-búsqueda |
+
+---
+
+## Tools / Web Search
+
+| Feature | Status | Notes |
+|---|---|---|
+| Tool registry — `src/lib/tools/` | ✅ Closed | `ToolDefinition`, `ToolExecutor`, `toolRegistry`, `getTool()` |
+| Tavily `webSearchTool` | ✅ Closed | `web-search.ts` — requiere `TAVILY_API_KEY` en Vercel |
+| `ChatProvider.complete?` — contrato opcional | ✅ Closed | `types.ts` — no rompe providers sin implementación |
+| Anthropic `complete()` | ✅ Closed | `anthropic.ts` — detecta `tool_use`, convierte tools a `input_schema` |
+| OpenAI `complete()` | ✅ Closed | `openai.ts` — function tools, filtra `tc.type === 'function'` |
+| Google `complete()` | ✅ Closed | `google.ts` — `functionDeclarations`, `functionCalls()`, `randomUUID()` |
+| Tool loop en `chat/route.ts` | ✅ Closed | Una ronda: `complete()` → execute tool → `stream()` final |
+| Web Search toggle en AgentPanel | ✅ Closed | `AgentPanel.tsx` — badge clicable, envía `webSearchEnabled` |
+| Runtime Tavily con API key real | Pending | Agregar `TAVILY_API_KEY` en Vercel Dashboard |
+| Tool loop multi-ronda | Deferred | Post-MVP |
+| Web search traceability + sources | Deferred | Ver `DECISIONS.md` 2026-06-04 — contrato `{ content, sources? }`, tabla `session_tool_calls` |
 
 ---
 
@@ -129,3 +152,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 - `audit_log` FK to checkpoints: architectural decision pending.
 - Add Context File: `project_id` not passed in prop chain — Project-scope files always show empty. See `Partial` status in Workspace table.
 - Cross Verification: full scope deferred. See `Needs Review` in Documentation Mode table and `DECISIONS.md`.
+- Attachment traceability: evento siempre / checkpoint referencia / promoción explícita. Ver `DECISIONS.md` 2026-06-04. Tabla `session_attachments` o `message_attachments` pendiente de migración.
+- Web search traceability: `ToolExecutor.execute()` retorna `{ content, sources? }`. Ver `DECISIONS.md` 2026-06-04. Afecta `tools/types.ts`, `web-search.ts`, `chat/route.ts`.
+- OpenAI PDF support: requiere Files API. Diferido.
+- Google multimodal en historial: solo `lastMessage` soporta `inlineData`. Limitación MVP documentada.

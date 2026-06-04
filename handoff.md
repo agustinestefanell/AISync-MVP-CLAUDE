@@ -4461,3 +4461,42 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - No se modificaron routes, componentes, data layer ni otras políticas RLS.
 - Riesgo residual: confirmar que `003_checkpoints.sql` refleje el estado real de producción (la migración 020 actúa como parche correctivo documentado).
 
+---
+
+## [2026-06-04] — Cierre de sesión — resumen completo
+
+### Seguridad (cerrado)
+- `checkpoint_messages` RLS — política live corregida con `p.account_id = auth.uid()`, migración `020` aplicada en producción.
+- `checkpoint/[id]` route — ownership check explícito, 404/403 semánticamente correctos.
+- `PromptLibrary` BottomRibbon — assignments panel reemplazado por mensaje contextual cuando no hay `sessionId`.
+
+### Multimodal (funcional, validación runtime pendiente)
+- Contrato `ChatAttachment` + `ChatMessage.attachments?` agregado a `types.ts`.
+- Anthropic, OpenAI, Google: transformación de attachments a content blocks nativos de cada SDK.
+- OpenAI: solo imágenes via `image_url`; PDF fallback con mensaje informativo.
+- Google Gemini: imágenes y PDFs via `inlineData` en `lastMessage`. Attachments históricos — limitación MVP documentada.
+- Groq: comentario técnico — attachments ignorados silenciosamente.
+- `AgentPanel`: input file oculto, chips removibles, botón clip 📎, drag & drop, guard `sendPrompt` corregido.
+- Fix pipeline: payload confirmado correcto en DevTools; bug era el guard `!content` que bloqueaba envío solo-adjunto.
+
+### Tool use / Web Search (funcional end-to-end, runtime Tavily pendiente)
+- `src/lib/tools/` — registry independiente con `webSearchTool` (Tavily), `toolRegistry`, `getTool()`.
+- `ChatProvider.complete?` — método opcional agregado al contrato.
+- `AnthropicProvider.complete()` — detecta `tool_use` blocks, convierte tools a `input_schema`.
+- `OpenAIProvider.complete()` — function tools, filtra `tc.type === 'function'`.
+- `GoogleProvider.complete()` — `functionDeclarations`, `functionCalls()`, `randomUUID()` para IDs.
+- `chat/route.ts` — tool loop de una ronda: `complete()` → ejecutar tool → `stream()` final.
+- `AgentPanel` — toggle "Web search: ON/OFF" clicable en header, envía `webSearchEnabled` al fetch.
+
+### Decisiones arquitecturales registradas en `DECISIONS.md`
+- Trazabilidad de adjuntos: 3 capas (evento siempre / checkpoint referencia / promoción explícita). Diferido.
+- Trazabilidad de búsquedas web: `ToolExecutor.execute()` retorna `{ content, sources? }`. Diferido.
+
+### Pendiente post-sesión
+- `TAVILY_API_KEY` real en Vercel Dashboard (placeholder en `.env.local` local).
+- Validación runtime multimodal con archivos reales en Anthropic, OpenAI, Google.
+- Trazabilidad de adjuntos y búsquedas — implementar post-capítulo búsqueda.
+- Tool loop multi-ronda diferido.
+- OpenAI PDF support via Files API diferido.
+- Google attachments históricos diferidos.
+
