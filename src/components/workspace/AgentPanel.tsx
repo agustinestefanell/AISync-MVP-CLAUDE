@@ -293,7 +293,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     }
 
     async function sendPrompt(content: string, atts: ChatAttachment[] = []) {
-      if (!content || streaming || workspaceLocked) return
+      if ((!content && !atts.length) || streaming || workspaceLocked) return
 
       const userMsg: DisplayMessage  = { role: 'user', content, created_at: new Date().toISOString() }
       const userApiMsg: ChatMessage = { role: 'user', content, ...(atts.length ? { attachments: atts } : {}) }

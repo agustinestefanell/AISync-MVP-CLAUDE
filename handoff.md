@@ -4327,6 +4327,16 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — Fix sendPrompt guard para attachments sin texto
+
+- Bug: `if (!content || streaming || workspaceLocked)` bloqueaba `sendPrompt` cuando `content === ''` aunque hubiera attachments.
+- Fix: `if ((!content && !atts.length) || streaming || workspaceLocked)` — solo bloquea si no hay contenido NI adjuntos.
+- Afecta envío de attachments sin texto desde AgentPanel.
+- No se tocaron providers, routes ni otros componentes.
+- Build ejecutado y validado.
+
+---
+
 ## [2026-06-04] — Google Gemini multimodal
 
 - `Part` importado desde `@google/generative-ai`.

@@ -591,6 +591,34 @@ Se modificó el envío de `lastMessage` para construir `(string | Part)[]` con `
 `feat: add attachment support to google gemini provider`
 
 ### Lección
-La arquitectura multimodal no es homogénea entre providers. Google separa historial y mensaje actual — el soporte inicial solo puede cubrir el `lastMessage`. Gemini es más permisivo que OpenAI con PDFs: acepta `application/pdf` vía `inlineData` sin necesitar una API dedicada de archivos. Multimodal no debe asumirse homogéneo: Anthropic, OpenAI y Google tienen capacidades y formatos distintos. Para OpenAI, PDFs requieren la Files API — no pueden enviarse como `image_url`. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
+La arquitectura multimodal no es homogénea entre providers. Google separa historial y mensaje actual — el soporte inicial solo puede cubrir el `lastMessage`. Gemini es más permisivo que OpenAI con PDFs: acepta `application/pdf` vía `inlineData` sin necesitar una API dedicada de archivos.
+
+---
+
+## AgentPanel — sendPrompt bloqueaba attachments sin texto
+
+### Problema
+Enviar solo un adjunto sin texto no funcionaba — el modelo no respondía y los attachments no llegaban al payload.
+
+### Causa raíz
+La guardia `if (!content || streaming || workspaceLocked)` bloqueaba `sendPrompt` cuando `content` era string vacío, aunque hubiera attachments válidos en `atts`. `sendMessage` ya permitía el caso correctamente (`!content && !attachments.length`), pero `sendPrompt` lo cancelaba antes de construir `userApiMsg`.
+
+### Consecuencia
+Los attachments nunca llegaban al `fetch('/api/chat')` — el provider recibía solo mensajes de texto sin `attachments` en el payload.
+
+### Solución
+```ts
+// Antes
+if (!content || streaming || workspaceLocked) return
+
+// Después
+if ((!content && !atts.length) || streaming || workspaceLocked) return
+```
+
+### Commit
+`fix: allow sendPrompt with attachments and empty content`
+
+### Lección
+Las guardias de validación deben contemplar todas las formas válidas de input. En un sistema multimodal, un mensaje con content vacío pero con adjuntos es válido. La inconsistencia entre `sendMessage` (que ya lo permitía) y `sendPrompt` (que lo bloqueaba) fue la causa raíz. Google separa historial y mensaje actual — el soporte inicial solo puede cubrir el `lastMessage`. Gemini es más permisivo que OpenAI con PDFs: acepta `application/pdf` vía `inlineData` sin necesitar una API dedicada de archivos. Multimodal no debe asumirse homogéneo: Anthropic, OpenAI y Google tienen capacidades y formatos distintos. Para OpenAI, PDFs requieren la Files API — no pueden enviarse como `image_url`. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
 2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
 3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.
