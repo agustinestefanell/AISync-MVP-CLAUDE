@@ -391,3 +391,46 @@ Error de criterio: el panel mostraba información operativa crítica (qué worke
 
 ### Lección
 Antes de eliminar paneles de información, verificar si el contenido es operativamente necesario. En este caso el problema era el diseño, no el contenido. El panel fue restaurado usando `git show HEAD~4` para recuperar el JSX exacto.
+
+---
+
+## Supabase RLS — `checkpoint_messages` ownership gap en producción
+
+### Problema
+La política `checkpoint_messages_select` en Supabase producción no incluía filtro `auth.uid()`. Cualquier usuario autenticado con un `checkpoint_id` válido podía leer mensajes de checkpoints ajenos.
+
+### Causa raíz
+La política live en producción divergía de `003_checkpoints.sql` — tenía JOINs estructurales (`checkpoints → workspaces → teams → projects`) pero omitía la condición final `p.account_id = auth.uid()`. La causa de la divergencia no fue determinada: posible edición manual directa en Supabase fuera del flujo de migraciones.
+
+### Consecuencia
+Brecha de aislamiento de datos: un usuario autenticado podía enumerar mensajes de checkpoints ajenos si conocía o infería el `checkpoint_id`. La ruta `/api/checkpoint/[id]/route.ts` agravaba el problema devolviendo `200 + []` silencioso en lugar de `403` cuando RLS bloqueaba, impidiendo detectar el acceso denegado desde el cliente.
+
+### Proceso de solución
+1. Diagnóstico de sesión comparó política live (via `pg_policies`) contra migraciones en repo.
+2. Se identificó divergencia: repo tenía la política correcta, producción no.
+3. Se descartó usar `teams.account_id` (no existe en schema — ownership va por `projects`).
+4. Se creó migración `020_fix_checkpoint_messages_rls.sql` con cadena correcta.
+5. Migración aplicada manualmente en Supabase SQL Editor.
+
+### Solución final
+```sql
+CREATE POLICY checkpoint_messages_select ON checkpoint_messages
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM checkpoints c
+      JOIN workspaces w ON w.id = c.workspace_id
+      JOIN teams t ON t.id = w.team_id
+      JOIN projects p ON p.id = t.project_id
+      WHERE c.id = checkpoint_messages.checkpoint_id
+      AND p.account_id = auth.uid()
+    )
+  );
+```
+
+### Commit
+`fix: correct checkpoint_messages rls migration and mark as applied`
+
+### Lección
+1. Las políticas RLS deben cerrar la cadena de ownership contra `auth.uid()`. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
+2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
+3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.

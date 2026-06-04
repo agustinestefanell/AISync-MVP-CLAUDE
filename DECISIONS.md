@@ -152,3 +152,14 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Alternativas descartadas:** Bloquear Connect Team hasta resolver todos los gaps — descartado porque el flujo de solicitud/aceptación es funcional y los riesgos son bajos en contexto MVP de una cuenta por usuario.
 - **Consecuencia:** Antes de activar Connect Team en producción multi-cuenta real, resolver gaps 1 y 3 como mínimo. Los demás son mejoras de hardening.
 - **Estado:** Diferido post-MVP. Registrado como deuda de seguridad conocida.
+
+---
+
+## 2026-06-04 — checkpoint_messages RLS: política live no coincidía con migración base
+
+- **Decisión:** Aplicar parche correctivo `020_fix_checkpoint_messages_rls.sql` en producción y registrarlo como migración canónica.
+- **Hallazgo:** La política live en Supabase para `checkpoint_messages_select` tenía solo JOINs estructurales sin filtrar por `auth.uid()`. La migración `003_checkpoints.sql` sí incluía `p.account_id = auth.uid()` — la divergencia implica que la política en producción fue modificada o sobrescrita fuera del control de migraciones en algún punto.
+- **Fix aplicado:** Cadena completa `checkpoint_messages → checkpoints → workspaces → teams → projects` con `p.account_id = auth.uid()`. El ownership correcto es `projects.account_id`, no `teams.account_id` — `teams` no tiene columna `account_id` en el schema de AISync.
+- **Lección crítica:** La tabla `teams` no tiene `account_id` directo. El ownership de toda entidad debajo de `teams` (workspaces, agent_sessions, checkpoints, checkpoint_messages) se resuelve siempre a través de `teams → projects → projects.account_id`. Cualquier OE o política RLS que asuma `teams.account_id` está equivocada.
+- **Alternativas descartadas:** Modificar `003_checkpoints.sql` directamente — descartado porque alteraría la historia de migraciones. La migración 020 actúa como parche documentado y trazable.
+- **Estado:** Cerrado — migración aplicada en producción el 2026-06-04.

@@ -4299,3 +4299,14 @@ Panel "Active in this context" restaurado completo desde HEAD~4:
 
 Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How to CONNECT with other users". Título del modal intacto.
 
+---
+
+## [2026-06-04] — Fix RLS policy `checkpoint_messages` — aplicado en producción
+
+- Diagnóstico de sesión confirmó que la política live en Supabase no coincidía con `003_checkpoints.sql`: la política existente tenía JOINs estructurales pero omitía el filtro `p.account_id = auth.uid()`.
+- Se creó la migración `020_fix_checkpoint_messages_rls.sql` con el SQL correcto: cadena completa `checkpoint_messages → checkpoints → workspaces → teams → projects` con filtro `p.account_id = auth.uid()`.
+- Migración aplicada manualmente en Supabase production via SQL Editor el 2026-06-04.
+- El fix corregido usa `projects.account_id` (correcto) — la OE original proponía `teams.account_id` que no existe en el schema.
+- No se modificaron routes, componentes, data layer ni otras políticas RLS.
+- Riesgo residual: confirmar que `003_checkpoints.sql` refleje el estado real de producción (la migración 020 actúa como parche correctivo documentado).
+
