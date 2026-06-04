@@ -4292,3 +4292,10 @@ Panel "Active in this context" restaurado completo desde HEAD~4:
 - Eliminado eslint-disable (ya no necesario — `unassign` está en uso).
 - Fix de estado residual del formulario (`savePrompt` reset) se conserva intacto.
 
+
+---
+
+## [2026-06-04] — Renombrar botón Connect en Teams Map ribbon
+
+Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How to CONNECT with other users". Título del modal intacto.
+

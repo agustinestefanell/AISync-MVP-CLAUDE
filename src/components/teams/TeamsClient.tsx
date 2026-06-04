@@ -327,7 +327,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
               className="text-left text-[11px] leading-4 text-teal-600 underline underline-offset-2 hover:opacity-75"
               onClick={() => setShowConnectGuide(true)}
             >
-              How to Connect Team
+              How to CONNECT with other users
             </button>
           </div>
         </div>
