@@ -143,6 +143,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     const [showRefreshConfirm, setShowRefreshConfirm]   = useState(false)
     const [copiedIndex, setCopiedIndex]                 = useState<number | null>(null)
     const [autoRespond]                                 = useState(true)
+    const [webSearchEnabled, setWebSearchEnabled]       = useState(false)
     const [showPromptLibrary,    setShowPromptLibrary]    = useState(false)
     const [showContextFilePanel, setShowContextFilePanel] = useState(false)
     const [apiMessages, setApiMessages]               = useState<ChatMessage[]>(
@@ -323,6 +324,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
             provider:  session.provider,
             model:     session.model,
             agentRole,
+            webSearchEnabled,
             ...(session.config?.endpoint ? { endpoint: session.config.endpoint } : {}),
             team_id:              teamId   ?? null,
             workspace_id:         session.workspace_id,
@@ -413,6 +415,18 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                       Auto-respond: ON
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setWebSearchEnabled(prev => !prev)}
+                    className={`ml-2 text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
+                      webSearchEnabled
+                        ? 'bg-[var(--color-accent,#0ea5e9)] text-white border-transparent'
+                        : 'text-[var(--color-text-muted)] border-[var(--color-border-default)]'
+                    }`}
+                    title="Toggle web search"
+                  >
+                    {webSearchEnabled ? 'Web search: ON' : 'Web search: OFF'}
+                  </button>
                 </div>
                 {session.description && (
                   <div className="text-[10px] truncate mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>

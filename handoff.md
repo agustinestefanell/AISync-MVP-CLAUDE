@@ -4327,6 +4327,17 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — Web Search toggle en AgentPanel
+
+- Estado `webSearchEnabled` (default `false`) agregado junto a `autoRespond`.
+- Badge clicable en el header del panel — activo: azul "Web search: ON" / inactivo: "Web search: OFF".
+- `webSearchEnabled` incluido en el body del `fetch('/api/chat')`.
+- El backend ya maneja el flag: si `true` y el provider tiene `complete()`, activa el tool loop de Tavily.
+- No se tocaron providers, streaming ni otros componentes.
+- Build ejecutado y validado.
+
+---
+
 ## [2026-06-04] — Tool loop en chat route con web search
 
 - `ChatProvider` extendido con `complete?(messages, model, tools?) → { content, toolCalls? }` — opcional, no rompe otros providers.
