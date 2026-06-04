@@ -104,6 +104,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Fix | Status | Applied |
 |---|---|---|
 | `checkpoint_messages` RLS — ownership guard via `p.account_id = auth.uid()` | ✅ Closed | 2026-06-04, migration 020, manually applied in Supabase production |
+| `checkpoint/[id]` route — explicit 403 on unauthorized access | ✅ Closed | 2026-06-04, `src/app/api/checkpoint/[id]/route.ts` |
 
 ---
 

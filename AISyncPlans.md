@@ -693,6 +693,8 @@ Las policies en Supabase son la única barrera de seguridad entre usuarios. No c
 
 Todas las rutas verifican autenticación con `supabase.auth.getUser()`. El middleware de Next.js también protege, pero la verificación en route es la última línea de defensa. No eliminar el guard 401.
 
+Los route handlers que leen datos protegidos por RLS deben distinguir explícitamente entre recurso inexistente (`404`), recurso ajeno (`403`) y recurso propio vacío (`200 + []`). Un resultado vacío devuelto por RLS no debe llegar al caller como `200` — oculta el estado real de autorización. En `checkpoint/[id]/route.ts`, el ownership se verifica consultando la cadena `checkpoints → workspaces → teams → projects.account_id` antes de retornar mensajes.
+
 ### 9.6 Providers / streaming
 
 El streaming en `/api/chat/route.ts` usa `ReadableStream`. No agregar `await` en el loop de lectura. No modificar el orden de ensamblado del prompt (capas 1→2→3→4→snapshot→history). Groq usa el SDK de OpenAI con `baseURL` cambiada — no es un error.

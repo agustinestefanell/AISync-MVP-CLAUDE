@@ -4301,6 +4301,20 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — Fix checkpoint route 403 — ownership check explícito
+
+- `src/app/api/checkpoint/[id]/route.ts` ahora verifica ownership antes de retornar mensajes.
+- Cadena de ownership: `checkpoints → workspaces → teams → projects → projects.account_id`.
+- Checkpoint inexistente → `404 { error: 'Not found' }`.
+- Checkpoint ajeno → `403 { error: 'Forbidden' }`.
+- Checkpoint propio sin mensajes → `200 []` (comportamiento anterior conservado).
+- Checkpoint propio con mensajes → `200 [messages]` (comportamiento anterior conservado).
+- La query existente de `checkpoint_messages` se mantiene intacta después del ownership check.
+- No se modificaron otros routes ni migraciones Supabase.
+- Build ejecutado y validado.
+
+---
+
 ## [2026-06-04] — Fix RLS policy `checkpoint_messages` — aplicado en producción
 
 - Diagnóstico de sesión confirmó que la política live en Supabase no coincidía con `003_checkpoints.sql`: la política existente tenía JOINs estructurales pero omitía el filtro `p.account_id = auth.uid()`.

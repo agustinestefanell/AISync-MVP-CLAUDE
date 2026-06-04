@@ -434,3 +434,33 @@ CREATE POLICY checkpoint_messages_select ON checkpoint_messages
 1. Las políticas RLS deben cerrar la cadena de ownership contra `auth.uid()`. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
 2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
 3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.
+
+---
+
+## Checkpoint route — 403 explícito para acceso no autorizado
+
+### Problema
+Cuando RLS filtraba `checkpoint_messages`, el endpoint respondía `200 + []`, haciendo imposible distinguir entre checkpoint propio vacío y checkpoint ajeno bloqueado por RLS.
+
+### Causa raíz
+El route confiaba en el resultado de `checkpoint_messages` sin verificar primero si el checkpoint existía y pertenecía al usuario autenticado.
+
+### Consecuencia
+El caller recibía una respuesta ambigua. Un acceso denegado parecía un checkpoint vacío, ocultando el estado real de autorización y dejando abierta enumeración silenciosa de checkpoints ajenos.
+
+### Proceso de solución
+Se agregó verificación explícita de ownership del checkpoint antes de retornar mensajes, consultando la cadena `checkpoints → workspaces → teams → projects.account_id`.
+
+### Solución final
+- Checkpoint inexistente → `404 { error: 'Not found' }`.
+- Checkpoint ajeno → `403 { error: 'Forbidden' }`.
+- Checkpoint propio sin mensajes → `200 []`.
+- Checkpoint propio con mensajes → `200 [messages]`.
+
+### Commit
+`fix: return 403 on unauthorized checkpoint access`
+
+### Lección
+RLS protege la base de datos, pero el route handler debe expresar correctamente la semántica HTTP. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
+2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
+3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.
