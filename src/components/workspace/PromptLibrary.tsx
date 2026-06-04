@@ -405,8 +405,10 @@ export default function PromptLibrary({
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5 min-h-0">
 
-              {!sessionId && !teamId ? (
-                <p className="text-xs text-gray-600 italic pt-2">Open a workspace to see active prompts.</p>
+              {!sessionId ? (
+                <div className="text-[11px] text-[var(--color-text-secondary)] italic p-3 border border-[var(--color-border)] rounded-lg">
+                  To manage prompt assignments, open Prompt Library from an agent panel.
+                </div>
               ) : (
                 <>
                   {/* Assigned to this Worker */}

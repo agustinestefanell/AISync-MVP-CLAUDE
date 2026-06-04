@@ -4301,6 +4301,15 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — Fix Prompt Library assignments en BottomRibbon
+
+- `PromptLibrary.tsx`: condicional `!sessionId && !teamId` reemplazado por `!sessionId`.
+- Cuando `sessionId` está vacío (instancia de BottomRibbon), el panel derecho muestra: "To manage prompt assignments, open Prompt Library from an agent panel."
+- La instancia de AgentPanel (con `sessionId` real) no se ve afectada — assignments siguen funcionando normalmente.
+- No se tocó lógica de assignments, `loadWorkerAssignments`, `loadTeamAssignments`, ni AgentPanel.
+
+---
+
 ## [2026-06-04] — Fix checkpoint route 403 — ownership check explícito
 
 - `src/app/api/checkpoint/[id]/route.ts` ahora verifica ownership antes de retornar mensajes.

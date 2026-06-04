@@ -461,6 +461,22 @@ Se agregó verificación explícita de ownership del checkpoint antes de retorna
 `fix: return 403 on unauthorized checkpoint access`
 
 ### Lección
-RLS protege la base de datos, pero el route handler debe expresar correctamente la semántica HTTP. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
+RLS protege la base de datos, pero el route handler debe expresar correctamente la semántica HTTP. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto.
+
+---
+
+## Prompt Library — dos instancias con contexto diferente
+
+### Problema
+El panel de assignments mostraba "None assigned" en la instancia del BottomRibbon, haciendo pensar al usuario que no tenía prompts asignados cuando en realidad la instancia no tenía contexto de agente.
+
+### Causa raíz
+`PromptLibrary` se monta en dos lugares: `BottomRibbon` (acceso global, sin contexto de agente — `sessionId=""`) y `AgentPanel` (con `sessionId` real). La condición original `!sessionId && !teamId` era correcta para el primer render pero el mensaje resultante ("Open a workspace to see active prompts") era confuso — el usuario YA estaba en un workspace.
+
+### Solución final
+Condición cambiada a `!sessionId` solo. Mensaje actualizado a: "To manage prompt assignments, open Prompt Library from an agent panel." La instancia de AgentPanel no se ve afectada.
+
+### Lección
+Un componente reutilizado en dos contextos con props opcionales vacíos debe comunicar explícitamente qué funcionalidad no está disponible y por qué, en lugar de mostrar estados vacíos ambiguos. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
 2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
 3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.
