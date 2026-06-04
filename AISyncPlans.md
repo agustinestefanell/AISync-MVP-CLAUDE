@@ -703,6 +703,8 @@ El streaming en `/api/chat/route.ts` usa `ReadableStream`. No agregar `await` en
 
 `AgentPanel` soporta selección local de imágenes/PDF como `ChatAttachment`, conversión base64 con `FileReader` y envío mediante `sendPrompt(content, atts)`. El parámetro `atts` es opcional con default `[]` — callers secundarios (`appendUserMessage`, guide prompts) conservan compatibilidad. Los adjuntos se muestran como chips removibles sobre el compositor y se limpian después del envío.
 
+OpenAI transforma `ChatMessage.attachments` de tipo image en content parts `image_url` con base64. PDFs/documentos no se envían por `image_url`; requieren Files API en OE futura. Groq ignora attachments silenciosamente hasta soporte explícito.
+
 ---
 
 ## 10. Migraciones — estado actual

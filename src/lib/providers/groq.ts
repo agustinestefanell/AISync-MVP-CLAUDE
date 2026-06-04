@@ -22,6 +22,8 @@ export class GroqProvider implements ChatProvider {
     const resolvedModel = MODEL_MAP[model] ?? model
     const encoder = new TextEncoder()
 
+    // Note: Groq models currently do not support vision/attachments.
+    // ChatMessage.attachments are ignored silently.
     const completion = await this.client.chat.completions.create({
       model: resolvedModel,
       messages,

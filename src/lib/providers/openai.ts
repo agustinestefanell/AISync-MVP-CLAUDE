@@ -20,9 +20,28 @@ export class OpenAIProvider implements ChatProvider {
     const resolvedModel = MODEL_MAP[model] ?? model
     const encoder = new TextEncoder()
 
+    // OpenAI image_url supports image attachments here.
+    // PDF/document support requires the Files API and is intentionally deferred.
+    const sdkMessages: OpenAI.Chat.ChatCompletionMessageParam[] = messages.map(msg => {
+      if (msg.role === 'user' && msg.attachments?.length) {
+        const imageAtts = msg.attachments.filter(att => att.type === 'image')
+        if (!imageAtts.length) return { role: 'user' as const, content: msg.content }
+
+        const parts: OpenAI.Chat.ChatCompletionContentPart[] = [
+          ...imageAtts.map(att => ({
+            type: 'image_url' as const,
+            image_url: { url: `data:${att.media_type};base64,${att.data}` },
+          })),
+          { type: 'text' as const, text: msg.content },
+        ]
+        return { role: 'user' as const, content: parts }
+      }
+      return { role: msg.role, content: msg.content }
+    })
+
     const completion = await this.client.chat.completions.create({
       model: resolvedModel,
-      messages,
+      messages: sdkMessages,
       stream: true,
     })
 

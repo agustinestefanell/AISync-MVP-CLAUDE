@@ -4327,6 +4327,18 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — OpenAI multimodal attachments
+
+- `OpenAIProvider.stream` transforma mensajes `user` con image attachments en bloques `image_url` base64 (`OpenAI.Chat.ChatCompletionContentPart[]`).
+- Texto del usuario conservado como bloque `text`.
+- Mensajes sin attachments y mensajes `assistant` conservan `content: string`.
+- Attachments de tipo `document`/PDF ignorados en OpenAI — soporte via Files API diferido.
+- `groq.ts`: comentario técnico agregado — attachments ignorados silenciosamente hasta OE futura.
+- Anthropic, Google, AgentPanel, WorkspaceShell no modificados.
+- Build ejecutado y validado.
+
+---
+
 ## [2026-06-04] — ChatMessage attachments + Anthropic multimodal base
 
 - `ChatAttachment` interface agregada a `types.ts`: `type`, `media_type`, `data` (base64), `name?`.

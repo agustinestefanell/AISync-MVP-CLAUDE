@@ -534,6 +534,35 @@ Se agregó estado local `attachments`, `fileInputRef`, `handleFileSelect` con `F
 `feat: add file attachment UI to agent panel`
 
 ### Lección
-Cuando una función tiene múltiples callers, los nuevos parámetros deben agregarse como opcionales con default seguro. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
+Cuando una función tiene múltiples callers, los nuevos parámetros deben agregarse como opcionales con default seguro. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider.
+
+---
+
+## Providers — OpenAI image attachments vs PDF Files API
+
+### Problema
+`ChatMessage.attachments` ya existía y Anthropic lo usaba, pero OpenAI seguía recibiendo mensajes como texto plano e ignoraba las imágenes adjuntas desde AgentPanel.
+
+### Causa raíz
+OpenAI requiere formato provider-specific: imágenes como content parts `image_url` en base64. No es el mismo formato que Anthropic — cada provider tiene su propia traducción.
+
+### Consecuencia
+La estructura común `ChatMessage.attachments` no podía funcionar automáticamente en OpenAI sin una transformación específica del provider.
+
+### Proceso de solución
+Se agregó `sdkMessages` en `openai.ts` para convertir attachments de imagen a bloques `image_url` y conservar el texto como bloque `text`. PDFs excluidos explícitamente con comentario de limitación.
+
+### Solución final
+- Image attachments → `image_url` base64 (`OpenAI.Chat.ChatCompletionContentPart[]`).
+- Texto del usuario preservado como bloque `text`.
+- Mensajes sin attachments → `content: string` sin cambio.
+- PDFs/documentos diferidos para Files API.
+- Groq: comentario técnico — attachments ignorados silenciosamente.
+
+### Commit
+`feat: add attachment support to openai provider`
+
+### Lección
+El contrato común de mensajes puede ser único, pero cada provider exige una traducción propia. Multimodal no debe asumirse homogéneo: Anthropic, OpenAI y Google tienen capacidades y formatos distintos. Para OpenAI, PDFs requieren la Files API — no pueden enviarse como `image_url`. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
 2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
 3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.
