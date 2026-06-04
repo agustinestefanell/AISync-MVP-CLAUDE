@@ -4301,6 +4301,18 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — ChatMessage attachments + Anthropic multimodal base
+
+- `ChatAttachment` interface agregada a `types.ts`: `type`, `media_type`, `data` (base64), `name?`.
+- `ChatMessage.attachments?` agregado como campo opcional — no rompe contratos existentes.
+- `AnthropicProvider.stream` ahora construye `sdkMessages: Anthropic.MessageParam[]` antes de llamar al SDK.
+- Mensajes `user` con attachments se transforman en content blocks (`image` o `document`) + bloque `text`.
+- Mensajes sin attachments y mensajes `assistant` conservan formato `string` plano.
+- No se modificaron OpenAI, Google, Groq, local, AgentPanel, WorkspaceShell ni routes.
+- Build ejecutado y validado. UI de adjuntos queda pendiente para OE siguiente.
+
+---
+
 ## [2026-06-04] — Fix Prompt Library assignments en BottomRibbon
 
 - `PromptLibrary.tsx`: condicional `!sessionId && !teamId` reemplazado por `!sessionId`.

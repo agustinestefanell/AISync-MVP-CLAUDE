@@ -20,10 +20,40 @@ export class AnthropicProvider implements ChatProvider {
     const resolvedModel = MODEL_MAP[model] ?? model
     const encoder = new TextEncoder()
 
+    const sdkMessages: Anthropic.MessageParam[] = messages.map(msg => {
+      if (msg.role === 'user' && msg.attachments?.length) {
+        const blocks: Anthropic.MessageParam['content'] = [
+          ...msg.attachments.map(att => {
+            if (att.type === 'image') {
+              return {
+                type: 'image' as const,
+                source: {
+                  type: 'base64' as const,
+                  media_type: att.media_type as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+                  data: att.data,
+                },
+              }
+            }
+            return {
+              type: 'document' as const,
+              source: {
+                type: 'base64' as const,
+                media_type: att.media_type as 'application/pdf',
+                data: att.data,
+              },
+            }
+          }),
+          { type: 'text' as const, text: msg.content },
+        ]
+        return { role: msg.role, content: blocks }
+      }
+      return { role: msg.role, content: msg.content }
+    })
+
     const sdkStream = await this.client.messages.create({
       model: resolvedModel,
       max_tokens: 2048,
-      messages,
+      messages: sdkMessages,
       stream: true,
     })
 

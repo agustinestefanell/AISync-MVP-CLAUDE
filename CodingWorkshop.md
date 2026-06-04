@@ -477,6 +477,34 @@ El panel de assignments mostraba "None assigned" en la instancia del BottomRibbo
 Condición cambiada a `!sessionId` solo. Mensaje actualizado a: "To manage prompt assignments, open Prompt Library from an agent panel." La instancia de AgentPanel no se ve afectada.
 
 ### Lección
-Un componente reutilizado en dos contextos con props opcionales vacíos debe comunicar explícitamente qué funcionalidad no está disponible y por qué, en lugar de mostrar estados vacíos ambiguos. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
+Un componente reutilizado en dos contextos con props opcionales vacíos debe comunicar explícitamente qué funcionalidad no está disponible y por qué, en lugar de mostrar estados vacíos ambiguos.
+
+---
+
+## Providers — base multimodal en ChatMessage y Anthropic
+
+### Problema
+El contrato `ChatMessage` solo soportaba texto plano, impidiendo transportar imágenes o documentos hacia providers multimodales aunque el SDK de Anthropic ya los soportara nativamente.
+
+### Causa raíz
+El sistema de providers no tenía un campo común para adjuntos ni una transformación específica hacia el formato multimodal del SDK Anthropic (`Anthropic.MessageParam` con content blocks).
+
+### Consecuencia
+No había base tipada para enviar archivos desde cualquier futuro punto de la UI hacia Anthropic. Cualquier intento de adjuntar un archivo hubiera requerido modificar el contrato y el provider simultáneamente sin base previa.
+
+### Proceso de solución
+Se extendió `ChatMessage` con `attachments?: ChatAttachment[]` y se adaptó `AnthropicProvider.stream` para construir `sdkMessages: Anthropic.MessageParam[]` antes de llamar al SDK — transformando solo mensajes `user` con attachments.
+
+### Solución final
+- `ChatAttachment`: `type`, `media_type`, `data` (base64), `name?`.
+- Mensajes `user` con attachments → content blocks `image`/`document` + bloque `text`.
+- Mensajes sin attachments y mensajes `assistant` → `content: string` sin cambio.
+- OpenAI, Google, Groq y local no modificados.
+
+### Commit
+`feat: add attachment support to ChatMessage type and Anthropic provider`
+
+### Lección
+La capacidad multimodal debe introducirse primero en el contrato común de mensajes y luego adaptarse provider por provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
 2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
 3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.

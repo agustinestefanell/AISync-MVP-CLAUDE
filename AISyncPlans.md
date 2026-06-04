@@ -699,6 +699,8 @@ Los route handlers que leen datos protegidos por RLS deben distinguir explícita
 
 El streaming en `/api/chat/route.ts` usa `ReadableStream`. No agregar `await` en el loop de lectura. No modificar el orden de ensamblado del prompt (capas 1→2→3→4→snapshot→history). Groq usa el SDK de OpenAI con `baseURL` cambiada — no es un error.
 
+`ChatMessage` soporta `attachments` opcionales (`ChatAttachment[]`) como base multimodal. Anthropic transforma mensajes `user` con attachments en content blocks de imagen/documento (`Anthropic.MessageParam[]`) antes de llamar al SDK; mensajes sin attachments conservan `content: string`. Otros providers (OpenAI, Google, Groq, local) quedan sin cambios hasta OEs específicas.
+
 ---
 
 ## 10. Migraciones — estado actual

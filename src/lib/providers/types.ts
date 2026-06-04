@@ -1,7 +1,15 @@
+export interface ChatAttachment {
+  type:       'image' | 'document'
+  media_type: string
+  data:       string   // base64
+  name?:      string
+}
+
 export interface ChatMessage {
-  role:        'user' | 'assistant'
-  content:     string
-  agent_role?: string
+  role:         'user' | 'assistant'
+  content:      string
+  agent_role?:  string
+  attachments?: ChatAttachment[]
 }
 
 export interface ChatProvider {
