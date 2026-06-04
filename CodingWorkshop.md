@@ -505,6 +505,35 @@ Se extendió `ChatMessage` con `attachments?: ChatAttachment[]` y se adaptó `An
 `feat: add attachment support to ChatMessage type and Anthropic provider`
 
 ### Lección
-La capacidad multimodal debe introducirse primero en el contrato común de mensajes y luego adaptarse provider por provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
+La capacidad multimodal debe introducirse primero en el contrato común de mensajes y luego adaptarse provider por provider. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes.
+
+---
+
+## Workspace — UI de adjuntos en AgentPanel
+
+### Problema
+El sistema ya tenía base multimodal en `ChatMessage` y Anthropic Provider, pero `AgentPanel` no tenía superficie UI para seleccionar y enviar archivos.
+
+### Causa raíz
+La arquitectura multimodal se habilitó primero en el contrato de mensajes y el provider, pero faltaba conectar la capa de interacción del usuario en el panel de agente.
+
+### Consecuencia
+El usuario no podía adjuntar imágenes o PDFs desde el workspace aunque el sistema ya tuviera soporte parcial aguas abajo.
+
+### Proceso de solución
+Se agregó estado local `attachments`, `fileInputRef`, `handleFileSelect` con `FileReader`, chips removibles y extensión opcional de `sendPrompt`. Se captura el estado de adjuntos antes de limpiarlo para evitar pasar un array vacío al provider.
+
+### Solución final
+- `sendPrompt(content, atts = [])`: parámetro opcional con default `[]`.
+- `sendMessage` captura `attachments` antes de limpiar estado.
+- Mensaje user API incluye `attachments` solo si hay adjuntos.
+- Send habilitado con solo adjuntos (sin texto obligatorio).
+- Callers secundarios (`appendUserMessage`, guide prompts) usan default `[]` sin cambios.
+
+### Commit
+`feat: add file attachment UI to agent panel`
+
+### Lección
+Cuando una función tiene múltiples callers, los nuevos parámetros deben agregarse como opcionales con default seguro. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
 2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
 3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.

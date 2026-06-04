@@ -701,6 +701,8 @@ El streaming en `/api/chat/route.ts` usa `ReadableStream`. No agregar `await` en
 
 `ChatMessage` soporta `attachments` opcionales (`ChatAttachment[]`) como base multimodal. Anthropic transforma mensajes `user` con attachments en content blocks de imagen/documento (`Anthropic.MessageParam[]`) antes de llamar al SDK; mensajes sin attachments conservan `content: string`. Otros providers (OpenAI, Google, Groq, local) quedan sin cambios hasta OEs específicas.
 
+`AgentPanel` soporta selección local de imágenes/PDF como `ChatAttachment`, conversión base64 con `FileReader` y envío mediante `sendPrompt(content, atts)`. El parámetro `atts` es opcional con default `[]` — callers secundarios (`appendUserMessage`, guide prompts) conservan compatibilidad. Los adjuntos se muestran como chips removibles sobre el compositor y se limpian después del envío.
+
 ---
 
 ## 10. Migraciones — estado actual

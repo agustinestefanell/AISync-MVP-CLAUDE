@@ -4301,6 +4301,21 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — UI de adjuntos en AgentPanel
+
+- `ChatAttachment` importado en `AgentPanel.tsx`.
+- Estado `attachments: ChatAttachment[]` + `fileInputRef` agregados.
+- `handleFileSelect`: lee archivos con `FileReader`, convierte a base64, acumula en estado.
+- `sendPrompt(content, atts = [])`: firma extendida con parámetro opcional — callers secundarios (`appendUserMessage`, guide prompts) usan default `[]` sin cambios.
+- Mensaje user API incluye `attachments` solo si `atts.length > 0`.
+- `sendMessage`: captura `attachments` antes de limpiar estado, pasa al `sendPrompt`.
+- Send habilitado con solo adjuntos (sin texto).
+- UI: input file oculto, chips removibles sobre compositor, botón 📎 junto a Send.
+- No se tocaron providers, WorkspaceShell, streaming ni otros componentes.
+- Build ejecutado y validado.
+
+---
+
 ## [2026-06-04] — ChatMessage attachments + Anthropic multimodal base
 
 - `ChatAttachment` interface agregada a `types.ts`: `type`, `media_type`, `data` (base64), `name?`.

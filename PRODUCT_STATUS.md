@@ -107,6 +107,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | `checkpoint/[id]` route — explicit 403 on unauthorized access | ✅ Closed | 2026-06-04, `src/app/api/checkpoint/[id]/route.ts` |
 | Prompt Library — assignments panel context message in BottomRibbon | ✅ Closed | 2026-06-04, `src/components/workspace/PromptLibrary.tsx` |
 | Multimodal — ChatMessage attachments + Anthropic provider base | Partial | 2026-06-04, `types.ts` + `anthropic.ts` — UI de adjuntos en AgentPanel pendiente |
+| Multimodal — UI de adjuntos en AgentPanel | Partial | 2026-06-04, `AgentPanel.tsx` — validación runtime con Anthropic pendiente |
 
 ---
 

@@ -3,7 +3,7 @@
 import { Fragment, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Copy, Check } from 'lucide-react'
 import type { AgentSession, Message } from '@/lib/db/types'
-import type { ChatMessage } from '@/lib/providers/types'
+import type { ChatMessage, ChatAttachment } from '@/lib/providers/types'
 import PromptLibrary from './PromptLibrary'
 import ContextFilePanel from './ContextFilePanel'
 
@@ -148,8 +148,10 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     const [apiMessages, setApiMessages]               = useState<ChatMessage[]>(
       initialMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
     )
-    const bottomRef   = useRef<HTMLDivElement>(null)
-    const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const [attachments, setAttachments] = useState<ChatAttachment[]>([])
+    const bottomRef    = useRef<HTMLDivElement>(null)
+    const textareaRef  = useRef<HTMLTextAreaElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const selectedCount = selectedIndices.size
     const hasSelection  = selectedCount > 0
@@ -246,11 +248,33 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
     }
 
-    async function sendPrompt(content: string) {
+    async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+      const files = Array.from(e.target.files ?? [])
+      const newAtts: ChatAttachment[] = await Promise.all(
+        files.map(file => new Promise<ChatAttachment>(resolve => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            const base64 = (reader.result as string).split(',')[1]
+            resolve({
+              type:       file.type.startsWith('image/') ? 'image' : 'document',
+              media_type: file.type,
+              data:       base64,
+              name:       file.name,
+            })
+          }
+          reader.readAsDataURL(file)
+        }))
+      )
+      setAttachments(prev => [...prev, ...newAtts])
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+
+    async function sendPrompt(content: string, atts: ChatAttachment[] = []) {
       if (!content || streaming || workspaceLocked) return
 
       const userMsg: DisplayMessage  = { role: 'user', content, created_at: new Date().toISOString() }
-      const newApiMessages: ChatMessage[] = [...apiMessages, { role: 'user', content }]
+      const userApiMsg: ChatMessage = { role: 'user', content, ...(atts.length ? { attachments: atts } : {}) }
+      const newApiMessages: ChatMessage[] = [...apiMessages, userApiMsg]
 
       setMessages(prev => [...prev, userMsg])
       setApiMessages(newApiMessages)
@@ -324,10 +348,12 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
 
     async function sendMessage() {
       const content = input.trim()
-      if (!content) return
+      if (!content && !attachments.length) return
+      const pendingAtts = attachments
       setInput('')
+      setAttachments([])
       if (textareaRef.current) textareaRef.current.style.height = '36px'
-      await sendPrompt(content)
+      await sendPrompt(content, pendingAtts)
     }
 
     // ── Render ───────────────────────────────────────────────────────────────
@@ -556,6 +582,39 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
 
         {/* ── SECTION 4: Composer ────────────────────────────────────────── */}
         <div className="ui-chat-composer-section shrink-0 px-3 py-1.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-1 pb-1.5">
+              {attachments.map((att, i) => (
+                <span
+                  key={i}
+                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border"
+                  style={{
+                    background: 'var(--color-surface-secondary,#f0f0f0)',
+                    borderColor: 'var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                >
+                  {att.name ?? att.type}
+                  <button
+                    type="button"
+                    onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
+                    className="hover:opacity-70 ml-0.5"
+                    aria-label="Remove attachment"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="ui-chat-composer">
             <textarea
               ref={textareaRef}
@@ -575,9 +634,19 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
               }}
             />
             <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={workspaceLocked || streaming}
+              className="shrink-0 px-1.5 disabled:opacity-40"
+              style={{ color: 'var(--color-text-secondary)' }}
+              title="Attach file"
+            >
+              📎
+            </button>
+            <button
               className="ui-button ui-button-primary ui-chat-send text-xs text-white disabled:opacity-40"
               onClick={sendMessage}
-              disabled={!input.trim() || streaming || workspaceLocked}
+              disabled={(!input.trim() && !attachments.length) || streaming || workspaceLocked}
             >
               {streaming ? '…' : 'Send'}
             </button>
