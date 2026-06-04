@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI, type Part } from '@google/generative-ai'
 import type { ChatMessage, ChatProvider } from './types'
 
 const MODEL_MAP: Record<string, string> = {
@@ -22,6 +22,9 @@ export class GoogleProvider implements ChatProvider {
     const encoder = new TextEncoder()
 
     // Gemini separa historial del mensaje actual
+    // Note: attachments in history messages are not forwarded to Google.
+    // Only the current message supports inlineData parts.
+    // This is a known MVP limitation.
     const history = messages.slice(0, -1).map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
@@ -29,7 +32,19 @@ export class GoogleProvider implements ChatProvider {
     const lastMessage = messages[messages.length - 1]
 
     const chat = genModel.startChat({ history })
-    const result = await chat.sendMessageStream(lastMessage.content)
+
+    let result
+    if (lastMessage.attachments?.length) {
+      const parts: (string | Part)[] = [
+        ...lastMessage.attachments.map(att => ({
+          inlineData: { mimeType: att.media_type, data: att.data },
+        })),
+        lastMessage.content,
+      ]
+      result = await chat.sendMessageStream(parts)
+    } else {
+      result = await chat.sendMessageStream(lastMessage.content)
+    }
 
     return new ReadableStream({
       async start(controller) {

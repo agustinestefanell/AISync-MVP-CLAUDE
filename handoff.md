@@ -4327,6 +4327,18 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — Google Gemini multimodal
+
+- `Part` importado desde `@google/generative-ai`.
+- Comentario de limitación agregado en construcción del historial.
+- Envío de `lastMessage`: si tiene attachments, construye `(string | Part)[]` con `inlineData` + texto; si no, conserva `sendMessageStream(lastMessage.content)`.
+- Imágenes y PDFs (`application/pdf`) soportados via `inlineData` — Gemini 1.5+ soporta ambos.
+- Attachments históricos no se reenvían — limitación MVP documentada.
+- Anthropic, OpenAI, Groq, AgentPanel, WorkspaceShell no modificados.
+- Build ejecutado y validado.
+
+---
+
 ## [2026-06-04] — OpenAI multimodal attachments
 
 - `OpenAIProvider.stream` transforma mensajes `user` con image attachments en bloques `image_url` base64 (`OpenAI.Chat.ChatCompletionContentPart[]`).

@@ -705,6 +705,8 @@ El streaming en `/api/chat/route.ts` usa `ReadableStream`. No agregar `await` en
 
 OpenAI transforma `ChatMessage.attachments` de tipo image en content parts `image_url` con base64. PDFs/documentos no se envían por `image_url`; requieren Files API en OE futura. Groq ignora attachments silenciosamente hasta soporte explícito.
 
+Google Gemini usa `inlineData` para attachments del mensaje actual, incluyendo imágenes y PDFs (`application/pdf`). Los attachments históricos no se reenvían en MVP y quedan como limitación documentada.
+
 ---
 
 ## 10. Migraciones — estado actual

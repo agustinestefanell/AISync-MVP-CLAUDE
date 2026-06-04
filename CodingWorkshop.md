@@ -563,6 +563,34 @@ Se agregó `sdkMessages` en `openai.ts` para convertir attachments de imagen a b
 `feat: add attachment support to openai provider`
 
 ### Lección
-El contrato común de mensajes puede ser único, pero cada provider exige una traducción propia. Multimodal no debe asumirse homogéneo: Anthropic, OpenAI y Google tienen capacidades y formatos distintos. Para OpenAI, PDFs requieren la Files API — no pueden enviarse como `image_url`. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
+El contrato común de mensajes puede ser único, pero cada provider exige una traducción propia. Para OpenAI, PDFs requieren la Files API — no pueden enviarse como `image_url`.
+
+---
+
+## Providers — Google Gemini multimodal con inlineData
+
+### Problema
+`ChatMessage.attachments` ya existía, pero Google Gemini enviaba solo `lastMessage.content` como texto plano — los adjuntos desde AgentPanel no llegaban al provider.
+
+### Causa raíz
+Gemini tiene una arquitectura distinta: separa historial (`history`) del mensaje actual. El mensaje actual se envía via `sendMessageStream` y acepta `(string | Part)[]`, pero el código solo pasaba `lastMessage.content` como string.
+
+### Consecuencia
+Los archivos adjuntos no llegaban a Gemini aunque existiera la base multimodal en `ChatMessage`.
+
+### Proceso de solución
+Se modificó el envío de `lastMessage` para construir `(string | Part)[]` con `inlineData` cuando hay attachments. El historial no se tocó — su limitación multimodal queda documentada.
+
+### Solución final
+- Si `lastMessage` tiene attachments: `parts = [inlineData..., lastMessage.content]`.
+- Si no: `sendMessageStream(lastMessage.content)` sin cambio.
+- Imágenes y PDFs soportados — Gemini acepta `application/pdf` vía `inlineData`.
+- Historial: solo texto. Attachments históricos diferidos como limitación MVP.
+
+### Commit
+`feat: add attachment support to google gemini provider`
+
+### Lección
+La arquitectura multimodal no es homogénea entre providers. Google separa historial y mensaje actual — el soporte inicial solo puede cubrir el `lastMessage`. Gemini es más permisivo que OpenAI con PDFs: acepta `application/pdf` vía `inlineData` sin necesitar una API dedicada de archivos. Multimodal no debe asumirse homogéneo: Anthropic, OpenAI y Google tienen capacidades y formatos distintos. Para OpenAI, PDFs requieren la Files API — no pueden enviarse como `image_url`. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
 2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
 3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.
