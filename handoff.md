@@ -4301,6 +4301,17 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — Drag & drop en AgentPanel
+
+- Estado `isDragging` agregado para feedback visual.
+- Handlers `handleDragOver`, `handleDragLeave`, `handleDrop` agregados.
+- `handleDrop` reutiliza `handleFileSelect` via `DataTransfer` + `dispatchEvent('change')` — sin duplicar lógica.
+- Contenedor del compositor recibe los tres handlers + ring visual `ring-2 ring-[var(--color-accent)]` cuando `isDragging`.
+- No se tocó `handleFileSelect`, lógica de envío ni providers.
+- Build ejecutado y validado.
+
+---
+
 ## [2026-06-04] — UI de adjuntos en AgentPanel
 
 - `ChatAttachment` importado en `AgentPanel.tsx`.

@@ -149,6 +149,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       initialMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
     )
     const [attachments, setAttachments] = useState<ChatAttachment[]>([])
+    const [isDragging,  setIsDragging]  = useState(false)
     const bottomRef    = useRef<HTMLDivElement>(null)
     const textareaRef  = useRef<HTMLTextAreaElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -246,6 +247,28 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
 
     function scrollToBottom() {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    }
+
+    function handleDragOver(e: React.DragEvent) {
+      e.preventDefault()
+      setIsDragging(true)
+    }
+
+    function handleDragLeave() {
+      setIsDragging(false)
+    }
+
+    function handleDrop(e: React.DragEvent) {
+      e.preventDefault()
+      setIsDragging(false)
+      const files = Array.from(e.dataTransfer.files)
+      if (!files.length) return
+      const dt = new DataTransfer()
+      files.forEach(f => dt.items.add(f))
+      if (fileInputRef.current) {
+        fileInputRef.current.files = dt.files
+        fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }))
+      }
     }
 
     async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -581,7 +604,12 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
         </div>
 
         {/* ── SECTION 4: Composer ────────────────────────────────────────── */}
-        <div className="ui-chat-composer-section shrink-0 px-3 py-1.5">
+        <div
+          className={`ui-chat-composer-section shrink-0 px-3 py-1.5 rounded transition-shadow${isDragging ? ' ring-2 ring-[var(--color-accent,#0ea5e9)]' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <input
             ref={fileInputRef}
             type="file"
