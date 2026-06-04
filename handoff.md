@@ -4327,6 +4327,19 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — Tavily tool registry
+
+- Instalado `@tavily/core@^0.7.5`.
+- Creado `src/lib/tools/types.ts`: `ToolDefinition`, `ToolCall`, `ToolResult`, `ToolExecutor`.
+- Creado `src/lib/tools/web-search.ts`: `webSearchTool` usando Tavily, lee `TAVILY_API_KEY` desde `process.env`.
+- Creado `src/lib/tools/index.ts`: `toolRegistry`, `getTool(name)`, re-exports.
+- Agregado placeholder `TAVILY_API_KEY=your_tavily_api_key_here` a `.env.local` (no trackeado por git).
+- Registry independiente de providers — ningún provider fue modificado.
+- Queda pendiente: conectar tools al runtime de chat, soporte tool-calling en providers, y agregar `TAVILY_API_KEY` real en Vercel Dashboard.
+- Build ejecutado y validado.
+
+---
+
 ## [2026-06-04] — OpenAI PDF fallback + remove debug logs
 
 - `openai.ts`: cuando hay attachments pero ninguno es imagen, ya no descarta el mensaje completo — envía el texto del usuario con fallback `'[File attached — PDF not supported by OpenAI. Use Anthropic or Gemini.]'` si el texto está vacío.

@@ -707,6 +707,10 @@ OpenAI transforma `ChatMessage.attachments` de tipo image en content parts `imag
 
 Google Gemini usa `inlineData` para attachments del mensaje actual, incluyendo imágenes y PDFs (`application/pdf`). Los attachments históricos no se reenvían en MVP y quedan como limitación documentada.
 
+### 9.7 Tools / Tool Registry
+
+`src/lib/tools/` es el registry independiente de providers. Las tools, como `web_search`, deben poder ser usadas por cualquier provider sin acoplarse a OpenAI, Anthropic, Google o Groq. Tavily requiere `TAVILY_API_KEY` en entorno local y Vercel Dashboard. El registry expone `toolRegistry: Record<string, ToolExecutor>` y `getTool(name)`. Conectar tools al runtime de chat (loop de tool-calling en `chat/route.ts` y soporte en providers) queda pendiente para OEs futuras.
+
 ---
 
 ## 10. Migraciones — estado actual
