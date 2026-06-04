@@ -163,3 +163,18 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Lección crítica:** La tabla `teams` no tiene `account_id` directo. El ownership de toda entidad debajo de `teams` (workspaces, agent_sessions, checkpoints, checkpoint_messages) se resuelve siempre a través de `teams → projects → projects.account_id`. Cualquier OE o política RLS que asuma `teams.account_id` está equivocada.
 - **Alternativas descartadas:** Modificar `003_checkpoints.sql` directamente — descartado porque alteraría la historia de migraciones. La migración 020 actúa como parche documentado y trazable.
 - **Estado:** Cerrado — migración aplicada en producción el 2026-06-04.
+
+---
+
+## 2026-06-04 — Trazabilidad de adjuntos: evento siempre, documento solo si promoción
+
+- **Decisión:** Todo adjunto genera evento de trazabilidad automático. No todo adjunto crea objeto documental en Documentation Mode.
+- **Fórmula:** cada adjunto = evento / save/checkpoint = referencia estructurada / promoción explícita = objeto documental
+- **Capas:**
+  - Capa A (siempre): evento automático con filename, mime_type, size, hash, session_id, workspace_id, provider, created_at
+  - Capa B (si Save Version): checkpoint referencia adjuntos que participaron sin crear documento nuevo
+  - Capa C (solo si promoción explícita): adjunto pasa a Source Document Reference u objeto canónico en Doc Mode
+- **Arquitectura:** tabla propia `session_attachments` o `message_attachments` — no en `checkpoint_messages`
+- **Campos mínimos:** attachment_id, message_id, session_id, workspace_id, account_id, filename, mime_type, size, hash, provider, provider_file_id, created_at, expires_at, status
+- **Alternativas descartadas:** (A) solo trazar al hacer Save Version — deja ciego todo adjunto que se usó pero no se checkpointó. (B) cada adjunto crea documento automático en Doc Mode — llena Documentation Mode de basura automática.
+- **Estado:** Diferido — implementar después de cerrar capítulo de búsqueda en internet.
