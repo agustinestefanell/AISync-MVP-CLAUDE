@@ -25,7 +25,10 @@ export class OpenAIProvider implements ChatProvider {
     const sdkMessages: OpenAI.Chat.ChatCompletionMessageParam[] = messages.map(msg => {
       if (msg.role === 'user' && msg.attachments?.length) {
         const imageAtts = msg.attachments.filter(att => att.type === 'image')
-        if (!imageAtts.length) return { role: 'user' as const, content: msg.content }
+        if (!imageAtts.length) {
+          // No image attachments — PDFs not supported via image_url, send text with notice
+          return { role: 'user' as const, content: msg.content || '[File attached — PDF not supported by OpenAI. Use Anthropic or Gemini.]' }
+        }
 
         const parts: OpenAI.Chat.ChatCompletionContentPart[] = [
           ...imageAtts.map(att => ({

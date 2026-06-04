@@ -4327,6 +4327,15 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — OpenAI PDF fallback + remove debug logs
+
+- `openai.ts`: cuando hay attachments pero ninguno es imagen, ya no descarta el mensaje completo — envía el texto del usuario con fallback `'[File attached — PDF not supported by OpenAI. Use Anthropic or Gemini.]'` si el texto está vacío.
+- `AgentPanel.tsx`: removidos los 4 console.logs temporales agregados durante diagnóstico.
+- Pipeline confirmado: attachments llegan correctamente al servidor; el problema era el descarte silencioso en el provider.
+- Build ejecutado y validado.
+
+---
+
 ## [2026-06-04] — Fix sendPrompt guard para attachments sin texto
 
 - Bug: `if (!content || streaming || workspaceLocked)` bloqueaba `sendPrompt` cuando `content === ''` aunque hubiera attachments.

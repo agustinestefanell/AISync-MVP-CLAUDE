@@ -111,6 +111,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Multimodal — OpenAI image attachments | Partial | 2026-06-04, `openai.ts` — PDF/Files API diferido; Groq sin soporte hasta OE futura |
 | Multimodal — Google Gemini inlineData | Partial | 2026-06-04, `google.ts` — attachments históricos diferidos; mensaje actual con imágenes y PDFs habilitado |
 | Multimodal — Fix sendPrompt guard (attachments sin texto) | ✅ Closed | 2026-06-04, `AgentPanel.tsx` |
+| Multimodal — OpenAI PDF fallback message | ✅ Closed | 2026-06-04, `openai.ts` — PDF sin soporte via image_url notifica al usuario |
 | Multimodal — Drag & drop en AgentPanel | ✅ Closed | 2026-06-04, `AgentPanel.tsx` |
 
 ---
