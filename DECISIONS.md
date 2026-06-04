@@ -136,3 +136,19 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Alternativas descartadas:** Integración via copy-paste manual entre AISync y VS Code — no escala, no es trazable, rompe el flujo de gobernanza.
 - **Consecuencia:** AISync pasa de ser gobernanza sobre chat a ser gobernanza sobre trabajo real de código. Es la demostración más concreta de la propuesta de valor del producto.
 - **Estado:** Diferido — Fase 3+. Requiere bridge técnico. Registrado como visión estratégica confirmada.
+
+---
+
+## 2026-06-04 — Connect Team: seguridad conocida y gaps diferidos
+
+- **Decisión:** Activar Connect Team en MVP con seguridad básica existente. Gaps de seguridad identificados y diferidos conscientemente para etapa post-MVP.
+- **Seguridad implementada hoy:** RLS activo en `team_connections`. Solo el requester puede crear conexiones. Receptor ve solicitud por email antes de aceptar. Solo las partes involucradas pueden ver sus conexiones. Solo requester o receiver pueden actualizar status.
+- **Gaps diferidos:**
+  1. No se verifica que el email receptor sea una cuenta AISync real antes de enviar solicitud.
+  2. No hay límite de solicitudes por cuenta — riesgo de spam.
+  3. Lookup email→account_id no está protegido contra suplantación.
+  4. Los objetos compartidos no tienen RLS propio — alcance de visibilidad del externo no definido.
+  5. No hay expiración de solicitudes pendientes.
+- **Alternativas descartadas:** Bloquear Connect Team hasta resolver todos los gaps — descartado porque el flujo de solicitud/aceptación es funcional y los riesgos son bajos en contexto MVP de una cuenta por usuario.
+- **Consecuencia:** Antes de activar Connect Team en producción multi-cuenta real, resolver gaps 1 y 3 como mínimo. Los demás son mejoras de hardening.
+- **Estado:** Diferido post-MVP. Registrado como deuda de seguridad conocida.
