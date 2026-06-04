@@ -4327,6 +4327,19 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — Tool loop en chat route con web search
+
+- `ChatProvider` extendido con `complete?(messages, model, tools?) → { content, toolCalls? }` — opcional, no rompe otros providers.
+- `toAnthropicMessages` extraído como helper local en `anthropic.ts` — reutilizado por `stream()` y `complete()`.
+- `AnthropicProvider.complete()`: llama la API no-streaming, detecta blocks `tool_use`, convierte tools a formato `input_schema`.
+- `chat/route.ts`: lee `webSearchEnabled?` desde body; si activo y provider tiene `complete`, ejecuta una ronda de tool loop (complete → ejecutar tool → stream final).
+- Sin `webSearchEnabled`, el flujo directo `provider.stream()` queda 100% intacto.
+- Si no hay `toolCalls`, devuelve `first.content` como stream sintético sin llamada extra al modelo.
+- OpenAI, Google, Groq, AgentPanel y WorkspaceShell no modificados.
+- Build ejecutado y validado.
+
+---
+
 ## [2026-06-04] — Tavily tool registry
 
 - Instalado `@tavily/core@^0.7.5`.

@@ -12,8 +12,15 @@ export interface ChatMessage {
   attachments?: ChatAttachment[]
 }
 
+import type { ToolCall, ToolDefinition } from '@/lib/tools'
+
 export interface ChatProvider {
   stream(messages: ChatMessage[], model: string): Promise<ReadableStream<Uint8Array>>
+  complete?(
+    messages: ChatMessage[],
+    model: string,
+    tools?: ToolDefinition[]
+  ): Promise<{ content: string; toolCalls?: ToolCall[] }>
 }
 
 // Configuración que recibe cada factory del registry.

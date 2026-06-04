@@ -4,7 +4,9 @@ import { LocalProvider } from '@/lib/providers/local'
 import { getSystemPrompt } from '@/lib/db/system-prompts'
 import { listActivePromptsForContext } from '@/lib/db/prompts'
 import { getContextSourcesForRuntime } from '@/lib/db/context'
+import { getTool, webSearchTool } from '@/lib/tools'
 import type { ChatMessage } from '@/lib/providers/types'
+import type { ToolResult } from '@/lib/tools'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,6 +40,7 @@ export async function POST(req: Request) {
     panel_id, session_id,
     project_id,
     otherPanelsSnapshot,
+    webSearchEnabled,
   } = await req.json() as {
     messages:              ChatMessage[]
     provider:              string
@@ -51,6 +54,7 @@ export async function POST(req: Request) {
     session_id?:           string | null
     project_id?:           string | null
     otherPanelsSnapshot?:  PanelSnapshot[]
+    webSearchEnabled?:     boolean
   }
 
   // ── Capa 1: Role system prompt ──────────────────────────────────────────────
@@ -219,7 +223,60 @@ export async function POST(req: Request) {
       )
     }
 
-    const stream = await getProvider(provider, { apiKey }).stream(messages, model)
+    const providerInstance = getProvider(provider, { apiKey })
+
+    // ── Tool loop (opt-in via webSearchEnabled) ───────────────────────────────
+    if (webSearchEnabled && providerInstance.complete) {
+      const first = await providerInstance.complete(messages, model, [webSearchTool.definition])
+
+      if (first.toolCalls?.length) {
+        const toolResults: ToolResult[] = []
+
+        for (const call of first.toolCalls) {
+          const tool = getTool(call.name)
+          if (!tool) {
+            toolResults.push({ tool_call_id: call.id, content: `Tool not found: ${call.name}` })
+            continue
+          }
+          try {
+            const content = await tool.execute(call.input)
+            toolResults.push({ tool_call_id: call.id, content })
+          } catch (error) {
+            toolResults.push({
+              tool_call_id: call.id,
+              content: error instanceof Error ? error.message : 'Tool execution failed',
+            })
+          }
+        }
+
+        const messagesWithToolResults: ChatMessage[] = [
+          ...messages,
+          { role: 'assistant', content: first.content || '[Tool requested]' },
+          {
+            role: 'user',
+            content: toolResults
+              .map(r => `Tool result (${r.tool_call_id}):\n${r.content}`)
+              .join('\n\n---\n\n'),
+          },
+        ]
+
+        const toolStream = await providerInstance.stream(messagesWithToolResults, model)
+        return new Response(toolStream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+      }
+
+      // No tool calls — return first.content directly as stream
+      const encoder = new TextEncoder()
+      const directStream = new ReadableStream({
+        start(controller) {
+          if (first.content) controller.enqueue(encoder.encode(first.content))
+          controller.close()
+        },
+      })
+      return new Response(directStream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+    }
+
+    // ── Direct stream (default, no tools) ────────────────────────────────────
+    const stream = await providerInstance.stream(messages, model)
     return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
 
   } catch (err) {

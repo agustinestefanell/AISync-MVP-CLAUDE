@@ -113,6 +113,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Multimodal — Fix sendPrompt guard (attachments sin texto) | ✅ Closed | 2026-06-04, `AgentPanel.tsx` |
 | Multimodal — OpenAI PDF fallback message | ✅ Closed | 2026-06-04, `openai.ts` — PDF sin soporte via image_url notifica al usuario |
 | Tool Registry — Tavily web search base | Partial | 2026-06-04, `src/lib/tools/` — registry creado; integración con providers/chat runtime pendiente |
+| Tool loop — chat route + Anthropic complete() | Partial | 2026-06-04, `chat/route.ts` + `anthropic.ts` — UI toggle y soporte OpenAI/Google pendientes |
 | Multimodal — Drag & drop en AgentPanel | ✅ Closed | 2026-06-04, `AgentPanel.tsx` |
 
 ---

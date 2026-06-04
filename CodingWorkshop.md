@@ -595,6 +595,36 @@ La arquitectura multimodal no es homogénea entre providers. Google separa histo
 
 ---
 
+## Tools — tool loop inicial en chat route
+
+### Problema
+El chat route usaba streaming directo (`provider.stream(messages, model)`), lo que no permitía detenerse para ejecutar una tool y continuar con el resultado.
+
+### Causa raíz
+Tool use requiere una fase intermedia no-streaming para detectar tool calls. El flujo existente era unidireccional y no tenía mecanismo para completar, ejecutar herramienta y luego streamear la respuesta final.
+
+### Consecuencia
+Aunque existía un registry de tools, ningún provider podía usarlas durante una conversación real.
+
+### Proceso de solución
+Se agregó `complete?` opcional al contrato `ChatProvider`, se implementó en Anthropic y se agregó una rama en `chat/route.ts` activada por `webSearchEnabled`. El helper `toAnthropicMessages` fue extraído del método `stream` para ser reutilizado por `complete`.
+
+### Solución final
+- Sin `webSearchEnabled`, el flujo anterior sigue intacto.
+- Con `webSearchEnabled` y provider compatible, el route llama `complete()`.
+- Si hay `toolCalls`, ejecuta la tool desde `toolRegistry` e inyecta los resultados.
+- Luego llama `stream()` para la respuesta final.
+- Si no hay `toolCalls`, devuelve `first.content` como stream sintético sin llamada extra.
+- Anthropic detecta blocks `tool_use` y convierte tools a formato `input_schema`.
+
+### Commit
+`feat: add tool loop to chat route with web search support`
+
+### Lección
+Tool use y streaming directo requieren arquitecturas distintas. Para mantener estabilidad, la integración debe ser opt-in, conservar el flujo anterior intacto y limitarse a una ronda de tool loop inicial. Hacer `complete?` opcional en el contrato permite que providers sin soporte sigan funcionando sin cambios. — el soporte inicial solo puede cubrir el `lastMessage`. Gemini es más permisivo que OpenAI con PDFs: acepta `application/pdf` vía `inlineData` sin necesitar una API dedicada de archivos.
+
+---
+
 ## AgentPanel — sendPrompt bloqueaba attachments sin texto
 
 ### Problema
