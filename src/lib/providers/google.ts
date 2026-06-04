@@ -1,5 +1,7 @@
-import { GoogleGenerativeAI, type Part } from '@google/generative-ai'
+import { GoogleGenerativeAI, type Part, type FunctionDeclaration } from '@google/generative-ai'
+import { randomUUID } from 'crypto'
 import type { ChatMessage, ChatProvider } from './types'
+import type { ToolCall, ToolDefinition } from '@/lib/tools'
 
 const MODEL_MAP: Record<string, string> = {
   'Gemini 2.0':        'gemini-2.5-flash',
@@ -55,5 +57,39 @@ export class GoogleProvider implements ChatProvider {
         controller.close()
       },
     })
+  }
+
+  async complete(
+    messages: ChatMessage[],
+    model: string,
+    tools?: ToolDefinition[]
+  ): Promise<{ content: string; toolCalls?: ToolCall[] }> {
+    const resolvedModel = MODEL_MAP[model] ?? model
+
+    const genModel = this.genAI.getGenerativeModel({
+      model: resolvedModel,
+      ...(tools?.length ? {
+        tools: [{
+          functionDeclarations: tools.map(t => ({
+            name:        t.name,
+            description: t.description,
+            parameters:  t.parameters as unknown as FunctionDeclaration['parameters'],
+          })),
+        }],
+      } : {}),
+    })
+
+    const lastMessage = messages[messages.length - 1]
+    const response = (await genModel.generateContent(lastMessage.content)).response
+    const functionCalls = response.functionCalls() ?? []
+
+    return {
+      content:   response.text() ?? '',
+      toolCalls: functionCalls.length ? functionCalls.map(fc => ({
+        id:    randomUUID(),
+        name:  fc.name,
+        input: fc.args as Record<string, unknown>,
+      })) : undefined,
+    }
   }
 }

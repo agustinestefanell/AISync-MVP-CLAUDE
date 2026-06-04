@@ -649,6 +649,30 @@ if ((!content && !atts.length) || streaming || workspaceLocked) return
 `fix: allow sendPrompt with attachments and empty content`
 
 ### Lección
-Las guardias de validación deben contemplar todas las formas válidas de input. En un sistema multimodal, un mensaje con content vacío pero con adjuntos es válido. La inconsistencia entre `sendMessage` (que ya lo permitía) y `sendPrompt` (que lo bloqueaba) fue la causa raíz. Google separa historial y mensaje actual — el soporte inicial solo puede cubrir el `lastMessage`. Gemini es más permisivo que OpenAI con PDFs: acepta `application/pdf` vía `inlineData` sin necesitar una API dedicada de archivos. Multimodal no debe asumirse homogéneo: Anthropic, OpenAI y Google tienen capacidades y formatos distintos. Para OpenAI, PDFs requieren la Files API — no pueden enviarse como `image_url`. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
+Las guardias de validación deben contemplar todas las formas válidas de input. En un sistema multimodal, un mensaje con content vacío pero con adjuntos es válido.
+
+---
+
+## Providers — complete() en OpenAI y Google para tool use
+
+### Problema
+El tool loop de `chat/route.ts` dependía de `provider.complete()`, pero solo Anthropic lo implementaba inicialmente.
+
+### Causa raíz
+Cada provider expone tool calling con un formato distinto: OpenAI usa function tools y `tool_calls`; Google usa `functionDeclarations` y `functionCalls()`.
+
+### Proceso de solución
+Se agregó `complete()` en OpenAI y Google sin tocar `stream()`. Requirió dos fixes de tipos SDK: union type en OpenAI y `FunctionDeclarationSchema` en Google.
+
+### Solución final
+- OpenAI `complete()`: filtra `tc.type === 'function'` antes de acceder a `.function`.
+- Google `complete()`: cast `as unknown as FunctionDeclaration['parameters']`; `randomUUID()` para IDs.
+- Ejecución de tools centralizada en `chat/route.ts`.
+
+### Commit
+`feat: add complete() to openai and google providers for tool use`
+
+### Lección
+OpenAI `tool_calls` es union type — siempre filtrar por `tc.type === 'function'`. Google no genera IDs en function calls — generarlos con `randomUUID()`. Anthropic es el más ergonómico de los tres para tool use. En un sistema multimodal, un mensaje con content vacío pero con adjuntos es válido. La inconsistencia entre `sendMessage` (que ya lo permitía) y `sendPrompt` (que lo bloqueaba) fue la causa raíz. Google separa historial y mensaje actual — el soporte inicial solo puede cubrir el `lastMessage`. Gemini es más permisivo que OpenAI con PDFs: acepta `application/pdf` vía `inlineData` sin necesitar una API dedicada de archivos. Multimodal no debe asumirse homogéneo: Anthropic, OpenAI y Google tienen capacidades y formatos distintos. Para OpenAI, PDFs requieren la Files API — no pueden enviarse como `image_url`. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
 2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
 3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.

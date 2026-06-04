@@ -711,6 +711,8 @@ Google Gemini usa `inlineData` para attachments del mensaje actual, incluyendo i
 
 `src/lib/tools/` es el registry independiente de providers. Las tools, como `web_search`, deben poder ser usadas por cualquier provider sin acoplarse a OpenAI, Anthropic, Google o Groq. Tavily requiere `TAVILY_API_KEY` en entorno local y Vercel Dashboard. El registry expone `toolRegistry: Record<string, ToolExecutor>` y `getTool(name)`.
 
+OpenAI y Google soportan `ChatProvider.complete()` para tool use. OpenAI usa function tools (`tool_calls`, filtrando por `tc.type === 'function'`); Google usa `functionDeclarations` y `functionCalls()` con IDs generados por `randomUUID`. La ejecución real de tools permanece centralizada en `chat/route.ts`.
+
 Tool loop inicial: `chat/route.ts` usa `provider.complete()` no-streaming para detectar tool calls cuando `webSearchEnabled` está activo, ejecuta tools desde `toolRegistry`, inyecta resultados como mensaje compatible y luego continúa con `provider.stream()`. El flujo sin tools permanece intacto. `ChatProvider.complete?` es opcional — OpenAI, Google y Groq no lo implementan todavía.
 
 ---

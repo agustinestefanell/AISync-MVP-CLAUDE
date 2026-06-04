@@ -4327,6 +4327,16 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-04] — OpenAI + Google complete() para tool use
+
+- `OpenAIProvider.complete()`: usa `chat.completions.create({ stream: false })` con `tools` + `tool_choice: 'auto'`. Filtra `tc.type === 'function'` para acceder a `.function.name/.arguments` (SDK tiene union type). Parse seguro de argumentos JSON.
+- `GoogleProvider.complete()`: usa `generateContent()` con `functionDeclarations`. Cast `t.parameters as unknown as FunctionDeclaration['parameters']` para satisfacer el SDK. `randomUUID()` importado de `'crypto'` para generar IDs de tool calls (Gemini no los provee).
+- `stream()` no fue modificado en ningún provider.
+- Anthropic, chat route, AgentPanel y Tool registry no modificados.
+- Build ejecutado y validado (2 fixes de tipos durante proceso: union type OpenAI + FunctionDeclarationSchema Google).
+
+---
+
 ## [2026-06-04] — Web Search toggle en AgentPanel
 
 - Estado `webSearchEnabled` (default `false`) agregado junto a `autoRespond`.
