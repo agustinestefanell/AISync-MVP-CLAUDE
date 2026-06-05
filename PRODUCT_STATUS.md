@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
+Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq fixes, sources en Audit Log)
 
 ---
 
@@ -80,7 +80,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 
 | Feature | Estado | Evidencia | Notas |
 |---|---|---|---|
-| Audit Log — Day view UX + Month navigation | ✅ Live | `src/components/audit/AuditTimeline.tsx` | Day View: `Open Workspace →` (all events w/ workspace_id) + `Check Work` (opens modal, checkpoint only). `Resume Work →` lives inside modal only. Sticky header, Month chip → Day nav, light-safe nav buttons. All workspace navigation uses `window.open` (_blank). Event detail side panel: click on card (Day + Week) → side panel with metadata + actions. Week + Day share flex layout with panel; Month View unchanged. |
+| Audit Log — Day view UX + Month navigation | ✅ Live | `src/components/audit/AuditTimeline.tsx` | Day View: `Open Workspace →` (all events w/ workspace_id) + `Check Work` (opens modal, checkpoint only). `Resume Work →` lives inside modal only. Sticky header, Month chip → Day nav, light-safe nav buttons. All workspace navigation uses `window.open` (_blank). Event detail side panel: click on card (Day + Week) → side panel with metadata + actions. Week + Day share flex layout with panel; Month View unchanged. Badges `File Attached` (blue) y `Web Search` (purple) para eventos multimodal y tool calls. Side panel muestra sección `Sources` con links clickeables para eventos `tool_call_executed` desde `audit_log.metadata.sources`. |
 | Audit Log — How to use modal | ✅ Closed | commit feat: add how to use modal to audit log | Modal principal `How to use Audit Log` accesible desde subtítulo superior via `pageSubtitleOnClick`. `AuditClient` gestiona layout completo (TopRibbon + BottomRibbon). Subtítulo `(click here)` eliminado. |
 | Admin prompts route — role lookup | ✅ Live | `src/app/api/admin/prompts/route.ts` | Fix: lookup de `accounts.role` usa `adminClient` en vez de client con cookies. Falso 403 para usuarios `owner` resuelto. Ver CodingWorkshop.md entrada #8. |
 | Admin prompts — cache post-save | ✅ Live | `src/components/admin/AdminClient.tsx` | Fix: `router.refresh()` después de save exitoso. Evita que App Router sirva datos cacheados al navegar de vuelta a `/admin`. Ver CodingWorkshop.md entrada #9. |
@@ -149,8 +149,8 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 
 | Feature | Status | Notes |
 |---|---|---|
-| `session_attachments` table | Partial | Migración 021 aplicada. `chat/route.ts` registra en `session_attachments` y `audit_log` (`attachment_uploaded`) via `Promise.allSettled`. Audit Log UI + AuditView muestran filename. Chat muestra chip en historial. Fix Anthropic empty content post-reload. Validación runtime completa pendiente. |
-| `session_tool_calls` table | Partial | Migración 021 aplicada. `chat/route.ts` registra en `session_tool_calls` y `audit_log` (`tool_call_executed`) via `Promise.allSettled` (serverless-safe). Audit Log UI muestra badge "Web Search" + query. Validación runtime pendiente. |
+| `session_attachments` table | Partial | Migración 021 aplicada. `chat/route.ts` registra en `session_attachments` y `audit_log` (`attachment_uploaded`) via `Promise.allSettled`. Audit Log UI + AuditView muestran filename. Chat muestra chip en historial. Fix Anthropic empty content post-reload. Pendiente: migración 022 en Supabase para chips históricos post-reload. |
+| `session_tool_calls` table | ✅ Closed | Migración 021 aplicada. `chat/route.ts` registra tool calls + sources en `session_tool_calls` y `audit_log.metadata.sources` via `Promise.allSettled`. Audit Log side panel muestra sources como links clickeables. Render determinista desde metadata snapshot. |
 
 ---
 
@@ -164,7 +164,5 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 - `audit_log` FK to checkpoints: architectural decision pending.
 - Add Context File: `project_id` not passed in prop chain — Project-scope files always show empty. See `Partial` status in Workspace table.
 - Cross Verification: full scope deferred. See `Needs Review` in Documentation Mode table and `DECISIONS.md`.
-- Attachment traceability: evento siempre / checkpoint referencia / promoción explícita. Ver `DECISIONS.md` 2026-06-04. Tabla `session_attachments` o `message_attachments` pendiente de migración.
-- Web search traceability: `ToolExecutor.execute()` retorna `{ content, sources? }`. Ver `DECISIONS.md` 2026-06-04. Afecta `tools/types.ts`, `web-search.ts`, `chat/route.ts`.
 - OpenAI PDF support: requiere Files API. Diferido.
 - Google multimodal en historial: solo `lastMessage` soporta `inlineData`. Limitación MVP documentada.
