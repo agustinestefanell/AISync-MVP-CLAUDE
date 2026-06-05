@@ -4556,3 +4556,13 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - No se tocó lógica de calendario, side panel, Day/Week/Month views ni otros event types.
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Huella visual de adjuntos en historial de chat
+
+- `AgentPanel.tsx` — `userMsg` en `sendPrompt()` ahora incluye `attachments: atts.length ? atts : undefined`.
+- Render: chips de adjunto aparecen debajo del texto del mensaje de usuario — ícono `FileText`/`ImageIcon` (lucide-react) + nombre del archivo.
+- El chip es solo visual en historial — no modifica `apiMessages`, `userApiMsg` ni lógica de envío al provider.
+- Mensajes sin adjuntos no se ven afectados — campo opcional.
+- Build ejecutado y validado.
+

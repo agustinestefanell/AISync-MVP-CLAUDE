@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, FileText, Image as ImageIcon } from 'lucide-react'
 import type { AgentSession, Message } from '@/lib/db/types'
 import type { ChatMessage, ChatAttachment } from '@/lib/providers/types'
 import PromptLibrary from './PromptLibrary'
@@ -296,7 +296,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     async function sendPrompt(content: string, atts: ChatAttachment[] = []) {
       if ((!content && !atts.length) || streaming || workspaceLocked) return
 
-      const userMsg: DisplayMessage  = { role: 'user', content, created_at: new Date().toISOString() }
+      const userMsg: DisplayMessage  = { role: 'user', content, created_at: new Date().toISOString(), attachments: atts.length ? atts : undefined }
       const userApiMsg: ChatMessage = { role: 'user', content, ...(atts.length ? { attachments: atts } : {}) }
       const newApiMessages: ChatMessage[] = [...apiMessages, userApiMsg]
 
@@ -569,6 +569,12 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                           }
                         </button>
                         <div className="whitespace-pre-wrap select-text pr-4">{msg.content}</div>
+                        {msg.attachments?.map((att, j) => (
+                          <div key={j} className="mt-1.5 flex items-center gap-1.5 text-[10px] opacity-60 border border-current/20 rounded px-1.5 py-0.5 w-fit">
+                            {att.type === 'image' ? <ImageIcon size={10} /> : <FileText size={10} />}
+                            <span>{att.name ?? att.media_type}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
