@@ -141,7 +141,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Web Search toggle en AgentPanel | ✅ Closed | `AgentPanel.tsx` — badge clicable, envía `webSearchEnabled` |
 | Runtime Tavily con API key real | Pending | Agregar `TAVILY_API_KEY` en Vercel Dashboard |
 | Tool loop multi-ronda | Deferred | Post-MVP |
-| Web search traceability + sources | ✅ Closed | `session_tool_calls` persiste sources de Tavily. Audit Log panel lateral muestra links clickeables para eventos `tool_call_executed`. |
+| Web search traceability + sources | ✅ Closed | `session_tool_calls.sources` persiste trazabilidad. `audit_log.metadata.sources` alimenta render determinista del panel lateral. Links clickeables en Audit Log. |
 
 ---
 

@@ -302,6 +302,7 @@ export async function POST(req: Request) {
                     query:     (call.input.query as string) ?? null,
                     provider,
                     model,
+                    sources:   toolSources,
                   },
                 }),
               ])

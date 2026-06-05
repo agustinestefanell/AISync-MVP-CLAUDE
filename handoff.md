@@ -4690,6 +4690,17 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - Estado `eventSources` + `useEffect` que fetcha `session_tool_calls.sources` cuando `selectedEvent.event_type === 'tool_call_executed'` — query por `workspace_id` + ventana de tiempo ±10s.
 - Panel lateral: sección `Sources` condicional con links `target="_blank" rel="noopener noreferrer"`.
 - No se modificaron `audit.ts`, `getAuditEvents()`, `chat/route.ts`, schema ni badges.
-- No hay FK directa entre `audit_log` y `session_tool_calls` — el matching es por `workspace_id` + tiempo (suficiente para MVP).
+- No hay FK directa entre `audit_log` y `session_tool_calls` — el matching era por `workspace_id` + tiempo (probabilístico, reemplazado).
 - Build ejecutado y validado.
+
+---
+
+## [2026-06-05] — Sources deterministas en Audit Log: metadata snapshot
+
+- `chat/route.ts` — `audit_log` insert para `tool_call_executed` ahora incluye `sources: toolSources` dentro de `metadata`. Las sources quedan como snapshot del evento.
+- `AuditTimeline.tsx` — eliminado fetch secundario a `session_tool_calls` (matching temporal ±10s). Eliminado `eventSources` state y `useEffect` asociado. Eliminado import `createClient`.
+- Panel lateral lee `selectedEvent.metadata.sources` directamente — rendering determinista.
+- Fix: `)}` duplicado eliminado (remanente de edición anterior).
+- No se tocaron otros inserts de `audit_log`, schema, providers ni streaming.
+- Build ejecutado y validado (dos intentos — IIFE en JSX inválido, corregido con `&&` chain).
 

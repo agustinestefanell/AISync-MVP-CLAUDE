@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import type { AuditEventRow } from '@/lib/db/audit'
-import { createClient } from '@/lib/supabase/client'
 import { getProjectColorTokens, teamCodeToPaletteIndex } from '@/lib/teams/getProjectColor'
 
 // ─── Row helper — metadata rows for side panel ───────────────────────────────
@@ -144,30 +143,6 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
 
   // Side panel state
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null)
-  const [eventSources,  setEventSources]  = useState<{ title: string; url: string }[]>([])
-
-  // Fetch sources from session_tool_calls when a Web Search event is selected
-  useEffect(() => {
-    if (selectedEvent?.event_type !== 'tool_call_executed' || !selectedEvent.workspace_id) {
-      setEventSources([])
-      return
-    }
-    const supabase = createClient()
-    const from = new Date(new Date(selectedEvent.created_at).getTime() - 10000).toISOString()
-    const to   = new Date(new Date(selectedEvent.created_at).getTime() + 10000).toISOString()
-    supabase
-      .from('session_tool_calls')
-      .select('sources')
-      .eq('workspace_id', selectedEvent.workspace_id)
-      .gte('created_at', from)
-      .lte('created_at', to)
-      .not('sources', 'is', null)
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        setEventSources(Array.isArray(data?.sources) ? data.sources : [])
-      })
-  }, [selectedEvent])
 
   // Detail modal state (preserved from original)
   const [detailCpId,    setDetailCpId]    = useState<string | null>(null)
@@ -648,14 +623,16 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                   )}
                 </div>
 
-                {selectedEvent.event_type === 'tool_call_executed' && eventSources.length > 0 && (
+                {selectedEvent.event_type === 'tool_call_executed' &&
+                  Array.isArray(selectedEvent.metadata?.sources) &&
+                  (selectedEvent.metadata.sources as { title: string; url: string }[]).length > 0 && (
                   <div className="mt-4">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.1em] mb-2"
                       style={{ color: 'var(--color-text-secondary)' }}>
                       Sources
                     </p>
                     <ul className="flex flex-col gap-1.5">
-                      {eventSources.map((src, i) => (
+                      {(selectedEvent.metadata.sources as { title: string; url: string }[]).map((src, i) => (
                         <li key={i}>
                           <a
                             href={src.url}
