@@ -4598,3 +4598,13 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - `AuditTimeline.tsx` (`eventTitle`) ya estaba correcto — el bug era exclusivo de `AuditView`.
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Fix Anthropic empty content en historial
+
+- `anthropic.ts` `else` branch de `toAnthropicMessages()`: `msg.content || '[file attached]'`.
+- Causa: al recargar la página, los mensajes con adjunto se reconstruyen desde DB sin `attachments` y con `content: ""`. El `else` branch pasaba ese string vacío a Anthropic, que lo rechazaba con 400.
+- Fix cubre solo el caso de recarga — en sesión activa el mensaje incluye `attachments` y va por el branch correcto.
+- No se tocó el branch de attachments ni `complete()`.
+- Build ejecutado y validado.
+

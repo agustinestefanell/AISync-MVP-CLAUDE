@@ -148,7 +148,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 
 | Feature | Status | Notes |
 |---|---|---|
-| `session_attachments` table | Partial | Migración 021 aplicada. `chat/route.ts` registra en `session_attachments` y `audit_log` (`attachment_uploaded`) via `Promise.allSettled` (serverless-safe). Audit Log UI muestra badge "File Attached" + filename. AuditView muestra `metadata.filename` correctamente. Chat muestra chip de adjunto en historial. Validación runtime pendiente. |
+| `session_attachments` table | Partial | Migración 021 aplicada. `chat/route.ts` registra en `session_attachments` y `audit_log` (`attachment_uploaded`) via `Promise.allSettled`. Audit Log UI + AuditView muestran filename. Chat muestra chip en historial. Fix Anthropic empty content post-reload. Validación runtime completa pendiente. |
 | `session_tool_calls` table | Partial | Migración 021 aplicada. `chat/route.ts` registra en `session_tool_calls` y `audit_log` (`tool_call_executed`) via `Promise.allSettled` (serverless-safe). Audit Log UI muestra badge "Web Search" + query. Validación runtime pendiente. |
 
 ---

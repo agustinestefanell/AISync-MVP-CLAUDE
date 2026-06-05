@@ -38,7 +38,7 @@ function toAnthropicMessages(messages: ChatMessage[]): Anthropic.MessageParam[] 
       ]
       return { role: msg.role, content: blocks }
     }
-    return { role: msg.role, content: msg.content }
+    return { role: msg.role, content: msg.content || '[file attached]' }
   })
 }
 

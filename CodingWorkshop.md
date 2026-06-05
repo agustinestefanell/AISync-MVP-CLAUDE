@@ -729,6 +729,9 @@ Spread condicional — el bloque de texto solo se agrega si `msg.content` es tru
 ### Lección
 Al construir arrays de content blocks para providers multimodales, siempre verificar que los campos de texto no sean vacíos antes de incluirlos. Los providers rechazan bloques vacíos aunque la estructura sea válida.
 
+### Extensión del bug
+Después de recargar la página, los mensajes con adjunto se reconstruyen desde DB sin `attachments` y con `content: ""`. El `else` branch de `toAnthropicMessages()` pasaba ese string vacío directamente como `content: msg.content` — Anthropic lo rechaza con "user messages must have non-empty content". Fix: `msg.content || '[file attached]'` como fallback en el `else` branch. Commit: `fix: handle empty content in anthropic message history`.
+
 ---
 
 ## Entrada #13 — Vercel serverless — fire-and-forget no funciona en route handlers
