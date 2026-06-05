@@ -4706,6 +4706,17 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-05] — Fix project_id: WorkspaceShell → AgentPanel → ContextFilePanel
+
+- `WorkspaceShell.tsx` — agregado `projectId={workspace.teams?.project_id ?? undefined}` al render de `<AgentPanel>`.
+- `AgentPanel.tsx` — agregado `projectId?: string` a la Props interface y al destructuring. Propagado como `projectId={projectId}` a `<ContextFilePanel>`.
+- `ContextFilePanel.tsx` no fue modificado — ya aceptaba `projectId?` como prop.
+- La sección "Inherited from Project" ahora recibe el `projectId` real del workspace activo.
+- No se tocaron: ContextFilePanel, providers, streaming, chat/route.ts, DB, schema, migrations.
+- Lint limpio (warnings preexistentes en CanvasViewport.tsx, no relacionados). TypeScript sin errores. Build OK.
+
+---
+
 ## [2026-06-05] — Migración 022 confirmada aplicada
 
 - `022_messages_attachment_metadata.sql` ya estaba aplicada en Supabase (columna `attachment_metadata jsonb` existe en `messages`).

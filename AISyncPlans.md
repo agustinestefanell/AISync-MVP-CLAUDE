@@ -774,6 +774,10 @@ Migraciones 016–020 aplicadas en Supabase Dashboard. Migración 021 pendiente 
 
 `getDocCheckpoints()` incluye `checkpoint_messages(content, role, position, session_id, agent_sessions(agent_role))`. El campo `agent_role` se mapea por mensaje y se expone en `DocCheckpoint.checkpoint_messages`. `CheckpointDetailPanel` usa este campo para: (1) mostrar labels reales de agente en `MiniChatPreview` via `AGENT_LABEL[msg.agentRole]`; (2) mostrar row `AI Agent` en Secondary Metadata. `agent_sessions` y `session_id` no se exponen en `DocCheckpoint` — solo `agent_role` como dato de UI mínimo.
 
+### Context Files — project inheritance
+
+`WorkspaceShell` pasa `workspace.teams?.project_id` como `projectId` a `AgentPanel`. `AgentPanel` propaga ese valor a `ContextFilePanel`. `ContextFilePanel` no infiere `projectId` por su cuenta — siempre lo recibe como prop desde arriba. El dato de origen es `WorkspaceWithAgents.teams.project_id` (string, disponible en el join de `getWorkspaceWithAgents`).
+
 ### Save Selection — agent_role por mensaje
 
 `ChatMessage` incluye `agent_role?: string` como campo opcional. `openSaveSelectionModal()` en WorkspaceShell usa `Object.entries(panelRefs.current)` para obtener `sessionId`, busca la `agent_session` correspondiente y adjunta `agent_role` a cada mensaje via spread. Las Saved Selections nuevas conservan `agent_role` por mensaje; los objetos antiguos sin ese campo mantienen fallback `'AI'` en `MiniChatPreview`. El campo es ignorado por providers y streaming.

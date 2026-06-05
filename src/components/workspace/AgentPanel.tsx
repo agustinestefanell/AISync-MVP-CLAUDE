@@ -116,6 +116,7 @@ interface Props {
   onOpenSaveSelection?: () => void
   // SAT/MAT structured context (Capa 3 + 4)
   teamId?:                  string
+  projectId?:               string
   teamType?:                'SAT' | 'MAT'
   getOtherPanelsSnapshot?:  () => PanelSnapshot[]
 }
@@ -125,7 +126,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
   ({
     session, initialMessages, workspaceLocked, onSelectionChange,
     forwardTargets, onForward, onCreateHandoff, onSaveVersion, onOpenSaveSelection,
-    teamId, teamType, getOtherPanelsSnapshot,
+    teamId, projectId, teamType, getOtherPanelsSnapshot,
   }, ref) => {
     const role         = ROLE_CONFIG[session.agent_role] ?? DEFAULT_ROLE
     const guidePrompts = GUIDE_PROMPTS[session.agent_role] ?? GUIDE_PROMPTS.worker1
@@ -843,6 +844,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
         open={showContextFilePanel}
         onClose={() => setShowContextFilePanel(false)}
         teamId={teamId ?? undefined}
+        projectId={projectId}
         workspaceId={session.workspace_id}
         sessionId={session.id}
       />

@@ -352,6 +352,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
             onSaveVersion={openSaveModal}
             onOpenSaveSelection={openSaveSelectionModal}
             teamId={workspace.team_id}
+            projectId={workspace.teams?.project_id ?? undefined}
             teamType={teamType}
             getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(session.id)}
           />

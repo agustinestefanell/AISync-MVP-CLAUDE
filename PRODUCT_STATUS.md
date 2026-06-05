@@ -72,7 +72,7 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 | Prompt Library — How to use modal | ✅ Closed | commit feat: add how to use modal to prompt library | Link "How to use Prompt Library" en header del modal principal. Modal de guía con copy aprobado. |
 | Prompt Library — Form state reset + assignments panel | ✅ Closed | commit fix: restore assignments panel in prompt library | Reset completo de formulario después de guardar. Panel "Active in this context" restaurado (Assigned to Worker + Inherited from Team + Unassign). Modal de guía `bg-[#f0f0f0]`. |
 | Context Files | ✅ Live | commit e68db2f | Light mode fixed — commit e68db2f |
-| Add Context File | Partial | `src/components/workspace/AgentPanel.tsx` | Button in AgentPanel opens ContextFilePanel — implemented OE B (2026-05-21). Upload and Team/Session scopes functional. Project scope always empty: `project_id` not passed in prop chain workspace → AgentPanel → ContextFilePanel. Migration 017 applied in Supabase. |
+| Add Context File | ✅ Closed | `src/components/workspace/AgentPanel.tsx` | Upload, Team, Session, and Project scopes functional. `projectId` now propagated from WorkspaceShell → AgentPanel → ContextFilePanel via `workspace.teams?.project_id`. Migration 017 applied in Supabase. |
 
 ---
 
@@ -161,7 +161,7 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 - Prompt Library: ribbon entry is a modal (temporary). Dedicated `/prompts` page pending.
 - Capa 2 (Prompts Library injection in chat): architecture defined, not wired.
 - `audit_log` FK to checkpoints: architectural decision pending.
-- Add Context File: `project_id` not passed in prop chain — Project-scope files always show empty. See `Partial` status in Workspace table.
+- Add Context File: ✅ Closed — `project_id` now passed through WorkspaceShell → AgentPanel → ContextFilePanel. All three scopes (Session, Team, Project) functional.
 - Cross Verification: full scope deferred. See `Needs Review` in Documentation Mode table and `DECISIONS.md`.
 - OpenAI PDF support: requiere Files API. Diferido.
 - Google multimodal en historial: solo `lastMessage` soporta `inlineData`. Limitación MVP documentada.
