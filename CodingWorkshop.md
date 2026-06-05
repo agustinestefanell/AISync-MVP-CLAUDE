@@ -769,3 +769,30 @@ Try/catch en el parsing del error — intentar `res.json()` primero, caer a `res
 
 ### Lección
 Nunca asumir que una respuesta de error HTTP es JSON. Los servidores pueden devolver HTML, texto plano o respuestas vacías en condiciones de error. Siempre usar try/catch al parsear errores de fetch.
+
+---
+
+## Entrada #15 — Groq provider — attachments provocaban error 400
+
+### Problema
+Al enviar un mensaje con adjuntos en un panel Groq, la API devolvía error 400.
+
+### Causa raíz
+`groq.ts` asumía que `ChatMessage.attachments` sería ignorado silenciosamente. En la práctica, el SDK de OpenAI (usado con `baseURL` de Groq) serializaba el objeto completo y enviaba campos no soportados al endpoint de Groq.
+
+### Consecuencia
+Groq rechazaba el payload cuando incluía attachments, aunque el usuario ya recibiera advertencia UI de que Groq no soporta visión/adjuntos.
+
+### Proceso de solución
+Se agregó sanitización en el provider Groq antes de llamar a la API. Cada mensaje se transforma para conservar únicamente `role` y `content`.
+
+### Solución final
+- `groqMessages = messages.map(msg => ({ role: msg.role, content: msg.content || '[file attached — vision not supported by Groq]' }))`.
+- El payload hacia Groq ya no incluye `attachments`, `agent_role` ni otros campos extras.
+- El warning UI sigue siendo informativo; la barrera real queda en el provider.
+
+### Commit
+`fix: strip attachments from groq payload to prevent 400 error`
+
+### Lección
+No se debe asumir que un SDK ignorará campos extra de un objeto. Si un provider no soporta una capacidad, el provider adapter debe sanitizar explícitamente el payload antes de llamar a la API. Un spread `{ ...msg }` habría reproducido el mismo bug.

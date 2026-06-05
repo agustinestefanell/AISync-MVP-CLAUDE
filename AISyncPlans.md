@@ -703,7 +703,7 @@ El streaming en `/api/chat/route.ts` usa `ReadableStream`. No agregar `await` en
 
 `AgentPanel` soporta selección local de imágenes/PDF como `ChatAttachment`, conversión base64 con `FileReader` y envío mediante `sendPrompt(content, atts)`. El parámetro `atts` es opcional con default `[]` — callers secundarios (`appendUserMessage`, guide prompts) conservan compatibilidad. Los adjuntos se muestran como chips removibles sobre el compositor y se limpian después del envío.
 
-OpenAI transforma `ChatMessage.attachments` de tipo image en content parts `image_url` con base64. PDFs/documentos no se envían por `image_url`; requieren Files API en OE futura. Groq ignora attachments silenciosamente hasta soporte explícito. AgentPanel muestra warning explícito al adjuntar archivos con provider Groq — el attachment se agrega en UI pero no es procesado por el modelo.
+OpenAI transforma `ChatMessage.attachments` de tipo image en content parts `image_url` con base64. PDFs/documentos no se envían por `image_url`; requieren Files API en OE futura. Groq no soporta visión/adjuntos — el provider sanitiza los mensajes antes de llamar a la API enviando solo `role` y `content`; si el mensaje era solo adjunto, usa `[file attached — vision not supported by Groq]` como fallback. AgentPanel muestra warning informativo al adjuntar con Groq.
 
 Google Gemini usa `inlineData` para attachments del mensaje actual, incluyendo imágenes y PDFs (`application/pdf`). Los attachments históricos no se reenvían en MVP y quedan como limitación documentada.
 

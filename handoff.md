@@ -4649,3 +4649,14 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - No se tocaron providers, streaming, WorkspaceShell ni lógica de envío.
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Fix Groq payload: filtrar attachments antes de llamar a la API
+
+- `groq.ts` ahora construye `groqMessages` — array sanitizado con solo `role` y `content`.
+- El payload enviado a Groq ya no incluye `attachments`, `agent_role` ni otros campos extras.
+- Si un mensaje queda sin contenido textual (solo adjunto), se reemplaza por `[file attached — vision not supported by Groq]`.
+- Corregido comentario incorrecto "attachments are ignored silently" — en la práctica el SDK los serializaba y Groq devolvía 400.
+- No se modificaron AgentPanel, chat route, otros providers ni DB.
+- Build ejecutado y validado.
+
