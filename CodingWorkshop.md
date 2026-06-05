@@ -708,3 +708,23 @@ El sistema operaba multimodalmente y con web search sin dejar trazabilidad míni
 
 ### Lección
 La trazabilidad operativa no crítica debe ser no bloqueante. En flujos de streaming, los inserts auxiliares no deben condicionar la respuesta principal del chat. Un campo declarado en el tipo del request no garantiza que esté en el destructuring — verificar ambos. No guardar base64 en tablas de trazabilidad — solo metadata.
+
+---
+
+## Entrada #12 — Anthropic — bloque de texto vacío en mensajes con adjunto
+
+### Problema
+Al enviar solo un adjunto sin texto, Anthropic devolvía error 400: "messages: text content blocks must be non-empty".
+
+### Causa raíz
+`toAnthropicMessages()` siempre agregaba `{ type: 'text', text: msg.content }` al array de content blocks, aunque `msg.content` fuera string vacío. Anthropic rechaza bloques de texto vacíos.
+
+### Solución
+Spread condicional — el bloque de texto solo se agrega si `msg.content` es truthy:
+`...(msg.content ? [{ type: 'text', text: msg.content }] : [])`
+
+### Commit
+`fix: omit empty text block in anthropic messages with attachments` — hash `3f83786`
+
+### Lección
+Al construir arrays de content blocks para providers multimodales, siempre verificar que los campos de texto no sean vacíos antes de incluirlos. Los providers rechazan bloques vacíos aunque la estructura sea válida.
