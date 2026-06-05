@@ -141,7 +141,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Web Search toggle en AgentPanel | ✅ Closed | `AgentPanel.tsx` — badge clicable, envía `webSearchEnabled` |
 | Runtime Tavily con API key real | Pending | Agregar `TAVILY_API_KEY` en Vercel Dashboard |
 | Tool loop multi-ronda | Deferred | Post-MVP |
-| Web search traceability + sources | Partial | `session_tool_calls` + `audit_log` events via `Promise.allSettled`. Runtime validado. Sources UI diferida. |
+| Web search traceability + sources | Partial | `session_tool_calls` + `audit_log` via `Promise.allSettled`. Contrato `ToolExecutor.execute()` actualizado a `{ content, sources? }`. `web-search.ts` preserva sources de Tavily. Persistencia en DB y UI pendientes. |
 
 ---
 

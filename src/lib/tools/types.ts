@@ -15,7 +15,17 @@ export interface ToolResult {
   content: string
 }
 
+export type ToolSource = {
+  title: string
+  url:   string
+}
+
+export type ToolExecutionResult = {
+  content: string
+  sources?: ToolSource[]
+}
+
 export interface ToolExecutor {
   definition: ToolDefinition
-  execute: (input: Record<string, unknown>) => Promise<string>
+  execute: (input: Record<string, unknown>) => Promise<ToolExecutionResult>
 }

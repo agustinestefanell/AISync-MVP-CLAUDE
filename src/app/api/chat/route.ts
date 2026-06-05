@@ -275,7 +275,9 @@ export async function POST(req: Request) {
             continue
           }
           try {
-            const content = await tool.execute(call.input)
+            const toolResult = await tool.execute(call.input)
+            const content    = toolResult.content
+            const _toolSources = toolResult.sources ?? []   // available for future DB persistence
             toolResults.push({ tool_call_id: call.id, content })
             // awaited via Promise.allSettled (serverless-safe)
             if (session_id && workspace_id && user) {

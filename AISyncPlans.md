@@ -715,6 +715,8 @@ OpenAI y Google soportan `ChatProvider.complete()` para tool use. OpenAI usa fun
 
 Tool loop inicial: `chat/route.ts` usa `provider.complete()` no-streaming para detectar tool calls cuando `webSearchEnabled` está activo, ejecuta tools desde `toolRegistry`, inyecta resultados como mensaje compatible y luego continúa con `provider.stream()`. El flujo sin tools permanece intacto. `ChatProvider.complete?` es opcional — OpenAI, Google y Groq no lo implementan todavía.
 
+Contrato `ToolExecutor`: `execute()` retorna `Promise<ToolExecutionResult>` con `{ content: string, sources?: ToolSource[] }`. `content` alimenta el flujo actual del modelo. `sources` (`{ title, url }`) queda disponible en `chat/route.ts` para persistencia en DB y UI posteriores. `web-search.ts` extrae sources de Tavily, filtrando URLs no válidas y deduplicando.
+
 ---
 
 ## 10. Migraciones — estado actual

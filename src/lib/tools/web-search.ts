@@ -29,8 +29,15 @@ export const webSearchTool: ToolExecutor = {
       searchDepth: 'basic',
     })
 
-    return result.results
+    const content = result.results
       .map(r => `${r.title}\n${r.url}\n${r.content}`)
       .join('\n\n---\n\n')
+
+    const seen = new Set<string>()
+    const sources = result.results
+      .filter(r => r.url && r.url.startsWith('http') && !seen.has(r.url) && seen.add(r.url))
+      .map(r => ({ title: r.title || r.url, url: r.url }))
+
+    return { content, sources }
   },
 }

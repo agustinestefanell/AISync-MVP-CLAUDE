@@ -4660,3 +4660,14 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - No se modificaron AgentPanel, chat route, otros providers ni DB.
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Web search sources: cambiar contrato ToolExecutor
+
+- `src/lib/tools/types.ts` — `ToolExecutor.execute()` ahora retorna `Promise<ToolExecutionResult>`. Tipos nuevos: `ToolSource { title, url }` y `ToolExecutionResult { content, sources? }`.
+- `src/lib/tools/web-search.ts` — retorna `{ content, sources }`. `content` conserva el texto para el modelo. `sources` extrae URLs únicas con título desde los resultados de Tavily; filtra entradas sin URL válida.
+- `src/app/api/chat/route.ts` — consume `toolResult.content` para el flujo existente. `_toolSources` queda disponible (prefijado `_` para ESLint) para la siguiente tarea de persistencia en DB.
+- No se tocaron providers, UI, streaming ni otros tools.
+- Build ejecutado y validado (primer intento falló por ESLint `no-unused-vars` — corregido con prefijo `_`).
+- Pendiente: persistir `sources` en DB (Tarea 3) y mostrar en UI (Tarea 4).
+
