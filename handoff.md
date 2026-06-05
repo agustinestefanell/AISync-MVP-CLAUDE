@@ -4578,3 +4578,13 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - Lógica de inserts, tool loop y streaming intactos.
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Fix error handling en fetch de chat (AgentPanel)
+
+- `AgentPanel.tsx` línea 338 — bloque `if (!res.ok)` reemplazado por try/catch robusto.
+- Antes: `res.json()` directo — fallaba con "Unexpected token" si el servidor devolvía HTML o error no-JSON.
+- Ahora: intenta `res.json()` → si falla, cae a `res.text()` → si falla, usa mensaje genérico.
+- No se tocó lógica de streaming ni otros fetches.
+- Build ejecutado y validado.
+

@@ -747,3 +747,22 @@ Usar `Promise.allSettled()` antes de retornar el stream. `allSettled` agrupa tod
 
 ### Lección
 En funciones serverless (Vercel, AWS Lambda, Cloudflare Workers), el fire-and-forget no funciona. Toda Promise que debe ejecutarse antes de que la función termine debe ser awaiteada. `Promise.allSettled` es el patrón correcto cuando hay múltiples inserts independientes: paralelismo sin bloqueo por fallo individual.
+
+---
+
+## Entrada #14 — AgentPanel — error parsing robusto en fetch de chat
+
+### Problema
+"Unexpected token 'R', Request En... is not valid JSON" al recibir error del servidor en el chat.
+
+### Causa raíz
+Cuando el servidor devuelve un error no-JSON (HTML de Next.js, error de runtime, respuesta vacía), `res.json()` falla y la excepción resultante oculta el error real con un mensaje críptico de parsing.
+
+### Solución
+Try/catch en el parsing del error — intentar `res.json()` primero, caer a `res.text()` si falla, caer a mensaje genérico si ambos fallan.
+
+### Commit
+`fix: robust error parsing in chat fetch response`
+
+### Lección
+Nunca asumir que una respuesta de error HTTP es JSON. Los servidores pueden devolver HTML, texto plano o respuestas vacías en condiciones de error. Siempre usar try/catch al parsear errores de fetch.

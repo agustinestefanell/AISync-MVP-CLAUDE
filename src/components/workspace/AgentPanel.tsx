@@ -336,8 +336,14 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
         })
 
         if (!res.ok) {
-          const body = await res.json()
-          throw new Error(body.error ?? 'Server error')
+          let msg = 'Server error'
+          try {
+            const body = await res.json()
+            msg = body.error ?? msg
+          } catch {
+            msg = await res.text().catch(() => msg)
+          }
+          throw new Error(msg)
         }
 
         const reader  = res.body!.getReader()
