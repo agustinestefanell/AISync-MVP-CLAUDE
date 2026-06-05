@@ -4682,3 +4682,14 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - Build ejecutado y validado.
 - Pendiente: UI de visualización de sources (Tarea 4).
 
+---
+
+## [2026-06-05] — Mostrar sources de búsqueda web en panel lateral del Audit Log
+
+- `AuditTimeline.tsx` — import de `createClient` (browser Supabase).
+- Estado `eventSources` + `useEffect` que fetcha `session_tool_calls.sources` cuando `selectedEvent.event_type === 'tool_call_executed'` — query por `workspace_id` + ventana de tiempo ±10s.
+- Panel lateral: sección `Sources` condicional con links `target="_blank" rel="noopener noreferrer"`.
+- No se modificaron `audit.ts`, `getAuditEvents()`, `chat/route.ts`, schema ni badges.
+- No hay FK directa entre `audit_log` y `session_tool_calls` — el matching es por `workspace_id` + tiempo (suficiente para MVP).
+- Build ejecutado y validado.
+
