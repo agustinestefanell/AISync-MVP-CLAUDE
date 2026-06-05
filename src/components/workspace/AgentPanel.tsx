@@ -175,6 +175,13 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { onSelectionChange(selectedIndices.size) }, [selectedIndices.size])
 
+    // Scroll al final al montar — carga inicial de mensajes históricos
+    useEffect(() => {
+      if (initialMessages.length > 0) {
+        setTimeout(() => { bottomRef.current?.scrollIntoView({ behavior: 'instant' }) }, 100)
+      }
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
     // ── Imperative handle ────────────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
       getLastAssistantMessage: () =>

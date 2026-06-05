@@ -4631,3 +4631,11 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - **Pendiente:** aplicar migración 022 en Supabase Dashboard → SQL Editor.
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Scroll al final al cargar workspace
+
+- `AgentPanel.tsx` — `useEffect` con deps `[]`: scrollea al final con `behavior: 'instant'` al montar, solo si hay mensajes históricos.
+- No toca `scrollToBottom()` ni otros efectos existentes.
+- Build ejecutado y validado.
+
