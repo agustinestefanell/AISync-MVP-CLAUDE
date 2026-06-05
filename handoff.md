@@ -4500,3 +4500,21 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - OpenAI PDF support via Files API diferido.
 - Google attachments históricos diferidos.
 
+---
+
+## [2026-06-05] — Migración 021: session_attachments + session_tool_calls
+
+- Se creó `supabase/migrations/021_session_attachments_and_tool_calls.sql`.
+- Se agregó tabla `session_attachments` para trazabilidad efímera de adjuntos por sesión.
+- Se agregó tabla `session_tool_calls` para trazabilidad efímera de llamadas a tools por sesión.
+- Ambas tablas tienen RLS habilitado.
+- Las policies siguen la cadena `agent_sessions → workspaces → teams → projects → account_id = auth.uid()`.
+- Las policies INSERT usan referencia explícita de tabla (`session_attachments.session_id`, `session_tool_calls.session_id`) para evitar ambigüedad en Postgres.
+- Demo First: `C:\proyectos\AISync\MVP` es frontend puro (Vite/React sin Supabase) — no hay tablas equivalentes ni patrón RLS a portar.
+- No se modificaron migraciones anteriores, código, providers ni routes.
+- `CodingWorkshop.md` no modificado — esta OE crea tabla nueva, no corrige bug técnico.
+- Build ejecutado y validado.
+- **Pendiente:** aplicar migración en Supabase Dashboard → SQL Editor.
+- **Pendiente:** integración runtime (escritura desde chat route, providers y AgentPanel) para OEs futuras.
+- Riesgo residual: confirmar que `projects.account_id` es el ownership correcto en entorno remoto (confirmado por lectura de `001_hierarchy.sql`).
+

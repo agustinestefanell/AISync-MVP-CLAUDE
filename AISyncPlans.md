@@ -743,6 +743,8 @@ Tool loop inicial: `chat/route.ts` usa `provider.complete()` no-streaming para d
 | 017 | `017_context_sources.sql` | context_sources + bucket storage |
 | 018 | `018_agent_session_description.sql` | Campo description en agent_sessions |
 | 019 | `019_saved_selections.sql` | saved_selections |
+| 020 | `020_fix_checkpoint_messages_rls.sql` | Fix RLS checkpoint_messages — filtro account_id correcto |
+| 021 | `021_session_attachments_and_tool_calls.sql` | session_attachments + session_tool_calls (trazabilidad efímera) |
 
 ### 10.2 Migraciones clave
 
@@ -756,7 +758,11 @@ Tool loop inicial: `chat/route.ts` usa `provider.complete()` no-streaming para d
 
 ### 10.3 Riesgos pendientes
 
-Migraciones 016–019 aplicadas en Supabase Dashboard. No hay migraciones pendientes de ejecución a 2026-05-28.
+Migraciones 016–020 aplicadas en Supabase Dashboard. Migración 021 pendiente de aplicar manualmente.
+
+### 10.4 Trazabilidad efímera de sesión — migración 021
+
+`session_attachments` y `session_tool_calls` son tablas de trazabilidad efímera por sesión. Su ownership se valida por RLS mediante `agent_sessions → workspaces → teams → projects → account_id = auth.uid()`. La integración runtime (escritura desde providers, chat route y AgentPanel) queda pendiente para OEs futuras.
 
 ### Checkpoint messages — agent_role
 

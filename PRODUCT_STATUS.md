@@ -96,6 +96,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | 018_agent_session_description.sql | ✅ Applied |
 | 019_saved_selections.sql | ✅ Applied |
 | 020_fix_checkpoint_messages_rls.sql | ✅ Applied — 2026-06-04, manually via Supabase SQL Editor |
+| 021_session_attachments_and_tool_calls.sql | Needs Review — created 2026-06-05; pending apply in Supabase Dashboard → SQL Editor |
 
 ---
 
@@ -140,6 +141,15 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Runtime Tavily con API key real | Pending | Agregar `TAVILY_API_KEY` en Vercel Dashboard |
 | Tool loop multi-ronda | Deferred | Post-MVP |
 | Web search traceability + sources | Deferred | Ver `DECISIONS.md` 2026-06-04 — contrato `{ content, sources? }`, tabla `session_tool_calls` |
+
+---
+
+## Ephemeral Traceability
+
+| Feature | Status | Notes |
+|---|---|---|
+| `session_attachments` table | Needs Review | Migración 021 creada — pendiente aplicar en Supabase Dashboard; integración runtime pendiente |
+| `session_tool_calls` table | Needs Review | Migración 021 creada — pendiente aplicar en Supabase Dashboard; integración runtime pendiente |
 
 ---
 
