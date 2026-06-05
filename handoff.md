@@ -4608,3 +4608,12 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - No se tocó el branch de attachments ni `complete()`.
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Fix chip vacío en historial de chat
+
+- `AgentPanel.tsx` línea 581 — chip de adjunto en historial: `att.name ?? att.media_type` → `att.name || att.media_type || 'File attached'`.
+- `||` en lugar de `??` cubre string vacío `""` además de `undefined`/`null`.
+- Limitación MVP documentada: chips desaparecen al recargar (attachments no persistidos en DB).
+- Build ejecutado y validado.
+

@@ -155,7 +155,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 
 ## Known deferred items
 
-- Known limitation: attachment chips in chat history disappear after page reload — attachments are not persisted in the messages table, only in session memory. Full persistence requires a future OE to store attachment references in DB.
+- Known limitation: attachment chips in chat history disappear after page reload — attachments are not persisted in the messages table, only in session memory. Chip shows "File attached" as fallback when name is unavailable. Full persistence requires a future OE to store attachment references in DB.
 - Deferred: Token counters — captura real de uso por provider (Anthropic, OpenAI, Groq, Gemini). Requiere modificar providers de streaming. 3 fases: DB + contrato → captura por provider → modal UI. Diferido post-backlog estructural.
 - MAP Open button: `window.open(..., '_blank')` may be blocked by popup blocker. Future fix: `router.push`.
 - Prompt Library: ribbon entry is a modal (temporary). Dedicated `/prompts` page pending.

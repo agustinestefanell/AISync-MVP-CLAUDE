@@ -578,7 +578,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                         {msg.attachments?.map((att, j) => (
                           <div key={j} className="mt-1.5 flex items-center gap-1.5 text-[10px] opacity-60 border border-current/20 rounded px-1.5 py-0.5 w-fit">
                             {att.type === 'image' ? <ImageIcon size={10} /> : <FileText size={10} />}
-                            <span>{att.name ?? att.media_type}</span>
+                            <span>{att.name || att.media_type || 'File attached'}</span>
                           </div>
                         ))}
                       </div>
