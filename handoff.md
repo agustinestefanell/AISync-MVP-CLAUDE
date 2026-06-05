@@ -4518,3 +4518,16 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - **Pendiente:** integración runtime (escritura desde chat route, providers y AgentPanel) para OEs futuras.
 - Riesgo residual: confirmar que `projects.account_id` es el ownership correcto en entorno remoto (confirmado por lectura de `001_hierarchy.sql`).
 
+---
+
+## [2026-06-05] — Captura de eventos de trazabilidad en chat route
+
+- `chat/route.ts` ahora extrae `workspace_id` desde el body (estaba en el tipo pero ausente del destructuring).
+- Se agregó trazabilidad fire-and-forget para attachments en `session_attachments`: itera `rawMessages`, excluye `att.data` (base64), registra `filename`, `mime_type`, `attachment_type`, `provider`, `status: 'processed'`.
+- Se agregó trazabilidad fire-and-forget para tool calls exitosas en `session_tool_calls`: captura `tool_name`, `query`, `provider`, `model`, `result_summary` (primeros 500 chars del resultado).
+- Ningún insert usa `await` — no bloquean el stream.
+- Tool loop logic, streaming y providers intactos.
+- Demo First: demo es frontend puro, sin patrón equivalente.
+- Build ejecutado y validado.
+- Riesgo residual: inserts fallan silenciosamente si migración 021 no está aplicada en Supabase (confirmada como aplicada el 2026-06-05). Validación runtime con attachment real y web search real pendiente.
+

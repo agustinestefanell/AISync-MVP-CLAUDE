@@ -676,3 +676,35 @@ Se agregó `complete()` en OpenAI y Google sin tocar `stream()`. Requirió dos f
 OpenAI `tool_calls` es union type — siempre filtrar por `tc.type === 'function'`. Google no genera IDs en function calls — generarlos con `randomUUID()`. Anthropic es el más ergonómico de los tres para tool use. En un sistema multimodal, un mensaje con content vacío pero con adjuntos es válido. La inconsistencia entre `sendMessage` (que ya lo permitía) y `sendPrompt` (que lo bloqueaba) fue la causa raíz. Google separa historial y mensaje actual — el soporte inicial solo puede cubrir el `lastMessage`. Gemini es más permisivo que OpenAI con PDFs: acepta `application/pdf` vía `inlineData` sin necesitar una API dedicada de archivos. Multimodal no debe asumirse homogéneo: Anthropic, OpenAI y Google tienen capacidades y formatos distintos. Para OpenAI, PDFs requieren la Files API — no pueden enviarse como `image_url`. Al extender el estado hacia una llamada async, capturar los valores antes de limpiar el estado — de lo contrario se pasa el valor ya limpio al provider. No conviene modificar todos los providers a la vez si solo uno está siendo habilitado y validado. El campo `attachments?` como opcional garantiza retrocompatibilidad total con mensajes existentes. Un resultado vacío no siempre significa ausencia de datos — puede significar acceso bloqueado. Los routes deben verificar ownership explícitamente y devolver el status code correcto. JOINs estructurales sin filtro de usuario son inválidos como políticas de aislamiento.
 2. En el schema de AISync, el ownership de toda entidad anidada bajo `teams` se resuelve siempre vía `projects.account_id` — `teams` no tiene `account_id`.
 3. Las políticas en producción pueden divergir de las migraciones en repo si se aplican cambios manuales en el dashboard de Supabase. El estado canónico es la producción, no el repo. Auditar periódicamente con `pg_policies`.
+
+---
+
+## Entrada #11 — Chat route — trazabilidad fire-and-forget para attachments y tool calls
+
+### Problema
+AISync podía procesar adjuntos y ejecutar tools (web search), pero esos eventos no quedaban trazados en `session_attachments` ni `session_tool_calls`.
+
+### Causa raíz
+Las tablas existían (migración 021) pero `chat/route.ts` no insertaba registros. Además, `workspace_id` estaba declarado en el tipo del body pero ausente del destructuring — nunca se extraía del request.
+
+### Consecuencia
+El sistema operaba multimodalmente y con web search sin dejar trazabilidad mínima por sesión.
+
+### Proceso de solución
+1. Confirmar campos reales de `ChatAttachment` en `types.ts` (`type`, `media_type`, `data`, `name?`).
+2. Agregar `workspace_id` al destructuring del body.
+3. Insertar trazabilidad de attachments después de ensamblar `messages`, antes del `try {}` principal.
+4. Insertar trazabilidad de tool calls después de `tool.execute()` exitoso, dentro del try del tool loop.
+
+### Solución final
+- `workspace_id` extraído correctamente del body.
+- Attachments registrados en `session_attachments` (sin `att.data` base64).
+- Tool calls exitosas registradas en `session_tool_calls` con `result_summary: content.slice(0, 500)`.
+- Ambos inserts son fire-and-forget — sin `await`, sin bloquear stream.
+- Tool loop, streaming y providers intactos.
+
+### Commit
+`feat: trace attachments and tool calls in chat route`
+
+### Lección
+La trazabilidad operativa no crítica debe ser no bloqueante. En flujos de streaming, los inserts auxiliares no deben condicionar la respuesta principal del chat. Un campo declarado en el tipo del request no garantiza que esté en el destructuring — verificar ambos. No guardar base64 en tablas de trazabilidad — solo metadata.

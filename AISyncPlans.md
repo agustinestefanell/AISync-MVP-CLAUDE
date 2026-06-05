@@ -762,7 +762,7 @@ Migraciones 016–020 aplicadas en Supabase Dashboard. Migración 021 pendiente 
 
 ### 10.4 Trazabilidad efímera de sesión — migración 021
 
-`session_attachments` y `session_tool_calls` son tablas de trazabilidad efímera por sesión. Su ownership se valida por RLS mediante `agent_sessions → workspaces → teams → projects → account_id = auth.uid()`. La integración runtime (escritura desde providers, chat route y AgentPanel) queda pendiente para OEs futuras.
+`session_attachments` y `session_tool_calls` son tablas de trazabilidad efímera por sesión. Su ownership se valida por RLS mediante `agent_sessions → workspaces → teams → projects → account_id = auth.uid()`. `chat/route.ts` registra eventos de attachments y tool calls mediante inserts fire-and-forget (sin `await`, sin bloquear stream). No se guarda base64 de archivos en DB — solo metadata. La integración desde AgentPanel y providers queda pendiente para OEs futuras.
 
 ### Checkpoint messages — agent_role
 

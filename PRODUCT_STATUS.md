@@ -148,8 +148,8 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 
 | Feature | Status | Notes |
 |---|---|---|
-| `session_attachments` table | Partial | Migración 021 aplicada en Supabase — integración runtime pendiente |
-| `session_tool_calls` table | Partial | Migración 021 aplicada en Supabase — integración runtime pendiente |
+| `session_attachments` table | Partial | Migración 021 aplicada. `chat/route.ts` registra eventos fire-and-forget. Validación runtime con attachment real pendiente. |
+| `session_tool_calls` table | Partial | Migración 021 aplicada. `chat/route.ts` registra tool calls exitosas fire-and-forget. Validación runtime con web search real pendiente. |
 
 ---
 

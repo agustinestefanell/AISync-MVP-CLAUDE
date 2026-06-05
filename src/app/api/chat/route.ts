@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     provider, model, endpoint, agentRole,
     team_id, team_type,
     panel_id, session_id,
-    project_id,
+    project_id, workspace_id,
     otherPanelsSnapshot,
     webSearchEnabled,
   } = await req.json() as {
@@ -179,6 +179,24 @@ export async function POST(req: Request) {
     ...rawMessages,
   ]
 
+  // ── Trazar adjuntos — fire and forget (no bloquea stream) ────────────────────
+  const attachmentMessages = rawMessages.filter((m: ChatMessage) => m.attachments?.length)
+  if (attachmentMessages.length && session_id && workspace_id && user) {
+    const attachmentRows = attachmentMessages.flatMap((m: ChatMessage) =>
+      (m.attachments ?? []).map(att => ({
+        session_id,
+        workspace_id,
+        account_id: user.id,
+        filename:        att.name ?? 'unknown',
+        mime_type:       att.media_type,
+        attachment_type: att.type,
+        provider,
+        status: 'processed',
+      }))
+    )
+    supabase.from('session_attachments').insert(attachmentRows)
+  }
+
   try {
     // ── Provider personalizado ────────────────────────────────────────────────
     if (!KNOWN_PROVIDERS.has(provider)) {
@@ -241,6 +259,19 @@ export async function POST(req: Request) {
           try {
             const content = await tool.execute(call.input)
             toolResults.push({ tool_call_id: call.id, content })
+            // fire and forget — no bloquea stream
+            if (session_id && workspace_id && user) {
+              supabase.from('session_tool_calls').insert({
+                session_id,
+                workspace_id,
+                account_id:     user.id,
+                tool_name:      call.name,
+                query:          (call.input.query as string) ?? null,
+                provider,
+                model,
+                result_summary: content.slice(0, 500),
+              })
+            }
           } catch (error) {
             toolResults.push({
               tool_call_id: call.id,
