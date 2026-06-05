@@ -120,7 +120,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | OpenAI — image attachments via `image_url` | ✅ Closed | `openai.ts` — solo imágenes; PDF fallback con mensaje informativo |
 | OpenAI — PDF via Files API | Deferred | Requiere Files API OE futura |
 | Google Gemini — inlineData en lastMessage | ✅ Closed | `google.ts` — imágenes + PDFs; attachments históricos limitación MVP |
-| Groq — attachments | Deferred | Modelos sin soporte de visión; comentario técnico agregado |
+| Groq — attachments | ✅ Closed | AgentPanel muestra warning al adjuntar archivos con provider Groq — evita falsa expectativa de soporte multimodal. |
 | AgentPanel UI — clip button + chips + drag & drop | ✅ Closed | `AgentPanel.tsx` — input file oculto, chips removibles, drag & drop |
 | AgentPanel — sendPrompt guard fix | ✅ Closed | `AgentPanel.tsx` — `(!content && !atts.length)` permite envío solo-adjunto |
 | Attachment traceability | Partial | Migración 021 aplicada. `session_attachments` + `audit_log` events via `Promise.allSettled`. `attachment_metadata` en `messages` (migración 022, pendiente Supabase). Chips históricos visibles post-reload una vez aplicada 022. |

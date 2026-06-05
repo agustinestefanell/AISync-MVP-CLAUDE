@@ -303,6 +303,9 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       )
       setAttachments(prev => [...prev, ...newAtts])
       if (fileInputRef.current) fileInputRef.current.value = ''
+      if (session.provider === 'Groq' && newAtts.length > 0) {
+        setError('Groq does not currently support file attachments or vision input. This attachment will not be processed by the model.')
+      }
     }
 
     async function sendPrompt(content: string, atts: ChatAttachment[] = []) {

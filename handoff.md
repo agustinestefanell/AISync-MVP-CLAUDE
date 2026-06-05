@@ -4639,3 +4639,13 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - No toca `scrollToBottom()` ni otros efectos existentes.
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Groq attachment warning en AgentPanel
+
+- `AgentPanel.tsx` — `handleFileSelect`: si `session.provider === 'Groq'` y hay archivos seleccionados, llama `setError()` con aviso explícito.
+- El attachment se agrega igual (no se bloquea) — el warning es informativo, no restrictivo.
+- Patrón: reutiliza el estado `error` ya existente y su render en el chat.
+- No se tocaron providers, streaming, WorkspaceShell ni lógica de envío.
+- Build ejecutado y validado.
+
