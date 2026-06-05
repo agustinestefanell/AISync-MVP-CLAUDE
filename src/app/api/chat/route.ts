@@ -179,14 +179,14 @@ export async function POST(req: Request) {
     ...rawMessages,
   ]
 
-  // ── Trazar adjuntos — fire and forget (no bloquea stream) ────────────────────
+  // ── Trazar adjuntos — awaited via Promise.allSettled (serverless-safe) ────────
   const attachmentMessages = rawMessages.filter((m: ChatMessage) => m.attachments?.length)
   if (attachmentMessages.length && session_id && workspace_id && user) {
     const attachmentRows = attachmentMessages.flatMap((m: ChatMessage) =>
       (m.attachments ?? []).map(att => ({
         session_id,
         workspace_id,
-        account_id: user.id,
+        account_id:      user.id,
         filename:        att.name ?? 'unknown',
         mime_type:       att.media_type,
         attachment_type: att.type,
@@ -194,10 +194,8 @@ export async function POST(req: Request) {
         status: 'processed',
       }))
     )
-    supabase.from('session_attachments').insert(attachmentRows)
-    // Audit log — attachment_uploaded (fire and forget)
-    attachmentMessages.forEach((m: ChatMessage) => {
-      ;(m.attachments ?? []).forEach(att => {
+    const auditAttachmentInserts = attachmentMessages.flatMap((m: ChatMessage) =>
+      (m.attachments ?? []).map(att =>
         supabase.from('audit_log').insert({
           account_id:   user.id,
           workspace_id: workspace_id ?? null,
@@ -209,8 +207,12 @@ export async function POST(req: Request) {
             provider,
           },
         })
-      })
-    })
+      )
+    )
+    await Promise.allSettled([
+      supabase.from('session_attachments').insert(attachmentRows),
+      ...auditAttachmentInserts,
+    ])
   }
 
   try {
@@ -275,30 +277,31 @@ export async function POST(req: Request) {
           try {
             const content = await tool.execute(call.input)
             toolResults.push({ tool_call_id: call.id, content })
-            // fire and forget — no bloquea stream
+            // awaited via Promise.allSettled (serverless-safe)
             if (session_id && workspace_id && user) {
-              supabase.from('session_tool_calls').insert({
-                session_id,
-                workspace_id,
-                account_id:     user.id,
-                tool_name:      call.name,
-                query:          (call.input.query as string) ?? null,
-                provider,
-                model,
-                result_summary: content.slice(0, 500),
-              })
-              // Audit log — tool_call_executed (fire and forget)
-              supabase.from('audit_log').insert({
-                account_id:   user.id,
-                workspace_id: workspace_id ?? null,
-                event_type:   'tool_call_executed',
-                metadata: {
-                  tool_name: call.name,
-                  query:     (call.input.query as string) ?? null,
+              await Promise.allSettled([
+                supabase.from('session_tool_calls').insert({
+                  session_id,
+                  workspace_id,
+                  account_id:     user.id,
+                  tool_name:      call.name,
+                  query:          (call.input.query as string) ?? null,
                   provider,
                   model,
-                },
-              })
+                  result_summary: content.slice(0, 500),
+                }),
+                supabase.from('audit_log').insert({
+                  account_id:   user.id,
+                  workspace_id: workspace_id ?? null,
+                  event_type:   'tool_call_executed',
+                  metadata: {
+                    tool_name: call.name,
+                    query:     (call.input.query as string) ?? null,
+                    provider,
+                    model,
+                  },
+                }),
+              ])
             }
           } catch (error) {
             toolResults.push({

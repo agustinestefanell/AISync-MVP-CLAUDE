@@ -4566,3 +4566,15 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - Mensajes sin adjuntos no se ven afectados — campo opcional.
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Fix trazabilidad: Promise.allSettled antes del stream
+
+- Causa raíz: en Vercel, las funciones serverless se cierran al enviar el Response. Las Promises sin `await` quedan huérfanas y nunca ejecutan.
+- Fix: reemplazados todos los inserts fire-and-forget por `await Promise.allSettled([...])`.
+- Punto 1 (attachments): `session_attachments` + `audit_log` (`attachment_uploaded`) ejecutados en paralelo antes del `try {}` principal.
+- Punto 2 (tool calls): `session_tool_calls` + `audit_log` (`tool_call_executed`) ejecutados en paralelo por cada tool call exitosa.
+- `allSettled` garantiza que un fallo individual no interrumpe el flujo — el stream retorna igual.
+- Lógica de inserts, tool loop y streaming intactos.
+- Build ejecutado y validado.
+

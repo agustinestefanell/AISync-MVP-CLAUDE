@@ -728,3 +728,22 @@ Spread condicional — el bloque de texto solo se agrega si `msg.content` es tru
 
 ### Lección
 Al construir arrays de content blocks para providers multimodales, siempre verificar que los campos de texto no sean vacíos antes de incluirlos. Los providers rechazan bloques vacíos aunque la estructura sea válida.
+
+---
+
+## Entrada #13 — Vercel serverless — fire-and-forget no funciona en route handlers
+
+### Problema
+Los inserts de trazabilidad en `audit_log`, `session_attachments` y `session_tool_calls` no llegaban a Supabase aunque el código fuera correcto y el insert funcionara directamente desde el Dashboard.
+
+### Causa raíz
+En Vercel, los route handlers de Next.js son funciones serverless que se cierran tan pronto como se envía el `Response`. Las Promises sin `await` quedan huérfanas — la función termina antes de que el request HTTP a Supabase llegue a ejecutarse.
+
+### Solución
+Usar `Promise.allSettled()` antes de retornar el stream. `allSettled` agrupa todos los inserts, los ejecuta en paralelo, y espera a que todos resuelvan (o fallen) antes de continuar. Un fallo individual no interrumpe el flujo principal.
+
+### Commit
+`fix: await traceability inserts before streaming response`
+
+### Lección
+En funciones serverless (Vercel, AWS Lambda, Cloudflare Workers), el fire-and-forget no funciona. Toda Promise que debe ejecutarse antes de que la función termine debe ser awaiteada. `Promise.allSettled` es el patrón correcto cuando hay múltiples inserts independientes: paralelismo sin bloqueo por fallo individual.
