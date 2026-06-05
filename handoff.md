@@ -4545,3 +4545,14 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - Build ejecutado y validado.
 - Riesgo residual: validación runtime con attachment real y web search real pendiente.
 
+---
+
+## [2026-06-05] — Audit Log UI para attachment_uploaded y tool_call_executed
+
+- `AuditTimeline.tsx` — `EVENT_CONFIG`: agregados `attachment_uploaded` (label: "File Attached", badge azul claro) y `tool_call_executed` (label: "Web Search", badge violeta claro).
+- `eventTitle()`: `attachment_uploaded` muestra `metadata.filename`; `tool_call_executed` muestra `metadata.query`.
+- `eventDetail()`: `attachment_uploaded` muestra `mime_type`; `tool_call_executed` muestra `tool_name · provider`.
+- Dropdown de filtros ya cubre los nuevos tipos automáticamente — itera `EVENT_CONFIG`.
+- No se tocó lógica de calendario, side panel, Day/Week/Month views ni otros event types.
+- Build ejecutado y validado.
+

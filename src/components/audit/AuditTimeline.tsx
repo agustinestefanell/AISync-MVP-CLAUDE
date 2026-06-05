@@ -78,7 +78,9 @@ const EVENT_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   lock:           { label: 'Workspace locked',    badgeClass: 'text-red-400 bg-red-950 border-red-900' },
   unlock:         { label: 'Workspace unlocked',  badgeClass: 'text-gray-400 bg-gray-50 border-gray-200' },
   review_forward: { label: 'Review & Forward',    badgeClass: 'text-purple-400 bg-purple-950 border-purple-900' },
-  save_selection: { label: 'Save Selection',      badgeClass: 'text-amber-400 bg-amber-950 border-amber-900' },
+  save_selection:      { label: 'Save Selection', badgeClass: 'text-amber-400 bg-amber-950 border-amber-900' },
+  attachment_uploaded: { label: 'File Attached',  badgeClass: 'bg-blue-100 text-blue-700 border-blue-200' },
+  tool_call_executed:  { label: 'Web Search',     badgeClass: 'bg-purple-100 text-purple-700 border-purple-200' },
 }
 const AGENT_LABEL: Record<string, string> = { manager: 'Manager', worker1: 'Worker 1', worker2: 'Worker 2' }
 
@@ -102,7 +104,9 @@ function eventTitle(e: AuditEventRow): string {
   if (e.event_type === 'resume_work')    return `Resumed "${(m.name as string) ?? 'checkpoint'}"`
   if (e.event_type === 'lock')           return 'Workspace locked'
   if (e.event_type === 'unlock')         return 'Workspace unlocked'
-  if (e.event_type === 'review_forward') return `Forwarded to ${(m.to_agent as string) ?? 'agent'}`
+  if (e.event_type === 'review_forward')     return `Forwarded to ${(m.to_agent as string) ?? 'agent'}`
+  if (e.event_type === 'attachment_uploaded') return (m.filename as string) ?? 'File attached'
+  if (e.event_type === 'tool_call_executed')  return (m.query as string) ?? 'Web search executed'
   return e.event_type
 }
 
@@ -110,7 +114,9 @@ function eventDetail(e: AuditEventRow): string | null {
   const m = e.metadata ?? {}
   if (e.event_type === 'save_version')   return [m.purpose, `${m.message_count ?? 0} msgs`].filter(Boolean).join(' · ')
   if (e.event_type === 'session_backup') return `${m.total_messages ?? 0} messages exported`
-  if (e.event_type === 'review_forward') return `${m.message_count ?? ''} message(s)`
+  if (e.event_type === 'review_forward')     return `${m.message_count ?? ''} message(s)`
+  if (e.event_type === 'attachment_uploaded') return (m.mime_type as string) ?? (m.attachment_type as string) ?? null
+  if (e.event_type === 'tool_call_executed')  return `${(m.tool_name as string) ?? 'web_search'} · ${(m.provider as string) ?? ''}`
   return null
 }
 

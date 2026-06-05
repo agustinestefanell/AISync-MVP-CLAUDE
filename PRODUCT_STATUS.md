@@ -148,8 +148,8 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 
 | Feature | Status | Notes |
 |---|---|---|
-| `session_attachments` table | Partial | Migración 021 aplicada. `chat/route.ts` registra eventos fire-and-forget en `session_attachments` y `audit_log` (`attachment_uploaded`). Validación runtime pendiente. |
-| `session_tool_calls` table | Partial | Migración 021 aplicada. `chat/route.ts` registra tool calls exitosas fire-and-forget en `session_tool_calls` y `audit_log` (`tool_call_executed`). Validación runtime pendiente. |
+| `session_attachments` table | Partial | Migración 021 aplicada. `chat/route.ts` registra eventos fire-and-forget en `session_attachments` y `audit_log` (`attachment_uploaded`). Audit Log UI muestra badge "File Attached" + filename. Validación runtime pendiente. |
+| `session_tool_calls` table | Partial | Migración 021 aplicada. `chat/route.ts` registra tool calls exitosas fire-and-forget en `session_tool_calls` y `audit_log` (`tool_call_executed`). Audit Log UI muestra badge "Web Search" + query. Validación runtime pendiente. |
 
 ---
 
