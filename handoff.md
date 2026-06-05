@@ -4531,3 +4531,17 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - Build ejecutado y validado.
 - Riesgo residual: inserts fallan silenciosamente si migración 021 no está aplicada en Supabase (confirmada como aplicada el 2026-06-05). Validación runtime con attachment real y web search real pendiente.
 
+---
+
+## [2026-06-05] — Audit Log events para attachments y tool calls
+
+- `chat/route.ts` ahora registra evento `attachment_uploaded` en `audit_log` por cada adjunto detectado en `rawMessages`.
+- `chat/route.ts` ahora registra evento `tool_call_executed` en `audit_log` después de cada `tool.execute()` exitoso.
+- Los inserts son fire-and-forget — sin `await`, sin bloquear stream.
+- Metadata de attachments: `filename`, `mime_type`, `attachment_type`, `provider`. Sin base64.
+- Metadata de tool calls: `tool_name`, `query`, `provider`, `model`.
+- Inserts previos en `session_attachments` y `session_tool_calls` conservados intactos.
+- Tool loop logic, streaming y providers intactos.
+- Build ejecutado y validado.
+- Riesgo residual: validación runtime con attachment real y web search real pendiente.
+

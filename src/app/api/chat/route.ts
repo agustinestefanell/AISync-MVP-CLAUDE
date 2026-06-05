@@ -195,6 +195,22 @@ export async function POST(req: Request) {
       }))
     )
     supabase.from('session_attachments').insert(attachmentRows)
+    // Audit log — attachment_uploaded (fire and forget)
+    attachmentMessages.forEach((m: ChatMessage) => {
+      ;(m.attachments ?? []).forEach(att => {
+        supabase.from('audit_log').insert({
+          account_id:   user.id,
+          workspace_id: workspace_id ?? null,
+          event_type:   'attachment_uploaded',
+          metadata: {
+            filename:        att.name ?? 'unknown',
+            mime_type:       att.media_type,
+            attachment_type: att.type,
+            provider,
+          },
+        })
+      })
+    })
   }
 
   try {
@@ -270,6 +286,18 @@ export async function POST(req: Request) {
                 provider,
                 model,
                 result_summary: content.slice(0, 500),
+              })
+              // Audit log — tool_call_executed (fire and forget)
+              supabase.from('audit_log').insert({
+                account_id:   user.id,
+                workspace_id: workspace_id ?? null,
+                event_type:   'tool_call_executed',
+                metadata: {
+                  tool_name: call.name,
+                  query:     (call.input.query as string) ?? null,
+                  provider,
+                  model,
+                },
               })
             }
           } catch (error) {
