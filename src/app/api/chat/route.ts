@@ -277,7 +277,7 @@ export async function POST(req: Request) {
           try {
             const toolResult = await tool.execute(call.input)
             const content    = toolResult.content
-            const _toolSources = toolResult.sources ?? []   // available for future DB persistence
+            const toolSources = toolResult.sources ?? []
             toolResults.push({ tool_call_id: call.id, content })
             // awaited via Promise.allSettled (serverless-safe)
             if (session_id && workspace_id && user) {
@@ -291,6 +291,7 @@ export async function POST(req: Request) {
                   provider,
                   model,
                   result_summary: content.slice(0, 500),
+                  sources:        toolSources,
                 }),
                 supabase.from('audit_log').insert({
                   account_id:   user.id,

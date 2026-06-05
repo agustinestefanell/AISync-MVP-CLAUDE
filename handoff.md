@@ -4671,3 +4671,14 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - Build ejecutado y validado (primer intento falló por ESLint `no-unused-vars` — corregido con prefijo `_`).
 - Pendiente: persistir `sources` en DB (Tarea 3) y mostrar en UI (Tarea 4).
 
+---
+
+## [2026-06-05] — Guardar sources de Tavily en session_tool_calls
+
+- `chat/route.ts` — `_toolSources` renombrado a `toolSources`.
+- Insert de `session_tool_calls` ahora incluye `sources: toolSources`.
+- Las fuentes devueltas por Tavily quedan persistidas en `session_tool_calls.sources jsonb`.
+- No se tocaron tools, providers, UI, streaming ni schema.
+- Build ejecutado y validado.
+- Pendiente: UI de visualización de sources (Tarea 4).
+
