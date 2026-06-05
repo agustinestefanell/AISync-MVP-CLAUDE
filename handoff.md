@@ -4704,3 +4704,12 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - No se tocaron otros inserts de `audit_log`, schema, providers ni streaming.
 - Build ejecutado y validado (dos intentos — IIFE en JSX inválido, corregido con `&&` chain).
 
+---
+
+## [2026-06-05] — Migración 022 confirmada aplicada
+
+- `022_messages_attachment_metadata.sql` ya estaba aplicada en Supabase (columna `attachment_metadata jsonb` existe en `messages`).
+- `PRODUCT_STATUS.md` actualizado: migración 022 → `✅ Applied`, `Attachment traceability` → `✅ Closed`, `session_attachments` table → `✅ Closed`.
+- Pendiente "Needs Review" de migración 022 eliminado de Known deferred items.
+- No se tocó código ni schema.
+

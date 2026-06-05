@@ -97,7 +97,7 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 | 019_saved_selections.sql | ✅ Applied |
 | 020_fix_checkpoint_messages_rls.sql | ✅ Applied — 2026-06-04, manually via Supabase SQL Editor |
 | 021_session_attachments_and_tool_calls.sql | ✅ Applied — 2026-06-05, manually via Supabase SQL Editor |
-| 022_messages_attachment_metadata.sql | Needs Review — created 2026-06-05; pending apply in Supabase Dashboard → SQL Editor |
+| 022_messages_attachment_metadata.sql | ✅ Applied — 2026-06-05, manually via Supabase SQL Editor |
 
 ---
 
@@ -123,7 +123,7 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 | Groq — attachments | ✅ Closed | Provider sanitiza payload antes de llamar a la API (solo `role`+`content`), previniendo error 400. AgentPanel muestra warning informativo al adjuntar. |
 | AgentPanel UI — clip button + chips + drag & drop | ✅ Closed | `AgentPanel.tsx` — input file oculto, chips removibles, drag & drop |
 | AgentPanel — sendPrompt guard fix | ✅ Closed | `AgentPanel.tsx` — `(!content && !atts.length)` permite envío solo-adjunto |
-| Attachment traceability | Partial | Migración 021 aplicada. `session_attachments` + `audit_log` events via `Promise.allSettled`. `attachment_metadata` en `messages` (migración 022, pendiente Supabase). Chips históricos visibles post-reload una vez aplicada 022. |
+| Attachment traceability | ✅ Closed | Migración 021 + 022 aplicadas. `session_attachments` + `audit_log` events via `Promise.allSettled`. `attachment_metadata jsonb` en `messages`. Chips de adjunto visibles post-reload. |
 
 ---
 
@@ -149,14 +149,13 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 
 | Feature | Status | Notes |
 |---|---|---|
-| `session_attachments` table | Partial | Migración 021 aplicada. `chat/route.ts` registra en `session_attachments` y `audit_log` (`attachment_uploaded`) via `Promise.allSettled`. Audit Log UI + AuditView muestran filename. Chat muestra chip en historial. Fix Anthropic empty content post-reload. Pendiente: migración 022 en Supabase para chips históricos post-reload. |
+| `session_attachments` table | ✅ Closed | Migración 021 + 022 aplicadas. `chat/route.ts` registra en `session_attachments` y `audit_log` (`attachment_uploaded`) via `Promise.allSettled`. Audit Log UI + AuditView muestran filename. Chat muestra chip en historial post-reload. Fix Anthropic empty content post-reload. |
 | `session_tool_calls` table | ✅ Closed | Migración 021 aplicada. `chat/route.ts` registra tool calls + sources en `session_tool_calls` y `audit_log.metadata.sources` via `Promise.allSettled`. Audit Log side panel muestra sources como links clickeables. Render determinista desde metadata snapshot. |
 
 ---
 
 ## Known deferred items
 
-- Needs Review: Migración `022_messages_attachment_metadata.sql` creada — agrega `attachment_metadata jsonb` a `messages`; pendiente aplicar en Supabase. Una vez aplicada, los chips de adjunto sobreviven el reload del workspace.
 - Deferred: Token counters — captura real de uso por provider (Anthropic, OpenAI, Groq, Gemini). Requiere modificar providers de streaming. 3 fases: DB + contrato → captura por provider → modal UI. Diferido post-backlog estructural.
 - MAP Open button: `window.open(..., '_blank')` may be blocked by popup blocker. Future fix: `router.push`.
 - Prompt Library: ribbon entry is a modal (temporary). Dedicated `/prompts` page pending.
