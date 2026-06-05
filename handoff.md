@@ -4588,3 +4588,13 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - No se tocó lógica de streaming ni otros fetches.
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Fix AuditView título para attachment y tool call
+
+- `AuditView.tsx` línea 180 — `cpName` usaba `metadata.name` con fallback genérico `'Session event'` para tipos desconocidos.
+- `attachment_uploaded` no tiene `metadata.name` — tiene `metadata.filename`. `tool_call_executed` tiene `metadata.query`.
+- Fix: cadena de `??` que lee el campo correcto según `event_type` antes de caer al fallback genérico.
+- `AuditTimeline.tsx` (`eventTitle`) ya estaba correcto — el bug era exclusivo de `AuditView`.
+- Build ejecutado y validado.
+

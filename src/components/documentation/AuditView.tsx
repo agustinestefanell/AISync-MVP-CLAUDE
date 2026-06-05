@@ -177,7 +177,10 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
               const cfg       = EVENT_CONFIG[e.event_type] ?? { label: e.event_type, dotColor: 'bg-gray-600', badgeClass: 'text-gray-600 bg-gray-50 border-gray-200' }
               const cpId      = e.metadata?.checkpoint_id as string | undefined
               const cp        = cpId ? cpMap.get(cpId) : null
-              const cpName    = (e.metadata?.name as string) ?? (e.event_type === 'session_backup' ? 'Session Backup' : 'Session event')
+              const cpName    = (e.metadata?.name as string)
+                ?? (e.event_type === 'attachment_uploaded' ? ((e.metadata?.filename as string) ?? 'File attached') : undefined)
+                ?? (e.event_type === 'tool_call_executed'  ? ((e.metadata?.query as string)    ?? 'Web search')    : undefined)
+                ?? (e.event_type === 'session_backup' ? 'Session Backup' : 'Session event')
               const actor     = (e.metadata?.from_agent ?? e.metadata?.agent_role) as string | undefined
               const teamCode  = e.team_id ? teamCodes?.[e.team_id] : undefined
               const teamLabel = teamCode ? `${teamCode} · ${e.team_name}` : e.team_name
