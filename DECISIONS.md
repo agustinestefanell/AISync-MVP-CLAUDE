@@ -181,6 +181,16 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 
 ---
 
+## 2026-06-05 — Token usage: callback onUsage desacoplado del provider
+
+- **Decisión:** Token usage se captura mediante callback opcional `onUsage` en `StreamOptions`, no acoplando DB persistence directamente dentro del provider.
+- **Razón:** El provider debe reportar usage sin conocer Supabase. `chat/route.ts` conserva responsabilidad de persistencia. Evita que fallos de DB rompan streaming.
+- **Forma:** `StreamOptions.onUsage?: (usage: TokenUsage) => void | Promise<void>` — pasado como `options` en `stream()` o `complete()`. Provider ejecuta en `try/catch`; fallo se loguea, no se lanza.
+- **Anthropic stream:** usa `client.messages.stream()` (no `messages.create({ stream: true })`) para obtener `MessageStream` con `finalMessage()`. `finalMessage()` retorna usage acumulado del stream completo.
+- **Estado:** Accepted — aplicado en Anthropic (Fase 2a). OpenAI/Groq/Gemini diferidos.
+
+---
+
 ## 2026-06-05 — Token usage como tabla separada
 
 - **Decisión:** El consumo de tokens se modela en tabla dedicada `token_usage`, no como metadata embebida en `audit_log` ni en `messages`.

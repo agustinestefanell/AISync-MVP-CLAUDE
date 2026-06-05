@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ChatMessage, ChatProvider } from './types'
 import type { ToolCall, ToolDefinition } from '@/lib/tools'
+import type { TokenUsage, StreamOptions } from '@/lib/tools/types'
 
 const MODEL_MAP: Record<string, string> = {
   'Claude Sonnet':     'claude-sonnet-4-5',
@@ -49,17 +50,16 @@ export class AnthropicProvider implements ChatProvider {
     this.client = new Anthropic({ apiKey })
   }
 
-  async stream(messages: ChatMessage[], model: string): Promise<ReadableStream<Uint8Array>> {
+  async stream(messages: ChatMessage[], model: string, options?: StreamOptions): Promise<ReadableStream<Uint8Array>> {
     const resolvedModel = MODEL_MAP[model] ?? model
     const encoder = new TextEncoder()
 
     const sdkMessages = toAnthropicMessages(messages)
 
-    const sdkStream = await this.client.messages.create({
+    const sdkStream = this.client.messages.stream({
       model: resolvedModel,
       max_tokens: 2048,
       messages: sdkMessages,
-      stream: true,
     })
 
     return new ReadableStream({
@@ -72,6 +72,19 @@ export class AnthropicProvider implements ChatProvider {
             controller.enqueue(encoder.encode(event.delta.text))
           }
         }
+        try {
+          const finalMsg = await sdkStream.finalMessage()
+          const usage: TokenUsage = {
+            provider:      'anthropic',
+            model:         resolvedModel,
+            input_tokens:  finalMsg.usage?.input_tokens  ?? 0,
+            output_tokens: finalMsg.usage?.output_tokens ?? 0,
+            total_tokens:  (finalMsg.usage?.input_tokens ?? 0) + (finalMsg.usage?.output_tokens ?? 0),
+          }
+          await options?.onUsage?.(usage)
+        } catch (error) {
+          console.error('[anthropic] failed to capture token usage', error)
+        }
         controller.close()
       },
     })
@@ -80,7 +93,8 @@ export class AnthropicProvider implements ChatProvider {
   async complete(
     messages: ChatMessage[],
     model: string,
-    tools?: ToolDefinition[]
+    tools?: ToolDefinition[],
+    options?: StreamOptions
   ): Promise<{ content: string; toolCalls?: ToolCall[] }> {
     const resolvedModel = MODEL_MAP[model] ?? model
     const sdkMessages = toAnthropicMessages(messages)
@@ -110,6 +124,19 @@ export class AnthropicProvider implements ChatProvider {
           input: block.input as Record<string, unknown>,
         })
       }
+    }
+
+    try {
+      const usage: TokenUsage = {
+        provider:      'anthropic',
+        model:         resolvedModel,
+        input_tokens:  response.usage?.input_tokens  ?? 0,
+        output_tokens: response.usage?.output_tokens ?? 0,
+        total_tokens:  (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0),
+      }
+      await options?.onUsage?.(usage)
+    } catch (error) {
+      console.error('[anthropic] failed to capture token usage', error)
     }
 
     return {

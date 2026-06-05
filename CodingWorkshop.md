@@ -796,3 +796,25 @@ Se agregó sanitización en el provider Groq antes de llamar a la API. Cada mens
 
 ### Lección
 No se debe asumir que un SDK ignorará campos extra de un objeto. Si un provider no soporta una capacidad, el provider adapter debe sanitizar explícitamente el payload antes de llamar a la API. Un spread `{ ...msg }` habría reproducido el mismo bug.
+
+---
+
+## Token Counters — onUsage callback en streaming Anthropic
+
+### Problema
+El usage del provider llega al final del stream, pero el stream no debe depender de que la persistencia en DB funcione.
+
+### Causa raíz
+Sin callback desacoplado, hay dos malas opciones: meter Supabase dentro del provider (rompe separación de responsabilidades) o ignorar usage por completo.
+
+### Solución
+Se agregó `StreamOptions.onUsage` como callback opcional. `AnthropicProvider.stream()` captura `finalMessage().usage` al cierre del stream; `complete()` captura `response.usage`. `chat/route.ts` recibe el callback y persiste en `token_usage`.
+
+### Fix técnico relevante
+`client.messages.create({ stream: true })` retorna `Stream<RawMessageStreamEvent>` — tipo de bajo nivel sin `finalMessage()`. El método correcto es `client.messages.stream({})` que retorna `MessageStream` con `finalMessage()`. Mismo comportamiento de streaming para el usuario, diferente API del SDK.
+
+### Regla técnica
+El fallo de `onUsage` nunca rompe el stream. Se captura en `try/catch` y se loguea.
+
+### Lección
+La captura de métricas debe ser best-effort y desacoplada del flujo visible del usuario. Los callbacks opcionales son el patrón correcto para instrumentación no crítica en pipelines de streaming.

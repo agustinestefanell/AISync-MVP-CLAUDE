@@ -156,8 +156,9 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 
 ## Known deferred items
 
-- Token Counters Fase 1 — ✅ tabla `token_usage` definida en migration `023_token_usage.sql` + contrato `TokenUsage` en `src/lib/tools/types.ts`. RLS por `account_id = auth.uid()`. Migración pendiente de aplicación manual en Supabase Dashboard.
-- Token Counters Fase 2 — Deferred: captura runtime de usage por provider (Anthropic, OpenAI, Groq, Gemini). Requiere modificar providers de streaming.
+- Token Counters Fase 1 — ✅ tabla `token_usage` + `TokenUsage` type. Migraciones 023 + 024 creadas. Pendiente aplicación manual en Supabase.
+- Token Counters Fase 2a — ✅ Anthropic: `stream()` captura usage via `finalMessage()` (`capture_method: stream_final`). `complete()` captura via `response.usage` (`capture_method: response_usage`). `chat/route.ts` persiste en `token_usage`. Callback `onUsage` desacoplado — fallo no interrumpe stream.
+- Token Counters Fase 2b — Deferred: captura usage OpenAI, Groq, Gemini.
 - Token Counters Fase 3 — Deferred: modal UI de consumo de tokens.
 - MAP Open button: `window.open(..., '_blank')` may be blocked by popup blocker. Future fix: `router.push`.
 - Prompt Library: ribbon entry is a modal (temporary). Dedicated `/prompts` page pending.

@@ -7,6 +7,8 @@ import { getContextSourcesForRuntime } from '@/lib/db/context'
 import { getTool, webSearchTool } from '@/lib/tools'
 import type { ChatMessage } from '@/lib/providers/types'
 import type { ToolResult } from '@/lib/tools'
+import { AnthropicProvider } from '@/lib/providers/anthropic'
+import type { TokenUsage } from '@/lib/tools/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -260,10 +262,31 @@ export async function POST(req: Request) {
     }
 
     const providerInstance = getProvider(provider, { apiKey })
+    const anthropicProvider = provider === 'Anthropic' ? providerInstance as AnthropicProvider : null
+
+    const persistUsage = async (usage: TokenUsage, captureMethod: string) => {
+      try {
+        await supabase.from('token_usage').insert({
+          account_id:     user.id,
+          workspace_id:   workspace_id   ?? null,
+          session_id:     session_id     ?? null,
+          provider:       usage.provider,
+          model:          usage.model,
+          input_tokens:   usage.input_tokens,
+          output_tokens:  usage.output_tokens,
+          total_tokens:   usage.total_tokens,
+          capture_method: captureMethod,
+        })
+      } catch (error) {
+        console.error('[token_usage] failed to persist usage', error)
+      }
+    }
 
     // ── Tool loop (opt-in via webSearchEnabled) ───────────────────────────────
     if (webSearchEnabled && providerInstance.complete) {
-      const first = await providerInstance.complete(messages, model, [webSearchTool.definition])
+      const first = anthropicProvider
+        ? await anthropicProvider.complete(messages, model, [webSearchTool.definition], { onUsage: u => persistUsage(u, 'response_usage') })
+        : await providerInstance.complete(messages, model, [webSearchTool.definition])
 
       if (first.toolCalls?.length) {
         const toolResults: ToolResult[] = []
@@ -326,7 +349,9 @@ export async function POST(req: Request) {
           },
         ]
 
-        const toolStream = await providerInstance.stream(messagesWithToolResults, model)
+        const toolStream = anthropicProvider
+          ? await anthropicProvider.stream(messagesWithToolResults, model, { onUsage: u => persistUsage(u, 'stream_final') })
+          : await providerInstance.stream(messagesWithToolResults, model)
         return new Response(toolStream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
       }
 
@@ -342,7 +367,9 @@ export async function POST(req: Request) {
     }
 
     // ── Direct stream (default, no tools) ────────────────────────────────────
-    const stream = await providerInstance.stream(messages, model)
+    const stream = anthropicProvider
+      ? await anthropicProvider.stream(messages, model, { onUsage: u => persistUsage(u, 'stream_final') })
+      : await providerInstance.stream(messages, model)
     return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
 
   } catch (err) {

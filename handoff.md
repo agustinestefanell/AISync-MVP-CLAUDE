@@ -4717,6 +4717,21 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-05] — Fase 2a Token Counters: captura de usage en Anthropic
+
+- `tools/types.ts` — agregado `StreamOptions` con `onUsage?: (usage: TokenUsage) => void | Promise<void>`.
+- `anthropic.ts` — `stream()` ahora usa `this.client.messages.stream()` en lugar de `messages.create({ stream: true })` para obtener acceso a `finalMessage()`. Captura `input_tokens`/`output_tokens` al cierre del stream y llama `options?.onUsage?.(usage)` en `try/catch`.
+- `anthropic.ts` — `complete()` captura `response.usage.input_tokens`/`output_tokens` tras recibir la respuesta y llama `options?.onUsage?.(usage)` en `try/catch`.
+- `chat/route.ts` — importa `AnthropicProvider` y `TokenUsage`. Agrega `anthropicProvider` (cast cuando provider === 'Anthropic') y helper `persistUsage`. Los 3 sitios de llamada (complete tool loop, stream post-tool, stream directo) pasan `onUsage` con `capture_method` apropiado. Fallos de `onUsage` y del insert se loguean; no interrumpen la respuesta al usuario.
+- `024_token_usage_capture_method.sql` — agrega columna `capture_method text` a `token_usage`.
+- Fix técnico notable: `messages.create({ stream: true })` → `messages.stream({})` — el método `stream()` del SDK retorna `MessageStream` que expone `finalMessage()`. `messages.create({ stream: true })` solo retorna `Stream<RawMessageStreamEvent>` sin ese helper.
+- Otros providers, UI, WorkspaceShell, AgentPanel no fueron tocados.
+- Lint, TypeScript y build ejecutados — todos limpios. Build requirió corrección del método SDK (TypeScript error TS2339 en primer intento).
+- **Aplicación manual pendiente:** Supabase Dashboard → SQL Editor → ejecutar `024_token_usage_capture_method.sql`.
+- **Aplicación pendiente también:** `023_token_usage.sql` si no fue aplicada aún.
+
+---
+
 ## [2026-06-05] — Fase 1 Token Counters: tabla token_usage + contrato TokenUsage
 
 - Creada migración `supabase/migrations/023_token_usage.sql` — tabla `public.token_usage` con columnas: `id`, `account_id`, `workspace_id`, `session_id`, `provider`, `model`, `input_tokens`, `output_tokens`, `total_tokens`, `created_at`.

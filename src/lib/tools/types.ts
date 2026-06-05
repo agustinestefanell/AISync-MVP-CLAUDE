@@ -37,3 +37,7 @@ export type TokenUsage = {
   output_tokens: number
   total_tokens:  number
 }
+
+export type StreamOptions = {
+  onUsage?: (usage: TokenUsage) => void | Promise<void>
+}
