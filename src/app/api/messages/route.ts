@@ -9,11 +9,22 @@ export async function POST(req: Request) {
 
   const { sessionId, messages } = await req.json() as {
     sessionId: string
-    messages: { role: 'user' | 'assistant'; content: string }[]
+    messages: {
+      role:        'user' | 'assistant'
+      content:     string
+      attachments?: { name?: string; media_type: string; type: 'image' | 'document' }[]
+    }[]
   }
 
   const { error } = await supabase.from('messages').insert(
-    messages.map(m => ({ session_id: sessionId, role: m.role, content: m.content }))
+    messages.map(m => ({
+      session_id:          sessionId,
+      role:                m.role,
+      content:             m.content,
+      attachment_metadata: m.attachments?.length
+        ? m.attachments.map(a => ({ name: a.name ?? '', media_type: a.media_type, type: a.type }))
+        : null,
+    }))
   )
 
   if (error) return Response.json({ error: error.message }, { status: 500 })

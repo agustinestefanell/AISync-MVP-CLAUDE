@@ -72,6 +72,7 @@ export interface Message {
   role: 'user' | 'assistant'
   content: string
   created_at: string
+  attachment_metadata?: { name: string; media_type: string; type: 'image' | 'document' }[] | null
 }
 
 // Tipos enriquecidos para el dashboard (con joins)

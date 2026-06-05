@@ -764,6 +764,10 @@ Migraciones 016–020 aplicadas en Supabase Dashboard. Migración 021 pendiente 
 
 `session_attachments` y `session_tool_calls` son tablas de trazabilidad efímera por sesión. Su ownership se valida por RLS mediante `agent_sessions → workspaces → teams → projects → account_id = auth.uid()`. `chat/route.ts` registra eventos de attachments y tool calls mediante inserts fire-and-forget (sin `await`, sin bloquear stream) en `session_attachments` y `session_tool_calls`. Además registra `attachment_uploaded` y `tool_call_executed` en `audit_log` para visibilidad en Audit Log. No se guarda base64 de archivos en DB — solo metadata. La integración desde AgentPanel y providers queda pendiente para OEs futuras.
 
+### 10.5 Attachment metadata en messages — migración 022
+
+`messages.attachment_metadata` persiste solo metadata liviana de attachments (`name`, `media_type`, `type`) para reconstruir chips al recargar el workspace. No guarda base64 ni contenido de archivo. Al cargar `initialMessages`, `AgentPanel` mapea `attachment_metadata` a `attachments` con `data: ''` como placeholder — suficiente para mostrar el chip visual. El placeholder `data: ''` no se re-envía al provider porque los mensajes históricos no pasan por la lógica de envío de adjuntos.
+
 ### Checkpoint messages — agent_role
 
 `getDocCheckpoints()` incluye `checkpoint_messages(content, role, position, session_id, agent_sessions(agent_role))`. El campo `agent_role` se mapea por mensaje y se expone en `DocCheckpoint.checkpoint_messages`. `CheckpointDetailPanel` usa este campo para: (1) mostrar labels reales de agente en `MiniChatPreview` via `AGENT_LABEL[msg.agentRole]`; (2) mostrar row `AI Agent` en Secondary Metadata. `agent_sessions` y `session_id` no se exponen en `DocCheckpoint` — solo `agent_role` como dato de UI mínimo.

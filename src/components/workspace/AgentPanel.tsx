@@ -132,7 +132,12 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
 
     // ── State ────────────────────────────────────────────────────────────────
     const [messages, setMessages]             = useState<DisplayMessage[]>(
-      initialMessages.map(m => ({ role: m.role, content: m.content, created_at: m.created_at }))
+      initialMessages.map(m => ({
+        role:        m.role,
+        content:     m.content,
+        created_at:  m.created_at,
+        attachments: m.attachment_metadata?.map(a => ({ ...a, data: '' })) ?? undefined,
+      }))
     )
     const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
     const [input, setInput]                   = useState('')

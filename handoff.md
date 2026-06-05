@@ -4617,3 +4617,17 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - Limitación MVP documentada: chips desaparecen al recargar (attachments no persistidos en DB).
 - Build ejecutado y validado.
 
+---
+
+## [2026-06-05] — Persistir attachment metadata en messages
+
+- Se creó migración `022_messages_attachment_metadata.sql` — agrega columna nullable `attachment_metadata jsonb` a `messages`.
+- `Message` en `types.ts` — agregado `attachment_metadata?: { name, media_type, type }[] | null`.
+- `/api/messages/route.ts` — tipo del body extendido para aceptar `attachments?`; insert persiste metadata sin `data` (sin base64).
+- `AgentPanel.tsx` mapper inicial — reconstruye `attachments` desde `attachment_metadata` con `data: ''` como placeholder (satisface tipo `ChatAttachment`, no re-envía archivo al provider).
+- El fetch a `/api/messages` (línea 369) ya enviaba `userMsg` completo con `attachments` — no se modificó.
+- No se tocaron providers, streaming, Audit Log ni WorkspaceShell.
+- Fix de tipo: `ChatAttachment.data` es requerido — placeholder `data: ''` resuelve sin tocar el tipo base.
+- **Pendiente:** aplicar migración 022 en Supabase Dashboard → SQL Editor.
+- Build ejecutado y validado.
+
