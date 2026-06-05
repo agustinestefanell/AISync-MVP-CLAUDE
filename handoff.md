@@ -4717,6 +4717,17 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-05] — Fase 1 Token Counters: tabla token_usage + contrato TokenUsage
+
+- Creada migración `supabase/migrations/023_token_usage.sql` — tabla `public.token_usage` con columnas: `id`, `account_id`, `workspace_id`, `session_id`, `provider`, `model`, `input_tokens`, `output_tokens`, `total_tokens`, `created_at`.
+- RLS habilitado con dos policies directas por `account_id = auth.uid()` (select + insert).
+- Agregado `export type TokenUsage` en `src/lib/tools/types.ts` con campos: `provider`, `model`, `input_tokens`, `output_tokens`, `total_tokens`.
+- No se tocaron: providers, streaming, `chat/route.ts`, UI, componentes Workspace, migrations anteriores.
+- Lint, TypeScript y build ejecutados — todos limpios.
+- **Aplicación manual pendiente:** Supabase Dashboard → SQL Editor → ejecutar `023_token_usage.sql`.
+
+---
+
 ## [2026-06-05] — Migración 022 confirmada aplicada
 
 - `022_messages_attachment_metadata.sql` ya estaba aplicada en Supabase (columna `attachment_metadata jsonb` existe en `messages`).

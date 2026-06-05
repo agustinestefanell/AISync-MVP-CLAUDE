@@ -29,3 +29,11 @@ export interface ToolExecutor {
   definition: ToolDefinition
   execute: (input: Record<string, unknown>) => Promise<ToolExecutionResult>
 }
+
+export type TokenUsage = {
+  provider:      string
+  model:         string
+  input_tokens:  number
+  output_tokens: number
+  total_tokens:  number
+}

@@ -774,6 +774,10 @@ Migraciones 016–020 aplicadas en Supabase Dashboard. Migración 021 pendiente 
 
 `getDocCheckpoints()` incluye `checkpoint_messages(content, role, position, session_id, agent_sessions(agent_role))`. El campo `agent_role` se mapea por mensaje y se expone en `DocCheckpoint.checkpoint_messages`. `CheckpointDetailPanel` usa este campo para: (1) mostrar labels reales de agente en `MiniChatPreview` via `AGENT_LABEL[msg.agentRole]`; (2) mostrar row `AI Agent` en Secondary Metadata. `agent_sessions` y `session_id` no se exponen en `DocCheckpoint` — solo `agent_role` como dato de UI mínimo.
 
+### Token usage infrastructure
+
+La tabla `token_usage` será la base de persistencia para consumo de tokens por `account_id`, `workspace_id`, `session_id`, `provider` y `model`. La Fase 1 solo crea la migration y el contrato `TokenUsage`. Providers, streaming y `chat/route.ts` integrarán usage en fases posteriores (Fase 2: captura runtime; Fase 3: UI modal).
+
 ### Context Files — project inheritance
 
 `WorkspaceShell` pasa `workspace.teams?.project_id` como `projectId` a `AgentPanel`. `AgentPanel` propaga ese valor a `ContextFilePanel`. `ContextFilePanel` no infiere `projectId` por su cuenta — siempre lo recibe como prop desde arriba. El dato de origen es `WorkspaceWithAgents.teams.project_id` (string, disponible en el join de `getWorkspaceWithAgents`).
