@@ -97,6 +97,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | 019_saved_selections.sql | ✅ Applied |
 | 020_fix_checkpoint_messages_rls.sql | ✅ Applied — 2026-06-04, manually via Supabase SQL Editor |
 | 021_session_attachments_and_tool_calls.sql | ✅ Applied — 2026-06-05, manually via Supabase SQL Editor |
+| 022_messages_attachment_metadata.sql | Needs Review — created 2026-06-05; pending apply in Supabase Dashboard → SQL Editor |
 
 ---
 
@@ -122,7 +123,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Groq — attachments | Deferred | Modelos sin soporte de visión; comentario técnico agregado |
 | AgentPanel UI — clip button + chips + drag & drop | ✅ Closed | `AgentPanel.tsx` — input file oculto, chips removibles, drag & drop |
 | AgentPanel — sendPrompt guard fix | ✅ Closed | `AgentPanel.tsx` — `(!content && !atts.length)` permite envío solo-adjunto |
-| Attachment traceability | Deferred | Ver `DECISIONS.md` 2026-06-04 — 3 capas, tabla `session_attachments`, post-búsqueda |
+| Attachment traceability | Partial | Migración 021 aplicada. `session_attachments` + `audit_log` events via `Promise.allSettled`. `attachment_metadata` en `messages` (migración 022, pendiente Supabase). Chips históricos visibles post-reload una vez aplicada 022. |
 
 ---
 
@@ -140,7 +141,7 @@ Last updated: 2026-05-29 (Decisions registry + evidence audit — OE documental)
 | Web Search toggle en AgentPanel | ✅ Closed | `AgentPanel.tsx` — badge clicable, envía `webSearchEnabled` |
 | Runtime Tavily con API key real | Pending | Agregar `TAVILY_API_KEY` en Vercel Dashboard |
 | Tool loop multi-ronda | Deferred | Post-MVP |
-| Web search traceability + sources | Deferred | Ver `DECISIONS.md` 2026-06-04 — contrato `{ content, sources? }`, tabla `session_tool_calls` |
+| Web search traceability + sources | Partial | `session_tool_calls` + `audit_log` events via `Promise.allSettled`. Runtime validado. Sources UI diferida. |
 
 ---
 
