@@ -34,7 +34,7 @@ function toAnthropicMessages(messages: ChatMessage[]): Anthropic.MessageParam[] 
             },
           }
         }),
-        { type: 'text' as const, text: msg.content },
+        ...(msg.content ? [{ type: 'text' as const, text: msg.content }] : []),
       ]
       return { role: msg.role, content: blocks }
     }
