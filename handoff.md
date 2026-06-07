@@ -4787,3 +4787,24 @@ Se usó `workspace_id` en vez de `session_id` como filtro de la query, ya que un
 - Dashboard avanzado de consumo (histórico total, por proyecto, billing) sigue pendiente.
 - `token_usage` aún requiere aplicación manual de migraciones 023 y 024 en Supabase. Sin ellas, la tabla no existe y la query falla silenciosamente (el badge simplemente no se muestra).
 - Lint: 2 warnings preexistentes en `CanvasViewport.tsx` (react-hooks/exhaustive-deps). No relacionados con esta OE.
+
+---
+
+## [2026-06-07] — Token Usage: chips por provider en TopRibbon
+
+### Cambio realizado
+`TokenUsageBadge` ahora muestra chips separados por provider en el TopRibbon del Workspace. Cada chip muestra el nombre legible del provider (Claude, OpenAI, Gemini, Groq) más el total de tokens formateado, y abre el mismo modal existente con el desglose completo por provider/model.
+
+### Archivos modificados
+- `src/components/workspace/TokenUsageBadge.tsx` — reemplazado badge único por `div` con `map` de chips. Agregados `ProviderTotal` type, `PROVIDER_LABEL` map, `providerLabel()` helper y cálculo `providerTotals` por reduce separado. Extraídos `chipStyle`, `chipHoverIn`, `chipHoverOut` para evitar repetición inline. Modal, fetch, guardas y estado `open/setOpen` sin cambios.
+
+### Decisión técnica
+Se mantienen dos reduces: el existente por `provider|model` (para el modal) y uno nuevo por `provider` (para los chips). Son propósitos distintos; combinarlos habría complicado la lectura del modal sin beneficio real.
+
+### Alternativas descartadas
+- Badge único con total agregado: descartado. No permite identificar qué provider consume más sin abrir el modal.
+- Colapsar providers en `+N` si son muchos: descartado por la OE. Se muestran todos.
+
+### Riesgos conocidos / deuda técnica
+- Sin datos, el badge no se muestra (comportamiento correcto — guardas separadas del fix anterior preservadas).
+- Refresh de chips: igual que antes, los datos se actualizan al abrir el modal. El ribbon refleja la carga inicial.

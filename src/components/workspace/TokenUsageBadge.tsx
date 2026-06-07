@@ -15,6 +15,23 @@ type UsageRow = {
   total_tokens:  number
 }
 
+type ProviderTotal = {
+  provider:     string
+  total_tokens: number
+}
+
+const PROVIDER_LABEL: Record<string, string> = {
+  anthropic: 'Claude',
+  openai:    'OpenAI',
+  google:    'Gemini',
+  gemini:    'Gemini',
+  groq:      'Groq',
+}
+
+function providerLabel(provider: string): string {
+  return PROVIDER_LABEL[provider.toLowerCase()] ?? provider
+}
+
 function formatTokens(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
   return `${n}`
@@ -49,10 +66,11 @@ export default function TokenUsageBadge({ workspaceId }: Props) {
     fetchUsage(workspaceId, setRows)
   }, [open, workspaceId])
 
-  // Fix 1: guardas separadas — workspaceId ausente vs sin datos son casos distintos
+  // Guardas separadas — causas distintas
   if (!workspaceId) return null
   if (rows.length === 0) return null
 
+  // Agrupación por provider/model para el modal
   const grouped = rows.reduce<Record<string, UsageRow>>((acc, r) => {
     const key = `${r.provider}|${r.model}`
     if (!acc[key]) acc[key] = { provider: r.provider, model: r.model, input_tokens: 0, output_tokens: 0, total_tokens: 0 }
@@ -62,27 +80,53 @@ export default function TokenUsageBadge({ workspaceId }: Props) {
     return acc
   }, {})
   const groupedRows = Object.values(grouped)
+
+  // Total por provider para los chips del ribbon
+  const providerTotals = Object.values(
+    rows.reduce<Record<string, ProviderTotal>>((acc, r) => {
+      const key = r.provider.toLowerCase()
+      if (!acc[key]) acc[key] = { provider: r.provider, total_tokens: 0 }
+      acc[key].total_tokens += r.total_tokens
+      return acc
+    }, {})
+  )
+
   const totalTokens = groupedRows.reduce((s, r) => s + r.total_tokens, 0)
+
+  const chipStyle = {
+    color:       'rgba(255,255,255,0.75)',
+    borderColor: 'rgba(255,255,255,0.35)',
+    background:  'transparent',
+  }
+  const chipHoverIn  = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.color       = '#ffffff'
+    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.65)'
+  }
+  const chipHoverOut = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.color       = 'rgba(255,255,255,0.75)'
+    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'
+  }
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wider leading-none border transition-colors"
-        style={{ color: 'rgba(255,255,255,0.75)', borderColor: 'rgba(255,255,255,0.35)', background: 'transparent' }}
-        onMouseEnter={e => {
-          ;(e.currentTarget as HTMLButtonElement).style.color = '#ffffff'
-          ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.65)'
-        }}
-        onMouseLeave={e => {
-          ;(e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.75)'
-          ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.35)'
-        }}
-      >
-        {formatTokens(totalTokens)} tokens
-      </button>
+      {/* Chips por provider en el ribbon */}
+      <div className="flex items-center gap-1">
+        {providerTotals.map(item => (
+          <button
+            key={item.provider}
+            type="button"
+            onClick={() => setOpen(true)}
+            className="rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wider leading-none border transition-colors"
+            style={chipStyle}
+            onMouseEnter={chipHoverIn}
+            onMouseLeave={chipHoverOut}
+          >
+            {providerLabel(item.provider)} {formatTokens(item.total_tokens)}
+          </button>
+        ))}
+      </div>
 
+      {/* Modal existente — sin cambios */}
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
