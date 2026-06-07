@@ -4808,3 +4808,23 @@ Se mantienen dos reduces: el existente por `provider|model` (para el modal) y un
 ### Riesgos conocidos / deuda técnica
 - Sin datos, el badge no se muestra (comportamiento correcto — guardas separadas del fix anterior preservadas).
 - Refresh de chips: igual que antes, los datos se actualizan al abrir el modal. El ribbon refleja la carga inicial.
+
+---
+
+## [2026-06-07] — Add Team modal: códigos jerárquicos en dropdown de parent
+
+### Cambio realizado
+El dropdown "Sub-team of" en `AddTeamModal` ahora muestra el código jerárquico de cada team (`A-01 · Team Name`) y está ordenado por código. Fallback `—` para teams sin código asignado.
+
+### Archivos modificados
+- `src/components/teams/AddTeamModal.tsx` — importado `useMemo` y `computeTeamCodes`. Calculado `teamCodes` con `useMemo(() => computeTeamCodes(teams), [teams])`. El `.map()` del dropdown reemplazado por `[...teams].sort(...).map(...)` con `teamCodes[t.id] ?? '—'`.
+
+### Decisión técnica
+Opción autocontenida: `computeTeamCodes` se llama dentro del modal con el mismo prop `teams` que ya recibe. No se modificaron props ni el componente padre `TeamsClient`. Los tipos son idénticos — `AddTeamModal.teams: TeamWithWorkspaces[]` y `computeTeamCodes(teams: TeamWithWorkspaces[])` usan el mismo tipo de `@/lib/db/types`.
+
+### Alternativas descartadas
+- Pasar `teamCodes` como prop desde `TeamsClient` (ya lo calcula): descartado. Agrega acoplamiento innecesario; el cálculo es puro y barato.
+
+### Riesgos conocidos / deuda técnica
+- Teams sin código (`—`) indican que su `parent_id` apunta a un team que no está en el array recibido. Pendiente investigar si ocurre en producción y en qué caso.
+- El fallback `—` es diagnóstico temporal — puede convertirse en comportamiento definitivo o removerse una vez confirmado que todos los teams tienen código.

@@ -46,6 +46,7 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 | Review & Forward — forwarded context | ✅ Live | `src/components/workspace/AgentPanel.tsx` | Fix: `appendUserMessage` ahora sincroniza `messages` y `apiMessages`. El contexto forwarded llega al modelo. |
 | Review & Forward — auto-respond | ✅ Closed | commit feat: auto-respond on forward with visible indicator in agent panel | `appendUserMessage` dispara `sendPrompt(content)` automáticamente cuando `autoRespond=true` (default). Sin duplicación de mensajes. Indicador `Auto-respond: ON` visible en header de cada panel. |
 | SAT structured context (chat API) | ✅ Live | commit 0f40de5 | Layers 1/3/4 — commit 0f40de5 |
+| Add Team — parent dropdown con códigos jerárquicos | ✅ Closed | commit c24694e | `computeTeamCodes` importado en `AddTeamModal`. Dropdown ordenado por código. Cada option muestra `A-01 · Team Name`. Fallback `—` para teams sin código. Autocontenido — sin cambios al componente padre. |
 
 ---
 
