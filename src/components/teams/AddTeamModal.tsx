@@ -187,7 +187,7 @@ export default function AddTeamModal({ projectId, teams, onClose, onCreated }: A
                   <option value="">— None (root) —</option>
                   {[...teams]
                     .sort((a, b) => (teamCodes[a.id] ?? '').localeCompare(teamCodes[b.id] ?? ''))
-                    .map(t => <option key={t.id} value={t.id}>{teamCodes[t.id]} · {t.name}</option>)}
+                    .map(t => <option key={t.id} value={t.id}>{teamCodes[t.id] ?? '—'} · {t.name}</option>)}
                 </select>
               </div>
             )}
