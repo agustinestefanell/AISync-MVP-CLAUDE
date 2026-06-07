@@ -2,6 +2,7 @@ import { GoogleGenerativeAI, type Part, type FunctionDeclaration } from '@google
 import { randomUUID } from 'crypto'
 import type { ChatMessage, ChatProvider } from './types'
 import type { ToolCall, ToolDefinition } from '@/lib/tools'
+import type { TokenUsage, StreamOptions } from '@/lib/tools/types'
 
 const MODEL_MAP: Record<string, string> = {
   'Gemini 2.0':        'gemini-2.5-flash',
@@ -18,7 +19,7 @@ export class GoogleProvider implements ChatProvider {
     this.genAI = new GoogleGenerativeAI(apiKey)
   }
 
-  async stream(messages: ChatMessage[], model: string): Promise<ReadableStream<Uint8Array>> {
+  async stream(messages: ChatMessage[], model: string, options?: StreamOptions): Promise<ReadableStream<Uint8Array>> {
     const resolvedModel = MODEL_MAP[model] ?? model
     const genModel = this.genAI.getGenerativeModel({ model: resolvedModel })
     const encoder = new TextEncoder()
@@ -54,6 +55,21 @@ export class GoogleProvider implements ChatProvider {
           const text = chunk.text()
           if (text) controller.enqueue(encoder.encode(text))
         }
+        try {
+          const finalResponse = await result.response
+          const usageMetadata = finalResponse.usageMetadata
+          const usage: TokenUsage = {
+            provider:      'google',
+            model:         resolvedModel,
+            input_tokens:  usageMetadata?.promptTokenCount     ?? 0,
+            output_tokens: usageMetadata?.candidatesTokenCount ?? 0,
+            total_tokens:  usageMetadata?.totalTokenCount      ??
+              (usageMetadata?.promptTokenCount ?? 0) + (usageMetadata?.candidatesTokenCount ?? 0),
+          }
+          await options?.onUsage?.(usage)
+        } catch (error) {
+          console.error('[google] failed to capture token usage', error)
+        }
         controller.close()
       },
     })
@@ -62,7 +78,8 @@ export class GoogleProvider implements ChatProvider {
   async complete(
     messages: ChatMessage[],
     model: string,
-    tools?: ToolDefinition[]
+    tools?: ToolDefinition[],
+    options?: StreamOptions
   ): Promise<{ content: string; toolCalls?: ToolCall[] }> {
     const resolvedModel = MODEL_MAP[model] ?? model
 
@@ -82,6 +99,21 @@ export class GoogleProvider implements ChatProvider {
     const lastMessage = messages[messages.length - 1]
     const response = (await genModel.generateContent(lastMessage.content)).response
     const functionCalls = response.functionCalls() ?? []
+
+    try {
+      const usageMetadata = response.usageMetadata
+      const usage: TokenUsage = {
+        provider:      'google',
+        model:         resolvedModel,
+        input_tokens:  usageMetadata?.promptTokenCount     ?? 0,
+        output_tokens: usageMetadata?.candidatesTokenCount ?? 0,
+        total_tokens:  usageMetadata?.totalTokenCount      ??
+          (usageMetadata?.promptTokenCount ?? 0) + (usageMetadata?.candidatesTokenCount ?? 0),
+      }
+      await options?.onUsage?.(usage)
+    } catch (error) {
+      console.error('[google] failed to capture token usage', error)
+    }
 
     return {
       content:   response.text() ?? '',

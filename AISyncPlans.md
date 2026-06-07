@@ -774,6 +774,10 @@ Migraciones 016–020 aplicadas en Supabase Dashboard. Migración 021 pendiente 
 
 `getDocCheckpoints()` incluye `checkpoint_messages(content, role, position, session_id, agent_sessions(agent_role))`. El campo `agent_role` se mapea por mensaje y se expone en `DocCheckpoint.checkpoint_messages`. `CheckpointDetailPanel` usa este campo para: (1) mostrar labels reales de agente en `MiniChatPreview` via `AGENT_LABEL[msg.agentRole]`; (2) mostrar row `AI Agent` en Secondary Metadata. `agent_sessions` y `session_id` no se exponen en `DocCheckpoint` — solo `agent_role` como dato de UI mínimo.
 
+### Token usage multi-provider
+
+AISync normaliza usage de todos los providers en `TokenUsage` con `input_tokens`/`output_tokens`. OpenAI y Groq convierten `prompt_tokens`/`completion_tokens` (capturado del último chunk con `stream_options: { include_usage: true }`). Gemini convierte `usageMetadata.promptTokenCount`/`candidatesTokenCount` (obtenido de `result.response` post-stream o de `response.usageMetadata` en complete). Todos reportan mediante `onUsage`; `chat/route.ts` persiste con `persistUsage` reutilizado.
+
 ### Token usage capture pattern
 
 AISync usa callback opcional `onUsage` (en `StreamOptions`) para desacoplar captura de tokens del flujo principal. El provider reporta `TokenUsage` con `input_tokens`/`output_tokens`. `chat/route.ts` persiste en `token_usage` con `capture_method`. Fallos de persistencia nunca interrumpen el stream ni la respuesta al usuario. Implementado primero en Anthropic (Fase 2a). Otros providers pendientes.

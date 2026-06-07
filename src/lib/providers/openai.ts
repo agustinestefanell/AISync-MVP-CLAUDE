@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import type { ChatMessage, ChatProvider } from './types'
 import type { ToolCall, ToolDefinition } from '@/lib/tools'
+import type { TokenUsage, StreamOptions } from '@/lib/tools/types'
 
 const MODEL_MAP: Record<string, string> = {
   'GPT-4o':      'gpt-4o',
@@ -17,7 +18,7 @@ export class OpenAIProvider implements ChatProvider {
     this.client = new OpenAI({ apiKey })
   }
 
-  async stream(messages: ChatMessage[], model: string): Promise<ReadableStream<Uint8Array>> {
+  async stream(messages: ChatMessage[], model: string, options?: StreamOptions): Promise<ReadableStream<Uint8Array>> {
     const resolvedModel = MODEL_MAP[model] ?? model
     const encoder = new TextEncoder()
 
@@ -47,6 +48,7 @@ export class OpenAIProvider implements ChatProvider {
       model: resolvedModel,
       messages: sdkMessages,
       stream: true,
+      stream_options: { include_usage: true },
     })
 
     return new ReadableStream({
@@ -54,6 +56,21 @@ export class OpenAIProvider implements ChatProvider {
         for await (const chunk of completion) {
           const text = chunk.choices[0]?.delta?.content ?? ''
           if (text) controller.enqueue(encoder.encode(text))
+          if (chunk.usage) {
+            try {
+              const usage: TokenUsage = {
+                provider:      'openai',
+                model:         resolvedModel,
+                input_tokens:  chunk.usage.prompt_tokens     ?? 0,
+                output_tokens: chunk.usage.completion_tokens ?? 0,
+                total_tokens:  chunk.usage.total_tokens      ??
+                  (chunk.usage.prompt_tokens ?? 0) + (chunk.usage.completion_tokens ?? 0),
+              }
+              await options?.onUsage?.(usage)
+            } catch (error) {
+              console.error('[openai] failed to capture token usage', error)
+            }
+          }
         }
         controller.close()
       },
@@ -63,7 +80,8 @@ export class OpenAIProvider implements ChatProvider {
   async complete(
     messages: ChatMessage[],
     model: string,
-    tools?: ToolDefinition[]
+    tools?: ToolDefinition[],
+    options?: StreamOptions
   ): Promise<{ content: string; toolCalls?: ToolCall[] }> {
     const resolvedModel = MODEL_MAP[model] ?? model
 
@@ -103,6 +121,20 @@ export class OpenAIProvider implements ChatProvider {
     })
 
     const message = response.choices[0]?.message
+
+    try {
+      const usage: TokenUsage = {
+        provider:      'openai',
+        model:         resolvedModel,
+        input_tokens:  response.usage?.prompt_tokens     ?? 0,
+        output_tokens: response.usage?.completion_tokens ?? 0,
+        total_tokens:  response.usage?.total_tokens      ??
+          (response.usage?.prompt_tokens ?? 0) + (response.usage?.completion_tokens ?? 0),
+      }
+      await options?.onUsage?.(usage)
+    } catch (error) {
+      console.error('[openai] failed to capture token usage', error)
+    }
 
     return {
       content:   message?.content ?? '',

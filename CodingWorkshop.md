@@ -818,3 +818,28 @@ El fallo de `onUsage` nunca rompe el stream. Se captura en `try/catch` y se logu
 
 ### Lección
 La captura de métricas debe ser best-effort y desacoplada del flujo visible del usuario. Los callbacks opcionales son el patrón correcto para instrumentación no crítica en pipelines de streaming.
+
+---
+
+## Token Counters — Provider usage capture OpenAI / Groq / Gemini
+
+### Problema
+Anthropic ya reportaba usage mediante `onUsage`, pero OpenAI, Groq y Gemini todavía no enviaban consumo de tokens a `token_usage`.
+
+### Causa raíz
+Cada provider expone usage con shape distinto y en lugares distintos del flujo:
+- OpenAI/Groq: `prompt_tokens`/`completion_tokens` — llega en el último chunk cuando se agrega `stream_options: { include_usage: true }`.
+- Gemini stream: `usageMetadata.promptTokenCount`/`candidatesTokenCount` — disponible en `result.response` (Promise que resuelve cuando el stream termina).
+- Gemini complete: `response.usageMetadata` — directo en la respuesta.
+
+### Solución
+Se replicó el patrón `onUsage` con mapeo a `input_tokens`/`output_tokens` y `try/catch` por provider. `chat/route.ts` reutiliza `persistUsage` sin duplicar lógica. Los call sites usan ternarios multi-branch para resolver el provider correcto.
+
+### Nota OpenAI/Groq
+Sin `stream_options: { include_usage: true }`, el último chunk no incluye `usage`. El campo existe en el SDK TypeScript de OpenAI — no requiere tipo externo ni cast.
+
+### Nota Gemini
+El stream de Gemini usa `result.response` (una Promise). Aunque la Promise existe desde antes del loop, no resuelve hasta que se consumen todos los chunks. `await result.response` después del `for await` es seguro y da el objeto completo con `usageMetadata`.
+
+### Lección
+El contrato interno debe mantenerse estable aunque cada provider tenga nomenclatura distinta. AISync normaliza en `input_tokens`/`output_tokens` al construir el objeto `TokenUsage`.

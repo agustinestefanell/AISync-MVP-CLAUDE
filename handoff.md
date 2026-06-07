@@ -4717,6 +4717,17 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 
 ---
 
+## [2026-06-07] — Fase 2b Token Counters: captura de usage en OpenAI, Groq y Gemini
+
+- `openai.ts` — `stream()`: agrega `stream_options: { include_usage: true }` y captura `chunk.usage` (último chunk) dentro del loop con try/catch. `complete()`: captura `response.usage.prompt_tokens/completion_tokens`. Ambos mapean a `input_tokens/output_tokens`.
+- `groq.ts` — `stream()`: mismo patrón que OpenAI (usa OpenAI SDK). Sin `complete()` — N/A.
+- `google.ts` — `stream()`: después del for-await, `await result.response` para obtener `usageMetadata.promptTokenCount/candidatesTokenCount`. `complete()`: `response.usageMetadata` directo. Ambos mapean a `input_tokens/output_tokens`.
+- `chat/route.ts` — agrega imports de `OpenAIProvider`, `GroqProvider`, `GoogleProvider`. Agrega refs `openaiProvider/groqProvider/googleProvider`. Extrae `streamUsageOpts`/`completeUsageOpts` como variables reutilizadas. Los 3 call sites (complete, toolStream, direct stream) usan ternarios multi-branch para pasar opts por provider. Anthropic no fue tocado.
+- Lint, TypeScript y build ejecutados — todos limpios en primer intento.
+- Anthropic.ts no fue modificado.
+
+---
+
 ## [2026-06-05] — Fase 2a Token Counters: captura de usage en Anthropic
 
 - `tools/types.ts` — agregado `StreamOptions` con `onUsage?: (usage: TokenUsage) => void | Promise<void>`.

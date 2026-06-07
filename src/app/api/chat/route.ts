@@ -8,6 +8,9 @@ import { getTool, webSearchTool } from '@/lib/tools'
 import type { ChatMessage } from '@/lib/providers/types'
 import type { ToolResult } from '@/lib/tools'
 import { AnthropicProvider } from '@/lib/providers/anthropic'
+import { OpenAIProvider }   from '@/lib/providers/openai'
+import { GroqProvider }     from '@/lib/providers/groq'
+import { GoogleProvider }   from '@/lib/providers/google'
 import type { TokenUsage } from '@/lib/tools/types'
 
 export const dynamic = 'force-dynamic'
@@ -263,6 +266,9 @@ export async function POST(req: Request) {
 
     const providerInstance = getProvider(provider, { apiKey })
     const anthropicProvider = provider === 'Anthropic' ? providerInstance as AnthropicProvider : null
+    const openaiProvider    = provider === 'OpenAI'    ? providerInstance as OpenAIProvider    : null
+    const groqProvider      = provider === 'Groq'      ? providerInstance as GroqProvider      : null
+    const googleProvider    = provider === 'Google'    ? providerInstance as GoogleProvider    : null
 
     const persistUsage = async (usage: TokenUsage, captureMethod: string) => {
       try {
@@ -282,11 +288,18 @@ export async function POST(req: Request) {
       }
     }
 
+    const streamUsageOpts   = { onUsage: (u: TokenUsage) => persistUsage(u, 'stream_final') }
+    const completeUsageOpts = { onUsage: (u: TokenUsage) => persistUsage(u, 'response_usage') }
+
     // ── Tool loop (opt-in via webSearchEnabled) ───────────────────────────────
     if (webSearchEnabled && providerInstance.complete) {
       const first = anthropicProvider
-        ? await anthropicProvider.complete(messages, model, [webSearchTool.definition], { onUsage: u => persistUsage(u, 'response_usage') })
-        : await providerInstance.complete(messages, model, [webSearchTool.definition])
+        ? await anthropicProvider.complete(messages, model, [webSearchTool.definition], completeUsageOpts)
+        : openaiProvider
+        ? await openaiProvider.complete(messages, model, [webSearchTool.definition], completeUsageOpts)
+        : googleProvider
+        ? await googleProvider.complete(messages, model, [webSearchTool.definition], completeUsageOpts)
+        : await providerInstance.complete!(messages, model, [webSearchTool.definition])
 
       if (first.toolCalls?.length) {
         const toolResults: ToolResult[] = []
@@ -350,7 +363,13 @@ export async function POST(req: Request) {
         ]
 
         const toolStream = anthropicProvider
-          ? await anthropicProvider.stream(messagesWithToolResults, model, { onUsage: u => persistUsage(u, 'stream_final') })
+          ? await anthropicProvider.stream(messagesWithToolResults, model, streamUsageOpts)
+          : openaiProvider
+          ? await openaiProvider.stream(messagesWithToolResults, model, streamUsageOpts)
+          : groqProvider
+          ? await groqProvider.stream(messagesWithToolResults, model, streamUsageOpts)
+          : googleProvider
+          ? await googleProvider.stream(messagesWithToolResults, model, streamUsageOpts)
           : await providerInstance.stream(messagesWithToolResults, model)
         return new Response(toolStream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
       }
@@ -368,7 +387,13 @@ export async function POST(req: Request) {
 
     // ── Direct stream (default, no tools) ────────────────────────────────────
     const stream = anthropicProvider
-      ? await anthropicProvider.stream(messages, model, { onUsage: u => persistUsage(u, 'stream_final') })
+      ? await anthropicProvider.stream(messages, model, streamUsageOpts)
+      : openaiProvider
+      ? await openaiProvider.stream(messages, model, streamUsageOpts)
+      : groqProvider
+      ? await groqProvider.stream(messages, model, streamUsageOpts)
+      : googleProvider
+      ? await googleProvider.stream(messages, model, streamUsageOpts)
       : await providerInstance.stream(messages, model)
     return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
 
