@@ -159,7 +159,7 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 - Token Counters Fase 1 — ✅ tabla `token_usage` + `TokenUsage` type. Migraciones 023 + 024 creadas. Pendiente aplicación manual en Supabase.
 - Token Counters Fase 2a — ✅ Anthropic: `stream()` captura via `finalMessage()`, `complete()` via `response.usage`. `onUsage` desacoplado — fallo no interrumpe stream.
 - Token Counters Fase 2b — ✅ OpenAI/Groq/Gemini: `stream_options: { include_usage: true }` en OpenAI/Groq. `usageMetadata` en Gemini stream + complete. Nomenclatura normalizada a `input_tokens/output_tokens`. Persistencia via `persistUsage` reutilizado.
-- Token Counters Fase 3 — Deferred: modal UI de consumo de tokens.
+- Token Counters Fase 3 — ✅ `TopRibbon` acepta `rightBadge?: React.ReactNode`. `TokenUsageBadge` muestra total del workspace en el TopRibbon + mini modal con desglose por provider/model. Badge no se muestra si no hay datos (sin token_usage aún). Dashboard avanzado de consumo sigue pendiente.
 - MAP Open button: `window.open(..., '_blank')` may be blocked by popup blocker. Future fix: `router.push`.
 - Prompt Library: ribbon entry is a modal (temporary). Dedicated `/prompts` page pending.
 - Capa 2 (Prompts Library injection in chat): architecture defined, not wired.

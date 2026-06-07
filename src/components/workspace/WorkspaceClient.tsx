@@ -4,6 +4,7 @@ import { useState } from 'react'
 import TopRibbon from '@/components/layout/TopRibbon'
 import BottomRibbon from '@/components/layout/BottomRibbon'
 import WorkspaceShell from './WorkspaceShell'
+import TokenUsageBadge from './TokenUsageBadge'
 import type { WorkspaceWithAgents, Message } from '@/lib/db/types'
 
 const WORKSPACE_GUIDE = `First of all, Workspace is where you chat with AI. It is one of the two core sides of AISync: operational work. This is the place where you talk to an AI the way you normally do, but inside a more organized system.
@@ -48,6 +49,7 @@ export default function WorkspaceClient({ pageName, accentColor, badge, workspac
         pageSubtitleOnClick={() => setShowMainGuide(true)}
         accentColor={accentColor}
         badge={badge}
+        rightBadge={<TokenUsageBadge workspaceId={workspace.id} />}
       />
 
       <main className="flex-1 overflow-hidden min-h-0 flex flex-col">

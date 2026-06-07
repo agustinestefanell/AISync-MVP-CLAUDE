@@ -1,3 +1,5 @@
+import React from 'react'
+
 interface TopRibbonProps {
   pageName:               string
   pageSubtitle?:          string
@@ -7,10 +9,11 @@ interface TopRibbonProps {
   userName?:              string
   accentColor?:           string
   badge?:                 string
+  rightBadge?:            React.ReactNode
 }
 
 export default function TopRibbon({
-  pageName, pageSubtitle, pageSubtitleHref, pageSubtitleOnClick, projectName, userName, accentColor, badge,
+  pageName, pageSubtitle, pageSubtitleHref, pageSubtitleOnClick, projectName, userName, accentColor, badge, rightBadge,
 }: TopRibbonProps) {
   const rightInfo = [
     projectName ? `Project: ${projectName}` : null,
@@ -83,9 +86,14 @@ export default function TopRibbon({
         )}
       </div>
 
-      {/* RIGHT — project · user */}
-      <div className="text-xs" style={{ color: textSecondary }}>
-        {rightInfo}
+      {/* RIGHT — rightBadge + project · user */}
+      <div className="flex items-center gap-2">
+        {rightBadge}
+        {rightInfo && (
+          <span className="text-xs" style={{ color: textSecondary }}>
+            {rightInfo}
+          </span>
+        )}
       </div>
 
     </header>

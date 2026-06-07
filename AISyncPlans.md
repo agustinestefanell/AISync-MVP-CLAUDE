@@ -788,6 +788,10 @@ Nota técnica: `AnthropicProvider.stream()` usa `client.messages.stream()` (reto
 
 La tabla `token_usage` será la base de persistencia para consumo de tokens por `account_id`, `workspace_id`, `session_id`, `provider` y `model`. La Fase 1 solo crea la migration y el contrato `TokenUsage`. Providers, streaming y `chat/route.ts` integrarán usage en fases posteriores (Fase 2: captura runtime; Fase 3: UI modal).
 
+### Token usage UI — Fase 3
+
+El consumo de tokens del workspace activo se muestra como `rightBadge` opcional en el `TopRibbon`. `TopRibbon` recibe `rightBadge?: React.ReactNode` y lo renderiza en el lado derecho (junto a `rightInfo` si existe). `TokenUsageBadge` es un componente cliente (`'use client'`) que recibe `workspaceId` y consulta `token_usage` al montar filtrando por `workspace_id`. Los registros se agrupan por `provider|model` sumando tokens. Si no hay datos, el badge no se muestra. Click abre mini modal con tabla provider/model/In/Out/Total. Cierra con X o click afuera. El prop `rightBadge` es opcional — páginas que no lo pasen (Audit, Documentation, Teams) quedan sin cambios visuales. El badge no hace polling; dashboard avanzado de consumo es trabajo futuro.
+
 ### Context Files — project inheritance
 
 `WorkspaceShell` pasa `workspace.teams?.project_id` como `projectId` a `AgentPanel`. `AgentPanel` propaga ese valor a `ContextFilePanel`. `ContextFilePanel` no infiere `projectId` por su cuenta — siempre lo recibe como prop desde arriba. El dato de origen es `WorkspaceWithAgents.teams.project_id` (string, disponible en el join de `getWorkspaceWithAgents`).

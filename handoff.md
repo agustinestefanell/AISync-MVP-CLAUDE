@@ -4761,3 +4761,29 @@ Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How t
 - Pendiente "Needs Review" de migración 022 eliminado de Known deferred items.
 - No se tocó código ni schema.
 
+
+---
+
+## [2026-06-07] — Fase 3 Token Counters UI: badge en TopRibbon + mini modal
+
+### Cambio realizado
+Token Counters Fase 3 agrega `rightBadge` opcional a `TopRibbon` y crea `TokenUsageBadge` para mostrar consumo de tokens del workspace activo. El badge consulta `token_usage` por `workspace_id` y abre un mini modal con desglose agrupado por provider/model/input/output/total.
+
+### Archivos modificados
+- `src/components/layout/TopRibbon.tsx` — prop `rightBadge?: React.ReactNode` + `import React`. Render: reemplaza `<div className="text-xs">` del lado derecho por `<div className="flex items-center gap-2">` que contiene `{rightBadge}` y `{rightInfo}` en orden. Badge SAT/MAT en el centro no fue tocado.
+- `src/components/workspace/TokenUsageBadge.tsx` — componente nuevo `'use client'`. Recibe `workspaceId?: string | null`. Si no hay workspaceId o datos, no renderiza. Consulta `token_usage` por `workspace_id` al montar. Agrupa por `provider|model` sumando tokens. Muestra badge chip con total formateado (ej. `1.2k tokens`). Click abre modal con tabla provider/model/In/Out/Total. Cierra con X o click afuera.
+- `src/components/workspace/WorkspaceClient.tsx` — importa `TokenUsageBadge`. Pasa `rightBadge={<TokenUsageBadge workspaceId={workspace.id} />}` a `TopRibbon`.
+
+### Decisión técnica
+Se usó `workspace_id` en vez de `session_id` como filtro de la query, ya que un workspace puede tener múltiples sessions (SAT/MAT) y el badge debe reflejar el consumo total del workspace visible. El prop se llamó `workspaceId` por claridad; la OE decía "adaptar al dato disponible en el archivo".
+
+### Alternativas descartadas
+- Filtrar por `session_id`: descartado porque el workspace puede tener N sessions (SAT/MAT). Habría mostrado solo los tokens de una session.
+- Polling automático: descartado (deferred). El badge carga al montar; si el usuario quiere datos actualizados, puede abrir el workspace de nuevo o hacer refresh.
+- `rightInfo` existente: no fue eliminado. Si `rightInfo` está vacío (sin projectName ni userName), no renderiza. Coexiste con `rightBadge`.
+
+### Riesgos conocidos / deuda técnica
+- El badge muestra datos al montar solamente (sin refresh en tiempo real). Los tokens generados durante la sesión activa no se reflejan hasta que el usuario recarga o navega.
+- Dashboard avanzado de consumo (histórico total, por proyecto, billing) sigue pendiente.
+- `token_usage` aún requiere aplicación manual de migraciones 023 y 024 en Supabase. Sin ellas, la tabla no existe y la query falla silenciosamente (el badge simplemente no se muestra).
+- Lint: 2 warnings preexistentes en `CanvasViewport.tsx` (react-hooks/exhaustive-deps). No relacionados con esta OE.
