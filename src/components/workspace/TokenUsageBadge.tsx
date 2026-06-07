@@ -69,12 +69,13 @@ export default function TokenUsageBadge({ workspaceId }: Props) {
   // Sin workspace → nada que mostrar
   if (!workspaceId) return null
 
-  // Sin datos → label visible, sin chips
+  // Sin datos → label + refresh visible, sin chips
   if (rows.length === 0) {
     return (
-      <span className="text-[10px] font-medium tracking-wide" style={{ color: 'rgba(255,255,255,0.45)' }}>
-        Token Counter
-      </span>
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] font-medium tracking-wide" style={{ color: 'rgba(255,255,255,0.45)' }}>Token Counter</span>
+        <button type="button" title="Refresh" onClick={() => fetchUsage(workspaceId, setRows)} className="leading-none transition-opacity hover:opacity-100" style={{ color: 'rgba(255,255,255,0.45)', opacity: 0.7, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '11px' }}>↻</button>
+      </div>
     )
   }
 
@@ -117,8 +118,9 @@ export default function TokenUsageBadge({ workspaceId }: Props) {
 
   return (
     <>
-      {/* Chips por provider en el ribbon */}
+      {/* Label + refresh + chips por provider en el ribbon */}
       <span className="text-[10px] font-medium tracking-wide" style={{ color: 'rgba(255,255,255,0.45)' }}>Token Counter</span>
+      <button type="button" title="Refresh" onClick={() => fetchUsage(workspaceId, setRows)} className="leading-none transition-opacity hover:opacity-100" style={{ color: 'rgba(255,255,255,0.45)', opacity: 0.7, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '11px' }}>↻</button>
       <div className="flex items-center gap-1">
         {providerTotals.map(item => (
           <button
