@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
+import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 
 const CLOUD_PROVIDERS = ['Anthropic', 'OpenAI', 'Google'] as const
 type CloudProvider = typeof CLOUD_PROVIDERS[number]
@@ -77,6 +78,8 @@ export default function AddTeamModal({ projectId, teams, onClose, onCreated }: A
   const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([])
   const [error, setError]               = useState('')
   const [saving, setSaving]             = useState(false)
+
+  const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])
 
   useEffect(() => {
     fetch('/api/settings/providers')
@@ -182,7 +185,9 @@ export default function AddTeamModal({ projectId, teams, onClose, onCreated }: A
                   className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:border-neutral-800 transition-colors bg-white"
                 >
                   <option value="">— None (root) —</option>
-                  {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  {[...teams]
+                    .sort((a, b) => (teamCodes[a.id] ?? '').localeCompare(teamCodes[b.id] ?? ''))
+                    .map(t => <option key={t.id} value={t.id}>{teamCodes[t.id]} · {t.name}</option>)}
                 </select>
               </div>
             )}
