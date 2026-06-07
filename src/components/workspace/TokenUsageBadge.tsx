@@ -110,6 +110,7 @@ export default function TokenUsageBadge({ workspaceId }: Props) {
   return (
     <>
       {/* Chips por provider en el ribbon */}
+      <span className="text-[10px] font-medium tracking-wide" style={{ color: 'rgba(255,255,255,0.45)' }}>Token Counter</span>
       <div className="flex items-center gap-1">
         {providerTotals.map(item => (
           <button
