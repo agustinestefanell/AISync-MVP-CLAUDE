@@ -66,9 +66,17 @@ export default function TokenUsageBadge({ workspaceId }: Props) {
     fetchUsage(workspaceId, setRows)
   }, [open, workspaceId])
 
-  // Guardas separadas — causas distintas
+  // Sin workspace → nada que mostrar
   if (!workspaceId) return null
-  if (rows.length === 0) return null
+
+  // Sin datos → label visible, sin chips
+  if (rows.length === 0) {
+    return (
+      <span className="text-[10px] font-medium tracking-wide" style={{ color: 'rgba(255,255,255,0.45)' }}>
+        Token Counter
+      </span>
+    )
+  }
 
   // Agrupación por provider/model para el modal
   const grouped = rows.reduce<Record<string, UsageRow>>((acc, r) => {
