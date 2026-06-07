@@ -20,24 +20,39 @@ function formatTokens(n: number): string {
   return `${n}`
 }
 
-export default function TokenUsageBadge({ workspaceId }: Props) {
-  const [rows, setRows]   = useState<UsageRow[]>([])
-  const [open, setOpen]   = useState(false)
+function fetchUsage(workspaceId: string, setRows: (r: UsageRow[]) => void) {
+  const supabase = createClient()
+  supabase
+    .from('token_usage')
+    .select('provider, model, input_tokens, output_tokens, total_tokens, created_at')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .then(({ data, error }) => {
+      if (error) console.error('[token_usage] query failed', error)
+      if (data) setRows(data)
+    })
+}
 
+export default function TokenUsageBadge({ workspaceId }: Props) {
+  const [rows, setRows] = useState<UsageRow[]>([])
+  const [open, setOpen] = useState(false)
+
+  // Carga inicial al montar
   useEffect(() => {
     if (!workspaceId) return
-    const supabase = createClient()
-    supabase
-      .from('token_usage')
-      .select('provider, model, input_tokens, output_tokens, total_tokens, created_at')
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => { if (data) setRows(data) })
+    fetchUsage(workspaceId, setRows)
   }, [workspaceId])
 
-  if (!workspaceId || rows.length === 0) return null
+  // Re-fetch cada vez que el modal se abre — datos frescos
+  useEffect(() => {
+    if (!open || !workspaceId) return
+    fetchUsage(workspaceId, setRows)
+  }, [open, workspaceId])
 
-  // Agrupar por provider + model, sumando tokens
+  // Fix 1: guardas separadas — workspaceId ausente vs sin datos son casos distintos
+  if (!workspaceId) return null
+  if (rows.length === 0) return null
+
   const grouped = rows.reduce<Record<string, UsageRow>>((acc, r) => {
     const key = `${r.provider}|${r.model}`
     if (!acc[key]) acc[key] = { provider: r.provider, model: r.model, input_tokens: 0, output_tokens: 0, total_tokens: 0 }
@@ -46,8 +61,8 @@ export default function TokenUsageBadge({ workspaceId }: Props) {
     acc[key].total_tokens  += r.total_tokens
     return acc
   }, {})
-  const groupedRows  = Object.values(grouped)
-  const totalTokens  = groupedRows.reduce((s, r) => s + r.total_tokens, 0)
+  const groupedRows = Object.values(grouped)
+  const totalTokens = groupedRows.reduce((s, r) => s + r.total_tokens, 0)
 
   return (
     <>
