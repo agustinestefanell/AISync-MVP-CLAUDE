@@ -843,3 +843,34 @@ El stream de Gemini usa `result.response` (una Promise). Aunque la Promise exist
 
 ### Lección
 El contrato interno debe mantenerse estable aunque cada provider tenga nomenclatura distinta. AISync normaliza en `input_tokens`/`output_tokens` al construir el objeto `TokenUsage`.
+
+---
+
+## TokenUsageBadge — No mezclar guardas de causas distintas en un solo return null
+
+### Problema
+`TokenUsageBadge` tenía una guarda combinada:
+```ts
+if (!workspaceId || rows.length === 0) return null
+```
+Al cerrar el modal, `open` vuelve a `false`. Si en ese momento `rows` se actualizaba a vacío por cualquier motivo, el badge desaparecía completamente — incluyendo el botón visible en el ribbon.
+
+### Causa raíz
+Dos condiciones con causas completamente distintas estaban colapsadas en un solo `return null`:
+- `!workspaceId` → sin workspace, no hay nada que mostrar. Condición estructural, permanente.
+- `rows.length === 0` → la query no retornó datos todavía (o la tabla no existe). Condición temporal, puede cambiar.
+
+Al mezclarlas, se pierde la capacidad de razonar sobre cada caso por separado. Cualquier cambio en `rows` podía silenciar el badge entero, sin que sea la intención.
+
+### Solución
+```ts
+if (!workspaceId) return null       // sin workspace → no renderizar nunca
+if (rows.length === 0) return null  // sin datos → no renderizar badge (por ahora)
+```
+Separadas, cada guarda documenta su propio significado. La segunda queda lista para evolucionar: si en el futuro se quiere mostrar un estado de loading o un badge con `0 tokens`, solo se toca esa línea sin riesgo de afectar la guarda estructural.
+
+### Fix adicional incluido
+Se agregó un segundo `useEffect` con dependencia `[open, workspaceId]` que re-fetcha cuando `open === true`. El badge del ribbon refleja la carga inicial; el modal siempre muestra datos frescos al abrirse.
+
+### Lección
+No mezclar guardas de condiciones distintas en un solo `return null`. `workspaceId` ausente y `rows` vacío son causas diferentes y deben manejarse por separado. Mezclarlas produce efectos secundarios difíciles de rastrear cuando cualquiera de las dos cambia.
