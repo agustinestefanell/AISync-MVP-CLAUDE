@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createProjectAction } from '@/app/actions'
 import type { ProjectWithTeams } from '@/lib/db/types'
+import ConnectTeamModal from '@/components/teams/ConnectTeamModal'
 
 const AGENT_META: Record<string, { label: string; color: string }> = {
   manager: { label: 'Manager', color: 'text-gray-600' },
@@ -27,14 +28,17 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const [isPending, startTransition] = useTransition()
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
-  const [connections, setConnections] = useState<TeamConnection[]>([])
+  const [connections,      setConnections]      = useState<TeamConnection[]>([])
+  const [showConnectModal, setShowConnectModal] = useState(false)
 
-  useEffect(() => {
+  const fetchConnections = useCallback(() => {
     fetch('/api/connections')
       .then(r => r.json())
       .then(data => setConnections(Array.isArray(data) ? data : []))
       .catch(() => {})
   }, [])
+
+  useEffect(() => { fetchConnections() }, [fetchConnections])
 
   function handleCreate() {
     if (!name.trim() || isPending) return
@@ -49,6 +53,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const activeConnections = connections.filter(c => c.status === 'active')
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
 
       {/* Left — My Projects */}
@@ -162,7 +167,15 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
 
       {/* Right — Connected Teams */}
       <div className="space-y-4">
-        <h2 className="text-base font-semibold text-[var(--color-text-secondary)]">Connected Teams</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-[var(--color-text-secondary)]">Connected Teams</h2>
+          <button
+            onClick={() => setShowConnectModal(true)}
+            className="border border-teal-400 text-teal-600 rounded-full px-3 py-1 text-sm hover:bg-teal-50 transition-colors"
+          >
+            + Connect
+          </button>
+        </div>
 
         {activeConnections.length === 0 ? (
           <div className="bg-white border border-dashed border-gray-200 rounded-xl p-8 text-center">
@@ -202,5 +215,14 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
       </div>
 
     </div>
+
+      {showConnectModal && (
+        <ConnectTeamModal
+          teams={projects.flatMap(p => p.teams)}
+          onClose={() => setShowConnectModal(false)}
+          onConnected={() => { setShowConnectModal(false); fetchConnections() }}
+        />
+      )}
+    </>
   )
 }
