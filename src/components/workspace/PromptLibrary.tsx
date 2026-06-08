@@ -384,7 +384,7 @@ export default function PromptLibrary({
                       }
                     }}
                     placeholder={pendingTags.length === 0 ? 'Add tags… (Space, Enter or comma to confirm)' : ''}
-                    className="w-full bg-transparent text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none"
+                    className="w-full bg-transparent text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none border border-gray-300 rounded px-2 py-1"
                   />
                   {tagInput.trim().length > 0 && tagSuggestions.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-1 border-t border-gray-200">
@@ -428,7 +428,10 @@ export default function PromptLibrary({
                   <button
                     key={tag}
                     type="button"
-                    onClick={() => setActiveTagFilter(activeTagFilter === tag ? null : tag)}
+                    onClick={() => {
+                      setActiveTagFilter(activeTagFilter === tag ? null : tag)
+                      if (showForm) addTag(tag)
+                    }}
                     className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
                       activeTagFilter === tag
                         ? 'bg-gray-700 border-gray-600 text-white'
@@ -438,6 +441,15 @@ export default function PromptLibrary({
                     {tag}
                   </button>
                 ))}
+                {activeTagFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTagFilter(null)}
+                    className="text-[10px] px-2 py-0.5 rounded-full border border-gray-300 bg-white text-gray-400 hover:bg-gray-100 transition-colors ml-1"
+                  >
+                    × Clear
+                  </button>
+                )}
               </div>
             )}
 
