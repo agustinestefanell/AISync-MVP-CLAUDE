@@ -2,6 +2,20 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import TopRibbon from '@/components/layout/TopRibbon'
+import BottomRibbon from '@/components/layout/BottomRibbon'
+
+const CONTEXT_GUIDE = `Context Files is where you manage the documents and files that your AI agents can read before responding.
+
+When you upload a file to a scope, every agent operating within that scope has access to its content as background material. The scope hierarchy works as follows:
+
+Project context is available to all agents across every team in the project. Use it for foundational documents that apply broadly — architecture decisions, product briefs, company policies.
+
+Team context is available to all agents assigned to a specific team. Use it for team-specific references — working agreements, sprint goals, domain glossaries.
+
+Session context is available only within a specific agent session. Use it for task-specific material — a document draft, a data extract, a reference you only need for this conversation.
+
+To add a file, open a Workspace and use the Context Files panel inside any agent session. Files appear here once uploaded. Use Archive to remove a file from active use without deleting it permanently.`
 
 interface ContextSource {
   id:                       string
@@ -16,15 +30,17 @@ interface ContextSource {
 }
 
 interface Props {
-  userId: string
+  pageName: string
+  userId:   string
 }
 
-export default function ContextPageClient({ userId }: Props) {
+export default function ContextPageClient({ pageName, userId }: Props) {
   const supabase = createClient()
-  const [sources,  setSources]  = useState<ContextSource[]>([])
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState<string | null>(null)
+  const [sources,   setSources]   = useState<ContextSource[]>([])
+  const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState<string | null>(null)
   const [archiving, setArchiving] = useState<string | null>(null)
+  const [showGuide, setShowGuide] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -68,38 +84,79 @@ export default function ContextPageClient({ userId }: Props) {
   const sessionSources = sources.filter(s => s.scope === 'session')
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10">
-      {error && (
-        <div className="mb-6 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-          {error}
-        </div>
-      )}
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
+      <TopRibbon
+        pageName={pageName}
+        pageSubtitle="How to use Context Files"
+        pageSubtitleOnClick={() => setShowGuide(true)}
+      />
 
-      {loading ? (
-        <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
-      ) : (
-        <div className="space-y-10">
-          <ContextSection
-            title="Project Context"
-            description="Available across all teams in the project."
-            items={projectSources}
-            archiving={archiving}
-            onArchive={archive}
-          />
-          <ContextSection
-            title="Team Context"
-            description="Available to all agents in the team."
-            items={teamSources}
-            archiving={archiving}
-            onArchive={archive}
-          />
-          <ContextSection
-            title="Session Context"
-            description="Available only within a specific agent session."
-            items={sessionSources}
-            archiving={archiving}
-            onArchive={archive}
-          />
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto px-6 py-10">
+          {error && (
+            <div className="mb-6 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+              {error}
+            </div>
+          )}
+
+          {loading ? (
+            <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
+          ) : (
+            <div className="space-y-10">
+              <ContextSection
+                title="Project Context"
+                description="Available across all teams in the project."
+                items={projectSources}
+                archiving={archiving}
+                onArchive={archive}
+              />
+              <ContextSection
+                title="Team Context"
+                description="Available to all agents in the team."
+                items={teamSources}
+                archiving={archiving}
+                onArchive={archive}
+              />
+              <ContextSection
+                title="Session Context"
+                description="Available only within a specific agent session."
+                items={sessionSources}
+                archiving={archiving}
+                onArchive={archive}
+              />
+            </div>
+          )}
+        </div>
+      </main>
+
+      <BottomRibbon />
+
+      {showGuide && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={e => { if (e.target === e.currentTarget) setShowGuide(false) }}
+        >
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+            <div className="px-6 py-5 border-b border-[var(--color-border-default)] flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
+                  How to use Context Files
+                </h3>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Operational guidance</p>
+              </div>
+              <button
+                onClick={() => setShowGuide(false)}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm px-1 transition-colors shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
+                {CONTEXT_GUIDE}
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
