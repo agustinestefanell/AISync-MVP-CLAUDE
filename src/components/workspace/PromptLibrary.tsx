@@ -56,7 +56,9 @@ export default function PromptLibrary({
   const [formTitle,  setFormTitle]  = useState('')
   const [formBody,   setFormBody]   = useState('')
   const [formNotes,  setFormNotes]  = useState('')
-  const [formTags,   setFormTags]   = useState('')
+  const [tagInput,        setTagInput]        = useState('')
+  const [pendingTags,     setPendingTags]     = useState<string[]>([])
+  const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null)
   const [formError,  setFormError]  = useState<string | null>(null)
   const [saving,     setSaving]     = useState(false)
 
@@ -135,7 +137,8 @@ export default function PromptLibrary({
     setFormTitle('')
     setFormBody('')
     setFormNotes('')
-    setFormTags('')
+    setPendingTags([])
+    setTagInput('')
     setFormError(null)
     setShowForm(true)
   }
@@ -145,7 +148,8 @@ export default function PromptLibrary({
     setFormTitle(p.title)
     setFormBody(p.body)
     setFormNotes(p.notes ?? '')
-    setFormTags(p.tags?.join(', ') ?? '')
+    setPendingTags(p.tags ?? [])
+    setTagInput('')
     setFormError(null)
     setShowForm(true)
   }
@@ -156,7 +160,9 @@ export default function PromptLibrary({
     if (!userId) return
     setSaving(true)
     setFormError(null)
-    const parsedTags = formTags.split(',').map(t => t.trim()).filter(Boolean)
+    const allPending = tagInput.trim()
+      ? [...pendingTags, tagInput.trim()]
+      : pendingTags
     try {
       if (editing) {
         const { error } = await supabase
@@ -165,7 +171,7 @@ export default function PromptLibrary({
             title:      formTitle.trim(),
             body:       formBody.trim(),
             notes:      formNotes.trim() || null,
-            tags:       parsedTags.length ? parsedTags : null,
+            tags:       allPending.length ? allPending : null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editing.id)
@@ -178,7 +184,7 @@ export default function PromptLibrary({
             title:   formTitle.trim(),
             body:    formBody.trim(),
             notes:   formNotes.trim() || null,
-            tags:    parsedTags.length ? parsedTags : null,
+            tags:    allPending.length ? allPending : null,
           })
         if (error) throw error
       }
@@ -187,7 +193,8 @@ export default function PromptLibrary({
       setFormTitle('')
       setFormBody('')
       setFormNotes('')
-      setFormTags('')
+      setPendingTags([])
+      setTagInput('')
       await loadData()
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Error saving prompt')
@@ -262,7 +269,26 @@ export default function PromptLibrary({
     }
   }
 
+  function addTag(raw: string) {
+    const tag = raw.trim().replace(/,$/, '')
+    if (!tag) return
+    if (!pendingTags.includes(tag)) setPendingTags(prev => [...prev, tag])
+    setTagInput('')
+  }
+
+  function removeTag(tag: string) {
+    setPendingTags(prev => prev.filter(t => t !== tag))
+  }
+
   if (!open) return null
+
+  const allTags = Array.from(new Set(prompts.flatMap(p => p.tags ?? []))).sort()
+  const tagSuggestions = tagInput.trim()
+    ? allTags.filter(t => t.toLowerCase().includes(tagInput.trim().toLowerCase()) && !pendingTags.includes(t))
+    : []
+  const visiblePrompts = activeTagFilter
+    ? prompts.filter(p => p.tags?.includes(activeTagFilter))
+    : prompts
 
   const workerAssignedIds = new Set(workerAssignments.map(a => a.prompt_id))
   const teamAssignedIds   = new Set(teamAssignments.map(a => a.prompt_id))
@@ -336,12 +362,45 @@ export default function PromptLibrary({
                   placeholder="Notes (optional)"
                   className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors"
                 />
-                <input
-                  value={formTags}
-                  onChange={e => setFormTags(e.target.value)}
-                  placeholder="tag1, tag2, tag3"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors"
-                />
+                {/* Chip tag input */}
+                <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 space-y-1.5 focus-within:border-[var(--color-border-focus)] transition-colors">
+                  {pendingTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {pendingTags.map(tag => (
+                        <span key={tag} className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 border border-gray-300">
+                          {tag}
+                          <button type="button" onClick={() => removeTag(tag)} className="text-gray-400 hover:text-gray-700 leading-none">×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <input
+                    value={tagInput}
+                    onChange={e => setTagInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
+                        e.preventDefault()
+                        addTag(tagInput)
+                      }
+                    }}
+                    placeholder={pendingTags.length === 0 ? 'Add tags… (Space, Enter or comma to confirm)' : ''}
+                    className="w-full bg-transparent text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none"
+                  />
+                  {tagInput.trim().length > 0 && tagSuggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1 border-t border-gray-200">
+                      {tagSuggestions.map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => addTag(tag)}
+                          className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors"
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {formError && <p className="text-xs text-red-400">{formError}</p>}
                 <div className="flex gap-2">
                   <button
@@ -361,13 +420,36 @@ export default function PromptLibrary({
               </div>
             )}
 
+            {/* Tag filter bar */}
+            {allTags.length > 0 && (
+              <div className="px-4 pt-2 pb-1 shrink-0 flex flex-wrap gap-1 items-center">
+                <span className="text-[10px] text-gray-400 mr-1">Filter:</span>
+                {allTags.map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setActiveTagFilter(activeTagFilter === tag ? null : tag)}
+                    className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                      activeTagFilter === tag
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Prompt list */}
             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 min-h-0">
               {loading ? (
                 <p className="text-xs text-gray-500 py-6 text-center">Loading…</p>
-              ) : prompts.length === 0 ? (
-                <p className="text-xs text-gray-500 py-6 text-center">No prompts yet. Create your first prompt.</p>
-              ) : prompts.map(p => (
+              ) : visiblePrompts.length === 0 ? (
+                <p className="text-xs text-gray-500 py-6 text-center">
+                  {activeTagFilter ? `No prompts tagged "${activeTagFilter}".` : 'No prompts yet. Create your first prompt.'}
+                </p>
+              ) : visiblePrompts.map(p => (
                 <div key={p.id} className="border border-gray-200 rounded-xl p-3 bg-gray-50/30 space-y-2">
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
@@ -387,7 +469,18 @@ export default function PromptLibrary({
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100/60 text-gray-400">{p.scope}</span>
                     )}
                     {p.tags?.length ? p.tags.map(tag => (
-                      <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">{tag}</span>
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setActiveTagFilter(activeTagFilter === tag ? null : tag)}
+                        className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                          activeTagFilter === tag
+                            ? 'bg-gray-700 border-gray-600 text-white'
+                            : 'bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        {tag}
+                      </button>
                     )) : null}
                     {p.status !== 'active' && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-900/40 text-yellow-500">{p.status}</span>
