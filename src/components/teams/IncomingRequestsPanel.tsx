@@ -84,11 +84,11 @@ export default function IncomingRequestsPanel({
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg mx-4 shadow-2xl flex flex-col max-h-[80vh]">
-        <div className="shrink-0 px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+        <div className="shrink-0 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-white">Connection requests</h3>
+            <h3 className="text-base font-semibold text-gray-900">Connection requests</h3>
             {pending.length > 0 && (
-              <p className="text-xs text-indigo-400 mt-0.5">{pending.length} pending</p>
+              <p className="text-xs text-indigo-600 mt-0.5">{pending.length} pending</p>
             )}
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-600 text-sm px-2">✕</button>
@@ -102,11 +102,11 @@ export default function IncomingRequestsPanel({
           {pending.map(conn => (
             <div
               key={conn.id}
-              className="border border-indigo-900/60 bg-indigo-950/20 rounded-xl px-4 py-4 space-y-3"
+              className="border border-indigo-200 bg-indigo-50 rounded-xl px-4 py-4 space-y-3"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-white">{conn.requester_email}</p>
+                  <p className="text-sm font-semibold text-gray-900">{conn.requester_email}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     wants to connect <span className="text-gray-600">{conn.requester_team_name}</span>
                   </p>
@@ -122,12 +122,12 @@ export default function IncomingRequestsPanel({
               </div>
 
               {acceptingId === conn.id ? (
-                <div className="space-y-2 pt-1 border-t border-gray-800">
-                  <p className="text-xs text-gray-400">Select your team for this connection:</p>
+                <div className="space-y-2 pt-1 border-t border-gray-200">
+                  <p className="text-xs text-gray-500">Select your team for this connection:</p>
                   <select
                     value={selectedTeam}
                     onChange={e => setSelectedTeam(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-indigo-500 transition-colors"
                   >
                     {myTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
@@ -136,7 +136,7 @@ export default function IncomingRequestsPanel({
                     <button
                       onClick={() => handleAccept(conn)}
                       disabled={!!loading}
-                      className="flex-1 text-xs bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold py-2 rounded-lg transition-colors"
+                      className="flex-1 text-xs bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 text-emerald-700 border border-emerald-200 font-semibold py-2 rounded-lg transition-colors"
                     >
                       {loading === conn.id ? 'Accepting…' : 'Confirm'}
                     </button>
@@ -152,14 +152,14 @@ export default function IncomingRequestsPanel({
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setAcceptingId(conn.id); setError('') }}
-                    className="flex-1 text-xs bg-emerald-800 hover:bg-emerald-700 text-emerald-200 font-semibold py-1.5 rounded-lg transition-colors"
+                    className="flex-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold py-1.5 rounded-lg transition-colors"
                   >
                     Accept
                   </button>
                   <button
                     onClick={() => handleReject(conn.id)}
                     disabled={!!loading}
-                    className="flex-1 text-xs border border-red-900 text-red-500 hover:text-red-400 hover:border-red-700 disabled:opacity-50 py-1.5 rounded-lg transition-colors"
+                    className="flex-1 text-xs border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 py-1.5 rounded-lg transition-colors"
                   >
                     {loading === conn.id ? '…' : 'Reject'}
                   </button>

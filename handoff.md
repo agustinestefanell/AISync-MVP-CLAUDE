@@ -4900,3 +4900,58 @@ Dashboard rediseñado a light mode consistente. `ProjectList.tsx` reemplaza esti
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-08] — Connected Teams completion: Open, Incoming requests, Disconnect, light mode, API strings
+
+### Cambio realizado
+OE que completa el bloque Connected Teams en el dashboard. Agrega funcionalidad completa de gestión de conexiones desde el dashboard.
+
+### Archivos modificados
+- `src/components/ProjectList.tsx` — reescritura completa con:
+  - Import de `Connection` type de `ConnectTeamModal` (reemplaza tipo inline `TeamConnection` — fix de build por mismatch de tipos)
+  - Estado `showConnectModal` + `showRequestsPanel` + `confirmDisconnect` + `disconnecting`
+  - `fetchConnections` como `useCallback` para reusar en mount + post-action
+  - Botón `+ Connect` en header → abre `ConnectTeamModal`
+  - Botón `Requests` con badge rojo con count de incoming pendientes → abre `IncomingRequestsPanel`
+  - Botón `Open →` en cada active connection → navega a `/teams`
+  - Botón `Disconnect` → inline confirmation con email del partner → botón rojo confirm + Cancel
+  - `handleDisconnect` usa `PATCH { action: 'reject' }` (no DELETE — solo funciona para pending+requester)
+  - Return wrapeado en `<>...</>` Fragment para acomodar modales fuera del div grid
+- `src/components/teams/IncomingRequestsPanel.tsx` — light mode completo:
+  - `border-b border-gray-800` → `border-b border-gray-200`
+  - `text-white` → `text-gray-900` (título, emails)
+  - `text-indigo-400` → `text-indigo-600`
+  - `border-indigo-900/60 bg-indigo-950/20` → `border-indigo-200 bg-indigo-50`
+  - `border-t border-gray-800` → `border-t border-gray-200`
+  - `text-xs text-gray-400` (label) → `text-xs text-gray-500`
+  - Confirm/Accept buttons: `bg-emerald-700`/`bg-emerald-800` → `bg-emerald-50 text-emerald-700 border border-emerald-200`
+  - Reject button: `border-red-900 text-red-500` → `border-red-200 text-red-600 hover:bg-red-50`
+- `src/app/api/connections/route.ts` — 3 strings español → inglés:
+  - `'Datos incompletos.'` → `'Incomplete data.'`
+  - `'No podés conectarte con tu propia cuenta.'` → `'You cannot connect with your own account.'`
+  - `'Ya existe una solicitud activa o pendiente...'` → `'An active or pending request already exists for this email and team.'`
+  - Eliminado comentario en español (`// Verificar que no exista ya...`)
+- `src/app/api/connections/[id]/route.ts` — 2 strings español → inglés:
+  - `'Seleccioná un equipo para aceptar la conexión.'` → `'Please select a team to accept the connection.'`
+  - `'Acción no válida.'` → `'Invalid action.'`
+
+### Decisiones técnicas
+- **Disconnect usa PATCH no DELETE**: DELETE en `/api/connections/[id]` solo permite al requester cancelar una conexión en estado `pending`. Para romper una conexión `active` sin restricción de rol, se usa `PATCH { action: 'reject' }` que marca status como `rejected`. Alternativa descartada: modificar DELETE handler — cambiaría semántica de un endpoint funcional sin necesidad.
+- **`fetchConnections` como `useCallback`**: necesario para que pueda aparecer en el dep array de `useEffect` sin loop infinito Y ser llamado como callback post-action. Alternativa descartada: función regular — causaría lint warning y posible loop.
+- **Tipo `Connection` importado de `ConnectTeamModal`**: tipo `TeamConnection` inline tenía solo 7 campos; `Connection` tiene 14. `IncomingRequestsPanel` esperaba el tipo completo — build fallaba con type mismatch. Solución: usar el tipo canónico ya definido.
+- **JSX Fragment `<>...</>`**: `return()` en `ProjectList.tsx` tenía un solo div raíz; al agregar `ConnectTeamModal` e `IncomingRequestsPanel` fuera del div grid, JSX requería Fragment. Fix: wrapeado en `<>`.
+
+### Alternativas descartadas
+- Modales dentro del div grid: rompe el z-index y el overlay del backdrop.
+- Estado de connections en page.tsx (server-side): fetch client-side es más simple; el componente ya es `'use client'`.
+
+### Riesgos / deuda técnica
+- Ninguno crítico. Disconnect vía `PATCH reject` cambia status a `rejected` — conexión no puede reactivarse sin nueva solicitud. Comportamiento correcto.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

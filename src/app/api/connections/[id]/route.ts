@@ -16,7 +16,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   if (body.action === 'accept') {
     if (!body.receiver_team_id || !body.receiver_team_name) {
-      return NextResponse.json({ error: 'Seleccioná un equipo para aceptar la conexión.' }, { status: 400 })
+      return NextResponse.json({ error: 'Please select a team to accept the connection.' }, { status: 400 })
     }
     const { data, error } = await supabase
       .from('team_connections')
@@ -45,7 +45,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ ok: true })
   }
 
-  return NextResponse.json({ error: 'Acción no válida.' }, { status: 400 })
+  return NextResponse.json({ error: 'Invalid action.' }, { status: 400 })
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {

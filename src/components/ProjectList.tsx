@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createProjectAction } from '@/app/actions'
 import type { ProjectWithTeams } from '@/lib/db/types'
-import ConnectTeamModal from '@/components/teams/ConnectTeamModal'
+import ConnectTeamModal, { type Connection } from '@/components/teams/ConnectTeamModal'
+import IncomingRequestsPanel from '@/components/teams/IncomingRequestsPanel'
 
 const AGENT_META: Record<string, { label: string; color: string }> = {
   manager: { label: 'Manager', color: 'text-gray-600' },
@@ -13,23 +14,16 @@ const AGENT_META: Record<string, { label: string; color: string }> = {
   worker2: { label: 'Worker 2', color: 'text-gray-600' },
 }
 
-type TeamConnection = {
-  id: string
-  requester_team_name: string
-  receiver_team_name?: string | null
-  receiver_email: string
-  requester_email: string
-  status: string
-  direction: 'outgoing' | 'incoming'
-}
-
 export default function ProjectList({ projects }: { projects: ProjectWithTeams[] }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [showForm, setShowForm] = useState(false)
-  const [name, setName] = useState('')
-  const [connections,      setConnections]      = useState<TeamConnection[]>([])
-  const [showConnectModal, setShowConnectModal] = useState(false)
+  const [showForm,          setShowForm]          = useState(false)
+  const [name,              setName]              = useState('')
+  const [connections,       setConnections]       = useState<Connection[]>([])
+  const [showConnectModal,  setShowConnectModal]  = useState(false)
+  const [showRequestsPanel, setShowRequestsPanel] = useState(false)
+  const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null)
+  const [disconnecting,     setDisconnecting]     = useState<string | null>(null)
 
   const fetchConnections = useCallback(() => {
     fetch('/api/connections')
@@ -50,7 +44,28 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
     })
   }
 
-  const activeConnections = connections.filter(c => c.status === 'active')
+  async function handleDisconnect(id: string) {
+    setDisconnecting(id)
+    try {
+      await fetch(`/api/connections/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject' }),
+      })
+      setConfirmDisconnect(null)
+      fetchConnections()
+    } catch {
+      // silently fail — list remains unchanged
+    } finally {
+      setDisconnecting(null)
+    }
+  }
+
+  const activeConnections   = connections.filter(c => c.status === 'active')
+  const pendingIncoming     = connections.filter(c => c.status === 'pending' && c.direction === 'incoming')
+  const pendingIncomingCount = pendingIncoming.length
+
+  const allTeams = projects.flatMap(p => p.teams)
 
   return (
     <>
@@ -167,14 +182,27 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
 
       {/* Right — Connected Teams */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="text-base font-semibold text-[var(--color-text-secondary)]">Connected Teams</h2>
-          <button
-            onClick={() => setShowConnectModal(true)}
-            className="border border-teal-400 text-teal-600 rounded-full px-3 py-1 text-sm hover:bg-teal-50 transition-colors"
-          >
-            + Connect
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setShowRequestsPanel(true)}
+              className="relative border border-gray-300 text-gray-600 rounded-full px-3 py-1 text-sm hover:bg-gray-50 transition-colors"
+            >
+              Requests
+              {pendingIncomingCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                  {pendingIncomingCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setShowConnectModal(true)}
+              className="border border-teal-400 text-teal-600 rounded-full px-3 py-1 text-sm hover:bg-teal-50 transition-colors"
+            >
+              + Connect
+            </button>
+          </div>
         </div>
 
         {activeConnections.length === 0 ? (
@@ -184,29 +212,69 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
         ) : (
           <div className="space-y-3">
             {activeConnections.map(c => {
-              const teamName = c.direction === 'outgoing'
+              const teamName    = c.direction === 'outgoing'
                 ? (c.receiver_team_name ?? c.receiver_email)
                 : c.requester_team_name
               const partnerEmail = c.direction === 'outgoing' ? c.receiver_email : c.requester_email
+              const isConfirming = confirmDisconnect === c.id
+
               return (
-                <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{teamName}</p>
-                    <p className="text-xs text-gray-400 truncate">{partnerEmail}</p>
-                    <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full border ${
-                      c.direction === 'outgoing'
-                        ? 'text-blue-700 bg-blue-50 border-blue-200'
-                        : 'text-purple-700 bg-purple-50 border-purple-200'
-                    }`}>
-                      {c.direction}
-                    </span>
+                <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{teamName}</p>
+                      <p className="text-xs text-gray-400 truncate">{partnerEmail}</p>
+                      <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full border ${
+                        c.direction === 'outgoing'
+                          ? 'text-blue-700 bg-blue-50 border-blue-200'
+                          : 'text-purple-700 bg-purple-50 border-purple-200'
+                      }`}>
+                        {c.direction}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Link
+                        href="/teams"
+                        className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-2.5 py-1 rounded transition-colors"
+                      >
+                        Open →
+                      </Link>
+                      {!isConfirming && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDisconnect(c.id)}
+                          className="text-xs text-gray-400 hover:text-red-500 px-2 py-1 rounded border border-gray-200 hover:border-red-200 transition-colors"
+                        >
+                          Disconnect
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <Link
-                    href="/teams"
-                    className="shrink-0 text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-2.5 py-1 rounded transition-colors"
-                  >
-                    Open →
-                  </Link>
+
+                  {isConfirming && (
+                    <div className="border-t border-gray-100 pt-2 space-y-2">
+                      <p className="text-xs text-gray-600">
+                        Disconnect <span className="font-medium">{partnerEmail || 'this connected team'}</span>?
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDisconnect(c.id)}
+                          disabled={disconnecting === c.id}
+                          className="flex-1 text-xs bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-medium py-1.5 rounded-lg transition-colors"
+                        >
+                          {disconnecting === c.id ? 'Disconnecting…' : 'Disconnect'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDisconnect(null)}
+                          className="flex-1 text-xs border border-gray-200 text-gray-600 hover:bg-gray-50 py-1.5 rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -218,9 +286,19 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
 
       {showConnectModal && (
         <ConnectTeamModal
-          teams={projects.flatMap(p => p.teams)}
+          teams={allTeams}
           onClose={() => setShowConnectModal(false)}
           onConnected={() => { setShowConnectModal(false); fetchConnections() }}
+        />
+      )}
+
+      {showRequestsPanel && (
+        <IncomingRequestsPanel
+          connections={connections}
+          myTeams={allTeams}
+          onClose={() => setShowRequestsPanel(false)}
+          onAccepted={() => { setShowRequestsPanel(false); fetchConnections() }}
+          onRejected={() => { setShowRequestsPanel(false); fetchConnections() }}
         />
       )}
     </>

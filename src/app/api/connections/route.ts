@@ -40,14 +40,13 @@ export async function POST(req: Request) {
   const { requester_team_id, requester_team_name, receiver_email } = body
 
   if (!requester_team_id || !requester_team_name || !receiver_email?.trim()) {
-    return NextResponse.json({ error: 'Datos incompletos.' }, { status: 400 })
+    return NextResponse.json({ error: 'Incomplete data.' }, { status: 400 })
   }
 
   if (receiver_email.trim().toLowerCase() === user.email?.toLowerCase()) {
-    return NextResponse.json({ error: 'No podés conectarte con tu propia cuenta.' }, { status: 400 })
+    return NextResponse.json({ error: 'You cannot connect with your own account.' }, { status: 400 })
   }
 
-  // Verificar que no exista ya una conexión activa/pendiente entre estos teams
   const { data: existing } = await supabase
     .from('team_connections')
     .select('id')
@@ -58,7 +57,7 @@ export async function POST(req: Request) {
 
   if (existing) {
     return NextResponse.json(
-      { error: 'Ya existe una solicitud activa o pendiente con ese email para este equipo.' },
+      { error: 'An active or pending request already exists for this email and team.' },
       { status: 400 }
     )
   }
