@@ -164,8 +164,8 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
     for (const e of normalized) if (e.team_id && e.team_name) seen.set(e.team_id, e.team_name)
     const result: { id: string; name: string }[] = []
     seen.forEach((name, id) => result.push({ id, name }))
-    return result
-  }, [normalized])
+    return result.sort((a, b) => (teamCodes?.[a.id] ?? a.name).localeCompare(teamCodes?.[b.id] ?? b.name))
+  }, [normalized, teamCodes])
 
   // Apply filters
   const filtered = useMemo(() => normalized.filter(e => {
