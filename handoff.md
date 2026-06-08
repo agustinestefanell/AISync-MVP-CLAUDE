@@ -4848,3 +4848,24 @@ Tags vacíos se guardan como `null` (no `[]`) para mantener consistencia con el 
 ### Riesgos conocidos / deuda técnica
 - Prompts existentes sin tags muestran nada (correcto — guarda `null`, no se rompe la card).
 - No hay validación de longitud ni caracteres de tags — aceptable para MVP.
+
+---
+
+## [2026-06-08] — Tags UX mejorado en Prompt Library (chip input + suggestions + filter)
+
+### Cambio realizado
+Reemplazado el input comma-separated de tags por un chip input interactivo con sugerencias y filtro de lista.
+
+### Archivos modificados
+- `src/components/workspace/PromptLibrary.tsx` — sustituidos `formTags: string` y `setFormTags` por tres estados: `tagInput: string` (texto pendiente en el input), `pendingTags: string[]` (chips materializados) y `activeTagFilter: string | null` (filtro activo sobre la lista). Agregados helpers `addTag(raw)` y `removeTag(tag)` encima del guard `if (!open)`. Derivaciones `allTags` (todos los tags únicos del repo), `tagSuggestions` (filtro por `tagInput.trim()` excluyendo ya-pendientes) y `visiblePrompts` (filtro por `activeTagFilter`) declaradas después del guard. Input chip: materializa tag con Space/Enter/comma, X en chips para remover, suggestions dropdown cuando hay texto y coincidencias. Tag filter bar: chips de todos los tags sobre la lista, click activa/desactiva filtro. Tags en cards: convertidos de `<span>` estáticos a `<button>` que alternan `activeTagFilter`. `savePrompt()` consume `pendingTags` + `tagInput.trim()` residual antes de guardar; reset usa `setPendingTags([])`/`setTagInput('')`. `openCreate`/`openEdit` también usan los nuevos estados.
+
+### Decisión técnica
+Tags vacíos guardados como `null` (no `[]`) — igual que antes, consistente con el tipo `string[] | null`. Helpers `addTag`/`removeTag` definidos antes del guard `if (!open)` (no son hooks, pueden ir ahí). Derivaciones `allTags`/`tagSuggestions`/`visiblePrompts` definidas después del guard (no son hooks, son cálculos síncronos de JS).
+
+### Alternativas descartadas
+- `useMemo` para `allTags`/`tagSuggestions`/`visiblePrompts`: innecesario, el componente ya tiene sus propios renders. Sin listas de decenas de miles de items, el re-cálculo directo es suficiente.
+- Suggestions de API/DB: descartado, los tags existen localmente en `prompts` ya cargados.
+
+### Riesgos conocidos / deuda técnica
+- `tagSuggestions` muestra tags de *todos* los prompts del usuario — no limitado al contexto del workspace. Decisión MVP correcta.
+- El tag filter se resetea al cerrar y volver a abrir el modal (estado no persistido). Comportamiento intencional.
