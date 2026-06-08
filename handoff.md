@@ -4869,3 +4869,34 @@ Tags vacíos guardados como `null` (no `[]`) — igual que antes, consistente co
 ### Riesgos conocidos / deuda técnica
 - `tagSuggestions` muestra tags de *todos* los prompts del usuario — no limitado al contexto del workspace. Decisión MVP correcta.
 - El tag filter se resetea al cerrar y volver a abrir el modal (estado no persistido). Comportamiento intencional.
+
+---
+
+## [2026-06-08] — Dashboard redesign: light mode + Connected Teams column
+
+### Cambio realizado
+Dashboard rediseñado a light mode consistente. `ProjectList.tsx` reemplaza estilos dark residuales, traduce todos los textos visibles a inglés, refuerza jerarquía visual de teams y agrega una columna derecha `Connected Teams` consumiendo `GET /api/connections` client-side. `page.tsx` ampliado de `max-w-3xl` a `max-w-5xl` para acomodar el layout de dos columnas.
+
+### Archivos modificados
+- `src/components/ProjectList.tsx` — reescritura completa. Estilos light mode, textos en inglés, teams con `font-semibold` y separadores `border-t border-gray-100`, workers en `text-gray-600`, badges active/free/locked en light, layout `grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px]`, columna Connected Teams con fetch + estados.
+- `src/app/page.tsx` — solo cambio: `max-w-3xl` → `max-w-5xl`.
+
+### Decisiones técnicas
+- Fetch de `/api/connections` con `useEffect` client-side en `ProjectList.tsx`: ya es un componente `'use client'`, no requería nueva query server-side ni cambios en page.tsx más allá del max-width.
+- Solo se muestran conexiones `status === 'active'` en el dashboard. Las pendientes/rechazadas no son relevantes en este contexto.
+- Botón "Open →" en Connected Teams navega a `/teams` — única ruta real disponible del shape de conexiones. El shape no incluye workspace URL ni `receiver_team_id` garantizado.
+- `TeamConnection` tipo inline en el componente — no en `types.ts` — porque es solo para render en este componente y su forma ya está cubierta por el backend existente.
+
+### Alternativas descartadas
+- Fetch server-side de connections en `page.tsx`: requeriría pasar el shape como prop adicional o crear una nueva función de query. El fetch client-side es más simple dado que el componente ya es client.
+- Columna Connected Teams en `page.tsx` como componente separado: fragmenta innecesariamente el layout del dashboard.
+
+### Restricciones respetadas
+- providers, streaming, `chat/route.ts`, WorkspaceShell, AgentPanel, schema, migrations, backend de `/api/connections`: sin tocar.
+- Lógica de creación de proyectos, apertura de workspaces, navegación: sin tocar.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

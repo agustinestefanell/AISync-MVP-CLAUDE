@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq fixes, sources en Audit Log)
+Last updated: 2026-06-08 (Dashboard light mode + Connected Teams column)
 
 ---
 
@@ -15,6 +15,17 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 | `Broken` | Implementado pero falla o no cumple su función esperada. |
 | `Needs Review` | Requiere revisión técnica o visual antes de considerarse cerrado. |
 | `🔲 Coming soon` | Pendiente de implementación. |
+
+---
+
+## Dashboard
+
+| Feature | Estado | Evidencia | Notas |
+|---|---|---|---|
+| Light mode cleanup | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | `border-gray-800` → `border-gray-200`, `border-indigo-800` → `border-indigo-300`, worker colors `text-blue/teal/orange-400` → `text-gray-600`. Badges actualizados a light: active (green-50/700), free (gray-50/600), locked (amber-50/700). |
+| Textos en inglés | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | My Projects, New Project, Create/Cancel, Open →, active/free/locked, empty states en inglés. |
+| Jerarquía visual de teams | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | Team names con `font-semibold`. Separadores `border-t border-gray-100` entre team blocks. Workers en `text-gray-600`. |
+| Connected Teams column | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | Layout `grid-cols-[1fr_360px]`. Consume `GET /api/connections` client-side, filtra `status === 'active'`. Muestra team name, partner email, badge outgoing/incoming, botón Open → `/teams`. Empty state "There are no connected teams yet." |
 
 ---
 
@@ -73,6 +84,7 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 | Prompt Library — How to use modal | ✅ Closed | commit feat: add how to use modal to prompt library | Link "How to use Prompt Library" en header del modal principal. Modal de guía con copy aprobado. |
 | Prompt Library — Form state reset + assignments panel | ✅ Closed | commit fix: restore assignments panel in prompt library | Reset completo de formulario después de guardar. Panel "Active in this context" restaurado (Assigned to Worker + Inherited from Team + Unassign). Modal de guía `bg-[#f0f0f0]`. |
 | Prompt Library — Tags UI | ✅ Closed | commit feat: add tags input and display to prompt library | Input comma-separated de tags en el form. Parser a `string[]`. Persistencia en `insert`/`update`. Chips en prompt cards. Pre-populación al editar. Prompts sin tags no rompen UI. |
+| Prompt Library — Tags UX mejorado | ✅ Closed | commit feat: improve tags UX with chip input, suggestions and filter | Chip input (Space/Enter/comma para materializar). X en chips para remover. Suggestions dropdown con tags existentes. Tag filter bar sobre la lista. Tags en cards como botones de filtro. Clear filter. Input con borde visible. Click en tag del filter bar agrega al form si está abierto. |
 | Context Files | ✅ Live | commit e68db2f | Light mode fixed — commit e68db2f |
 | Add Context File | ✅ Closed | `src/components/workspace/AgentPanel.tsx` | Upload, Team, Session, and Project scopes functional. `projectId` now propagated from WorkspaceShell → AgentPanel → ContextFilePanel via `workspace.teams?.project_id`. Migration 017 applied in Supabase. |
 

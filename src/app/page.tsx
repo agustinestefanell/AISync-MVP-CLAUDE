@@ -23,7 +23,7 @@ export default async function HomePage() {
       pageSubtitle="Your projects and activity"
       userName={userName}
     >
-      <div className="max-w-3xl mx-auto px-6 py-12 space-y-10">
+      <div className="max-w-5xl mx-auto px-6 py-12 space-y-10">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">
