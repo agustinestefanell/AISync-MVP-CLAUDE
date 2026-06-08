@@ -4828,3 +4828,23 @@ Opción autocontenida: `computeTeamCodes` se llama dentro del modal con el mismo
 ### Riesgos conocidos / deuda técnica
 - Teams sin código (`—`) indican que su `parent_id` apunta a un team que no está en el array recibido. Pendiente investigar si ocurre en producción y en qué caso.
 - El fallback `—` es diagnóstico temporal — puede convertirse en comportamiento definitivo o removerse una vez confirmado que todos los teams tienen código.
+
+---
+
+## [2026-06-08] — Tags UI en Prompt Library
+
+### Cambio realizado
+Prompt Library ahora permite capturar tags desde un input comma-separated, persistirlos como `string[]` en el campo `tags` y mostrarlos como chips en cada prompt card.
+
+### Archivos modificados
+- `src/components/workspace/PromptLibrary.tsx` — agregado `formTags` al estado, input de tags en el form (después de Notes), parser `parsedTags` al guardar, `tags` en `.insert()` y `.update()`, `setFormTags(p.tags?.join(', ') ?? '')` en `openEdit()`, `setFormTags('')` en reset/cancel y post-save, chips en prompt cards (después de scope, antes de status).
+
+### Decisión técnica
+Tags vacíos se guardan como `null` (no `[]`) para mantener consistencia con el tipo `string[] | null`. El parser elimina espacios y entradas vacías antes de verificar longitud.
+
+### Alternativas descartadas
+- Input tipo multi-chip con teclado (Enter para agregar): descartado. Más complejo, sin patrón en el repo. El input comma-separated es suficiente para MVP.
+
+### Riesgos conocidos / deuda técnica
+- Prompts existentes sin tags muestran nada (correcto — guarda `null`, no se rompe la card).
+- No hay validación de longitud ni caracteres de tags — aceptable para MVP.

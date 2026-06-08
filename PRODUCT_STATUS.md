@@ -72,6 +72,7 @@ Last updated: 2026-06-05 (Multimodal, tool use, web search, trazabilidad, Groq f
 | Prompt Library | ✅ Live | commit e68db2f | Light mode fixed — commit e68db2f. Modal no cierra por click en backdrop; textarea ampliado a rows=10 con resize-y. |
 | Prompt Library — How to use modal | ✅ Closed | commit feat: add how to use modal to prompt library | Link "How to use Prompt Library" en header del modal principal. Modal de guía con copy aprobado. |
 | Prompt Library — Form state reset + assignments panel | ✅ Closed | commit fix: restore assignments panel in prompt library | Reset completo de formulario después de guardar. Panel "Active in this context" restaurado (Assigned to Worker + Inherited from Team + Unassign). Modal de guía `bg-[#f0f0f0]`. |
+| Prompt Library — Tags UI | ✅ Closed | commit feat: add tags input and display to prompt library | Input comma-separated de tags en el form. Parser a `string[]`. Persistencia en `insert`/`update`. Chips en prompt cards. Pre-populación al editar. Prompts sin tags no rompen UI. |
 | Context Files | ✅ Live | commit e68db2f | Light mode fixed — commit e68db2f |
 | Add Context File | ✅ Closed | `src/components/workspace/AgentPanel.tsx` | Upload, Team, Session, and Project scopes functional. `projectId` now propagated from WorkspaceShell → AgentPanel → ContextFilePanel via `workspace.teams?.project_id`. Migration 017 applied in Supabase. |
 

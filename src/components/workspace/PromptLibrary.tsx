@@ -56,6 +56,7 @@ export default function PromptLibrary({
   const [formTitle,  setFormTitle]  = useState('')
   const [formBody,   setFormBody]   = useState('')
   const [formNotes,  setFormNotes]  = useState('')
+  const [formTags,   setFormTags]   = useState('')
   const [formError,  setFormError]  = useState<string | null>(null)
   const [saving,     setSaving]     = useState(false)
 
@@ -134,6 +135,7 @@ export default function PromptLibrary({
     setFormTitle('')
     setFormBody('')
     setFormNotes('')
+    setFormTags('')
     setFormError(null)
     setShowForm(true)
   }
@@ -143,6 +145,7 @@ export default function PromptLibrary({
     setFormTitle(p.title)
     setFormBody(p.body)
     setFormNotes(p.notes ?? '')
+    setFormTags(p.tags?.join(', ') ?? '')
     setFormError(null)
     setShowForm(true)
   }
@@ -153,6 +156,7 @@ export default function PromptLibrary({
     if (!userId) return
     setSaving(true)
     setFormError(null)
+    const parsedTags = formTags.split(',').map(t => t.trim()).filter(Boolean)
     try {
       if (editing) {
         const { error } = await supabase
@@ -161,6 +165,7 @@ export default function PromptLibrary({
             title:      formTitle.trim(),
             body:       formBody.trim(),
             notes:      formNotes.trim() || null,
+            tags:       parsedTags.length ? parsedTags : null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editing.id)
@@ -173,6 +178,7 @@ export default function PromptLibrary({
             title:   formTitle.trim(),
             body:    formBody.trim(),
             notes:   formNotes.trim() || null,
+            tags:    parsedTags.length ? parsedTags : null,
           })
         if (error) throw error
       }
@@ -181,6 +187,7 @@ export default function PromptLibrary({
       setFormTitle('')
       setFormBody('')
       setFormNotes('')
+      setFormTags('')
       await loadData()
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Error saving prompt')
@@ -329,6 +336,12 @@ export default function PromptLibrary({
                   placeholder="Notes (optional)"
                   className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors"
                 />
+                <input
+                  value={formTags}
+                  onChange={e => setFormTags(e.target.value)}
+                  placeholder="tag1, tag2, tag3"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors"
+                />
                 {formError && <p className="text-xs text-red-400">{formError}</p>}
                 <div className="flex gap-2">
                   <button
@@ -373,6 +386,9 @@ export default function PromptLibrary({
                     {p.scope && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100/60 text-gray-400">{p.scope}</span>
                     )}
+                    {p.tags?.length ? p.tags.map(tag => (
+                      <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">{tag}</span>
+                    )) : null}
                     {p.status !== 'active' && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-900/40 text-yellow-500">{p.status}</span>
                     )}
