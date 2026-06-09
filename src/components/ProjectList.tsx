@@ -7,6 +7,7 @@ import { createProjectAction } from '@/app/actions'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import ConnectTeamModal, { type Connection } from '@/components/teams/ConnectTeamModal'
 import IncomingRequestsPanel from '@/components/teams/IncomingRequestsPanel'
+import HowConnectedTeamsModal from '@/components/teams/HowConnectedTeamsModal'
 
 const AGENT_META: Record<string, { label: string; color: string }> = {
   manager: { label: 'Manager', color: 'text-gray-600' },
@@ -24,6 +25,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const [showRequestsPanel, setShowRequestsPanel] = useState(false)
   const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null)
   const [disconnecting,     setDisconnecting]     = useState<string | null>(null)
+  const [showHowModal,      setShowHowModal]      = useState(false)
 
   const fetchConnections = useCallback(() => {
     fetch('/api/connections')
@@ -183,7 +185,15 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
       {/* Right — Connected Teams */}
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-[var(--color-text-secondary)]">Connected Teams</h2>
+          <div className="flex flex-col gap-0.5">
+            <h2 className="text-base font-semibold text-[var(--color-text-secondary)]">Connected Teams</h2>
+            <button
+              onClick={() => setShowHowModal(true)}
+              className="text-left text-xs text-gray-400 hover:text-indigo-500 transition-colors"
+            >
+              How Connected Teams work
+            </button>
+          </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setShowRequestsPanel(true)}
@@ -300,6 +310,10 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
           onAccepted={() => { setShowRequestsPanel(false); fetchConnections() }}
           onRejected={() => { setShowRequestsPanel(false); fetchConnections() }}
         />
+      )}
+
+      {showHowModal && (
+        <HowConnectedTeamsModal onClose={() => setShowHowModal(false)} />
       )}
     </>
   )

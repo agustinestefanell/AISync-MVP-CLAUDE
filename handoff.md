@@ -4955,3 +4955,55 @@ OE que completa el bloque Connected Teams en el dashboard. Agrega funcionalidad 
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-09] — Modal "How Connected Teams work" en Dashboard
+
+### Cambio realizado
+Nuevo modal informativo que explica el funcionamiento de Connected Teams desde el Dashboard. Un botón `?` junto al título "Connected Teams" abre el modal. El modal sigue el patrón de contenido de la demo (HowToModal.tsx) y el patrón visual inline del MVP (sin componente Modal genérico).
+
+### Archivos modificados
+- `src/components/teams/HowConnectedTeamsModal.tsx` — nuevo componente. Modal inline con 5 secciones: qué son las Connected Teams, cómo conectar, cómo aceptar una solicitud, qué pasa al estar conectado, cómo desconectar. Usa `renderText()` para resaltar términos en `<code>` (patrón portado de demo). Botón "Got it" para cerrar. Click fuera también cierra.
+- `src/components/ProjectList.tsx` — import del nuevo componente, estado `showHowModal`, botón `?` circular junto al título "Connected Teams", render condicional del modal en el Fragment.
+
+### Decisiones técnicas
+- **Botón `?` circular junto al título**: el header del panel ya tiene "Requests" y "+ Connect". Un `?` de 16x16px es más compacto que el `HowToLink` de texto subrayado de la demo. No agrega ruido visual.
+- **Modal inline sin Modal genérico**: el MVP no tiene componente `Modal` compartido (la demo sí lo tiene). Se siguió el patrón de `ConnectTeamModal` — backdrop + panel blanco + header + contenido + footer. Consistente con el resto del MVP.
+- **`renderText()` local**: función pequeña para resaltar términos entre backticks como `<code>`. No compartida en util porque es solo para este componente.
+
+### Alternativas descartadas
+- Portar `HowToModal` de la demo: depende de componente `Modal` con CSS classes (`ui-modal-surface`, etc.) que no existen en el MVP. Más trabajo sin beneficio en este scope.
+- Texto estático bajo el título: menos discoverable, agrega ruido visual.
+
+### Riesgos / deuda técnica
+- Ninguno. Pure UI, sin fetch ni efectos secundarios.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.
+
+---
+
+## [2026-06-09] — Mini OE: reemplazar botón ? por link "How Connected Teams work"
+
+### Cambio realizado
+El botón `?` circular no era visible en producción y no era consistente con el patrón de ayuda del producto. Se reemplazó por un link de texto `How Connected Teams work` ubicado como subtítulo debajo del título "Connected Teams".
+
+### Archivos modificados
+- `src/components/ProjectList.tsx` — único archivo tocado. El wrapper `div` del título cambió de `flex items-center gap-1.5` a `flex flex-col gap-0.5`. El `<button>` circular `?` (w-4 h-4, border, etc.) fue reemplazado por un `<button>` de texto `text-xs text-gray-400 hover:text-indigo-500`. El handler `onClick={() => setShowHowModal(true)}` se mantuvo idéntico.
+
+### Decisiones técnicas
+- **Texto debajo del título (flex-col)**: más visible que inline (el área de controles de la derecha — "Requests" + "+ Connect" — compite con el header); como subtítulo queda sin ambigüedad visual.
+- **`hover:text-indigo-500`**: color de hover consistente con el acento del producto.
+
+### Alternativas descartadas
+- Link inline (mismo flex-row que antes): menos visible; el área de botones de acción a la derecha domina la fila.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.
