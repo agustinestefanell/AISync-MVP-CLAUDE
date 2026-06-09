@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-08 (Connected Teams: connect, requests, disconnect, light mode, API strings)
+Last updated: 2026-06-09 (Connected Teams: How it works modal — 6 sections + quick reference table)
 
 ---
 
@@ -31,6 +31,8 @@ Last updated: 2026-06-08 (Connected Teams: connect, requests, disconnect, light 
 | Connected Teams — Disconnect | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón Disconnect inline → confirmación con email del partner → botón rojo confirm + Cancel. Usa `PATCH { action: 'reject' }` (no DELETE — solo para pending+requester). |
 | Connected Teams — IncomingRequestsPanel light mode | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | 7 clases dark reemplazadas: borders, títulos, emails, labels, select, botones Confirm/Accept/Reject todos en light tokens. |
 | API error strings — English | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | 5 strings en español en `connections/route.ts` y `connections/[id]/route.ts` traducidos al inglés. |
+| Connected Teams — "How it works" link | ✅ Closed | commit fix: replace ? button with how connected teams work link | Link de texto `How Connected Teams work` debajo del título de la columna. Abre `HowConnectedTeamsModal`. |
+| Connected Teams — How it works modal (v2) | ✅ Closed | commit docs: update how connected teams work modal with approved content | 6 secciones aprobadas + tabla quick reference (5 filas: send/accept/view/map/disconnect). Modal ampliado a `max-w-2xl`. |
 
 ---
 

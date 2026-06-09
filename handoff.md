@@ -5007,3 +5007,31 @@ El botón `?` circular no era visible en producción y no era consistente con el
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-09] — Actualizar contenido de HowConnectedTeamsModal con texto aprobado
+
+### Cambio realizado
+Reemplazo completo del contenido de `HowConnectedTeamsModal.tsx`. Se pasó de 5 secciones genéricas a 6 secciones detalladas + tabla de quick reference. El modal creció de `max-w-lg` a `max-w-2xl` para acomodar la tabla.
+
+### Archivos modificados
+- `src/components/teams/HowConnectedTeamsModal.tsx` — único archivo tocado:
+  - Título del modal: `How Connected Teams work` → `How Connected Teams Work`
+  - 5 secciones → 6 secciones: What is a Connected Team / How to connect / How the other side accepts / What an active connection means / How to disconnect / Current scope
+  - Nueva constante `SUMMARY` con 5 filas para la tabla quick reference
+  - Tabla `<table>` con zebra striping (`bg-gray-50/60` en filas impares) y header `bg-gray-50`
+  - `max-w-lg` → `max-w-2xl` para acomodar la tabla sin overflow
+  - `max-h-[60vh]` → `max-h-[65vh]` para dar más espacio al contenido extra
+  - Patrón de cierre (✕, backdrop, "Got it") sin tocar
+
+### Decisiones técnicas
+- **Tabla dentro del modal**: la tabla de quick reference requería `max-w-2xl` — en `max-w-lg` el texto de la columna "Where" quedaba truncado. Ampliado el modal solo para el contenido de ayuda; los modales de acción (`ConnectTeamModal`, etc.) mantienen su tamaño original.
+- **`SUMMARY` como constante separada**: no mezclado con `SECTIONS` porque la tabla requiere render diferente (elemento `<table>`, no `<p>`).
+- **`CodingWorkshop.md`**: no aplica — cambio es content-only, sin bugs ni causa raíz técnica.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.
