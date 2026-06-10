@@ -5058,3 +5058,34 @@ El dropdown "Your host team" en `ConnectTeamModal` mostraba solo el nombre del e
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-09] — fix: Connect Team security gaps 1 y 3 cerrados
+
+### Cambio realizado
+Dos gaps de seguridad de Connect Team documentados en DECISIONS.md desde 2026-06-04 y marcados como prerequisito antes de producción multi-cuenta real. Ambos cerrados con checks a nivel aplicación en los API routes de connections.
+
+### Archivos modificados
+- `src/app/api/connections/route.ts` — Gap 1: antes del INSERT, consulta `SELECT id FROM accounts WHERE email = receiver_email`. Si no existe cuenta, devuelve 400 `No AISync account found with that email.` El check usa `receiver_email.trim().toLowerCase()` consistente con la normalización ya existente en el archivo.
+- `src/app/api/connections/[id]/route.ts` — Gap 3 (PATCH): antes del branch accept/reject, fetch `SELECT id, receiver_email, requester_account_id FROM team_connections WHERE id = params.id AND status = 'pending'`. Si no existe → 404. Si `receiver_email !== user.email` → 403. El check es compartido por accept y reject (una sola validación antes del branch). Gap 3 (DELETE): fetch `SELECT id, requester_account_id` por id. Si no existe → 404. Si `requester_account_id !== user.id` → 403. Las `.eq()` de la query de delete se mantienen como segunda línea de defensa.
+- `DECISIONS.md` — Gaps 1 y 3 marcados como resueltos con fecha y descripción. Gaps 2, 4, 5 siguen como hardening pendiente.
+
+### Decisiones técnicas
+- **Check antes del branch accept/reject**: un único fetch antes del `if (body.action === 'accept')` cubre ambas acciones sin duplicar código.
+- **Normalización email**: comparación `toLowerCase()` en ambos lados — consistente con cómo el POST ya normaliza `receiver_email` al insertarlo.
+- **DELETE mantiene doble validación**: el check a nivel aplicación (fetch + compare) más los `.eq()` en la query existente actúan como defensa en profundidad.
+- **No se tocó schema, RLS ni UI**: los cambios son pure API-layer authorization.
+
+### Alternativas descartadas
+- Mover la validación al RLS de Supabase: requeriría migration. El check a nivel aplicación es suficiente para MVP y más debuggeable.
+- Single fetch compartido para PATCH y DELETE: estructuras diferentes (receiver vs requester), mejor separados.
+
+### Riesgos / deuda técnica
+- Gaps 2 (rate limiting), 4 (RLS de objetos compartidos) y 5 (expiración de solicitudes) siguen pendientes — son hardening, no bloqueantes para primera beta.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

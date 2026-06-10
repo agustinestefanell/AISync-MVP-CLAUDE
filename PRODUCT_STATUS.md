@@ -12,7 +12,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 
 | Tarea | Detalle | Estimación | Estado |
 |---|---|---|---|
-| Connect Team — Gap 1 y 3 | Revisar DECISIONS.md y cerrar los dos gaps de seguridad identificados | 1 sesión | ⏳ Pendiente |
+| Connect Team — Gap 1 y 3 | Revisar DECISIONS.md y cerrar los dos gaps de seguridad identificados | 1 sesión | ✅ Closed — Gap 1: verify receiver email in accounts before insert. Gap 3: PATCH requires receiver_email match, DELETE requires requester_account_id match. |
 | Rate limiting en API routes | Proteger endpoints críticos (chat, connections, context) contra abuso | 1 sesión | ⏳ Pendiente |
 | RLS multi-usuario | Crear segunda cuenta de prueba y verificar aislamiento real de datos | 1 sesión | ⏳ Pendiente |
 

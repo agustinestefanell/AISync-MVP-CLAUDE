@@ -62,6 +62,20 @@ export async function POST(req: Request) {
     )
   }
 
+  // Gap 1: verify receiver_email belongs to a real AISync account before insert
+  const { data: receiverAccount } = await supabase
+    .from('accounts')
+    .select('id')
+    .eq('email', receiver_email.trim().toLowerCase())
+    .single()
+
+  if (!receiverAccount) {
+    return NextResponse.json(
+      { error: 'No AISync account found with that email.' },
+      { status: 400 }
+    )
+  }
+
   const { data, error } = await supabase
     .from('team_connections')
     .insert({

@@ -144,14 +144,14 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Decisión:** Activar Connect Team en MVP con seguridad básica existente. Gaps de seguridad identificados y diferidos conscientemente para etapa post-MVP.
 - **Seguridad implementada hoy:** RLS activo en `team_connections`. Solo el requester puede crear conexiones. Receptor ve solicitud por email antes de aceptar. Solo las partes involucradas pueden ver sus conexiones. Solo requester o receiver pueden actualizar status.
 - **Gaps diferidos:**
-  1. No se verifica que el email receptor sea una cuenta AISync real antes de enviar solicitud.
-  2. No hay límite de solicitudes por cuenta — riesgo de spam.
-  3. Lookup email→account_id no está protegido contra suplantación.
-  4. Los objetos compartidos no tienen RLS propio — alcance de visibilidad del externo no definido.
-  5. No hay expiración de solicitudes pendientes.
+  1. ~~No se verifica que el email receptor sea una cuenta AISync real antes de enviar solicitud.~~ **Resuelto 2026-06-09:** `POST /api/connections` ahora consulta `accounts` por email antes del INSERT. Requests a emails sin cuenta AISync devuelven 400 `No AISync account found with that email.`
+  2. No hay límite de solicitudes por cuenta — riesgo de spam. *(hardening pendiente)*
+  3. ~~Lookup email→account_id no está protegido contra suplantación.~~ **Resuelto 2026-06-09:** `PATCH /api/connections/[id]` verifica que `connection.receiver_email === user.email` antes de accept/reject. `DELETE` verifica que `connection.requester_account_id === user.id`. Terceros con UUID no pueden actuar sobre conexiones ajenas.
+  4. Los objetos compartidos no tienen RLS propio — alcance de visibilidad del externo no definido. *(hardening pendiente)*
+  5. No hay expiración de solicitudes pendientes. *(hardening pendiente)*
 - **Alternativas descartadas:** Bloquear Connect Team hasta resolver todos los gaps — descartado porque el flujo de solicitud/aceptación es funcional y los riesgos son bajos en contexto MVP de una cuenta por usuario.
-- **Consecuencia:** Antes de activar Connect Team en producción multi-cuenta real, resolver gaps 1 y 3 como mínimo. Los demás son mejoras de hardening.
-- **Estado:** Diferido post-MVP. Registrado como deuda de seguridad conocida.
+- **Consecuencia:** Gaps 1 y 3 resueltos. Gaps 2, 4, 5 siguen siendo mejoras de hardening post-primera beta.
+- **Estado:** Gaps 1 y 3 cerrados (2026-06-09). Gaps 2, 4, 5 diferidos post-beta.
 
 ---
 
