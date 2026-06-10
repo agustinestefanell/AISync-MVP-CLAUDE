@@ -1,6 +1,43 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-09 (ConnectTeamModal: team codes en host team dropdown)
+Last updated: 2026-06-09 (MVP-Ready Planning agregado)
+
+---
+
+## MVP-READY PLANNING — Pre-lanzamiento beta
+
+Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesiones.
+
+### 🔴 Bloque 1 — Seguridad y estabilidad (no negociable antes de usuarios reales)
+
+| Tarea | Detalle | Estimación | Estado |
+|---|---|---|---|
+| Connect Team — Gap 1 y 3 | Revisar DECISIONS.md y cerrar los dos gaps de seguridad identificados | 1 sesión | ⏳ Pendiente |
+| Rate limiting en API routes | Proteger endpoints críticos (chat, connections, context) contra abuso | 1 sesión | ⏳ Pendiente |
+| RLS multi-usuario | Crear segunda cuenta de prueba y verificar aislamiento real de datos | 1 sesión | ⏳ Pendiente |
+
+### 🟡 Bloque 2 — Experiencia de usuario nuevo
+
+| Tarea | Detalle | Estimación | Estado |
+|---|---|---|---|
+| BYOK verification | Usuario nuevo sin API keys — mapear todos los errores posibles y manejarlos gracefully | 1 sesión | ⏳ Pendiente |
+| Onboarding mínimo | Welcome flow: primer login → crear proyecto → crear team → abrir workspace | 1 sesión | ⏳ Pendiente |
+| Textos residuales en español | "Welcome", "Cerrar sesión" y cualquier string visible en español | Mini OE | ⏳ Pendiente |
+
+### 🟢 Bloque 3 — Limpieza pre-lanzamiento
+
+| Tarea | Detalle | Estimación | Estado |
+|---|---|---|---|
+| Migraciones 023+024 | Confirmar aplicadas en Supabase (ya están, solo documentar) | 5 min | ⏳ Pendiente |
+| TAVILY_API_KEY en Vercel | Confirmar configurada (ya está) | 5 min | ⏳ Pendiente |
+| Audit de páginas | Recorrer toda la app como usuario nuevo y anotar friction points | 1 sesión | ⏳ Pendiente |
+
+### ⚪ Diferido — Post primera beta
+
+- Rate limiting avanzado
+- Audit de seguridad externo
+- Migración a AISyncteam.com
+- `/prompts` página dedicada
 
 ---
 
