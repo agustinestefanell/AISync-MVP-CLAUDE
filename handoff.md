@@ -5035,3 +5035,26 @@ Reemplazo completo del contenido de `HowConnectedTeamsModal.tsx`. Se pasó de 5 
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-09] — fix: team codes en ConnectTeamModal host team dropdown
+
+### Cambio realizado
+El dropdown "Your host team" en `ConnectTeamModal` mostraba solo el nombre del equipo (`{t.name}`). Se aplicó el mismo patrón que `AddTeamModal.tsx`: team code prefijado + ordenado por código.
+
+### Archivos modificados
+- `src/components/teams/ConnectTeamModal.tsx` — 3 cambios:
+  1. Imports: `useMemo` agregado, `computeTeamCodes` importado de `@/lib/teams/computeTeamCodes`
+  2. `const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])` junto a los otros estados
+  3. `{teams.map(...)}` → `{[...teams].sort(...).map(t => <option>{teamCodes[t.id] ?? '—'} · {t.name}</option>)}`
+
+### Decisiones técnicas
+- Patrón idéntico a `AddTeamModal.tsx` — sin variaciones. Consistencia total entre los dos modales que tienen dropdowns de teams.
+- `[...teams]` para no mutar el prop array antes del sort.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Estado
+Cerrado.

@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-09 (Connected Teams: How it works modal — 6 sections + quick reference table)
+Last updated: 2026-06-09 (ConnectTeamModal: team codes en host team dropdown)
 
 ---
 
@@ -27,6 +27,7 @@ Last updated: 2026-06-09 (Connected Teams: How it works modal — 6 sections + q
 | Jerarquía visual de teams | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | Team names con `font-semibold`. Separadores `border-t border-gray-100` entre team blocks. Workers en `text-gray-600`. |
 | Connected Teams column | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | Layout `grid-cols-[1fr_360px]`. Consume `GET /api/connections` client-side, filtra `status === 'active'`. Muestra team name, partner email, badge outgoing/incoming, botón Open → `/teams`. Empty state "There are no connected teams yet." |
 | Connected Teams — + Connect button | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón `+ Connect` en header abre `ConnectTeamModal`. Re-fetch post-connect. |
+| ConnectTeamModal — team codes en dropdown | ✅ Closed | commit fix: show team codes in ConnectTeamModal host team dropdown | `computeTeamCodes` + `useMemo` + sort por código + `{code} · {name}`. Mismo patrón que `AddTeamModal`. |
 | Connected Teams — Requests panel | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón `Requests` con badge rojo (count incoming pendientes). Abre `IncomingRequestsPanel`. Accept con team selector. Reject. Re-fetch post-action. |
 | Connected Teams — Disconnect | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón Disconnect inline → confirmación con email del partner → botón rojo confirm + Cancel. Usa `PATCH { action: 'reject' }` (no DELETE — solo para pending+requester). |
 | Connected Teams — IncomingRequestsPanel light mode | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | 7 clases dark reemplazadas: borders, títulos, emails, labels, select, botones Confirm/Accept/Reject todos en light tokens. |

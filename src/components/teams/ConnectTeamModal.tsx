@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
+import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 
 interface ConnectTeamModalProps {
   teams: TeamWithWorkspaces[]
@@ -33,6 +34,7 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
   const [error, setError]   = useState('')
   const [saving, setSaving] = useState(false)
 
+  const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])
   const hostTeam = teams.find(t => t.id === hostTeamId)
 
   async function handleSubmit() {
@@ -94,7 +96,9 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
               onChange={e => setHostTeamId(e.target.value)}
               className="w-full bg-[var(--color-surface-subtle)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
             >
-              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {[...teams]
+                .sort((a, b) => (teamCodes[a.id] ?? '').localeCompare(teamCodes[b.id] ?? ''))
+                .map(t => <option key={t.id} value={t.id}>{teamCodes[t.id] ?? '—'} · {t.name}</option>)}
             </select>
           </div>
 
