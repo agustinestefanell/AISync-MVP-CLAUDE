@@ -5089,3 +5089,28 @@ Dos gaps de seguridad de Connect Team documentados en DECISIONS.md desde 2026-06
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-10] — fix docs: migraciones 023 y 024 marcadas como aplicadas en PRODUCT_STATUS.md
+
+### Cambio realizado
+Se corrigió `PRODUCT_STATUS.md` para reflejar que las migraciones `023_token_usage.sql` y `024_token_usage_capture_method.sql` ya están aplicadas en Supabase. El estado anterior indicaba erróneamente pendiente de aplicación manual.
+
+### Archivos modificados
+- `PRODUCT_STATUS.md` — 3 cambios puntuales:
+  1. Línea 31 (Bloque 3 — Limpieza pre-lanzamiento): `⏳ Pendiente` → `✅ Done`
+  2. Tabla "Migrations pending execution": agregadas filas 023 y 024 con `✅ Applied — 2026-06-10`
+  3. Sección "Known deferred items" línea 218: `Migraciones 023 + 024 creadas. Pendiente aplicación manual en Supabase.` → `Migraciones 023 + 024 aplicadas en Supabase.`
+
+### Alcance
+Solo documentación. No se modificó código, schema, providers, streaming, migrations ni Supabase remoto.
+
+### Alternativas descartadas
+N/A — cambio documental puro.
+
+### Riesgos / deuda técnica
+Ninguno. Corrección de consistencia documental.
+
+### Estado
+Cerrado.

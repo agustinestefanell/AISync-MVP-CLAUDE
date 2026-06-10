@@ -28,7 +28,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 
 | Tarea | Detalle | Estimación | Estado |
 |---|---|---|---|
-| Migraciones 023+024 | Confirmar aplicadas en Supabase (ya están, solo documentar) | 5 min | ⏳ Pendiente |
+| Migraciones 023+024 | Confirmar aplicadas en Supabase (ya están, solo documentar) | 5 min | ✅ Done |
 | TAVILY_API_KEY en Vercel | Confirmar configurada (ya está) | 5 min | ⏳ Pendiente |
 | Audit de páginas | Recorrer toda la app como usuario nuevo y anotar friction points | 1 sesión | ⏳ Pendiente |
 
@@ -157,6 +157,8 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | 020_fix_checkpoint_messages_rls.sql | ✅ Applied — 2026-06-04, manually via Supabase SQL Editor |
 | 021_session_attachments_and_tool_calls.sql | ✅ Applied — 2026-06-05, manually via Supabase SQL Editor |
 | 022_messages_attachment_metadata.sql | ✅ Applied — 2026-06-05, manually via Supabase SQL Editor |
+| 023_token_usage.sql | ✅ Applied — 2026-06-10, manually via Supabase SQL Editor |
+| 024_token_usage_capture_method.sql | ✅ Applied — 2026-06-10, manually via Supabase SQL Editor |
 
 ---
 
@@ -215,7 +217,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 
 ## Known deferred items
 
-- Token Counters Fase 1 — ✅ tabla `token_usage` + `TokenUsage` type. Migraciones 023 + 024 creadas. Pendiente aplicación manual en Supabase.
+- Token Counters Fase 1 — ✅ tabla `token_usage` + `TokenUsage` type. Migraciones 023 + 024 aplicadas en Supabase.
 - Token Counters Fase 2a — ✅ Anthropic: `stream()` captura via `finalMessage()`, `complete()` via `response.usage`. `onUsage` desacoplado — fallo no interrumpe stream.
 - Token Counters Fase 2b — ✅ OpenAI/Groq/Gemini: `stream_options: { include_usage: true }` en OpenAI/Groq. `usageMetadata` en Gemini stream + complete. Nomenclatura normalizada a `input_tokens/output_tokens`. Persistencia via `persistUsage` reutilizado.
 - Token Counters Fase 3 — ✅ `TopRibbon` acepta `rightBadge?: React.ReactNode`. `TokenUsageBadge` muestra chips por provider en el ribbon (Claude 26.9k / OpenAI 7.7k / etc). Cada chip abre el modal con desglose por provider/model. Badge no se muestra si no hay datos. Dashboard avanzado de consumo sigue pendiente.
