@@ -944,3 +944,26 @@ Decisión formalizada retroactivamente en `DECISIONS.md`: Lock fuera de la UI de
 
 ### Lección
 Silenciar `no-unused-vars` con prefijo `_` sin investigar por qué el código quedó huérfano esconde features rotas y decisiones no documentadas. Un warning de variable sin uso sobre un handler es una pregunta: "¿qué dejó esto sin uso?" Antes de silenciar, responderla — y si la respuesta es una decisión de producto, registrarla en DECISIONS.md en ese momento.
+
+## Entrada #19 — Fallback silencioso a credenciales de plataforma — costo no acotado
+
+### Problema
+`chat/route.ts` y `sm-doc-chat/route.ts` resolvían la API key como `keyRow?.api_key ?? ENV_KEYS[provider]`: si el usuario no tenía key propia, usaban silenciosamente la key de AISync desde variables de entorno — en cualquier entorno, incluido producción.
+
+### Causa raíz
+El fallback nació como conveniencia de desarrollo (no configurar keys en /settings para probar localmente) y quedó sin condición de entorno. Nada distinguía "key del usuario" de "key de la plataforma" en runtime.
+
+### Consecuencia
+Contradicción directa con el modelo de negocio BYOK ("AISync no paga el uso de IA de sus clientes"): cualquier usuario autenticado sin key propia consumía la cuenta de AISync, con costo no acotado — agravado por la ausencia de rate limiting. Invisible además: el usuario no sabía de quién era la key que estaba usando.
+
+### Proceso de solución
+Hallazgo SEC-006 de la auditoría de seguridad (inspección de manejo de API keys). Decisión de producto: BYOK estricto (vs. cortesía beta).
+
+### Solución final
+Fallback condicionado a `process.env.NODE_ENV === 'development'` en ambas routes — mismo patrón exacto. En producción, usuario sin key recibe 400 con mensaje accionable ("Add your key in Settings → Providers"). Verificado que AgentPanel y SMPanel parsean y muestran el error visiblemente. Las ENV vars pueden quedar en Vercel: el código las ignora.
+
+### Commit
+`fix: restrict platform key fallback to development only (BYOK strict)`
+
+### Lección
+Un fallback silencioso a credenciales de plataforma es un anti-patrón de costo no acotado: convierte una conveniencia de desarrollo en un subsidio invisible en producción. Todo fallback de credenciales debe estar condicionado por entorno y ser explícito sobre de quién es la credencial que opera.

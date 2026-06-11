@@ -56,9 +56,9 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 
 - **Descripción:** `chat/route.ts` y `sm-doc-chat/route.ts` hacen `const apiKey = keyRow?.api_key ?? ENV_KEYS[provider]`: si el usuario no configuró key propia, se usa la key de AISync desde variables de entorno. Contradice el principio "AISync no paga el uso de IA de sus clientes": cualquier usuario autenticado sin key propia consume la cuenta de AISync — costo no acotado, agravado mientras no exista rate limiting (Gap 2).
 - **Decisión de producto pendiente:** cortesía beta (mantener fallback, acotarlo con límites) vs. BYOK estricto (eliminar fallback en producción; las env keys quedan solo para desarrollo local).
-- **Verificación pendiente:** confirmar qué `ENV_KEYS` están seteadas en Vercel producción.
-- **Decisión tomada (2026-06-11):** BYOK estricto — eliminar el fallback en producción; las env keys quedan solo para desarrollo local. Fix pendiente como OE propia.
-- **Estado:** OPEN.
+- **Decisión tomada (2026-06-11):** BYOK estricto — el fallback solo opera en desarrollo; las env keys quedan solo para desarrollo local (pueden permanecer en Vercel, el código las ignora en producción).
+- **Resolución:** fallback condicionado a `NODE_ENV === 'development'` en ambas routes; en producción, usuario sin key recibe 400 accionable ("Add your key in Settings → Providers"). Verificado que AgentPanel y SMPanel muestran el error visiblemente (no se traga). Registrado en `DECISIONS.md` y `CodingWorkshop.md` Entrada #19.
+- **Estado:** CLOSED — commit `fix: restrict platform key fallback to development only (BYOK strict)` (2026-06-11).
 
 ### SEC-007 🔴 CLOSED — Lock/Unlock de workspace silenciosamente roto (sin política UPDATE en workspaces)
 

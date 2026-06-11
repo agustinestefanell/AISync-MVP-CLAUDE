@@ -819,3 +819,7 @@ Diseño aprobado que reemplaza al Lock manual cuando la feature vuelva a la UI. 
 5. **Toggle global:** el usuario puede desactivar Lock para toda la sesión ("Lock off") si le genera ruido.
 
 Infraestructura ya lista: `lock/route.ts` con ownership check y verificación de persistencia; política RLS `workspaces_update` (migración 025); `AgentPanel` ya respeta `workspaceLocked` (inputs y forward deshabilitados). Implementar Smart Lock es agregar los triggers automáticos sobre esta base — no reconstruir persistencia. Decisión registrada en `DECISIONS.md` 2026-06-11.
+
+### Patrón arquitectural — resolución de API keys (BYOK estricto)
+
+Orden de resolución de API key en routes de chat: (1) key del usuario en `user_api_keys` (cliente de usuario, RLS activa); (2) solo en `NODE_ENV === 'development'`, fallback a `ENV_KEYS` de plataforma; (3) sin key → 400 con mensaje accionable que apunta a Settings → Providers. En producción la plataforma nunca presta sus credenciales — modelo BYOK (DECISIONS.md 2026-06-11). Toda route nueva que consuma providers debe replicar este patrón.

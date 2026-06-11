@@ -236,3 +236,13 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
   5. **Toggle global:** el usuario puede desactivar Lock para toda la sesión ("Lock off") si le genera ruido.
 - **Razón del registro:** este diseño existe para evitar re-work futuro — cuando Lock vuelva, se implementa Smart Lock, no el botón manual.
 - **Estado:** Accepted.
+
+---
+
+## 2026-06-11 — BYOK estricto en producción
+
+- **Decisión:** El fallback a keys de plataforma (`ENV_KEYS`) en `chat/route.ts` y `sm-doc-chat/route.ts` solo opera en `NODE_ENV === 'development'`. En producción, un usuario sin key propia recibe error 400 accionable: `No API key configured for {provider}. Add your key in Settings → Providers to use this agent.`
+- **Razón:** Modelo de negocio BYOK declarado — AISync no absorbe costos de IA de clientes. El fallback incondicional permitía que cualquier usuario autenticado sin key consumiera la cuenta de AISync (costo no acotado, sin rate limiting aún). Hallazgo SEC-006 de la auditoría de seguridad.
+- **Operativa:** Las ENV vars pueden permanecer en Vercel sin riesgo — el código las ignora en producción. El flujo de desarrollo local no cambia.
+- **Alternativas descartadas:** Eliminar `ENV_KEYS` por completo — rompía el flujo de desarrollo diario sin beneficio de seguridad adicional. Mantener el fallback con límites de consumo — requiere infraestructura de metering que no existe aún; reevaluable como "cortesía beta" si el onboarding lo justifica.
+- **Estado:** Accepted — aplicado en ambas routes.

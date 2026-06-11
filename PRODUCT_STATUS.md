@@ -14,6 +14,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 |---|---|---|---|
 | Connect Team — Gap 1 y 3 | Revisar DECISIONS.md y cerrar los dos gaps de seguridad identificados | 1 sesión | ✅ Closed — Gap 1: verify receiver email in accounts before insert (fix 2026-06-11: lookup con admin client — la versión original usaba cliente de usuario y la RLS de accounts lo bloqueaba; estado funcional restaurado para usuarios no-admin). Gap 3: PATCH requires receiver_email match, DELETE requires requester_account_id match. |
 | Workspace Lock — SEC-007 | Lock/Unlock no persistía (sin política UPDATE en workspaces) y el audit log registraba eventos no persistidos | 1 sesión | ✅ Closed — route con ownership check + verificación de filas afectadas; migración 025 aplicada 2026-06-11. UI sin botón Lock por decisión de producto (ver DECISIONS.md — Smart Lock post-MVP) |
+| BYOK estricto — SEC-006 | Fallback a ENV_KEYS de plataforma consumía la cuenta de AISync para usuarios sin key propia | 1 sesión | ✅ Closed — fallback condicionado a NODE_ENV development en chat y sm-doc-chat; en producción, 400 accionable. Ver DECISIONS.md 2026-06-11 |
 | Rate limiting en API routes | Proteger endpoints críticos (chat, connections, context) contra abuso | 1 sesión | ⏳ Pendiente |
 | RLS multi-usuario | Crear segunda cuenta de prueba y verificar aislamiento real de datos | 1 sesión | ⏳ Pendiente |
 

@@ -83,11 +83,14 @@ export async function POST(req: Request) {
       .eq('provider', provider)
       .maybeSingle()
 
-    const apiKey = keyRow?.api_key ?? ENV_KEYS[provider]
+    // BYOK estricto: las keys de plataforma (ENV_KEYS) solo operan en desarrollo.
+    // En producción cada usuario usa su propia key (DECISIONS.md 2026-06-11).
+    const apiKey = keyRow?.api_key ??
+      (process.env.NODE_ENV === 'development' ? ENV_KEYS[provider] : undefined)
 
     if (!apiKey) {
       return Response.json(
-        { error: `No API key for ${provider}. Configure one in Settings (/settings).` },
+        { error: `No API key configured for ${provider}. Add your key in Settings → Providers to use this agent.` },
         { status: 400 }
       )
     }

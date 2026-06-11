@@ -5271,3 +5271,44 @@ Cierre documental de SEC-007. Durante la validación del fix se descubrió que e
 
 ### Estado
 Cerrado. SEC-007 cerrado de punta a punta: route + RLS + decisión de producto documentada.
+
+---
+
+## [2026-06-11] — fix SEC-006: BYOK estricto — fallback a ENV_KEYS solo en desarrollo
+
+### Diagnóstico
+`chat/route.ts` y `sm-doc-chat/route.ts` resolvían la key como `keyRow?.api_key ?? ENV_KEYS[provider]` sin condición de entorno: cualquier usuario autenticado sin key propia consumía la cuenta de AISync en producción — costo no acotado, contradicción con el modelo BYOK. Hallazgo SEC-006 🟡 de la auditoría.
+
+### Archivos modificados
+- `src/app/api/chat/route.ts` — fallback condicionado: `keyRow?.api_key ?? (process.env.NODE_ENV === 'development' ? ENV_KEYS[provider] : undefined)`. Error 400 actualizado a mensaje accionable en inglés: `No API key configured for {provider}. Add your key in Settings → Providers to use this agent.` (el anterior estaba en español — violaba la regla de UI 100% inglés).
+- `src/app/api/sm-doc-chat/route.ts` — mismo patrón exacto, mismo mensaje.
+- `DECISIONS.md` — decisión BYOK estricto con alternativas descartadas.
+- `AUDIT_REPORT.md` — SEC-006 → CLOSED.
+- `CodingWorkshop.md` — Entrada #19: fallback silencioso a credenciales de plataforma como anti-patrón de costo no acotado.
+- `AISyncPlans.md` — patrón de resolución de API keys para routes futuras.
+- `PRODUCT_STATUS.md` — fila SEC-006 en Bloque 1 → Closed.
+
+### Verificación de UX (punto 3 de la directiva — solo inspección)
+El error NO se traga: `AgentPanel.tsx` parsea el body del error (líneas 354-362, patrón robusto de Entrada #14), lo setea en estado y lo renderiza visible en el panel (líneas 631-640). `SMPanel.tsx` hace lo mismo (164-167, 562-569). Sin hallazgo nuevo.
+
+### Decisiones técnicas
+- `NODE_ENV === 'development'` como condición (no una env var custom): Vercel siempre buildea con `NODE_ENV=production`, no requiere configuración adicional y no puede quedar mal seteada.
+- Las ENV vars pueden permanecer en Vercel — el código las ignora en producción.
+- Mensaje de error unificado entre ambas routes (antes diferían en idioma y texto).
+
+### Alternativas descartadas
+- Eliminar ENV_KEYS por completo: rompía el flujo de desarrollo local sin beneficio adicional.
+- Cortesía beta con límites: requiere metering inexistente; reevaluable si el onboarding lo justifica.
+
+### Riesgos / deuda técnica
+- Usuarios actuales de producción que dependían del fallback (si los hay) verán el 400 accionable a partir del deploy — es el comportamiento deseado.
+- Rate limiting (Gap 2) sigue pendiente — BYOK estricto reduce el incentivo de abuso pero no lo elimina.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Commit
+`fix: restrict platform key fallback to development only (BYOK strict)`
+
+### Estado
+Cerrado.
