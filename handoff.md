@@ -5242,3 +5242,32 @@ Cerrado.
 
 ### Estado
 Cerrado (código). Migración 025 pendiente de aplicación manual por Agus.
+
+---
+
+## [2026-06-11] — docs: cierre SEC-007 y formalización de decisión Lock + Smart Lock roadmap
+
+### Cambio realizado
+Cierre documental de SEC-007. Durante la validación del fix se descubrió que el botón Lock no existe en la UI: fue removido el 2026-05-14 (commit `1903306`, rediseño de workspace Fase 3) sin registro, y el handler huérfano fue silenciado con prefijo `_` el 2026-05-19 (`97b7aea`) para pasar ESLint. Se formalizó retroactivamente la remoción como decisión de producto y se registró el diseño aprobado "Smart Lock" para post-MVP. Migración 025 aplicada por Agus en Supabase (2026-06-11).
+
+### Archivos modificados
+- `DECISIONS.md` — decisión "Lock removido de la UI del MVP" formalizada retroactivamente + diseño Smart Lock de 5 puntos (auto-lock por inactividad, auto-unlock por R&F, modal de estado, checkpoint en unlock, toggle global).
+- `AISyncPlans.md` — sección "Smart Lock (post-MVP)" como referencia arquitectural, con inventario de la infraestructura ya lista.
+- `CodingWorkshop.md` — Entrada #18: silenciar `no-unused-vars` con `_` sin investigar esconde features rotas y decisiones no documentadas.
+- `AUDIT_REPORT.md` — SEC-007 → CLOSED definitivo: persistencia arreglada (commit `934ae51` + migración 025 aplicada), UI removida por decisión de producto, hallazgo derivado documentado.
+- `PRODUCT_STATUS.md` — migración 025 → Applied 2026-06-11; fila SEC-007 de Bloque 1 → Closed con referencia a DECISIONS.md.
+
+### Decisiones técnicas
+- El handler `_handleLockToggle` y el estado `lockState` quedan en el código sin tocar (solo documentación autorizada en esta OE). Son la base sobre la que se implementará Smart Lock.
+- Smart Lock se registra en dos lugares deliberadamente: DECISIONS.md (la decisión y su porqué) y AISyncPlans.md (la referencia arquitectural) — consistente con la separación de roles de ambos documentos.
+
+### Alternativas descartadas
+- Restaurar el botón Lock manual ahora: descartado por el Product Owner — Lock manual demostró ser débil; cuando vuelva, será Smart Lock.
+- Eliminar el handler muerto: fuera de scope (sin código autorizado) y útil como base para Smart Lock.
+
+### Riesgos / deuda técnica
+- `_handleLockToggle` sigue siendo código muerto hasta Smart Lock — aceptado y documentado.
+- Smart Lock es post-MVP: no hay forma de lockear un workspace desde la UI hasta entonces (la API sí funciona y persiste).
+
+### Estado
+Cerrado. SEC-007 cerrado de punta a punta: route + RLS + decisión de producto documentada.

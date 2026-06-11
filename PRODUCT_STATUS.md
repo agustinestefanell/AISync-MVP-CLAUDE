@@ -13,7 +13,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Tarea | Detalle | Estimación | Estado |
 |---|---|---|---|
 | Connect Team — Gap 1 y 3 | Revisar DECISIONS.md y cerrar los dos gaps de seguridad identificados | 1 sesión | ✅ Closed — Gap 1: verify receiver email in accounts before insert (fix 2026-06-11: lookup con admin client — la versión original usaba cliente de usuario y la RLS de accounts lo bloqueaba; estado funcional restaurado para usuarios no-admin). Gap 3: PATCH requires receiver_email match, DELETE requires requester_account_id match. |
-| Workspace Lock — SEC-007 | Lock/Unlock no persistía (sin política UPDATE en workspaces) y el audit log registraba eventos no persistidos | 1 sesión | ✅ Code closed — route con ownership check + verificación de filas afectadas. ⏳ Migración 025 pendiente de aplicación manual + validación (Lock → reload → persiste) |
+| Workspace Lock — SEC-007 | Lock/Unlock no persistía (sin política UPDATE en workspaces) y el audit log registraba eventos no persistidos | 1 sesión | ✅ Closed — route con ownership check + verificación de filas afectadas; migración 025 aplicada 2026-06-11. UI sin botón Lock por decisión de producto (ver DECISIONS.md — Smart Lock post-MVP) |
 | Rate limiting en API routes | Proteger endpoints críticos (chat, connections, context) contra abuso | 1 sesión | ⏳ Pendiente |
 | RLS multi-usuario | Crear segunda cuenta de prueba y verificar aislamiento real de datos | 1 sesión | ⏳ Pendiente |
 
@@ -160,7 +160,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | 022_messages_attachment_metadata.sql | ✅ Applied — 2026-06-05, manually via Supabase SQL Editor |
 | 023_token_usage.sql | ✅ Applied — 2026-06-10, manually via Supabase SQL Editor |
 | 024_token_usage_capture_method.sql | ✅ Applied — 2026-06-10, manually via Supabase SQL Editor |
-| 025_workspaces_update_policy.sql | ⏳ Pendiente — SEC-007: política UPDATE de workspaces. Sin esto, Lock/Unlock devuelve 500 explícito (antes fallaba silenciosamente) |
+| 025_workspaces_update_policy.sql | ✅ Applied — 2026-06-11, manually via Supabase SQL Editor (SEC-007) |
 
 ---
 

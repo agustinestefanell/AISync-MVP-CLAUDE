@@ -921,3 +921,26 @@ La auditoría de seguridad cruzó cada UPDATE de las API routes contra las polí
 
 ### Lección
 UPDATE sin política RLS falla silenciosamente (0 filas, sin error). Todo UPDATE debe usar `.select()` y verificar filas afectadas antes de registrar side-effects como audit events. Y toda UI optimista necesita que la API confirme persistencia real — `error: null` no significa "se guardó".
+
+## Entrada #18 — Silenciar no-unused-vars con _ esconde features rotas
+
+### Problema
+El botón Lock desapareció de la UI sin que nadie lo registrara, y el handler quedó como código muerto silenciado durante 3 semanas. Nadie supo que la feature se había perdido hasta que la auditoría de seguridad la encontró.
+
+### Causa raíz
+Cadena de dos commits: (1) el rediseño de workspace del 2026-05-14 (`1903306`) eliminó el ribbon inferior viejo y el botón Lock se fue con él — sin registro de la decisión; (2) el 2026-05-19 (`97b7aea`), ESLint se quejó de que `handleLockToggle` y `lockLoading` no se usaban, y para habilitar el build de producción se les puso prefijo `_` — sin preguntar por qué habían quedado huérfanos.
+
+### Consecuencia
+El prefijo `_` convirtió una señal del linter ("este código quedó sin uso — ¿es intencional?") en silencio permanente. La feature quedó rota e invisible: handler muerto, decisión de producto sin documentar, y el estado `workspaceLocked` consumiéndose en AgentPanel sin que exista forma de activarlo.
+
+### Proceso de solución
+La auditoría detectó SEC-007 (persistencia rota), y al intentar validar el fix desde la UI se descubrió que el botón no existía. `git log -S "handleLockToggle"` reconstruyó la cadena completa.
+
+### Solución final
+Decisión formalizada retroactivamente en `DECISIONS.md`: Lock fuera de la UI del MVP por decisión de producto; infraestructura corregida y lista (route + migración 025 aplicada); diseño Smart Lock aprobado y registrado para cuando la feature vuelva.
+
+### Commit
+`docs: close SEC-007 and formalize lock removal decision with smart lock roadmap`
+
+### Lección
+Silenciar `no-unused-vars` con prefijo `_` sin investigar por qué el código quedó huérfano esconde features rotas y decisiones no documentadas. Un warning de variable sin uso sobre un handler es una pregunta: "¿qué dejó esto sin uso?" Antes de silenciar, responderla — y si la respuesta es una decisión de producto, registrarla en DECISIONS.md en ese momento.

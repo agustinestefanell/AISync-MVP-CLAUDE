@@ -68,7 +68,8 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
   1. Migración `025_workspaces_update_policy.sql` — política `workspaces_update` espejando la cadena de ownership de select/insert/delete. **Requiere aplicación manual en Supabase Dashboard → SQL Editor.**
   2. `lock/route.ts` — ownership check explícito antes del update (patrón `checkpoint/[id]`: 404 si no existe, 403 si no es del usuario); UPDATE con `.select()` y verificación de filas afectadas; el insert en `audit_log` solo ocurre si el cambio persistió; validación runtime de `lock_state`.
 - **Lección registrada:** `CodingWorkshop.md` Entrada #17.
-- **Estado:** CLOSED — commit pendiente de referencia en este mismo cambio; migración 025 pendiente de aplicación manual (validar: Lock → recargar página → debe persistir).
+- **Hallazgo derivado durante la validación:** el botón Lock no existe en la UI — fue removido el 2026-05-14 (commit `1903306`, rediseño de workspace) y el handler huérfano quedó silenciado con prefijo `_` el 2026-05-19 (`97b7aea`) para pasar ESLint. La remoción se formalizó retroactivamente como decisión de producto en `DECISIONS.md` (2026-06-11), junto con el diseño "Smart Lock" aprobado para post-MVP (auto-lock por inactividad, auto-unlock por R&F, modal de estado, checkpoint en unlock, toggle global). Lección de proceso en `CodingWorkshop.md` Entrada #18.
+- **Estado:** CLOSED — persistencia arreglada: route corregida (commit `934ae51`) + migración 025 aplicada en Supabase (2026-06-11). UI deliberadamente removida del MVP por decisión de producto — ver DECISIONS.md. Cuando Lock vuelva, se implementa Smart Lock, no el botón manual.
 
 ### SEC-008 🟢 OPEN — IDs referenciados sin validar ownership en handoff-package y save-selection
 

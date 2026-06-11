@@ -222,3 +222,17 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Regla derivada:** El cliente admin se usa SOLO para SELECTs de verificación server-side, nunca para writes. Los writes mantienen el cliente del usuario con RLS activa.
 - **Revisión:** Reevaluar si el producto se abre a self-service masivo.
 - **Estado:** Accepted.
+
+---
+
+## 2026-06-11 — Lock removido de la UI del MVP — decisión formalizada retroactivamente
+
+- **Decisión:** Lock fue removido de la UI el 2026-05-14 (commit `1903306`, rediseño de workspace Fase 3 OE2-OE3) por decisión de producto para reducir complejidad del MVP. La decisión no quedó registrada en su momento — se formaliza ahora. La infraestructura queda funcional sin disparador visual: `lock/route.ts` corregido (ownership check + verificación de persistencia, SEC-007) y política RLS UPDATE aplicada (migración 025).
+- **Diseño futuro aprobado — "Smart Lock" (post-MVP):** Lock manual demostró ser débil. El rediseño aprobado por el Product Owner convierte Lock en un mecanismo automático:
+  1. **Auto-lock por inactividad:** una sesión se lockea sola tras ~4 interacciones del workspace sin participar.
+  2. **Auto-unlock por Review & Forward:** si la sesión lockeada recibe un R&F, se desbloquea automáticamente.
+  3. **Modal de estado:** una sesión lockeada muestra un modal centrado en su ventana de chat indicando el estado.
+  4. **Unlock genera checkpoint:** desbloquear una sesión dispara checkpoint y/o backup automático.
+  5. **Toggle global:** el usuario puede desactivar Lock para toda la sesión ("Lock off") si le genera ruido.
+- **Razón del registro:** este diseño existe para evitar re-work futuro — cuando Lock vuelva, se implementa Smart Lock, no el botón manual.
+- **Estado:** Accepted.

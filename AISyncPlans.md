@@ -807,3 +807,15 @@ Lookups de existencia cross-account (ej. verificar que un email pertenece a una 
 ### Patrón arquitectural — UPDATEs con verificación de persistencia
 
 Todo UPDATE desde API routes debe: (1) tener política RLS de UPDATE en la tabla destino — deny-by-default hace que un UPDATE sin política afecte 0 filas sin error; (2) ejecutarse con `.select()` y verificar filas afectadas; (3) registrar side-effects (audit_log, eventos) SOLO si el update persistió. Ownership check explícito previo (patrón `checkpoint/[id]`: 404 si no existe, 403 si no pertenece) como primera línea, RLS como segunda. Aplicado por primera vez en `workspace/[id]/lock` (SEC-007, 2026-06-11).
+
+### Smart Lock (post-MVP)
+
+Diseño aprobado que reemplaza al Lock manual cuando la feature vuelva a la UI. Lock deja de ser un botón y pasa a ser un mecanismo automático del workspace:
+
+1. **Auto-lock por inactividad:** una sesión se lockea sola tras ~4 interacciones del workspace sin participar.
+2. **Auto-unlock por Review & Forward:** si la sesión lockeada recibe un R&F, se desbloquea automáticamente.
+3. **Modal de estado:** una sesión lockeada muestra un modal centrado en su ventana de chat indicando el estado.
+4. **Unlock genera checkpoint:** desbloquear una sesión dispara checkpoint y/o backup automático.
+5. **Toggle global:** el usuario puede desactivar Lock para toda la sesión ("Lock off") si le genera ruido.
+
+Infraestructura ya lista: `lock/route.ts` con ownership check y verificación de persistencia; política RLS `workspaces_update` (migración 025); `AgentPanel` ya respeta `workspaceLocked` (inputs y forward deshabilitados). Implementar Smart Lock es agregar los triggers automáticos sobre esta base — no reconstruir persistencia. Decisión registrada en `DECISIONS.md` 2026-06-11.
