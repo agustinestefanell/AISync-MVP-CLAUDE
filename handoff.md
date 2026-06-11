@@ -5114,3 +5114,38 @@ Ninguno. Corrección de consistencia documental.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-11] — fix: Gap 1 roto — lookup de accounts con cliente admin
+
+### Diagnóstico
+El fix del Gap 1 (commit `eedffe0`, 2026-06-09) consultaba `accounts` por email del receptor usando el cliente del usuario. La RLS de `accounts` (migración 012) solo permite leer la propia fila (o todas si sos admin/owner). Resultado: para todo usuario no-admin el lookup devolvía siempre `null` y POST `/api/connections` respondía siempre `400 "No AISync account found with that email"`. **Connect Team funcionalmente roto en producción para usuarios beta.** No se detectó antes porque la cuenta de pruebas es `owner` y la política "Admins read all accounts" le permite leer todas las filas. Detectado en auditoría de seguridad 2026-06-11 (hallazgo 🔴).
+
+### Archivos modificados
+- `src/app/api/connections/route.ts` — 2 cambios:
+  1. Import de `createAdminClient` desde `@/lib/supabase/admin`
+  2. El SELECT de verificación a `accounts` (Gap 1) usa `createAdminClient()` en lugar del cliente del usuario. Comentario in-code explica por qué el admin client es necesario y que es SELECT-only.
+- `PRODUCT_STATUS.md`, `AISyncPlans.md`, `CodingWorkshop.md`, `DECISIONS.md` — rutina documental (ver abajo).
+
+### Decisiones técnicas
+- **Admin client SOLO para el SELECT de verificación.** El INSERT de `team_connections` y todo el resto de la route siguen con el cliente del usuario, con RLS activa. Superficie de bypass mínima.
+- **Error explícito mantenido** (`No AISync account found with that email.`, 400) — prioridad a UX clara en etapa beta.
+- **Riesgo de enumeración de emails aceptado** y registrado en `DECISIONS.md`: la ruta confirma si un email tiene cuenta AISync. Aceptado porque AISync es B2B (el solicitante ya conoce el email del receptor), se mitigará con rate limiting (Gap 2 pendiente), y UX clara es prioritaria. Revisar si el producto se abre a self-service masivo.
+
+### Alternativas descartadas
+- Cambiar la RLS de `accounts` para permitir lookup por email: requiere migración y abre lectura cross-account a nivel de base — superficie mayor que un SELECT puntual server-side.
+- Error genérico para ocultar la existencia de cuentas: mata la UX del flujo de conexión sin eliminar el canal de enumeración por timing.
+
+### Riesgos / deuda técnica
+- Enumeración de emails posible hasta que llegue rate limiting (Gap 2).
+- Hallazgos 🟡 de la auditoría siguen abiertos: posible recursión en política RLS "Admins read all accounts" (consulta `accounts` desde una política de `accounts`) y tabla `accounts` sin migración en control de versiones.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Commit
+`fix: use admin client for account lookup in connections to bypass RLS`
+
+### Estado
+Cerrado.

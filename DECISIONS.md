@@ -211,3 +211,14 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Cambio de contrato requerido:** `ToolExecutor.execute()` debe retornar `{ content: string, sources?: {title: string, url: string}[] }` en lugar de solo `string`. Afecta `src/lib/tools/types.ts`, `src/lib/tools/web-search.ts` y `src/app/api/chat/route.ts`.
 - **Alternativas descartadas:** no trazar búsquedas ni links — deja ciego el uso de herramientas externas y la fuente real de información usada por el modelo.
 - **Estado:** Diferido — implementar junto con trazabilidad de adjuntos post-capítulo de búsqueda.
+
+---
+
+## 2026-06-11 — Email enumeration tradeoff — accepted risk
+
+- **Decisión:** El lookup de `receiver_email` en POST `/api/connections` usa cliente admin (service role, SELECT-only) y devuelve error explícito `No AISync account found with that email.` Esto permite enumeración de emails: un tercero autenticado puede probar emails y saber cuáles tienen cuenta AISync.
+- **Contexto:** El fix original del Gap 1 (2026-06-09) usaba el cliente del usuario; la RLS de `accounts` (solo lectura de la propia fila) hacía que el lookup fallara siempre para usuarios no-admin — Connect Team roto en producción. Detectado en auditoría de seguridad 2026-06-11.
+- **Riesgo aceptado porque:** (1) AISync es B2B — el usuario que conecta ya conoce el email del receptor; (2) será mitigado con rate limiting Upstash (Gap 2, en curso); (3) UX clara es prioritaria en esta etapa.
+- **Regla derivada:** El cliente admin se usa SOLO para SELECTs de verificación server-side, nunca para writes. Los writes mantienen el cliente del usuario con RLS activa.
+- **Revisión:** Reevaluar si el producto se abre a self-service masivo.
+- **Estado:** Accepted.

@@ -874,3 +874,26 @@ Se agregó un segundo `useEffect` con dependencia `[open, workspaceId]` que re-f
 
 ### Lección
 No mezclar guardas de condiciones distintas en un solo `return null`. `workspaceId` ausente y `rows` vacío son causas diferentes y deben manejarse por separado. Mezclarlas produce efectos secundarios difíciles de rastrear cuando cualquiera de las dos cambia.
+
+## Entrada #16 — Gap 1 fix roto por RLS — lookup con cliente de usuario
+
+### Problema
+El fix de seguridad del Gap 1 en POST `/api/connections` devolvía `400 "No AISync account found with that email"` para todos los usuarios no-admin, incluso con emails de cuentas reales. Connect Team funcionalmente roto en producción para usuarios beta.
+
+### Causa raíz
+El SELECT de verificación a `accounts` usaba el cliente del usuario. La RLS de `accounts` (migración 012) solo permite leer la propia fila — la fila del receptor queda invisible y el lookup retorna `null` siempre.
+
+### Consecuencia
+No se detectó en pruebas porque la cuenta de pruebas es `owner`: la política "Admins read all accounts" le permite leer todas las filas, así que para esa cuenta el flujo funcionaba. Para cualquier usuario normal, fallaba el 100% de las veces.
+
+### Proceso de solución
+La auditoría de seguridad 2026-06-11 cruzó las políticas RLS de cada tabla contra los SELECTs de las API routes y detectó la cadena: RLS de accounts → lookup con cliente de usuario → `null` → 400 incondicional. Se decidió usar cliente admin solo para el SELECT de verificación.
+
+### Solución final
+Lookup con `createAdminClient()` (service role, SELECT-only); el INSERT y el resto de la route siguen con el cliente del usuario y RLS activa; error explícito mantenido; tradeoff de enumeración de emails documentado y aceptado en `DECISIONS.md`.
+
+### Commit
+`fix: use admin client for account lookup in connections to bypass RLS`
+
+### Lección
+Todo fix que agrega un SELECT debe verificarse contra las políticas RLS de la tabla consultada, con un usuario NO privilegiado. Probar solo con cuenta owner/admin oculta fallos de RLS, porque las políticas de admin ven filas que un usuario normal no ve.

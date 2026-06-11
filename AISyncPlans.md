@@ -799,3 +799,7 @@ El consumo de tokens del workspace activo se muestra como `rightBadge` opcional 
 ### Save Selection — agent_role por mensaje
 
 `ChatMessage` incluye `agent_role?: string` como campo opcional. `openSaveSelectionModal()` en WorkspaceShell usa `Object.entries(panelRefs.current)` para obtener `sessionId`, busca la `agent_session` correspondiente y adjunta `agent_role` a cada mensaje via spread. Las Saved Selections nuevas conservan `agent_role` por mensaje; los objetos antiguos sin ese campo mantienen fallback `'AI'` en `MiniChatPreview`. El campo es ignorado por providers y streaming.
+
+### Patrón arquitectural — lookups cross-account con cliente admin
+
+Lookups de existencia cross-account (ej. verificar que un email pertenece a una cuenta en `accounts`) requieren el cliente admin server-side (`createAdminClient()`), porque la RLS limita la lectura a la propia fila del usuario. El cliente admin se usa SOLO para SELECTs de verificación, nunca para writes. Los INSERTs/UPDATEs/DELETEs mantienen el cliente del usuario con RLS activa como primera línea de defensa. Aplicado por primera vez en POST `/api/connections` (Gap 1, 2026-06-11).

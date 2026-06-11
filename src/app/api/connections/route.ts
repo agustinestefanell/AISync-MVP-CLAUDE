@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -62,8 +63,11 @@ export async function POST(req: Request) {
     )
   }
 
-  // Gap 1: verify receiver_email belongs to a real AISync account before insert
-  const { data: receiverAccount } = await supabase
+  // Gap 1: verify receiver_email belongs to a real AISync account before insert.
+  // Admin client required: accounts RLS only allows reading your own row, so a
+  // user-client lookup of another account always returns null. SELECT only —
+  // the INSERT below stays on the user client with RLS active.
+  const { data: receiverAccount } = await createAdminClient()
     .from('accounts')
     .select('id')
     .eq('email', receiver_email.trim().toLowerCase())
