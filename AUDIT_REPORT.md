@@ -43,3 +43,18 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Tensión de producto:** El content plane (checkpoints, messages) se define como "del cliente, migrable" (Bloque 13); que el dueño no pueda borrarlo es una decisión de producto pendiente, no un descuido técnico. Para `audit_log` y `token_usage` la inmutabilidad es probablemente deseable y conviene declararla explícita.
 - **Resolución sugerida:** Decisión de producto en `DECISIONS.md`: qué tablas son inmutables por diseño y cuáles necesitan políticas UPDATE/DELETE para el dueño.
 - **Estado:** OPEN.
+
+### SEC-005 🟡 OPEN — API keys en texto plano en DB
+
+- **Descripción:** `user_api_keys.api_key` y `user_custom_providers.api_key` se guardan sin cifrar (`settings/keys/route.ts` hace upsert de `key.trim()` directo). La RLS protege el acceso vía API, pero cualquiera con acceso a la base las lee completas: dashboard de Supabase, leak de la service role key o un backup filtrado expondrían todas las API keys de todos los clientes — credenciales de pago de terceros (Anthropic, OpenAI, Google).
+- **Lo que SÍ está bien:** la exposición vía API está correctamente manejada — GET `/api/settings/keys` y `/api/settings/providers` devuelven solo versión enmascarada (últimos 4 caracteres); la key real nunca viaja al cliente. En runtime (`chat`, `sm-doc-chat`) se lee server-side con doble filtro (`account_id` + RLS) y no se devuelve en la respuesta.
+- **Mitigación futura:** Supabase Vault (o cifrado a nivel aplicación).
+- **Decisión pendiente:** riesgo aceptado para beta vs. cifrado antes de usuarios reales.
+- **Estado:** OPEN.
+
+### SEC-006 🟡 OPEN — Fallback a ENV_KEYS de plataforma activo en producción
+
+- **Descripción:** `chat/route.ts` y `sm-doc-chat/route.ts` hacen `const apiKey = keyRow?.api_key ?? ENV_KEYS[provider]`: si el usuario no configuró key propia, se usa la key de AISync desde variables de entorno. Contradice el principio "AISync no paga el uso de IA de sus clientes": cualquier usuario autenticado sin key propia consume la cuenta de AISync — costo no acotado, agravado mientras no exista rate limiting (Gap 2).
+- **Decisión de producto pendiente:** cortesía beta (mantener fallback, acotarlo con límites) vs. BYOK estricto (eliminar fallback en producción; las env keys quedan solo para desarrollo local).
+- **Verificación pendiente:** confirmar qué `ENV_KEYS` están seteadas en Vercel producción.
+- **Estado:** OPEN.

@@ -5176,3 +5176,27 @@ Ninguno — documento nuevo, no toca código.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-11] — docs: SEC-005 y SEC-006 agregados a AUDIT_REPORT.md
+
+### Cambio realizado
+Se registraron dos hallazgos nuevos del área Seguridad en `AUDIT_REPORT.md`, surgidos de la inspección de manejo de API keys:
+- SEC-005 🟡 OPEN — API keys en texto plano en DB (`user_api_keys`, `user_custom_providers`). Exposición vía API correcta (masking, server-side only); el riesgo es acceso directo a la base. Mitigación futura: Supabase Vault. Decisión de riesgo pendiente.
+- SEC-006 🟡 OPEN — Fallback a `ENV_KEYS` de plataforma en `chat` y `sm-doc-chat`: usuarios sin key propia consumen la cuenta de AISync. Decisión de producto pendiente: cortesía beta vs BYOK estricto.
+
+### Archivos modificados
+- `AUDIT_REPORT.md` — dos hallazgos agregados al área Seguridad.
+
+### Decisiones técnicas
+- SEC-002 (recursión RLS de accounts) queda diferido deliberadamente: se verificará junto con la creación de la cuenta de prueba para RLS multi-usuario (tarea ya pendiente en PRODUCT_STATUS.md Bloque 1).
+
+### Alternativas descartadas
+N/A — registro documental de hallazgos.
+
+### Riesgos / deuda técnica
+Los descritos en los propios hallazgos. Sin cambios de código.
+
+### Estado
+Cerrado.
