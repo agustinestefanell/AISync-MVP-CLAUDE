@@ -5149,3 +5149,30 @@ El fix del Gap 1 (commit `eedffe0`, 2026-06-09) consultaba `accounts` por email 
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-11] — docs: AUDIT_REPORT.md creado con hallazgos iniciales de seguridad
+
+### Cambio realizado
+Se creó `AUDIT_REPORT.md` en la raíz del repo como registro formal de la auditoría técnica de 5 áreas (Seguridad / Arquitectura / Manejo de errores / Performance / UX técnico). Registra hallazgos con ID (`SEC-NNN`), severidad (🔴/🟡/🟢) y estado (OPEN/CLOSED con commit de referencia), para que los hallazgos pendientes no se pierdan entre sesiones.
+
+### Archivos modificados
+- `AUDIT_REPORT.md` — nuevo. Cuatro hallazgos iniciales del área Seguridad:
+  - SEC-001 🔴 CLOSED — Gap 1 fix roto por RLS de accounts (commit `013c2a0`)
+  - SEC-002 🟡 OPEN — posible recursión en política RLS "Admins read all accounts"
+  - SEC-003 🟡 OPEN — tabla `accounts` sin migración versionada (ni schema ni trigger de creación)
+  - SEC-004 🟢 OPEN — tablas sin políticas UPDATE/DELETE (decisión de producto pendiente)
+
+### Decisiones técnicas
+- Los hallazgos no se borran al resolverse: pasan a CLOSED con commit de referencia, preservando el historial de la auditoría.
+- IDs por área (`SEC-`, luego `ARQ-`, `ERR-`, `PERF-`, `UX-`) para referenciar hallazgos desde otras OEs y documentos.
+
+### Alternativas descartadas
+- Registrar hallazgos solo en handoff.md/DECISIONS.md — descartado: se mezclan con OEs y decisiones, sin vista de estado abierto/cerrado.
+
+### Riesgos / deuda técnica
+Ninguno — documento nuevo, no toca código.
+
+### Estado
+Cerrado.

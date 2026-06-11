@@ -1,0 +1,45 @@
+# AISync — Technical Audit Report
+
+Started: 2026-06-11
+Auditor: Claude (Director Técnico) + Claude Code (inspección)
+
+## Methodology
+
+5 áreas: Seguridad / Arquitectura / Manejo de errores / Performance / UX técnico
+Severidad: 🔴 crítico · 🟡 importante · 🟢 menor
+Estado: OPEN / CLOSED (con commit de referencia)
+
+Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), impacto y resolución (si está cerrado). Los hallazgos no se borran — un hallazgo resuelto pasa a CLOSED con su commit de referencia.
+
+## Findings
+
+### SEC-001 🔴 CLOSED — Gap 1 fix roto por RLS de accounts
+
+- **Descripción:** El fix de seguridad del Gap 1 (commit `eedffe0`, 2026-06-09) verificaba que `receiver_email` perteneciera a una cuenta real consultando `accounts` con el cliente del usuario. La RLS de `accounts` (migración 012) solo permite leer la propia fila, por lo que el lookup devolvía `null` para todo usuario no-admin y POST `/api/connections` respondía siempre `400 "No AISync account found with that email"`. Connect Team funcionalmente roto en producción para usuarios beta.
+- **Causa raíz:** SELECT cross-account ejecutado con cliente sujeto a RLS. No se detectó en pruebas porque la cuenta de pruebas es `owner` y la política "Admins read all accounts" le permite leer todas las filas.
+- **Evidencia:** `src/app/api/connections/route.ts` (lookup Gap 1) + `supabase/migrations/012_admin_roles.sql` (políticas SELECT de `accounts`).
+- **Resolución:** Lookup con `createAdminClient()` (service role, SELECT-only); el INSERT y el resto de la route mantienen cliente de usuario con RLS activa. Tradeoff de enumeración de emails aceptado y registrado en `DECISIONS.md` (2026-06-11). Lección registrada en `CodingWorkshop.md` Entrada #16.
+- **Estado:** CLOSED — commit `013c2a0` (2026-06-11).
+
+### SEC-002 🟡 OPEN — Posible recursión en política RLS "Admins read all accounts"
+
+- **Descripción:** La política `"Admins read all accounts"` (migración 012) es una política sobre `accounts` cuyo `USING` hace `EXISTS (SELECT 1 FROM accounts a2 ...)` — consulta la misma tabla que protege. En Postgres este patrón suele producir el error `infinite recursion detected in policy for relation "accounts"` al evaluar cualquier SELECT sobre la tabla. Es un pitfall conocido de Supabase.
+- **Indicio adicional:** `api/admin/prompts/route.ts` usa el cliente admin para leer `accounts` "to bypass RLS" — posible workaround de este mismo problema.
+- **Impacto potencial:** Si la recursión está activa, ningún SELECT a `accounts` con cliente de usuario funciona — ni siquiera "leer mi propia cuenta". Todo acceso a `accounts` queda forzado a pasar por service role.
+- **Verificación pendiente:** Ejecutar contra la base real, con sesión de usuario normal: `select * from accounts where id = auth.uid()`. Si da error de recursión, el fix estándar es una función `security definer` (ej. `is_admin()`) que consulta `accounts` sin disparar RLS, y usarla en la política.
+- **Nota:** Las políticas "Admin only" de `admin_events`, `system_prompts`, `system_log` y `provenance_log` usan la misma estructura pero NO son recursivas (consultan `accounts` desde otra tabla).
+- **Estado:** OPEN.
+
+### SEC-003 🟡 OPEN — Tabla accounts sin migración versionada
+
+- **Descripción:** `accounts` es la tabla raíz del sistema (toda la jerarquía la referencia por FK desde la migración 001), pero ningún archivo en `supabase/migrations/` contiene su `CREATE TABLE`. Fue creada a mano en Supabase antes de la 001.
+- **Impacto:** (1) Si hay que recrear la base desde las migraciones, falla en la 001 — no existe registro del schema de la tabla más fundamental. (2) Tampoco está versionado el mecanismo que crea la fila de `accounts` al registrarse un usuario (presumiblemente un trigger sobre `auth.users` creado a mano) — sin él, los usuarios nuevos no obtienen cuenta.
+- **Resolución sugerida:** Exportar el schema real de `accounts` y su trigger desde Supabase (SQL Editor / `pg_dump`) y consolidarlos en una migración `000_accounts.sql` documental, marcada como "ya aplicada".
+- **Estado:** OPEN.
+
+### SEC-004 🟢 OPEN — Tablas sin políticas UPDATE/DELETE
+
+- **Descripción:** `messages`, `checkpoints` (sin update/delete), `audit_log` (solo select/insert), `token_usage` (solo select/insert) y `prompt_library` (sin delete) no definen políticas UPDATE/DELETE. Por deny-by-default de RLS esto es **restrictivo** — no es un hueco de seguridad — pero significa que un usuario no puede modificar ni borrar su propio contenido.
+- **Tensión de producto:** El content plane (checkpoints, messages) se define como "del cliente, migrable" (Bloque 13); que el dueño no pueda borrarlo es una decisión de producto pendiente, no un descuido técnico. Para `audit_log` y `token_usage` la inmutabilidad es probablemente deseable y conviene declararla explícita.
+- **Resolución sugerida:** Decisión de producto en `DECISIONS.md`: qué tablas son inmutables por diseño y cuáles necesitan políticas UPDATE/DELETE para el dueño.
+- **Estado:** OPEN.
