@@ -57,4 +57,22 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Descripción:** `chat/route.ts` y `sm-doc-chat/route.ts` hacen `const apiKey = keyRow?.api_key ?? ENV_KEYS[provider]`: si el usuario no configuró key propia, se usa la key de AISync desde variables de entorno. Contradice el principio "AISync no paga el uso de IA de sus clientes": cualquier usuario autenticado sin key propia consume la cuenta de AISync — costo no acotado, agravado mientras no exista rate limiting (Gap 2).
 - **Decisión de producto pendiente:** cortesía beta (mantener fallback, acotarlo con límites) vs. BYOK estricto (eliminar fallback en producción; las env keys quedan solo para desarrollo local).
 - **Verificación pendiente:** confirmar qué `ENV_KEYS` están seteadas en Vercel producción.
+- **Decisión tomada (2026-06-11):** BYOK estricto — eliminar el fallback en producción; las env keys quedan solo para desarrollo local. Fix pendiente como OE propia.
+- **Estado:** OPEN.
+
+### SEC-007 🔴 CLOSED — Lock/Unlock de workspace silenciosamente roto (sin política UPDATE en workspaces)
+
+- **Descripción:** `workspaces` tenía políticas RLS de SELECT, INSERT y DELETE pero ninguna de UPDATE (la migración 005 la omitió deliberadamente: "update ya no se necesita para este bloque" — y nunca se agregó). Con RLS deny-by-default, el UPDATE de `lock/route.ts` afectaba 0 filas sin error, la route devolvía `{ ok: true }`, y la UI optimista (`WorkspaceShell`) mostraba el candado cerrado — pero al recargar, el estado revertía. **Lock nunca persistió.**
+- **Agravante de integridad:** la route insertaba el evento `lock`/`unlock` en `audit_log` aunque el update no hubiera persistido — el audit trail registraba bloqueos que nunca ocurrieron. Crítico para un producto que se define como control layer.
+- **Resolución:**
+  1. Migración `025_workspaces_update_policy.sql` — política `workspaces_update` espejando la cadena de ownership de select/insert/delete. **Requiere aplicación manual en Supabase Dashboard → SQL Editor.**
+  2. `lock/route.ts` — ownership check explícito antes del update (patrón `checkpoint/[id]`: 404 si no existe, 403 si no es del usuario); UPDATE con `.select()` y verificación de filas afectadas; el insert en `audit_log` solo ocurre si el cambio persistió; validación runtime de `lock_state`.
+- **Lección registrada:** `CodingWorkshop.md` Entrada #17.
+- **Estado:** CLOSED — commit pendiente de referencia en este mismo cambio; migración 025 pendiente de aplicación manual (validar: Lock → recargar página → debe persistir).
+
+### SEC-008 🟢 OPEN — IDs referenciados sin validar ownership en handoff-package y save-selection
+
+- **Descripción:** `handoff-package/route.ts` y `save-selection/route.ts` insertan filas propias (`user_id: user.id`, protegido por RLS) pero toman `workspace_id`, `team_id` y `project_id` del body sin verificar que pertenezcan al usuario. Un usuario autenticado puede crear handoff packages, saved selections y entradas de `audit_log` que referencian workspaces de otras cuentas. No expone datos ajenos (las lecturas siguen filtradas por RLS) — afecta integridad referencial y limpieza del audit trail, no confidencialidad.
+- **Patrón de fix definido:** replicar el ownership check de `checkpoint/[id]/route.ts` (cadena workspace → team → project → `account_id === user.id`, 403 si no pertenece) antes del insert. La route de lock ya lo aplica desde SEC-007.
+- **Planificación:** OE propia post-auditoría. No bloquea beta.
 - **Estado:** OPEN.

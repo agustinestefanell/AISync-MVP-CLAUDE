@@ -803,3 +803,7 @@ El consumo de tokens del workspace activo se muestra como `rightBadge` opcional 
 ### Patrón arquitectural — lookups cross-account con cliente admin
 
 Lookups de existencia cross-account (ej. verificar que un email pertenece a una cuenta en `accounts`) requieren el cliente admin server-side (`createAdminClient()`), porque la RLS limita la lectura a la propia fila del usuario. El cliente admin se usa SOLO para SELECTs de verificación, nunca para writes. Los INSERTs/UPDATEs/DELETEs mantienen el cliente del usuario con RLS activa como primera línea de defensa. Aplicado por primera vez en POST `/api/connections` (Gap 1, 2026-06-11).
+
+### Patrón arquitectural — UPDATEs con verificación de persistencia
+
+Todo UPDATE desde API routes debe: (1) tener política RLS de UPDATE en la tabla destino — deny-by-default hace que un UPDATE sin política afecte 0 filas sin error; (2) ejecutarse con `.select()` y verificar filas afectadas; (3) registrar side-effects (audit_log, eventos) SOLO si el update persistió. Ownership check explícito previo (patrón `checkpoint/[id]`: 404 si no existe, 403 si no pertenece) como primera línea, RLS como segunda. Aplicado por primera vez en `workspace/[id]/lock` (SEC-007, 2026-06-11).

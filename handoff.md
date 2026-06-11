@@ -5200,3 +5200,45 @@ Los descritos en los propios hallazgos. Sin cambios de código.
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-11] — fix SEC-007: política UPDATE de workspaces + verificación de persistencia en Lock
+
+### Diagnóstico
+`workspaces` no tenía política RLS de UPDATE (001 creó select/insert; 005 agregó delete y omitió update deliberadamente: "ya no se necesita para este bloque"). Con RLS deny-by-default, el UPDATE de `lock/route.ts` afectaba 0 filas sin error → la route devolvía `{ ok: true }`, la UI optimista mostraba el candado, y `audit_log` registraba eventos `lock`/`unlock` que nunca persistieron. **Lock nunca funcionó en producción.** Hallazgo SEC-007 🔴 de la auditoría de seguridad.
+
+### Archivos modificados
+- `supabase/migrations/025_workspaces_update_policy.sql` — NUEVA. Política `workspaces_update` espejando la cadena de ownership de las políticas existentes (team → project → `account_id = auth.uid()`). **Pendiente de aplicación manual en Supabase Dashboard → SQL Editor.**
+- `src/app/api/workspace/[id]/lock/route.ts` — reescrita:
+  1. Validación runtime de `lock_state` (400 si no es 'locked'/'unlocked')
+  2. Ownership check explícito antes del update (patrón `checkpoint/[id]`): 404 si el workspace no existe, 403 si no pertenece al usuario — cierra también la parte de SEC-008 de esta route
+  3. UPDATE con `.select('id')` y verificación de filas afectadas; si 0 filas → 500 explícito con mensaje que apunta a la migración 025
+  4. Insert en `audit_log` SOLO si el update persistió
+- `AUDIT_REPORT.md` — SEC-007 → CLOSED (con nota de migración pendiente); SEC-008 → OPEN registrado con patrón de fix definido; SEC-006 → decisión BYOK estricto anotada.
+- `PRODUCT_STATUS.md` — fila SEC-007 en Bloque 1; migración 025 en tabla de migraciones como pendiente.
+- `CodingWorkshop.md` — Entrada #17 con la lección.
+- `AISyncPlans.md` — patrón arquitectural de UPDATEs con verificación de persistencia.
+
+### Decisiones técnicas
+- **Migración espeja el patrón exacto** de `workspaces_delete` (005) — misma cadena de ownership, mismo estilo `drop policy if exists` + `create policy`.
+- **500 explícito si 0 filas**: mejor un error visible que apunta a la causa (migración 025) que el éxito falso anterior. Hasta que se aplique la migración, Lock falla ruidosamente en lugar de mentir.
+- **Audit condicionado a persistencia**: el audit trail solo registra lo que realmente ocurrió.
+
+### Alternativas descartadas
+- Hacer el update con cliente admin para saltear la falta de política: oculta el problema de schema y viola la regla "admin solo para SELECTs de verificación" (DECISIONS.md 2026-06-11).
+- Solo agregar la política sin tocar la route: dejaba el patrón éxito-falso (audit sin persistencia) latente para el próximo UPDATE sin política.
+
+### Riesgos / deuda técnica
+- Hasta que se aplique la 025, Lock devuelve 500 explícito (antes: éxito falso). Es intencional.
+- Eventos `lock`/`unlock` históricos en `audit_log` corresponden a cambios que nunca persistieron — quedan como están (audit_log es inmutable); registrado en AUDIT_REPORT.md.
+- Validación funcional pendiente post-migración: Lock → recargar página → el candado debe persistir.
+
+### Build
+✓ `npm.cmd run build` limpio. 0 errores TypeScript.
+
+### Commit
+`fix: add workspaces update policy and verify lock persistence before audit`
+
+### Estado
+Cerrado (código). Migración 025 pendiente de aplicación manual por Agus.

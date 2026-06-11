@@ -897,3 +897,27 @@ Lookup con `createAdminClient()` (service role, SELECT-only); el INSERT y el res
 
 ### Lección
 Todo fix que agrega un SELECT debe verificarse contra las políticas RLS de la tabla consultada, con un usuario NO privilegiado. Probar solo con cuenta owner/admin oculta fallos de RLS, porque las políticas de admin ven filas que un usuario normal no ve.
+
+## Entrada #17 — UPDATE sin política RLS falla silenciosamente — Lock que nunca persistió
+
+### Problema
+Lock/Unlock de workspace parecía funcionar: la API devolvía `{ ok: true }`, el candado se cerraba en pantalla y el evento quedaba en el Audit Log. Pero al recargar la página, el workspace volvía a estado anterior. El lock nunca se guardó en la base — durante toda la vida de la feature.
+
+### Causa raíz
+`workspaces` no tiene política RLS de UPDATE. La migración 001 creó select/insert, la 005 agregó delete y omitió update deliberadamente ("ya no se necesita para este bloque") — y nunca se agregó después. Con RLS deny-by-default, un UPDATE sin política afecta **0 filas sin devolver error**. La route recibía `error: null` y asumía éxito.
+
+### Consecuencia
+Triple invisibilidad: (1) la API no falla, (2) la UI optimista (`setLockState` local) muestra el cambio en la sesión, (3) el `audit_log` registra el evento igual — bloqueos que nunca ocurrieron quedaron en el audit trail. Para un control layer, un control que no controla y un log que miente.
+
+### Proceso de solución
+La auditoría de seguridad cruzó cada UPDATE de las API routes contra las políticas RLS por tabla. El grep de políticas de `workspaces` mostró select/insert/delete pero no update — y `lock/route.ts` era el único camino de escritura de `lock_state`.
+
+### Solución final
+1. Migración `025_workspaces_update_policy.sql`: política `workspaces_update` con la misma cadena de ownership (team → project → account) que las políticas existentes. Aplicación manual en Supabase.
+2. `lock/route.ts`: ownership check explícito antes del update (patrón `checkpoint/[id]` — 404/403); UPDATE con `.select()` verificando filas afectadas; si 0 filas → 500 explícito sin audit; el insert en `audit_log` solo ocurre si el cambio persistió.
+
+### Commit
+`fix: add workspaces update policy and verify lock persistence before audit`
+
+### Lección
+UPDATE sin política RLS falla silenciosamente (0 filas, sin error). Todo UPDATE debe usar `.select()` y verificar filas afectadas antes de registrar side-effects como audit events. Y toda UI optimista necesita que la API confirme persistencia real — `error: null` no significa "se guardó".
