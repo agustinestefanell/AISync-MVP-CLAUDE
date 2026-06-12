@@ -90,3 +90,18 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Límites aplicados:** POST `/api/chat` 30 req/min; POST `/api/connections` 10 req/min; POST `/api/context` 20 req/min; POST `/api/teams` 10 req/min.
 - **Pendiente derivado:** `sm-doc-chat` y demás routes de escritura siguen sin límite — extensión del mismo patrón en OE futura.
 - **Estado:** CLOSED — commit `feat: add rate limiting with upstash redis and decoupled RateLimiter interface` (2026-06-11).
+
+### SEC-010 🔴 CLOSED — Disconnect roto por colisión de semánticas en PATCH connections/[id]
+
+- **Severidad:** 🔴 High (funcionalidad core rota silenciosamente en producción)
+- **Fecha:** 2026-06-11
+- **Área:** API / Connections / Regresión de hardening
+- **Detectado en:** Investigación de un 404 reportado por el Product Owner al clickear Disconnect
+- **Descripción:** El botón Disconnect de la UI (`ProjectList.tsx`) reutilizaba el action `'reject'` del PATCH para terminar conexiones **activas**. Al cerrar Gap 3 (2026-06-11) se agregó al handler un lookup con filtro `status = 'pending'` y un check "solo receiver" — correcto para rechazar solicitudes pendientes, pero rompió la segunda semántica que ese mismo action transportaba: desconectar una conexión activa pasó a dar **404 siempre** (y 403 si el requester rechazaba una pendiente). La UI tragaba el error (`catch {}` sin mirar `res.ok`), así que la regresión fue invisible.
+- **Impacto:** Imposible desconectar conexiones activas entre teams desde la UI; el usuario no recibía ningún feedback del fallo.
+- **Resolución aplicada:**
+  1. `connections/[id]/route.ts` — action `'disconnect'` separado: opera solo sobre `status = 'active'`, autorizado para **cualquiera de las dos puntas** (requester por `account_id`, receiver por `account_id` o email); setea `status = 'cancelled'` (valor ya permitido por el CHECK de la migración 008 — sin tocar schema) con verificación de persistencia (patrón SEC-007: `.select()` + filas afectadas). `'reject'`/`'accept'` quedan como estaban: solo pending, solo receiver.
+  2. `ProjectList.tsx` — `handleDisconnect` usa `action: 'disconnect'`, verifica `res.ok` y muestra el error en el bloque de confirmación en vez de tragarlo.
+- **Lección registrada:** `CodingWorkshop.md` Entrada #21 — reutilizar una acción API para dos semánticas distintas rompe una cuando hardeneás la otra.
+- **Nota:** el 404 puntual que disparó la investigación tenía además una segunda causa: la conexión clickeada ya no existía en la DB (verificado con service role) — la lista de la UI estaba vieja. Ambas causas eran reales y apiladas.
+- **Estado:** CLOSED — commit `fix: add disconnect action to separate from reject in connections PATCH` (2026-06-11).

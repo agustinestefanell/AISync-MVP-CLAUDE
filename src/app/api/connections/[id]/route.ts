@@ -9,25 +9,36 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json() as {
-    action: 'accept' | 'reject'
+    action: 'accept' | 'reject' | 'disconnect'
     receiver_team_id?: string
     receiver_team_name?: string
   }
 
-  // Gap 3: verify the authenticated user is the legitimate receiver before accept/reject
+  // SEC-010: una sola lectura, autorización por acción — accept/reject opera solo
+  // sobre pendientes (receiver), disconnect solo sobre activas (cualquier punta)
   const { data: connection } = await supabase
     .from('team_connections')
-    .select('id, receiver_email, requester_account_id')
+    .select('id, status, receiver_email, receiver_account_id, requester_account_id')
     .eq('id', params.id)
-    .eq('status', 'pending')
     .single()
 
   if (!connection) {
     return NextResponse.json({ error: 'Connection not found.' }, { status: 404 })
   }
 
-  if (connection.receiver_email?.toLowerCase() !== user.email?.toLowerCase()) {
-    return NextResponse.json({ error: 'Unauthorized.' }, { status: 403 })
+  // receiver_account_id se setea recién al aceptar — para pendientes vale el email
+  const isReceiver =
+    connection.receiver_account_id === user.id ||
+    connection.receiver_email?.toLowerCase() === user.email?.toLowerCase()
+
+  if (body.action === 'accept' || body.action === 'reject') {
+    // Gap 3: solo el receiver legítimo, solo sobre solicitudes pendientes
+    if (connection.status !== 'pending') {
+      return NextResponse.json({ error: 'Connection not found.' }, { status: 404 })
+    }
+    if (!isReceiver) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 403 })
+    }
   }
 
   if (body.action === 'accept') {
@@ -58,6 +69,28 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       .eq('id', params.id)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+
+  if (body.action === 'disconnect') {
+    if (connection.status !== 'active') {
+      return NextResponse.json({ error: 'Connection is not active.' }, { status: 400 })
+    }
+    if (connection.requester_account_id !== user.id && !isReceiver) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 403 })
+    }
+
+    const { data: updated, error } = await supabase
+      .from('team_connections')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', params.id)
+      .eq('status', 'active')
+      .select()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!updated || updated.length === 0) {
+      return NextResponse.json({ error: 'Disconnect did not persist.' }, { status: 500 })
+    }
     return NextResponse.json({ ok: true })
   }
 

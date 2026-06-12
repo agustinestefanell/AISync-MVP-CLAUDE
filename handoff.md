@@ -5367,3 +5367,40 @@ No se modificaron providers, streaming interno, WorkspaceShell, AgentPanel, UI, 
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-11] — fix SEC-010: Disconnect roto — action 'disconnect' separado de 'reject' en connections PATCH
+
+### Diagnóstico
+El Disconnect de la UI mandaba PATCH `action: 'reject'` sobre conexiones **activas**, pero el hardening de Gap 3 dejó ese handler buscando solo `status = 'pending'` (404 garantizado para activas) y autorizando solo al receiver (403 para el requester). La UI tragaba el error con `catch {}` sin mirar `res.ok` — regresión invisible. Causa apilada: el UUID puntual del reporte además ya no existía en la DB (verificado con service role), la lista de la UI estaba vieja.
+
+### Archivos modificados
+- `src/app/api/connections/[id]/route.ts` — lookup único sin filtro de status + autorización por acción: `accept`/`reject` mantienen exactamente las reglas de Gap 3 (solo pending, solo receiver); `disconnect` nuevo opera solo sobre `active`, autorizado para cualquiera de las dos puntas (requester por `account_id`; receiver por `account_id` o email), setea `status = 'cancelled'` con verificación de persistencia (`.select()` + filas afectadas, patrón SEC-007).
+- `src/components/ProjectList.tsx` — `handleDisconnect` usa `action: 'disconnect'`, verifica `res.ok`, muestra el error en rojo dentro del bloque de confirmación (se limpia al abrir/cancelar). El confirm queda abierto si falla para que el error sea visible.
+- `AUDIT_REPORT.md` — SEC-010 🔴 agregado y cerrado.
+- `CodingWorkshop.md` — Entrada #21: un action API con dos semánticas se rompe al hardenear una; los catch silenciosos lo hacen invisible.
+
+### Decisiones técnicas
+- `status = 'cancelled'` para disconnect: ya está permitido por el CHECK de la migración 008 — cero cambios de schema (prohibidos). Semánticamente correcto: la conexión se terminó, no se rechazó.
+- Disconnect autorizado para ambas puntas: cualquiera de los dos teams puede terminar la relación — coincide con la política RLS de UPDATE existente (requester OR receiver).
+- `receiver` identificado por `receiver_account_id` **o** email: para pendientes el account_id es null (se setea al aceptar), para activas vale el id.
+
+### Alternativas descartadas
+- Permitir que `reject` acepte también activas: reintroduce exactamente la colisión de semánticas que causó el bug.
+- DELETE para disconnect: el DELETE existente es "cancelar mi solicitud pendiente" (solo requester, solo pending) — sobrecargarlo repetiría el mismo error; además borrar la fila pierde el historial de la conexión.
+- Status `'disconnected'` nuevo: requiere migración del CHECK constraint — schema prohibido en esta directiva y sin beneficio sobre `'cancelled'`.
+
+### Riesgos / deuda técnica
+- Conexiones `'cancelled'` quedan en la tabla y el GET las devuelve (la UI las ignora) — si la tabla crece, evaluar filtro en el GET o limpieza.
+- El estado UI vs DB puede divergir entre cargas de página (causa secundaria del 404 original) — el refetch tras el click lo autocorrige; un refetch periódico o realtime es mejora futura.
+- Validación funcional real (dos cuentas, conexión activa) no ejecutada — requiere sesión doble; cubierto por inspección + typecheck + build.
+
+### Build
+✓ `npm run lint` (2 warnings preexistentes), ✓ `npx tsc --noEmit`, ✓ `npm run build` limpio.
+
+### Commit
+`fix: add disconnect action to separate from reject in connections PATCH`
+
+### Estado
+Cerrado.

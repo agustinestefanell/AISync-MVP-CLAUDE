@@ -981,3 +981,17 @@ Se creó `RateLimiter` como interfaz desacoplada y `UpstashRateLimiter` como imp
 
 ### Lección
 Rate limiting debe proteger recursos sin convertirse en punto único de falla. Por eso AISync usa fail-open ante errores de infraestructura — y por eso toda dependencia de infraestructura externa se inicializa dentro del camino cubierto por try/catch, no en module scope.
+
+## Entrada #21 — Un action API con dos semánticas: hardenear una rompe la otra
+
+### Problema
+Disconnect de conexiones activas devolvía 404 siempre, sin feedback en la UI (SEC-010).
+
+### Causa raíz
+El action `'reject'` del PATCH `connections/[id]` transportaba dos intenciones distintas: "rechazar una solicitud pendiente" (receiver) y "desconectar una conexión activa" (cualquier punta, desde ProjectList). Cuando Gap 3 hardeneó la primera (filtro `status = 'pending'` + check de receiver), la segunda quedó rota sin que nadie lo notara — agravado porque el `handleDisconnect` de la UI hacía `catch {}` sin mirar `res.ok`.
+
+### Solución
+Action `'disconnect'` separado con sus propias reglas (solo `active`, autorizado para requester o receiver, persiste `status = 'cancelled'` con verificación de filas afectadas). La UI usa el action correcto y muestra el error en el bloque de confirmación.
+
+### Lección
+Cada intención del usuario merece su propio action en la API, con sus propias reglas de autorización y estado. Reutilizar un action "porque hace casi lo mismo" crea un acople invisible: el día que endurecés las validaciones de una semántica, rompés la otra en silencio. Y los `catch {}` silenciosos en la UI convierten esa rotura en una regresión indetectable — todo error de fetch debe verificar `res.ok` y mostrarse (refuerza Entrada #14).

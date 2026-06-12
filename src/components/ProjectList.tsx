@@ -25,6 +25,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const [showRequestsPanel, setShowRequestsPanel] = useState(false)
   const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null)
   const [disconnecting,     setDisconnecting]     = useState<string | null>(null)
+  const [disconnectError,   setDisconnectError]   = useState('')
   const [showHowModal,      setShowHowModal]      = useState(false)
 
   const fetchConnections = useCallback(() => {
@@ -48,16 +49,22 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
 
   async function handleDisconnect(id: string) {
     setDisconnecting(id)
+    setDisconnectError('')
     try {
-      await fetch(`/api/connections/${id}`, {
+      const res = await fetch(`/api/connections/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reject' }),
+        body: JSON.stringify({ action: 'disconnect' }),
       })
+      if (!res.ok) {
+        const d = await res.json().catch(() => null)
+        setDisconnectError(d?.error ?? 'Failed to disconnect. Please try again.')
+        return
+      }
       setConfirmDisconnect(null)
       fetchConnections()
     } catch {
-      // silently fail — list remains unchanged
+      setDisconnectError('Network error. Please try again.')
     } finally {
       setDisconnecting(null)
     }
@@ -252,7 +259,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                       {!isConfirming && (
                         <button
                           type="button"
-                          onClick={() => setConfirmDisconnect(c.id)}
+                          onClick={() => { setConfirmDisconnect(c.id); setDisconnectError('') }}
                           className="text-xs text-gray-400 hover:text-red-500 px-2 py-1 rounded border border-gray-200 hover:border-red-200 transition-colors"
                         >
                           Disconnect
@@ -266,6 +273,9 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                       <p className="text-xs text-gray-600">
                         Disconnect <span className="font-medium">{partnerEmail || 'this connected team'}</span>?
                       </p>
+                      {disconnectError && (
+                        <p className="text-xs text-red-600">{disconnectError}</p>
+                      )}
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -277,7 +287,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                         </button>
                         <button
                           type="button"
-                          onClick={() => setConfirmDisconnect(null)}
+                          onClick={() => { setConfirmDisconnect(null); setDisconnectError('') }}
                           className="flex-1 text-xs border border-gray-200 text-gray-600 hover:bg-gray-50 py-1.5 rounded-lg transition-colors"
                         >
                           Cancel
