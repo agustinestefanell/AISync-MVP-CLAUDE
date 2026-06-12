@@ -827,3 +827,11 @@ Orden de resolución de API key en routes de chat: (1) key del usuario en `user_
 ### Rate limiting architecture
 
 AISync usa una interfaz `RateLimiter` desacoplada del proveedor (`src/lib/rate-limit/types.ts`). La implementación actual es `UpstashRateLimiter` con `Redis.fromEnv()` y `slidingWindow`. Las API routes consumen instancias por route desde `src/lib/rate-limit/index.ts` (chat 30/min, connections 10/min, context 20/min, teams 10/min). La key de rate limit es `route:user.id` y el check se aplica siempre después de auth y antes de la operación pesada, solo en POST. La política ante fallo de infraestructura es fail-open: el cliente se construye lazy dentro de `check()`, así un fallo de Redis (o env vars ausentes en local) se loguea como `[rate-limit] fail-open` y la request continúa. Toda route nueva que necesite rate limit agrega su instancia en `index.ts` y replica este patrón — no crear limiters ad-hoc.
+
+### Provider API key resolution
+
+AISync resuelve API keys mediante `src/lib/providers/resolveApiKey.ts`. `resolveProviderApiKey(supabase, userId, provider)` centraliza: providers conocidos (`KNOWN_PROVIDERS` — incluye Groq), custom providers (devuelve `endpointUrl` + `api_key` nullable), BYOK por `user_api_keys`, y fallback de entorno solo en development. Devuelve `null` si no hay key — la route decide el 400. `'IA Local'` se maneja en la route antes del helper (usa endpoint del request). Las routes chat y sm-doc-chat no deben mantener listas propias de providers — toda route nueva que consuma providers usa este helper.
+
+### API ownership hardening
+
+Routes que insertan datos vinculados a workspace verifican ownership mediante la cadena `workspaces → teams → projects → account_id` antes de ejecutar inserts (patrón `checkpoint/[id]`): 404 si el workspace no existe, 403 si no pertenece al usuario, y los IDs secundarios del body (team_id, project_id) se validan contra la cadena real. `audit_log` ocurre solo después del insert principal exitoso. Aplicado en handoff-package y save-selection (SEC-008, 2026-06-11).

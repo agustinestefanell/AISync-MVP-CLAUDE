@@ -995,3 +995,23 @@ Action `'disconnect'` separado con sus propias reglas (solo `active`, autorizado
 
 ### Lección
 Cada intención del usuario merece su propio action en la API, con sus propias reglas de autorización y estado. Reutilizar un action "porque hace casi lo mismo" crea un acople invisible: el día que endurecés las validaciones de una semántica, rompés la otra en silencio. Y los `catch {}` silenciosos en la UI convierten esa rotura en una regresión indetectable — todo error de fetch debe verificar `res.ok` y mostrarse (refuerza Entrada #14).
+
+## Entrada #22 — API Hardening 2 — Drift de KNOWN_PROVIDERS y resolución de API keys
+
+### Problema
+La resolución de API keys estaba duplicada en `chat/route.ts` y `sm-doc-chat/route.ts`. Cada route mantenía su propia lista de providers conocidos y su propia lógica de BYOK/custom/env fallback.
+
+### Causa raíz
+Copiar lógica de resolución en dos lugares crea una fuente inevitable de drift. Cuando se agregó Groq, una route quedó actualizada y la otra no.
+
+### Consecuencia
+Drift confirmado, no teórico: Groq funcionaba en chat principal pero en SM doc chat caía al camino de custom providers y fallaba con el error equivocado. Además, cada provider nuevo costaba dos ediciones y una auditoría manual de consistencia.
+
+### Proceso de solución
+Se extrajo la resolución a `src/lib/providers/resolveApiKey.ts` con `KNOWN_PROVIDERS` unificado y soporte centralizado para custom providers, BYOK y fallback de entorno solo en development. Detalle que el diseño inicial omitía: el helper debe devolver `endpoint_url` (los custom providers lo necesitan para construir el cliente) y aceptar `api_key` null (Ollama no requiere key) — extraer un helper copiando solo el caso feliz habría roto los custom providers.
+
+### Solución final
+`chat/route.ts` y `sm-doc-chat/route.ts` llaman `resolveProviderApiKey()`. Las routes ya no mantienen listas propias de providers ni lógica duplicada. SM doc chat ganó soporte Groq como efecto de la unificación.
+
+### Lección
+Toda lógica de proveedor compartida debe vivir en una fuente única — copiar listas como KNOWN_PROVIDERS garantiza divergencia futura. Y al extraer un helper desde código duplicado, el contrato del helper debe cubrir todos los casos reales de los duplicados (incluidos los nullables y los campos extra), no solo el camino feliz del template.

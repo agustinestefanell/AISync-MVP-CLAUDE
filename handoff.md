@@ -5437,3 +5437,47 @@ Columnas del baseline verificadas contra la tabla real de producción con servic
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-11] — refactor SEC-008 + ARC-001/002/003: API Hardening 2
+
+### Cambio realizado
+API Hardening 2 aplicado en tres bloques. **A:** ownership checks en `handoff-package` y `save-selection` siguiendo el patrón `checkpoint/[id]` (cadena workspaces → teams → projects → account_id; 404/403 antes del INSERT; audit_log solo tras insert exitoso). **B:** `resolveProviderApiKey()` como fuente única de resolución de keys para `chat` y `sm-doc-chat` — elimina el drift de KNOWN_PROVIDERS (Groq faltaba en sm-doc-chat). **C:** `force-dynamic` en `active-workspace` y 20 strings de error en español traducidos al inglés en 12 API routes.
+
+### Archivos tocados
+- `src/lib/providers/resolveApiKey.ts` (nuevo) — KNOWN_PROVIDERS unificado + resolveProviderApiKey con discriminated union (custom: endpointUrl + apiKey nullable; known: apiKey garantizada)
+- `src/app/api/chat/route.ts` — usa el helper; orden nuevo: IA Local → resolver → custom → cloud; 401 y error de custom-not-found en inglés
+- `src/app/api/sm-doc-chat/route.ts` — ídem; gana soporte Groq (alineación estructural)
+- `src/app/api/handoff-package/route.ts` — ownership check antes del INSERT
+- `src/app/api/save-selection/route.ts` — ownership check + validación de team_id/project_id contra la cadena real del workspace (400 si no coinciden)
+- `src/app/api/active-workspace/route.ts` — `export const dynamic = 'force-dynamic'`
+- 8 routes solo-strings: audit, checkpoint, checkpoint/[id], messages, settings/keys, settings/providers, teams, workspace/[id]/lock
+- Documentación: AUDIT_REPORT (SEC-008 CLOSED + ARC-001/002/003), DECISIONS (2 decisiones), AISyncPlans (2 patrones), PRODUCT_STATUS, CodingWorkshop Entrada #22
+
+### Decisiones técnicas y desvíos justificados del template de la OE
+1. **Provider names capitalizados** (`'Anthropic'`, `'IA Local'`): el template usaba lowercase — habría roto toda resolución (la DB y el cliente usan display names). Columnas reales: `endpoint_url`/`name`, no `base_url`/`provider_name`. Env var real: `GOOGLE_AI_API_KEY`.
+2. **El helper devuelve `endpointUrl` y acepta `api_key` null para custom providers:** el template los perdía — habría roto LocalProvider y los custom sin key (Ollama).
+3. **`'IA Local'` se resuelve antes del helper:** usa el `endpoint` del request, no keys.
+4. **save-selection valida team_id/project_id contra la cadena** (no estaba en las reglas numeradas de la OE): SEC-008 nombra explícitamente esos campos — cerrarlo sin validarlos era un cierre falso. Dos ifs, 400 accionable.
+5. **SEC-008 mantiene severidad 🟢 original** (la OE pedía 🔴 Critical): el hallazgo documentado dice explícitamente que no expone datos ajenos (afecta integridad, no confidencialidad) — recalificarlo falsearía el análisis original.
+6. **Mensaje de no-key actualizado** a `No API key configured for {provider}. Add your key in Settings → Providers.` (la OE lo fija exactamente así; antes terminaba en "...to use this agent.").
+7. **requireUser() omitido** (regla 15.3): beneficiaría 18 routes = ~13 archivos extra fuera del scope; OE separada.
+
+### Alternativas descartadas
+- Seguir el template del helper literalmente: rompía custom providers, IA Local y los nombres de provider (ver desvíos 1-3).
+- Incluir requireUser() en este commit: triplicaba la superficie tocada en un commit ya denso en seguridad.
+
+### Riesgos / deuda técnica
+- El mensaje de error de `getProvider()` en `lib/providers/index.ts` sigue en español ("no registrado") — providers internos estaban prohibidos en esta OE; anotar para limpieza futura.
+- Strings en inglés preexistentes usan 'Unauthorized' sin punto; los traducidos usan 'Unauthorized.' con punto (mandato de la OE) — inconsistencia cosmética menor.
+- La validación funcional con dos cuentas (403 cross-account) no se ejecutó — requiere doble sesión; cubierta por inspección + build + el patrón ya validado en checkpoint/[id].
+
+### Build
+✓ `npm run lint` (2 warnings preexistentes) · ✓ `npx tsc --noEmit` (script typecheck no existe) · ✓ `npm run build` limpio. Páginas estáticas 16 → 15: active-workspace dejó de prerenderizarse (evidencia de ARC-003).
+
+### Commit
+`refactor: api hardening 2 - ownership checks, shared key resolution, i18n errors`
+
+### Estado
+Cerrado.

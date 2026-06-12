@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return Response.json({ error: 'No autorizado' }, { status: 401 })
+  if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 })
 
   const { sessionId, messages } = await req.json() as {
     sessionId: string
@@ -34,10 +34,10 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return Response.json({ error: 'No autorizado' }, { status: 401 })
+  if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 })
 
   const sessionId = new URL(req.url).searchParams.get('sessionId')
-  if (!sessionId) return Response.json({ error: 'sessionId requerido' }, { status: 400 })
+  if (!sessionId) return Response.json({ error: 'sessionId is required.' }, { status: 400 })
 
   const { data } = await supabase
     .from('messages')

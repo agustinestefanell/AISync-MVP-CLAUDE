@@ -257,3 +257,20 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Política:** Fail-open. Si Upstash Redis falla (o faltan las env vars en local), la request continúa y se registra el error — el rate limiting nunca bloquea usuarios por fallo de infraestructura. Implementado con inicialización lazy dentro de `check()` para que incluso un fallo de construcción del cliente caiga dentro del fail-open.
 - **Alternativas descartadas:** middleware global (corre antes de auth y afecta routes no previstas); rate limit por IP (castiga redes compartidas y no refleja 1 account = 1 user); fail-closed (punto único de falla).
 - **Estado:** Accepted / Implemented.
+
+---
+
+## 2026-06-11 — Resolución de API keys centralizada en resolveProviderApiKey
+
+- **Decisión:** Toda resolución de provider API keys vive en `src/lib/providers/resolveApiKey.ts`. `resolveProviderApiKey()` centraliza known providers, custom providers, BYOK y fallback de entorno solo en development. Las routes no mantienen listas propias de providers ni lógica duplicada.
+- **Razón:** La duplicación entre `chat` y `sm-doc-chat` ya había generado drift real (Groq presente en una lista y ausente en la otra). Una fuente única elimina la clase de bug y reduce el costo de agregar providers.
+- **Detalle de diseño:** el helper devuelve un discriminated union (`isCustom: true` incluye `endpointUrl` y `apiKey` nullable — Ollama no requiere key; `isCustom: false` garantiza `apiKey: string`). `'IA Local'` se resuelve en las routes antes del helper porque usa el endpoint del request, no keys.
+- **Estado:** Accepted / Implemented — chat y sm-doc-chat usan el helper.
+
+---
+
+## 2026-06-11 — Ownership check obligatorio antes de INSERT vinculado a workspace
+
+- **Decisión:** Toda route que inserta entidades vinculadas a workspace debe verificar ownership mediante la cadena `workspaces → teams → projects → account_id` antes del INSERT (patrón `checkpoint/[id]`): 404 si no existe, 403 si no pertenece. `audit_log` solo después del insert principal exitoso. IDs secundarios del body (team_id, project_id) se validan contra la cadena real del workspace.
+- **Razón:** Evita que un usuario autenticado cree registros (y eventos de audit trail) asociados a workspaces ajenos — integridad del audit log como activo central del producto.
+- **Estado:** Accepted / Implemented en handoff-package y save-selection (SEC-008).

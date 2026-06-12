@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { rateLimiters } from '@/lib/rate-limit'
 import { getProvider } from '@/lib/providers'
+import { resolveProviderApiKey, KNOWN_PROVIDERS } from '@/lib/providers/resolveApiKey'
 import { LocalProvider } from '@/lib/providers/local'
 import { getSystemPrompt } from '@/lib/db/system-prompts'
 import { listActivePromptsForContext } from '@/lib/db/prompts'
@@ -16,14 +17,6 @@ import type { TokenUsage } from '@/lib/tools/types'
 
 export const dynamic = 'force-dynamic'
 
-const KNOWN_PROVIDERS = new Set(['Anthropic', 'OpenAI', 'Google', 'Groq', 'IA Local'])
-
-const ENV_KEYS: Record<string, string | undefined> = {
-  Anthropic: process.env.ANTHROPIC_API_KEY,
-  OpenAI:    process.env.OPENAI_API_KEY,
-  Google:    process.env.GOOGLE_AI_API_KEY,
-}
-
 interface PanelSnapshot {
   role:         string
   panel:        string
@@ -37,7 +30,7 @@ function truncateContextText(text: string, maxLength = 35000): string {
 export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return Response.json({ error: 'No autorizado' }, { status: 401 })
+  if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 })
 
   const rateLimit = await rateLimiters.chat.check(`chat:${user.id}`)
   if (!rateLimit.success) {
@@ -237,53 +230,33 @@ export async function POST(req: Request) {
   }
 
   try {
-    // ── Provider personalizado ────────────────────────────────────────────────
-    if (!KNOWN_PROVIDERS.has(provider)) {
-      const { data: custom } = await supabase
-        .from('user_custom_providers')
-        .select('endpoint_url, api_key')
-        .eq('account_id', user.id)
-        .eq('name', provider)
-        .maybeSingle()
-
-      if (!custom) {
-        return Response.json(
-          { error: `Provider "${provider}" no encontrado. Configuralo en Ajustes → Providers personalizados.` },
-          { status: 400 }
-        )
-      }
-
-      const stream = await new LocalProvider(custom.endpoint_url, custom.api_key).stream(messages, model)
-      return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
-    }
-
     // ── IA Local ──────────────────────────────────────────────────────────────
     if (provider === 'IA Local') {
       const stream = await new LocalProvider(endpoint ?? 'http://localhost:11434/v1').stream(messages, model)
       return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
     }
 
-    // ── Providers cloud (Anthropic, OpenAI, Google) ───────────────────────────
-    const { data: keyRow } = await supabase
-      .from('user_api_keys')
-      .select('api_key')
-      .eq('account_id', user.id)
-      .eq('provider', provider)
-      .maybeSingle()
+    // ── Resolución de API key — fuente única (ARC-001) ────────────────────────
+    const resolved = await resolveProviderApiKey(supabase, user.id, provider)
 
-    // BYOK estricto: las keys de plataforma (ENV_KEYS) solo operan en desarrollo.
-    // En producción cada usuario usa su propia key (DECISIONS.md 2026-06-11).
-    const apiKey = keyRow?.api_key ??
-      (process.env.NODE_ENV === 'development' ? ENV_KEYS[provider] : undefined)
-
-    if (!apiKey) {
+    if (!resolved) {
       return Response.json(
-        { error: `No API key configured for ${provider}. Add your key in Settings → Providers to use this agent.` },
+        {
+          error: KNOWN_PROVIDERS.has(provider)
+            ? `No API key configured for ${provider}. Add your key in Settings → Providers.`
+            : `Provider "${provider}" not found. Configure it in Settings → Custom Providers.`,
+        },
         { status: 400 }
       )
     }
 
-    const providerInstance = getProvider(provider, { apiKey })
+    // ── Provider personalizado ────────────────────────────────────────────────
+    if (resolved.isCustom) {
+      const stream = await new LocalProvider(resolved.endpointUrl, resolved.apiKey ?? undefined).stream(messages, model)
+      return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+    }
+
+    const providerInstance = getProvider(provider, { apiKey: resolved.apiKey })
     const anthropicProvider = provider === 'Anthropic' ? providerInstance as AnthropicProvider : null
     const openaiProvider    = provider === 'OpenAI'    ? providerInstance as OpenAIProvider    : null
     const groqProvider      = provider === 'Groq'      ? providerInstance as GroqProvider      : null

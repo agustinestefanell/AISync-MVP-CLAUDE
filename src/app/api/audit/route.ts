@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return Response.json({ error: 'No autorizado' }, { status: 401 })
+  if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 })
 
   const { workspaceId, event_type, metadata } = await req.json() as {
     workspaceId: string
@@ -28,10 +28,10 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return Response.json({ error: 'No autorizado' }, { status: 401 })
+  if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 })
 
   const workspaceId = new URL(req.url).searchParams.get('workspaceId')
-  if (!workspaceId) return Response.json({ error: 'workspaceId requerido' }, { status: 400 })
+  if (!workspaceId) return Response.json({ error: 'workspaceId is required.' }, { status: 400 })
 
   const { data } = await supabase
     .from('audit_log')

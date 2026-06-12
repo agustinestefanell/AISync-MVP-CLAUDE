@@ -1,18 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { getProvider } from '@/lib/providers'
 import { LocalProvider } from '@/lib/providers/local'
+import { resolveProviderApiKey, KNOWN_PROVIDERS } from '@/lib/providers/resolveApiKey'
 import { getSystemPrompt } from '@/lib/db/system-prompts'
 import type { ChatMessage } from '@/lib/providers/types'
 
 export const dynamic = 'force-dynamic'
-
-const KNOWN_PROVIDERS = new Set(['Anthropic', 'OpenAI', 'Google', 'IA Local'])
-
-const ENV_KEYS: Record<string, string | undefined> = {
-  Anthropic: process.env.ANTHROPIC_API_KEY,
-  OpenAI:    process.env.OPENAI_API_KEY,
-  Google:    process.env.GOOGLE_AI_API_KEY,
-}
 
 // Map pageName → system_prompts role
 const PAGE_ROLE: Record<string, string> = {
@@ -52,50 +45,31 @@ export async function POST(req: Request) {
   ]
 
   try {
-    if (!KNOWN_PROVIDERS.has(provider)) {
-      const { data: custom } = await supabase
-        .from('user_custom_providers')
-        .select('endpoint_url, api_key')
-        .eq('account_id', user.id)
-        .eq('name', provider)
-        .maybeSingle()
-
-      if (!custom) {
-        return Response.json(
-          { error: `Provider "${provider}" not found. Configure it in Settings → Custom Providers.` },
-          { status: 400 }
-        )
-      }
-
-      const stream = await new LocalProvider(custom.endpoint_url, custom.api_key).stream(fullMessages, model)
-      return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
-    }
-
     if (provider === 'IA Local') {
       const stream = await new LocalProvider(endpoint ?? 'http://localhost:11434/v1').stream(fullMessages, model)
       return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
     }
 
-    const { data: keyRow } = await supabase
-      .from('user_api_keys')
-      .select('api_key')
-      .eq('account_id', user.id)
-      .eq('provider', provider)
-      .maybeSingle()
+    // ── Resolución de API key — fuente única (ARC-001) ────────────────────────
+    const resolved = await resolveProviderApiKey(supabase, user.id, provider)
 
-    // BYOK estricto: las keys de plataforma (ENV_KEYS) solo operan en desarrollo.
-    // En producción cada usuario usa su propia key (DECISIONS.md 2026-06-11).
-    const apiKey = keyRow?.api_key ??
-      (process.env.NODE_ENV === 'development' ? ENV_KEYS[provider] : undefined)
-
-    if (!apiKey) {
+    if (!resolved) {
       return Response.json(
-        { error: `No API key configured for ${provider}. Add your key in Settings → Providers to use this agent.` },
+        {
+          error: KNOWN_PROVIDERS.has(provider)
+            ? `No API key configured for ${provider}. Add your key in Settings → Providers.`
+            : `Provider "${provider}" not found. Configure it in Settings → Custom Providers.`,
+        },
         { status: 400 }
       )
     }
 
-    const stream = await getProvider(provider, { apiKey }).stream(fullMessages, model)
+    if (resolved.isCustom) {
+      const stream = await new LocalProvider(resolved.endpointUrl, resolved.apiKey ?? undefined).stream(fullMessages, model)
+      return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+    }
+
+    const stream = await getProvider(provider, { apiKey: resolved.apiKey }).stream(fullMessages, model)
     return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
 
   } catch (err) {

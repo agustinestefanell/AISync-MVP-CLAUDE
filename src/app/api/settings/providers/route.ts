@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   }
 
   if (!name?.trim() || !endpoint_url?.trim() || !api_key?.trim() || !model?.trim()) {
-    return NextResponse.json({ error: 'Todos los campos son obligatorios.' }, { status: 400 })
+    return NextResponse.json({ error: 'All fields are required.' }, { status: 400 })
   }
   if (RESERVED.has(name.trim())) {
     return NextResponse.json(
@@ -74,7 +74,7 @@ export async function DELETE(req: Request) {
 
   const { searchParams } = new URL(req.url)
   const name = searchParams.get('name')
-  if (!name) return NextResponse.json({ error: 'name requerido' }, { status: 400 })
+  if (!name) return NextResponse.json({ error: 'name is required.' }, { status: 400 })
 
   const { error } = await supabase
     .from('user_custom_providers')

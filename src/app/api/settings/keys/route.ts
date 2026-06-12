@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   const { provider, key } = await req.json() as { provider: string; key: string }
   if (!provider || !key?.trim()) {
-    return NextResponse.json({ error: 'provider y key son requeridos' }, { status: 400 })
+    return NextResponse.json({ error: 'provider and key are required.' }, { status: 400 })
   }
 
   const { error } = await supabase.from('user_api_keys').upsert(
@@ -48,7 +48,7 @@ export async function DELETE(req: Request) {
 
   const { searchParams } = new URL(req.url)
   const provider = searchParams.get('provider')
-  if (!provider) return NextResponse.json({ error: 'provider requerido' }, { status: 400 })
+  if (!provider) return NextResponse.json({ error: 'provider is required.' }, { status: 400 })
 
   const { error } = await supabase
     .from('user_api_keys')

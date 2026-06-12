@@ -71,12 +71,12 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Hallazgo derivado durante la validación:** el botón Lock no existe en la UI — fue removido el 2026-05-14 (commit `1903306`, rediseño de workspace) y el handler huérfano quedó silenciado con prefijo `_` el 2026-05-19 (`97b7aea`) para pasar ESLint. La remoción se formalizó retroactivamente como decisión de producto en `DECISIONS.md` (2026-06-11), junto con el diseño "Smart Lock" aprobado para post-MVP (auto-lock por inactividad, auto-unlock por R&F, modal de estado, checkpoint en unlock, toggle global). Lección de proceso en `CodingWorkshop.md` Entrada #18.
 - **Estado:** CLOSED — persistencia arreglada: route corregida (commit `934ae51`) + migración 025 aplicada en Supabase (2026-06-11). UI deliberadamente removida del MVP por decisión de producto — ver DECISIONS.md. Cuando Lock vuelva, se implementa Smart Lock, no el botón manual.
 
-### SEC-008 🟢 OPEN — IDs referenciados sin validar ownership en handoff-package y save-selection
+### SEC-008 🟢 CLOSED — IDs referenciados sin validar ownership en handoff-package y save-selection
 
 - **Descripción:** `handoff-package/route.ts` y `save-selection/route.ts` insertan filas propias (`user_id: user.id`, protegido por RLS) pero toman `workspace_id`, `team_id` y `project_id` del body sin verificar que pertenezcan al usuario. Un usuario autenticado puede crear handoff packages, saved selections y entradas de `audit_log` que referencian workspaces de otras cuentas. No expone datos ajenos (las lecturas siguen filtradas por RLS) — afecta integridad referencial y limpieza del audit trail, no confidencialidad.
 - **Patrón de fix definido:** replicar el ownership check de `checkpoint/[id]/route.ts` (cadena workspace → team → project → `account_id === user.id`, 403 si no pertenece) antes del insert. La route de lock ya lo aplica desde SEC-007.
-- **Planificación:** OE propia post-auditoría. No bloquea beta.
-- **Estado:** OPEN.
+- **Resolución aplicada (OE API Hardening 2):** Ambas routes verifican ownership con la cadena `workspaces → teams → projects → account_id` antes del INSERT (patrón `checkpoint/[id]`): 404 si el workspace no existe, 403 si no pertenece al usuario. En `save-selection`, además, `team_id` y `project_id` del body se validan contra la cadena real del workspace (400 si no coinciden) — sin esto el hallazgo quedaba abierto para esos dos campos. El insert de `audit_log` permanece posterior al insert principal exitoso en ambas.
+- **Estado:** CLOSED — commit `refactor: api hardening 2 - ownership checks, shared key resolution, i18n errors` (2026-06-11).
 
 ### SEC-009 🟠 CLOSED — Falta de rate limiting en API routes críticas
 
@@ -105,3 +105,34 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Lección registrada:** `CodingWorkshop.md` Entrada #21 — reutilizar una acción API para dos semánticas distintas rompe una cuando hardeneás la otra.
 - **Nota:** el 404 puntual que disparó la investigación tenía además una segunda causa: la conexión clickeada ya no existía en la DB (verificado con service role) — la lista de la UI estaba vieja. Ambas causas eran reales y apiladas.
 - **Estado:** CLOSED — commit `fix: add disconnect action to separate from reject in connections PATCH` (2026-06-11).
+
+### ARC-001 🟡 CLOSED — Duplicación de resolución de keys con drift real
+
+- **Severidad:** 🟡 Medium
+- **Fecha:** 2026-06-11
+- **Área:** Architecture / Providers / API Keys
+- **Detectado en:** Auditoría técnica de arquitectura 2026-06-11
+- **Descripción:** La lógica de resolución de provider API keys (custom providers → BYOK → fallback dev) estaba duplicada entre `chat/route.ts` y `sm-doc-chat/route.ts`, con listas `KNOWN_PROVIDERS` ya divergentes: chat incluía Groq, sm-doc-chat no.
+- **Impacto:** Drift confirmado, no teórico — un usuario con Groq en el SM panel caía al camino de custom providers y fallaba con el error equivocado. Todo provider nuevo requería tocar dos archivos.
+- **Resolución aplicada:** `src/lib/providers/resolveApiKey.ts` con `KNOWN_PROVIDERS` unificado (incluye Groq) y `resolveProviderApiKey()` compartido: custom providers (preserva `endpoint_url` y `api_key` nullable — Ollama no requiere key), BYOK por `user_api_keys`, fallback a ENV solo en development. Ambas routes consumen el helper; sm-doc-chat gana soporte Groq como alineación estructural.
+- **Estado:** CLOSED — commit `refactor: api hardening 2 - ownership checks, shared key resolution, i18n errors` (2026-06-11).
+
+### ARC-002 🟢 CLOSED — Strings de error en español en API routes
+
+- **Severidad:** 🟢 Low
+- **Fecha:** 2026-06-11
+- **Área:** API / Consistency / i18n
+- **Detectado en:** Auditoría técnica de arquitectura 2026-06-11
+- **Descripción:** 20 strings de error en español en 12 API routes (`'No autorizado'` ×10, `'workspaceId requerido'`, `'Datos incompletos'`, etc.) — violaban la regla "UI 100% inglés" porque AgentPanel y SMPanel renderizan estos errores.
+- **Resolución aplicada:** Traducidos al inglés sin cambiar status codes ni shape JSON. Grep de verificación post-cambio: cero strings en español en `src/app/api`.
+- **Estado:** CLOSED — commit `refactor: api hardening 2 - ownership checks, shared key resolution, i18n errors` (2026-06-11).
+
+### ARC-003 🟢 CLOSED — force-dynamic faltante en active-workspace
+
+- **Severidad:** 🟢 Low
+- **Fecha:** 2026-06-11
+- **Área:** API / Next.js Runtime
+- **Detectado en:** Auditoría técnica de arquitectura 2026-06-11
+- **Descripción:** `active-workspace/route.ts` (GET dependiente de sesión) no declaraba `force-dynamic` — era la única route GET sin la declaración explícita; dependía del efecto colateral de leer cookies.
+- **Resolución aplicada:** `export const dynamic = 'force-dynamic'` agregado. Evidencia en build: las páginas estáticas generadas bajaron de 16 a 15 — la route estaba siendo prerenderizada en build.
+- **Estado:** CLOSED — commit `refactor: api hardening 2 - ownership checks, shared key resolution, i18n errors` (2026-06-11).

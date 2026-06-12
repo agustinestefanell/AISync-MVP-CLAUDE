@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return Response.json({ error: 'No autorizado' }, { status: 401 })
+  if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 })
 
   const { data: checkpoint } = await supabase
     .from('checkpoints')

@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-11 (Rate limiting SEC-009 cerrado)
+Last updated: 2026-06-11 (API Hardening 2 — SEC-008 + ARC-001/002/003 cerrados)
 
 ---
 
@@ -187,6 +187,18 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 - teams: 10 req/min por usuario
 - Política fail-open ante fallo de Upstash (verificada sin env vars: la request continúa y se loguea)
 - Pendiente futuro: LocalRateLimiter / NoopRateLimiter si se requiere entorno offline; extender a sm-doc-chat y demás routes de escritura
+
+---
+
+## API Hardening 2 (2026-06-11)
+
+- handoff-package protegido con workspace ownership check (SEC-008)
+- save-selection protegido con workspace ownership check + validación de team_id/project_id contra la cadena real (SEC-008)
+- `resolveProviderApiKey` centraliza BYOK, custom providers y dev fallback (`src/lib/providers/resolveApiKey.ts`, ARC-001)
+- Groq incluido en KNOWN_PROVIDERS compartido — sm-doc-chat gana soporte Groq
+- active-workspace marcado force-dynamic (ARC-003; estaba siendo prerenderizada en build)
+- API error strings normalizados a inglés — 20 strings en 12 routes (ARC-002)
+- Pendiente: helper `requireUser()` evaluado y diferido a OE separada (tocaría 18 routes)
 
 ---
 

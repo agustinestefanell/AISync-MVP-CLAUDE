@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   }
 
   if (!name?.trim() || !projectId || !agents?.length) {
-    return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
+    return NextResponse.json({ error: 'Incomplete data.' }, { status: 400 })
   }
 
   const teamType = computeType(agents)
