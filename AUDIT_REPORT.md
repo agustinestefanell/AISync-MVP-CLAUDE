@@ -30,12 +30,12 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Nota:** Las políticas "Admin only" de `admin_events`, `system_prompts`, `system_log` y `provenance_log` usan la misma estructura pero NO son recursivas (consultan `accounts` desde otra tabla).
 - **Estado:** OPEN.
 
-### SEC-003 🟡 OPEN — Tabla accounts sin migración versionada
+### SEC-003 🟡 CLOSED — Tabla accounts sin migración versionada
 
 - **Descripción:** `accounts` es la tabla raíz del sistema (toda la jerarquía la referencia por FK desde la migración 001), pero ningún archivo en `supabase/migrations/` contiene su `CREATE TABLE`. Fue creada a mano en Supabase antes de la 001.
-- **Impacto:** (1) Si hay que recrear la base desde las migraciones, falla en la 001 — no existe registro del schema de la tabla más fundamental. (2) Tampoco está versionado el mecanismo que crea la fila de `accounts` al registrarse un usuario (presumiblemente un trigger sobre `auth.users` creado a mano) — sin él, los usuarios nuevos no obtienen cuenta.
-- **Resolución sugerida:** Exportar el schema real de `accounts` y su trigger desde Supabase (SQL Editor / `pg_dump`) y consolidarlos en una migración `000_accounts.sql` documental, marcada como "ya aplicada".
-- **Estado:** OPEN.
+- **Impacto:** (1) Si hay que recrear la base desde las migraciones, falla en la 001 — no existe registro del schema de la tabla más fundamental. (2) Tampoco está versionado el mecanismo que crea la fila de `accounts` al registrarse un usuario (trigger `on_auth_user_created` → `handle_new_user()` sobre `auth.users`, creado a mano) — sin él, los usuarios nuevos no obtienen cuenta.
+- **Resolución aplicada:** Migración documental `supabase/migrations/000_accounts_baseline.sql` — schema de `accounts`, función `handle_new_user()` (security definer, con fallbacks de nombre desde metadata y `on conflict do nothing`) y trigger `on_auth_user_created`. Marcada como **YA APLICADA EN PRODUCCIÓN — NO EJECUTAR**. Columnas verificadas contra producción con service role (id, email, name, created_at, plan, role, status); `role`/`status` provienen de la 012 (`ADD COLUMN IF NOT EXISTS` — replay seguro) y se incluyen para reflejar el estado actual.
+- **Estado:** CLOSED — commit `docs: add accounts baseline migration to version control (SEC-003)` (2026-06-11).
 
 ### SEC-004 🟢 OPEN — Tablas sin políticas UPDATE/DELETE
 

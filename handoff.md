@@ -5404,3 +5404,36 @@ El Disconnect de la UI mandaba PATCH `action: 'reject'` sobre conexiones **activ
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-11] — docs SEC-003: migración baseline de accounts versionada
+
+### Diagnóstico
+`accounts` (tabla raíz — toda la jerarquía la referencia por FK desde la 001) y el trigger que crea la fila al registrarse un usuario fueron creados a mano en Supabase antes de la migración 001 y nunca quedaron versionados. Un replay desde `supabase/migrations/` fallaba en la primera línea de la 001, y sin el trigger los usuarios nuevos no obtendrían cuenta. Hallazgo SEC-003 🟡 de la auditoría.
+
+### Archivos modificados
+- `supabase/migrations/000_accounts_baseline.sql` (nuevo) — migración **documental**: `CREATE TABLE accounts`, función `handle_new_user()` (security definer, nombre con fallbacks desde `raw_user_meta_data` y `on conflict (id) do nothing`) y trigger `on_auth_user_created` sobre `auth.users`. Header explícito: **YA APLICADA EN PRODUCCIÓN — NO EJECUTAR**.
+- `AUDIT_REPORT.md` — SEC-003 → CLOSED con resolución aplicada.
+- `PRODUCT_STATUS.md` — fila 000 en la tabla de migraciones, marcada 📄 Documental.
+
+### Verificación
+Columnas del baseline verificadas contra la tabla real de producción con service role (SELECT de una fila): `id, email, name, created_at, plan, role, status` — coincidencia exacta con el SQL provisto en la directiva.
+
+### Decisiones técnicas
+- `role` y `status` se incluyen en el baseline aunque históricamente las agregó la 012: el baseline documenta el estado actual de la tabla, y la 012 usa `ADD COLUMN IF NOT EXISTS`, así que un replay hipotético 000 → 012 no conflictúa. Anotado en el header del archivo.
+- Numeración `000_` + sufijo `_baseline`: queda primera en orden lexicográfico y el nombre declara su naturaleza.
+
+### Alternativas descartadas
+- `pg_dump` completo del schema: trae ruido (grants, comments, configuración) — el baseline necesita solo tabla + función + trigger.
+- Ejecutar el archivo contra producción para "normalizar": innecesario (todo ya existe) y riesgoso sin beneficio.
+
+### Riesgos / deuda técnica
+- Los CHECK constraints de `role`/`status` viven en la 012, no en el baseline — en un replay desde cero, 000 crea las columnas sin CHECK y la 012 los saltea por `IF NOT EXISTS`. Aceptable para una migración documental; si algún día se hace replay real, consolidar.
+- El trigger documentado no pudo verificarse por introspección (PostgREST no expone `pg_catalog`) — la definición proviene de la verificación del Product Owner en el dashboard de Supabase.
+
+### Commit
+`docs: add accounts baseline migration to version control (SEC-003)`
+
+### Estado
+Cerrado.

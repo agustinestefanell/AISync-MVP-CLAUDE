@@ -152,6 +152,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 
 | Migration | Status |
 |---|---|
+| 000_accounts_baseline.sql | 📄 Documental — schema y trigger de accounts creados a mano pre-001; YA aplicada en producción, NO ejecutar (SEC-003) |
 | 016_prompt_library.sql | ✅ Applied |
 | 017_context_sources.sql | ✅ Applied |
 | 018_agent_session_description.sql | ✅ Applied |
