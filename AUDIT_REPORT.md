@@ -172,3 +172,15 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Resolución aplicada:** Persistencia separada en tres momentos: (1) `userMsg` se persiste antes de iniciar `POST /api/chat` (fail-open con log si falla); (2) el flujo exitoso persiste solo `[assistantMsg]` — sin duplicar userMsg; (3) si el stream se corta con `fullContent` no vacío, el parcial se conserva en pantalla y se persiste como assistant message con sufijo `⚠️ Response interrupted — the connection was lost mid-stream.`, y el error visible pasa a `The response was interrupted. Your message has been saved.`. Los errores pre-stream (400 sin key, 429) conservan su mensaje accionable real.
 - **Fuera de scope (deliberado):** SMPanel (efímero, no persiste mensajes — solo pierde el parcial de pantalla).
 - **Estado:** CLOSED — commit `fix: persist userMsg before stream and preserve partial content on interruption` (2026-06-11).
+
+### ARC-004 🟡 CLOSED (repo) — Active project hardcodeado al primer proyecto
+
+- **Severidad:** 🟡 Medium
+- **Fecha:** 2026-06-12
+- **Área:** Architecture / Multi-project / State
+- **Detectado en:** Auditoría funcional multi-proyecto (pre-diseño de Switch Project)
+- **Descripción:** Multi-proyecto existía a nivel de datos (N proyectos por cuenta, mapa multi-proyecto con atenuado de inactivos), pero "proyecto activo" era un ghost: `getActiveProjectId()` devolvía siempre el primer proyecto por `created_at`, sin setter en todo el codebase, y `active-workspace/route.ts` duplicaba esa lógica hardcodeada. El badge "active" del Dashboard estaba hardcodeado en todas las cards.
+- **Impacto:** El usuario no podía cambiar de proyecto activo (el activo era siempre el más viejo) y distintas rutas podían divergir en el criterio de selección.
+- **Resolución aplicada:** Migración `027_active_project.sql` — `accounts.active_project_id` (FK `ON DELETE SET NULL`) + RPC `set_active_project` SECURITY DEFINER con ownership check (`projects.account_id = auth.uid()` + `status = 'active'`), REVOKE de PUBLIC. `getActiveProjectId()` lee la selección persistida validándola y cae al primer proyecto activo (deployable pre-migración: el select de la columna inexistente falla silencioso al fallback). `active-workspace` consume el helper — muere la lógica duplicada. Route `GET/PATCH /api/projects/active`. Dashboard: badge real + botón "Set active". Teams Map: dropdown de proyecto en el ribbon operativo.
+- **Interacción con SEC-002:** la lectura de `accounts.active_project_id` con cliente de usuario es exactamente el SELECT que SEC-002 sospecha roto por recursión RLS. **La prueba post-migración del switch duplica como verificación de SEC-002:** si el switch nunca persiste (siempre vuelve al primer proyecto), la recursión está confirmada y el fix de SEC-002 (función `is_admin()` security definer en la política) pasa a bloquear esta feature.
+- **Estado:** CLOSED (repo) — commit `feat: add active project switching with persistent selection` (2026-06-12). Aplicación manual de la 027 pendiente.

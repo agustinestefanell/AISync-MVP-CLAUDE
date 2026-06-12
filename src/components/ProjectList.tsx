@@ -26,6 +26,9 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null)
   const [disconnecting,     setDisconnecting]     = useState<string | null>(null)
   const [disconnectError,   setDisconnectError]   = useState('')
+  const [activeProjectId,   setActiveProjectId]   = useState<string | null>(null)
+  const [switchingProject,  setSwitchingProject]  = useState<string | null>(null)
+  const [switchError,       setSwitchError]       = useState('')
   const [showHowModal,      setShowHowModal]      = useState(false)
 
   const fetchConnections = useCallback(() => {
@@ -35,7 +38,38 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
       .catch(() => {})
   }, [])
 
-  useEffect(() => { fetchConnections() }, [fetchConnections])
+  const fetchActiveProject = useCallback(() => {
+    fetch('/api/projects/active')
+      .then(r => r.json())
+      .then(data => setActiveProjectId(data?.projectId ?? null))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => { fetchConnections(); fetchActiveProject() }, [fetchConnections, fetchActiveProject])
+
+  async function setActiveProject(projectId: string) {
+    if (projectId === activeProjectId || switchingProject) return
+    setSwitchingProject(projectId)
+    setSwitchError('')
+    try {
+      const res = await fetch('/api/projects/active', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => null)
+        setSwitchError(d?.error ?? 'Failed to switch project.')
+        return
+      }
+      setActiveProjectId(projectId)
+      router.refresh()
+    } catch {
+      setSwitchError('Network error. Please try again.')
+    } finally {
+      setSwitchingProject(null)
+    }
+  }
 
   function handleCreate() {
     if (!name.trim() || isPending) return
@@ -119,6 +153,10 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
           </div>
         )}
 
+        {switchError && (
+          <p className="text-xs text-red-600">{switchError}</p>
+        )}
+
         {projects.length === 0 && (
           <div className="bg-white border border-dashed border-gray-200 rounded-xl p-10 text-center">
             <p className="text-gray-500 text-sm">No projects yet.</p>
@@ -130,9 +168,20 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
           <div key={project.id} className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-[var(--color-text-primary)]">{project.name}</h3>
-              <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
-                active
-              </span>
+              {project.id === activeProjectId ? (
+                <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+                  active
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setActiveProject(project.id) }}
+                  disabled={switchingProject !== null}
+                  className="text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 hover:text-indigo-600 hover:border-indigo-200 disabled:opacity-50 px-2.5 py-1 rounded-full transition-colors"
+                >
+                  {switchingProject === project.id ? 'Switching…' : 'Set active'}
+                </button>
+              )}
             </div>
 
             <div className="text-sm">

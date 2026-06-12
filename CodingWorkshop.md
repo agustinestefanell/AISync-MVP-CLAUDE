@@ -1055,3 +1055,17 @@ Migración 026 (manual) + settings routes vía RPC + `resolveProviderApiKey` Vau
 
 ### Lección
 Las operaciones con privilegios elevados se encapsulan detrás de RPCs `SECURITY DEFINER` con validación estricta de `auth.uid()` y REVOKE de PUBLIC. Y en toda migración de datos sensibles: dual-read primero, backfill después, limpieza al final — nunca big-bang.
+
+## Entrada #25 — Switch Project — Estado activo persistido vs hardcode
+
+### Problema
+El sistema multi-proyecto elegía siempre el primer proyecto como activo: el usuario podía crear N proyectos y verlos en el mapa, pero el activo era el más viejo, para siempre. El badge "active" del Dashboard estaba hardcodeado en todas las cards — la UI afirmaba un estado que el sistema no modelaba.
+
+### Causa raíz
+No existía estado persistido de proyecto activo por usuario. Además `active-workspace` duplicaba la lógica de selección — dos copias del mismo hardcode listas para divergir.
+
+### Solución
+`accounts.active_project_id` + RPC `set_active_project` con ownership check + `getActiveProjectId()` como fuente única con fallback. Detalle de robustez: el código es deployable antes de la migración — el select de una columna inexistente falla silencioso y opera el fallback (mismo patrón dual que Vault en SEC-005).
+
+### Lección
+Todo estado de selección multi-entidad que afecta navegación o datos debe persistirse y centralizarse — elegir "el primero" es válido solo como fallback, no como arquitectura. Y una UI que muestra un badge de estado que el backend no modela es deuda disfrazada de feature: el ghost se detectó precisamente porque el badge decía "active" en todas las cards.

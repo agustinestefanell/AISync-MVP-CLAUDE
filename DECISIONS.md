@@ -301,3 +301,12 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Razón:** Ignorar el plaintext inmediatamente rompería BYOK para toda key existente antes del backfill. `supabase.rpc()` no lanza ante función inexistente, así que el código dual-read es deployable incluso antes de aplicar la migración.
 - **Ventana aceptada:** guardar keys nuevas falla con 500 entre el deploy y la aplicación manual de la 026 — sin fallback plaintext deliberadamente (una key nueva nunca más toca plaintext).
 - **Estado:** Accepted.
+
+---
+
+## 2026-06-12 — Proyecto activo persistido en accounts.active_project_id
+
+- **Decisión:** El proyecto activo se persiste en `accounts.active_project_id` y se muta únicamente vía RPC `set_active_project` (SECURITY DEFINER, ownership check contra `projects.account_id` + `status = 'active'`). La lectura centralizada vive en `getActiveProjectId()` con fallback al primer proyecto activo si la selección es null, borrada o inactiva.
+- **Razón:** Multi-proyecto no puede depender de elegir siempre el primer proyecto (ARC-004). El proyecto activo es estado del producto por usuario — debe sobrevivir reloads y dispositivos, y tener ownership check server-side. Se eligió columna en DB sobre cookie/localStorage por coherencia con la filosofía control-layer (estado auditable, no preferencia de navegador).
+- **Detalles:** `ON DELETE SET NULL` en la FK — borrar el proyecto activo degrada limpio al fallback. `active-workspace` consume el helper en vez de duplicar la lógica. El Dashboard activa por botón explícito "Set active" (no click en card — las cards tienen Links anidados y el click-card garantizaba activaciones accidentales).
+- **Estado:** Accepted / Implemented in repo — migración 027 manual pendiente.

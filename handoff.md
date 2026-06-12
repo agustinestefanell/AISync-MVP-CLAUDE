@@ -5632,3 +5632,50 @@ END $$;
 
 ### Estado
 Cerrado a nivel repo — operación manual pendiente (migración + backfill).
+
+---
+
+## [2026-06-12] — feat ARC-004: Switch Project — proyecto activo persistido + selector en Dashboard y Teams Map
+
+### Cambio realizado
+Switch Project implementado a nivel repo. Migración `027_active_project.sql` con `accounts.active_project_id` y RPC `set_active_project` (ownership check). `getActiveProjectId()` lee la selección persistida con fallback al primer proyecto activo; `active-workspace` consume el helper (muere la lógica duplicada). Route nueva `GET/PATCH /api/projects/active`. Dashboard con badge real + botón "Set active"; Teams Map con dropdown de proyecto en el ribbon operativo. **Migración NO aplicada — manual.**
+
+### Archivos tocados
+- `supabase/migrations/027_active_project.sql` (nuevo) — columna FK `ON DELETE SET NULL` + RPC con REVOKE/GRANT
+- `src/app/api/projects/active/route.ts` (nuevo) — PATCH (vía RPC) + GET `{ projectId, projects }`
+- `src/lib/db/teams.ts` — `getActiveProjectId()` centralizado con validación y fallback
+- `src/app/api/active-workspace/route.ts` — consume el helper
+- `src/components/ProjectList.tsx` — badge condicionado al activo real + botón "Set active" con estado switching y error visible
+- `src/components/teams/TeamsClient.tsx` — dropdown en ribbon operativo (no en TopRibbon, componente prohibido); cambia → PATCH → `window.location.reload()`
+- `src/app/actions.ts` — `'No autenticado'` → `'Unauthorized.'` (corrección autorizada)
+
+### Decisiones técnicas y desvíos justificados del template de la OE
+1. **`getActiveProjectId()` mantiene la firma sin argumentos** (el template la cambiaba a `(supabase, userId)`): cambiar la firma obligaba a tocar `teams/page.tsx`, archivo NO autorizado. El helper resuelve client y user internamente.
+2. **El route nuevo incluye GET** (el template decía "no crear GET si no hace falta" — acá hace falta): ProjectList necesita el activo real (su page no lo pasa por props) y TeamsClient necesita la lista de proyectos para el dropdown (ídem). Es el "mínimo fetch local" que la propia OE anticipaba en 12.1 y 13.1.
+3. **Activación por botón explícito "Set active", no click en card**: las cards tienen Links "Open →" anidados — el click-card garantizaba switches accidentales al navegar. Cumple la intención de la regla 12.3 con cero riesgo de propagación.
+4. **Deployable pre-migración:** el select de `accounts.active_project_id` (columna aún inexistente) falla silencioso → opera solo el fallback (comportamiento actual). El PATCH sí requiere la 027 (devuelve 403 hasta aplicarla).
+
+### Operación manual pendiente
+**Aplicar `027_active_project.sql` en Supabase Dashboard → SQL Editor.** Hasta entonces: todo funciona como antes (primer proyecto); el botón "Set active" y el dropdown devuelven error al intentar cambiar.
+
+### Verificación post-migración (doble propósito)
+Cambiar de proyecto y recargar. Si el cambio persiste → ARC-004 cerrado operativamente **y SEC-002 descartado** (el select de accounts con cliente de usuario funciona). Si siempre vuelve al primer proyecto → **recursión RLS de SEC-002 confirmada** — el fix (función `is_admin()` security definer en la política "Admins read all accounts") pasa a ser bloqueante.
+
+### Alternativas descartadas
+- Cookie server-side: cero schema pero estado por navegador — el proyecto activo es estado del producto, no preferencia de dispositivo.
+- localStorage: además requería refactor de pages server-side.
+- Click en toda la card para activar: propagación accidental garantizada con los Links anidados.
+
+### Riesgos / deuda técnica
+- Dependencia de SEC-002 (ver arriba) — la prueba del switch lo resuelve en cualquier dirección.
+- `window.location.reload()` en el switch del Teams Map es la recarga aceptada por la OE — un re-fetch interno sin reload es refinamiento futuro.
+- El GET de `/api/projects/active` no tiene rate limit (familia Gap 2 — es barato y de lectura; anotado).
+
+### Build
+✓ `npm run lint` (2 warnings preexistentes) · ✓ `npx tsc --noEmit` (script typecheck no existe) · ✓ `npm run build` limpio — `/api/projects/active` en el route map.
+
+### Commit
+`feat: add active project switching with persistent selection`
+
+### Estado
+Cerrado a nivel repo — migración 027 manual pendiente.

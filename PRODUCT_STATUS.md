@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-12 (SEC-005 Vault — migración 026 creada; aplicación manual y backfill pendientes)
+Last updated: 2026-06-12 (Switch Project ARC-004 — migración 027 creada; aplicación manual pendiente)
 
 ---
 
@@ -164,6 +164,19 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | 024_token_usage_capture_method.sql | ✅ Applied — 2026-06-10, manually via Supabase SQL Editor |
 | 025_workspaces_update_policy.sql | ✅ Applied — 2026-06-11, manually via Supabase SQL Editor (SEC-007) |
 | 026_vault_api_keys.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor inmediatamente después del deploy (SEC-005); luego backfill manual (SQL en handoff.md 2026-06-12) |
+| 027_active_project.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (ARC-004 Switch Project); su prueba post-aplicación verifica además SEC-002 |
+
+---
+
+## Switch Project (2026-06-12)
+
+- `accounts.active_project_id` definido vía migración 027 (FK ON DELETE SET NULL)
+- RPC `set_active_project` con ownership check creada en repo
+- `getActiveProjectId()` lee la selección persistida con fallback al primer proyecto activo
+- `active-workspace` consume el helper centralizado (lógica duplicada eliminada)
+- Dashboard: badge "active" real + botón "Set active" por proyecto
+- Teams Map: dropdown de proyecto en el ribbon operativo
+- ⏳ Aplicación manual de la 027 pendiente — hasta entonces el switch devuelve error y todo opera como antes (primer proyecto)
 
 ---
 

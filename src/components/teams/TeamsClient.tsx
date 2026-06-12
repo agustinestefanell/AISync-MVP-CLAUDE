@@ -158,6 +158,8 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   const [showSatMatGuide,      setShowSatMatGuide]      = useState(false)
   const [showCreateTeamsGuide, setShowCreateTeamsGuide] = useState(false)
   const [showConnectGuide,     setShowConnectGuide]     = useState(false)
+  const [projectOptions, setProjectOptions] = useState<{ id: string; name: string }[]>([])
+  const [switchingProject, setSwitchingProject] = useState(false)
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -186,6 +188,34 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
       clearInterval(poll)
     }
   }, [fetchConnections])
+
+  // Lista de proyectos para el dropdown — el page solo pasa el activo
+  useEffect(() => {
+    fetch('/api/projects/active')
+      .then(r => r.json())
+      .then(data => setProjectOptions(Array.isArray(data?.projects) ? data.projects : []))
+      .catch(() => {})
+  }, [])
+
+  async function handleSwitchProject(newProjectId: string) {
+    if (newProjectId === projectId || switchingProject) return
+    setSwitchingProject(true)
+    try {
+      const res = await fetch('/api/projects/active', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: newProjectId }),
+      })
+      if (!res.ok) {
+        setSwitchingProject(false)
+        return
+      }
+      // El page server-side relee getActiveProjectId() — recarga simple
+      window.location.reload()
+    } catch {
+      setSwitchingProject(false)
+    }
+  }
 
   function handleCreated(team: TeamWithWorkspaces) {
     setTeams(prev => [...prev, team])
@@ -295,6 +325,26 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
             <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
               Operational Elasticity View
             </div>
+          </div>
+
+          {/* Switch Project (ARC-004) */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+              Project:
+            </span>
+            <select
+              value={projectId}
+              onChange={e => handleSwitchProject(e.target.value)}
+              disabled={switchingProject}
+              className="text-[12px] font-medium text-neutral-800 bg-white border border-neutral-200 rounded-md px-2 py-1 outline-none hover:border-neutral-300 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {(projectOptions.length > 0
+                ? projectOptions
+                : [{ id: projectId, name: projectName ?? 'Current project' }]
+              ).map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Burbuja SAT/MAT — solo texto plano, sin botón */}
