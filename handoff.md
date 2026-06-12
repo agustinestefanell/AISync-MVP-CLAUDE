@@ -5312,3 +5312,58 @@ El error NO se traga: `AgentPanel.tsx` parsea el body del error (líneas 354-362
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-11] — feat SEC-009: Rate limiting por usuario con Upstash Redis e interfaz RateLimiter desacoplada
+
+### Cambio realizado
+Se implementó rate limiting por usuario en API routes críticas usando Upstash Redis y una interfaz RateLimiter desacoplada. Instancias por route: chat (30 req/min), connections (10 req/min), context (20 req/min), teams (10 req/min). Política fail-open: si Upstash falla o las env vars no existen, la request continúa y se registra log. Cierra SEC-009 (Gap 2 de la auditoría).
+
+### Archivos tocados
+- `src/lib/rate-limit/types.ts` (nuevo) — `RateLimiter` interface + `RateLimitResult`, sin dependencia de proveedor
+- `src/lib/rate-limit/upstash.ts` (nuevo) — `UpstashRateLimiter` con `Redis.fromEnv()`, sliding window y fail-open
+- `src/lib/rate-limit/index.ts` (nuevo) — singletons por route con límites propios
+- `src/app/api/chat/route.ts` — check después de auth, antes de `req.json()` y de todo el flujo de prompts/provider/stream
+- `src/app/api/connections/route.ts` — check solo en POST; GET intacto
+- `src/app/api/context/route.ts` — check después de auth, antes de `formData()`
+- `src/app/api/teams/route.ts` — check solo en POST; GET intacto
+- `package.json` / `package-lock.json` — `@upstash/ratelimit`, `@upstash/redis`
+
+### Decisión técnica
+- Interfaz `RateLimiter` desacoplada (`types.ts` puro, sin imports de Upstash) → swap futuro por LocalRateLimiter/NoopRateLimiter sin tocar routes.
+- **Inicialización lazy del `Ratelimit` dentro de `check()`** — desvío deliberado del diseño original de la OE, que construía en el constructor: como `rateLimiters` se instancia al importar el módulo, un fallo de `Redis.fromEnv()` sin env vars habría ocurrido en module load, fuera del try/catch. Con lazy init, cualquier fallo (construcción o red) cae dentro del fail-open. Verificado funcionalmente: sin env vars, la request continúa con `success: true` y log `[rate-limit] fail-open`.
+- Key por route+usuario (`chat:${user.id}`) y prefijos Redis separados (`rate-limit:chat`) — ventanas independientes por endpoint.
+- 429 con mensaje accionable en inglés + headers `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `X-RateLimit-Reset`.
+- Se respetó el idioma de cada route: `Response.json` en chat/context, `NextResponse.json` en connections/teams.
+
+### Alternativas descartadas
+- Middleware global de Next.js: corre antes de auth (key anónima incorrecta) y afecta routes no listadas — prohibido por la OE.
+- Rate limit por IP: castiga redes compartidas y no refleja el modelo 1 account = 1 user.
+- Fail-closed ante error de Upstash: convierte el rate limiting en punto único de falla.
+- Construcción eager en el constructor (diseño original de la OE): rompía local dev sin env vars al cargar el módulo.
+
+### Restricciones respetadas
+No se modificaron providers, streaming interno, WorkspaceShell, AgentPanel, UI, schema ni migrations. GET de connections y teams intactos.
+
+### Riesgos / deuda técnica
+- Los límites (30/10/20/10 req/min) son estimaciones iniciales sin telemetría — ajustar con datos de uso real.
+- `sm-doc-chat` y otras routes de escritura (checkpoint, save-selection, handoff-package, settings) quedan sin rate limit — extensión natural en OE futura (anotado en SEC-009).
+- Fail-open implica que una caída de Upstash desactiva silenciosamente el rate limiting — aceptado por diseño; monitorear logs `[rate-limit]` en Vercel.
+- npm en esta máquina requiere `NODE_OPTIONS=--use-system-ca` para instalar paquetes (TLS interceptado localmente) — anotado para futuras instalaciones.
+
+### Validación
+- ✓ `npm run lint` (2 warnings preexistentes en CanvasViewport, no relacionadas)
+- ✓ `npx tsc --noEmit` (no existe script `typecheck` en package.json)
+- ✓ `npm run build` limpio
+- ✓ Fail-open verificado con script standalone usando las librerías reales sin env vars
+- ✗ Validación de 429 real no ejecutada — requiere sesión autenticada + credenciales Upstash (solo existen en Vercel)
+
+### Auditoría
+`AUDIT_REPORT.md` — SEC-009 agregado y cerrado.
+
+### Commit
+`feat: add rate limiting with upstash redis and decoupled RateLimiter interface`
+
+### Estado
+Cerrado.

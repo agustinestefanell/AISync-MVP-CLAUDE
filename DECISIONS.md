@@ -246,3 +246,14 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Operativa:** Las ENV vars pueden permanecer en Vercel sin riesgo — el código las ignora en producción. El flujo de desarrollo local no cambia.
 - **Alternativas descartadas:** Eliminar `ENV_KEYS` por completo — rompía el flujo de desarrollo diario sin beneficio de seguridad adicional. Mantener el fallback con límites de consumo — requiere infraestructura de metering que no existe aún; reevaluable como "cortesía beta" si el onboarding lo justifica.
 - **Estado:** Accepted — aplicado en ambas routes.
+
+---
+
+## 2026-06-11 — Rate limiting con interfaz RateLimiter desacoplada (Upstash Redis)
+
+- **Decisión:** Rate limiting se implementa mediante interfaz `RateLimiter` desacoplada (`src/lib/rate-limit/types.ts`), con `UpstashRateLimiter` como implementación inicial (`Redis.fromEnv()` + sliding window). Las API routes consumen singletons por route desde `src/lib/rate-limit/index.ts` con key `route:user.id`.
+- **Razón:** AISync necesita proteger API routes críticas sin acoplar el sistema a un proveedor específico. La abstracción permite reemplazo futuro por LocalRateLimiter, NoopRateLimiter u otra implementación sin tocar las routes.
+- **Límites:** POST `/api/chat` 30 req/min; POST `/api/connections` 10 req/min; POST `/api/context` 20 req/min; POST `/api/teams` 10 req/min — siempre por usuario, después de auth y antes de la operación pesada.
+- **Política:** Fail-open. Si Upstash Redis falla (o faltan las env vars en local), la request continúa y se registra el error — el rate limiting nunca bloquea usuarios por fallo de infraestructura. Implementado con inicialización lazy dentro de `check()` para que incluso un fallo de construcción del cliente caiga dentro del fail-open.
+- **Alternativas descartadas:** middleware global (corre antes de auth y afecta routes no previstas); rate limit por IP (castiga redes compartidas y no refleja 1 account = 1 user); fail-closed (punto único de falla).
+- **Estado:** Accepted / Implemented.

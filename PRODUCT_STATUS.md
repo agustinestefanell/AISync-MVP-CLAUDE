@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-09 (MVP-Ready Planning agregado)
+Last updated: 2026-06-11 (Rate limiting SEC-009 cerrado)
 
 ---
 
@@ -15,7 +15,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Connect Team — Gap 1 y 3 | Revisar DECISIONS.md y cerrar los dos gaps de seguridad identificados | 1 sesión | ✅ Closed — Gap 1: verify receiver email in accounts before insert (fix 2026-06-11: lookup con admin client — la versión original usaba cliente de usuario y la RLS de accounts lo bloqueaba; estado funcional restaurado para usuarios no-admin). Gap 3: PATCH requires receiver_email match, DELETE requires requester_account_id match. |
 | Workspace Lock — SEC-007 | Lock/Unlock no persistía (sin política UPDATE en workspaces) y el audit log registraba eventos no persistidos | 1 sesión | ✅ Closed — route con ownership check + verificación de filas afectadas; migración 025 aplicada 2026-06-11. UI sin botón Lock por decisión de producto (ver DECISIONS.md — Smart Lock post-MVP) |
 | BYOK estricto — SEC-006 | Fallback a ENV_KEYS de plataforma consumía la cuenta de AISync para usuarios sin key propia | 1 sesión | ✅ Closed — fallback condicionado a NODE_ENV development en chat y sm-doc-chat; en producción, 400 accionable. Ver DECISIONS.md 2026-06-11 |
-| Rate limiting en API routes | Proteger endpoints críticos (chat, connections, context) contra abuso | 1 sesión | ⏳ Pendiente |
+| Rate limiting en API routes — SEC-009 | Proteger endpoints críticos (chat, connections, context, teams) contra abuso | 1 sesión | ✅ Closed — Upstash Redis + interfaz RateLimiter desacoplada, fail-open. Ver sección Rate limiting y DECISIONS.md 2026-06-11 |
 | RLS multi-usuario | Crear segunda cuenta de prueba y verificar aislamiento real de datos | 1 sesión | ⏳ Pendiente |
 
 ### 🟡 Bloque 2 — Experiencia de usuario nuevo
@@ -172,6 +172,20 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | `checkpoint_messages` RLS — ownership guard via `p.account_id = auth.uid()` | ✅ Closed | 2026-06-04, migration 020, manually applied in Supabase production |
 | `checkpoint/[id]` route — explicit 403 on unauthorized access | ✅ Closed | 2026-06-04, `src/app/api/checkpoint/[id]/route.ts` |
 | Prompt Library — assignments panel context message in BottomRibbon | ✅ Closed | 2026-06-04, `src/components/workspace/PromptLibrary.tsx` |
+| Rate limiting por usuario en chat/connections/context/teams — SEC-009 | ✅ Closed | 2026-06-11, `src/lib/rate-limit/` + 4 routes, Upstash Redis fail-open |
+
+---
+
+## Rate limiting
+
+- Implementado con Upstash Redis (SEC-009, 2026-06-11)
+- Interfaz `RateLimiter` desacoplada del proveedor (`src/lib/rate-limit/`)
+- chat: 30 req/min por usuario
+- connections: 10 req/min por usuario
+- context: 20 req/min por usuario
+- teams: 10 req/min por usuario
+- Política fail-open ante fallo de Upstash (verificada sin env vars: la request continúa y se loguea)
+- Pendiente futuro: LocalRateLimiter / NoopRateLimiter si se requiere entorno offline; extender a sm-doc-chat y demás routes de escritura
 
 ---
 

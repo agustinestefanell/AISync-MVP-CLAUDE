@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { rateLimiters } from '@/lib/rate-limit'
 import { getProvider } from '@/lib/providers'
 import { LocalProvider } from '@/lib/providers/local'
 import { getSystemPrompt } from '@/lib/db/system-prompts'
@@ -37,6 +38,21 @@ export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'No autorizado' }, { status: 401 })
+
+  const rateLimit = await rateLimiters.chat.check(`chat:${user.id}`)
+  if (!rateLimit.success) {
+    return Response.json(
+      { error: 'Too many requests. Please wait a moment before trying again.' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': String(rateLimit.limit),
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(rateLimit.reset),
+        },
+      }
+    )
+  }
 
   const {
     messages: rawMessages,

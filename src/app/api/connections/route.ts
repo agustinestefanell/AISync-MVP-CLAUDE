@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { rateLimiters } from '@/lib/rate-limit'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -29,6 +30,21 @@ export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rateLimit = await rateLimiters.connections.check(`connections:${user.id}`)
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please wait a moment before trying again.' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': String(rateLimit.limit),
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(rateLimit.reset),
+        },
+      }
+    )
+  }
 
   const body = await req.json() as {
     requester_team_id: string

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { rateLimiters } from '@/lib/rate-limit'
 import {
   createContextSource,
   updateContextSource,
@@ -14,6 +15,21 @@ export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rateLimit = await rateLimiters.context.check(`context:${user.id}`)
+  if (!rateLimit.success) {
+    return Response.json(
+      { error: 'Too many requests. Please wait a moment before trying again.' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': String(rateLimit.limit),
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(rateLimit.reset),
+        },
+      }
+    )
+  }
 
   let formData: FormData
   try {

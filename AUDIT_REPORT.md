@@ -77,3 +77,16 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Patrón de fix definido:** replicar el ownership check de `checkpoint/[id]/route.ts` (cadena workspace → team → project → `account_id === user.id`, 403 si no pertenece) antes del insert. La route de lock ya lo aplica desde SEC-007.
 - **Planificación:** OE propia post-auditoría. No bloquea beta.
 - **Estado:** OPEN.
+
+### SEC-009 🟠 CLOSED — Falta de rate limiting en API routes críticas
+
+- **Severidad:** 🟠 High
+- **Fecha:** 2026-06-11
+- **Área:** API / Security / Rate Limiting
+- **Detectado en:** Auditoría de seguridad AISync (registrado previamente como Gap 2)
+- **Descripción:** AISync no tenía rate limiting en API routes críticas, dejando endpoints autenticados expuestos a abuso por usuario.
+- **Impacto:** Riesgo de consumo excesivo de recursos, abuso de providers, spam de connections/context/teams y degradación de servicio.
+- **Resolución aplicada:** Rate limiting por usuario con Upstash Redis mediante interfaz desacoplada `RateLimiter` (`src/lib/rate-limit/`). Las routes chat, connections, context y teams tienen límites específicos por minuto, aplicados después de auth y antes de la operación pesada, solo en POST. Política fail-open ante fallo de Upstash, verificada funcionalmente sin env vars (la request continúa y se loguea el error).
+- **Límites aplicados:** POST `/api/chat` 30 req/min; POST `/api/connections` 10 req/min; POST `/api/context` 20 req/min; POST `/api/teams` 10 req/min.
+- **Pendiente derivado:** `sm-doc-chat` y demás routes de escritura siguen sin límite — extensión del mismo patrón en OE futura.
+- **Estado:** CLOSED — commit `feat: add rate limiting with upstash redis and decoupled RateLimiter interface` (2026-06-11).

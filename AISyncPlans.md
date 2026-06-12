@@ -823,3 +823,7 @@ Infraestructura ya lista: `lock/route.ts` con ownership check y verificación de
 ### Patrón arquitectural — resolución de API keys (BYOK estricto)
 
 Orden de resolución de API key en routes de chat: (1) key del usuario en `user_api_keys` (cliente de usuario, RLS activa); (2) solo en `NODE_ENV === 'development'`, fallback a `ENV_KEYS` de plataforma; (3) sin key → 400 con mensaje accionable que apunta a Settings → Providers. En producción la plataforma nunca presta sus credenciales — modelo BYOK (DECISIONS.md 2026-06-11). Toda route nueva que consuma providers debe replicar este patrón.
+
+### Rate limiting architecture
+
+AISync usa una interfaz `RateLimiter` desacoplada del proveedor (`src/lib/rate-limit/types.ts`). La implementación actual es `UpstashRateLimiter` con `Redis.fromEnv()` y `slidingWindow`. Las API routes consumen instancias por route desde `src/lib/rate-limit/index.ts` (chat 30/min, connections 10/min, context 20/min, teams 10/min). La key de rate limit es `route:user.id` y el check se aplica siempre después de auth y antes de la operación pesada, solo en POST. La política ante fallo de infraestructura es fail-open: el cliente se construye lazy dentro de `check()`, así un fallo de Redis (o env vars ausentes en local) se loguea como `[rate-limit] fail-open` y la request continúa. Toda route nueva que necesite rate limit agrega su instancia en `index.ts` y replica este patrón — no crear limiters ad-hoc.

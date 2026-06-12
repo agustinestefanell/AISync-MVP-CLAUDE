@@ -967,3 +967,17 @@ Fallback condicionado a `process.env.NODE_ENV === 'development'` en ambas routes
 
 ### Lección
 Un fallback silencioso a credenciales de plataforma es un anti-patrón de costo no acotado: convierte una conveniencia de desarrollo en un subsidio invisible en producción. Todo fallback de credenciales debe estar condicionado por entorno y ser explícito sobre de quién es la credencial que opera.
+
+## Entrada #20 — Rate limiting — interfaz desacoplada + fail-open
+
+### Problema
+Las API routes críticas no tenían rate limiting: cualquier usuario autenticado podía golpear chat/connections/context/teams sin límite (SEC-009).
+
+### Causa raíz
+No existía una capa común para controlar frecuencia por usuario.
+
+### Solución
+Se creó `RateLimiter` como interfaz desacoplada y `UpstashRateLimiter` como implementación inicial, con instancias por route y key `route:user.id`. Detalle clave: el cliente Upstash se construye lazy dentro de `check()` — construirlo en el constructor habría ejecutado `Redis.fromEnv()` en module load, fuera del try/catch, convirtiendo un entorno sin env vars en una fuente de 500s.
+
+### Lección
+Rate limiting debe proteger recursos sin convertirse en punto único de falla. Por eso AISync usa fail-open ante errores de infraestructura — y por eso toda dependencia de infraestructura externa se inicializa dentro del camino cubierto por try/catch, no en module scope.
