@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-11 (API Hardening 2 — SEC-008 + ARC-001/002/003 cerrados)
+Last updated: 2026-06-11 (Error Handling 1 — ERR-003 cerrado; ERR-001/002 abiertos)
 
 ---
 
@@ -199,6 +199,17 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 - active-workspace marcado force-dynamic (ARC-003; estaba siendo prerenderizada en build)
 - API error strings normalizados a inglés — 20 strings en 12 routes (ARC-002)
 - Pendiente: helper `requireUser()` evaluado y diferido a OE separada (tocaría 18 routes)
+
+---
+
+## Error Handling / Streaming (2026-06-11)
+
+- AgentPanel persiste userMsg antes de iniciar el stream (fail-open) — ERR-003
+- Flujo exitoso persiste solo assistantMsg, sin duplicar userMsg
+- Stream interrumpido conserva el contenido parcial en pantalla y en DB, marcado "⚠️ Response interrupted"
+- Error visible accionable: "The response was interrupted. Your message has been saved." (solo con tokens parciales reales; los 400/429 conservan su mensaje)
+- Pendientes: ERR-001 (Anthropic lazy stream init — errores pre-token inconsistentes) y ERR-002 (sin try/catch en for await de providers — sin log server-side), ambos zona providers, OEs dedicadas
+- SMPanel fuera de scope (efímero, no persiste mensajes)
 
 ---
 

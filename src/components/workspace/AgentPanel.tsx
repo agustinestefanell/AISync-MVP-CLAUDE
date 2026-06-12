@@ -326,6 +326,18 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       let fullContent = ''
 
       try {
+        // ERR-003: persistir userMsg antes del stream — un corte de red no debe
+        // borrar la acción del usuario. Fail-open: si falla, el chat continúa.
+        try {
+          await fetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: session.id, messages: [userMsg] }),
+          })
+        } catch (persistErr) {
+          console.error('[AgentPanel] failed to persist userMsg before stream', persistErr)
+        }
+
         const agentRole = session.agent_role === 'manager' ? 'manager' : 'worker'
 
         // SAT: always share other panels' context. MAT: no snapshot (no active forward flag).
@@ -379,13 +391,37 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
         setMessages(prev => [...prev, assistantMsg])
         setApiMessages(prev => [...prev, { role: 'assistant', content: fullContent }])
 
+        // Solo assistantMsg — userMsg ya fue persistido antes del stream (ERR-003)
         await fetch('/api/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: session.id, messages: [userMsg, assistantMsg] }),
+          body: JSON.stringify({ sessionId: session.id, messages: [assistantMsg] }),
         })
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error')
+        // ERR-003: si el stream se cortó con contenido parcial, conservarlo y
+        // persistirlo como mensaje interrumpido en vez de descartarlo.
+        if (fullContent.trim().length > 0) {
+          const interruptedMsg: DisplayMessage = {
+            role:       'assistant',
+            content:    fullContent + '\n\n⚠️ Response interrupted — the connection was lost mid-stream.',
+            created_at: new Date().toISOString(),
+          }
+          setMessages(prev => [...prev, interruptedMsg])
+          setApiMessages(prev => [...prev, { role: 'assistant', content: interruptedMsg.content }])
+          try {
+            await fetch('/api/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: session.id, messages: [interruptedMsg] }),
+            })
+          } catch (persistErr) {
+            console.error('[AgentPanel] failed to persist interrupted message', persistErr)
+          }
+          setError('The response was interrupted. Your message has been saved.')
+        } else {
+          // Error pre-stream (400 sin key, 429, red) — mantener el mensaje accionable real
+          setError(err instanceof Error ? err.message : 'Unknown error')
+        }
       } finally {
         setStreamingContent('')
         setStreaming(false)

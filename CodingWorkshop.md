@@ -1015,3 +1015,23 @@ Se extrajo la resolución a `src/lib/providers/resolveApiKey.ts` con `KNOWN_PROV
 
 ### Lección
 Toda lógica de proveedor compartida debe vivir en una fuente única — copiar listas como KNOWN_PROVIDERS garantiza divergencia futura. Y al extraer un helper desde código duplicado, el contrato del helper debe cubrir todos los casos reales de los duplicados (incluidos los nullables y los campos extra), no solo el camino feliz del template.
+
+## Entrada #23 — Error Handling 1 — Persistir userMsg antes del stream
+
+### Problema
+Si el stream se interrumpía a mitad de respuesta, el sistema perdía tanto el mensaje del usuario como el contenido parcial generado por el assistant.
+
+### Causa raíz
+La persistencia del userMsg y assistantMsg ocurría junta, al final del flujo exitoso. Eso acoplaba la acción humana y la respuesta de IA a un único punto de éxito posterior al stream.
+
+### Consecuencia
+Una interrupción de red o error mid-stream borraba la evidencia de la acción del usuario (al recargar, su mensaje desaparecía) y descartaba trabajo parcial ya generado y visible en pantalla.
+
+### Proceso de solución
+Se separó la persistencia en tres momentos: (1) userMsg antes de iniciar el stream, fail-open; (2) assistantMsg al final si el stream termina bien — solo el assistant, para no duplicar; (3) assistant parcial con aviso de interrupción si el stream se corta después de generar contenido. Detalle de diseño: el texto de error "interrupted" se muestra solo cuando hubo tokens reales — los errores pre-stream (400 sin API key, 429 de rate limit) conservan su mensaje accionable, que costó cerrar en SEC-006.
+
+### Solución final
+AgentPanel persiste userMsg antes de POST /api/chat; el persist final guarda solo assistantMsg; el catch del stream guarda el contenido parcial marcado como interrumpido.
+
+### Lección
+Persistir el mensaje del usuario antes de iniciar el stream es una regla de trazabilidad, no solo de UX. Si la persistencia y la acción ocurren en el mismo paso final, cualquier fallo destruye ambas. Y al endurecer un catch genérico, cuidar los errores específicos que ya pasaban por ahí — un mensaje nuevo incondicional habría pisado los 400 accionables.

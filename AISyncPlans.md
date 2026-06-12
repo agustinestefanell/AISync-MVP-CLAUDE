@@ -835,3 +835,7 @@ AISync resuelve API keys mediante `src/lib/providers/resolveApiKey.ts`. `resolve
 ### API ownership hardening
 
 Routes que insertan datos vinculados a workspace verifican ownership mediante la cadena `workspaces → teams → projects → account_id` antes de ejecutar inserts (patrón `checkpoint/[id]`): 404 si el workspace no existe, 403 si no pertenece al usuario, y los IDs secundarios del body (team_id, project_id) se validan contra la cadena real. `audit_log` ocurre solo después del insert principal exitoso. Aplicado en handoff-package y save-selection (SEC-008, 2026-06-11).
+
+### Streaming traceability rule
+
+En flujos client-side de chat, el `userMsg` debe persistirse antes de iniciar el stream — la acción humana y la generación del assistant no deben depender del mismo paso de persistencia final. Si el stream se interrumpe con contenido parcial, el sistema lo conserva como assistant message marcado como interrumpido (marcador en el content — sobrevive en checkpoints/handoffs). La persistencia previa es fail-open: su falla se loguea y no bloquea el chat. Aplicado en `AgentPanel.sendPrompt()` (ERR-003, 2026-06-11); toda vista de chat nueva con persistencia debe seguir esta regla.

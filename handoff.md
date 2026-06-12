@@ -5481,3 +5481,43 @@ API Hardening 2 aplicado en tres bloques. **A:** ownership checks en `handoff-pa
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-11] — fix ERR-003: persistencia de userMsg antes del stream + conservación de contenido parcial
+
+### Cambio realizado
+Error Handling 1 aplicado en `AgentPanel.sendPrompt()`. El mensaje del usuario se persiste antes de iniciar el stream (fail-open). En flujo exitoso, el persist final guarda solo `assistantMsg` (antes guardaba `[userMsg, assistantMsg]` juntos — un corte perdía ambos). Si el stream se interrumpe con contenido parcial, el parcial se conserva en pantalla y se persiste como assistant message con aviso de interrupción.
+
+### Archivos tocados
+- `src/components/workspace/AgentPanel.tsx` — tres ediciones dentro de `sendPrompt()`:
+  1. Persist previo de `[userMsg]` antes del POST a `/api/chat`, con try/catch fail-open y log `[AgentPanel] failed to persist userMsg before stream`.
+  2. Persist final cambiado a `[assistantMsg]` — sin duplicar userMsg.
+  3. Catch enriquecido: si `fullContent.trim().length > 0`, crea `interruptedMsg` con sufijo `⚠️ Response interrupted — the connection was lost mid-stream.`, lo agrega a `setMessages`/`setApiMessages`, lo persiste (fail-open), y setea error `The response was interrupted. Your message has been saved.`. Sin contenido parcial, conserva el comportamiento anterior (`err.message`).
+- `AUDIT_REPORT.md` — ERR-001 🟡 OPEN, ERR-002 🟢 OPEN, ERR-003 🟡 CLOSED.
+- `DECISIONS.md`, `AISyncPlans.md` (Streaming traceability rule), `PRODUCT_STATUS.md`, `CodingWorkshop.md` (Entrada #23).
+
+### Decisiones técnicas y desvíos justificados del template de la OE
+1. **`/api/messages` recibe `{ sessionId, messages }`** — el `workspaceId` del template no existe en esa API; se usó `sessionId: session.id` como la llamada preexistente. Cero cambios server-side.
+2. **El error "The response was interrupted..." se muestra solo cuando hubo tokens parciales reales** (el template lo aplicaba incondicionalmente en el catch): aplicarlo a errores pre-stream habría pisado los 400 accionables (sin API key — SEC-006) y los 429 del rate limiting, violando la regla 2.6 de la propia OE ("no romper error handling existente").
+3. Marcador de interrupción en el content del mensaje: la tabla `messages` no tiene columna de flags (schema congelado) y así el aviso sobrevive en checkpoints/handoffs.
+
+### Alternativas descartadas
+- Persistir el userMsg desde `chat/route.ts` (server-side): `messages/route.ts` y `chat/route.ts` estaban prohibidos en esta OE, y la persistencia es responsabilidad establecida del cliente.
+- Deduplicación por ID o transacción: la API actual no devuelve IDs de mensajes; sumaba complejidad sin necesidad — el orden lo garantiza `created_at`.
+
+### Riesgos / deuda técnica
+- Si el persist previo falla y el stream también, el userMsg puede perderse igual (doble falla de red simultánea) — ventana mínima, aceptada.
+- Un usuario que ve el 400 de "no API key" ahora tiene su mensaje ya persistido aunque el chat no respondió — correcto para trazabilidad (la acción humana ocurrió), pero al recargar verá su mensaje sin respuesta.
+- ERR-001 (Anthropic lazy init) y ERR-002 (sin try/catch en for await de providers) quedan OPEN — zona providers, OEs dedicadas.
+- SMPanel fuera de scope deliberado: es efímero (no persiste mensajes); solo pierde el parcial de pantalla.
+
+### Validación
+✓ `npm run lint` (2 warnings preexistentes) · ✓ `npx tsc --noEmit` (script typecheck no existe) · ✓ `npm run build` limpio.
+✗ Validación manual de cortes mid-stream no ejecutada — requiere sesión autenticada con key real y simulación de corte de red; cubierta por inspección + typecheck + build.
+
+### Commit
+`fix: persist userMsg before stream and preserve partial content on interruption`
+
+### Estado
+Cerrado.

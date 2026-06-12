@@ -136,3 +136,37 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Descripción:** `active-workspace/route.ts` (GET dependiente de sesión) no declaraba `force-dynamic` — era la única route GET sin la declaración explícita; dependía del efecto colateral de leer cookies.
 - **Resolución aplicada:** `export const dynamic = 'force-dynamic'` agregado. Evidencia en build: las páginas estáticas generadas bajaron de 16 a 15 — la route estaba siendo prerenderizada en build.
 - **Estado:** CLOSED — commit `refactor: api hardening 2 - ownership checks, shared key resolution, i18n errors` (2026-06-11).
+
+### ERR-001 🟡 OPEN — Anthropic lazy stream init: errores pre-token no producen 500 JSON homogéneo
+
+- **Severidad:** 🟡 Medium
+- **Fecha:** 2026-06-11
+- **Área:** Error Handling / Providers / Streaming
+- **Detectado en:** Auditoría técnica de manejo de errores 2026-06-11
+- **Descripción:** `AnthropicProvider.stream()` usa `client.messages.stream()` sin await (`anthropic.ts:59`) — la llamada de red real arranca recién al iterar, dentro del `start()` del ReadableStream, después de que la route ya devolvió 200. OpenAI/Groq/Google awaitean la creación (`openai.ts:47`), así que sus errores pre-token (key inválida, 429, modelo inexistente) llegan al catch de la route como 500 JSON con mensaje real.
+- **Impacto:** Para Anthropic, hasta una key inválida se manifiesta como corte de stream con error genérico de red en el cliente, en vez del 500 JSON accionable que dan los demás providers. Comportamiento inconsistente por provider para la misma falla.
+- **Resolución requerida:** Normalizar la inicialización del stream de Anthropic para que los errores pre-token suban al catch de la route. Toca `providers/anthropic.ts` (zona streaming) — OE dedicada con prueba real.
+- **Estado:** OPEN.
+
+### ERR-002 🟢 OPEN — Sin try/catch en for await de providers: errores mid-stream no logueados server-side
+
+- **Severidad:** 🟢 Low
+- **Fecha:** 2026-06-11
+- **Área:** Error Handling / Providers / Server Logging
+- **Detectado en:** Auditoría técnica de manejo de errores 2026-06-11
+- **Descripción:** Los loops `for await` que bombean tokens en los cuatro providers no tienen try/catch (`anthropic.ts:67-74`, `openai.ts:56-74`, equivalentes en google/groq). Un error mid-stream rechaza el `start()` del ReadableStream y aborta la response sin log estructurado server-side — el catch de la route nunca se entera porque la response ya salió.
+- **Impacto:** Errores de stream visibles solo del lado cliente (y como genérico de red); observabilidad server-side nula para cortes mid-stream. `token_usage` tampoco se registra en streams cortados.
+- **Resolución requerida:** try/catch homogéneo alrededor de los loops con log estructurado, sin romper streaming. OE separada (zona providers).
+- **Estado:** OPEN.
+
+### ERR-003 🟡 CLOSED — Pérdida de userMsg y contenido parcial en stream interrumpido
+
+- **Severidad:** 🟡 Medium
+- **Fecha:** 2026-06-11
+- **Área:** Error Handling / Client Persistence / Traceability
+- **Detectado en:** Auditoría técnica de manejo de errores 2026-06-11
+- **Descripción:** `AgentPanel.sendPrompt()` persistía `[userMsg, assistantMsg]` juntos, solo al final del stream exitoso. Un corte mid-stream descartaba el contenido parcial (el `finally` limpiaba `streamingContent`) y **tampoco persistía el mensaje del usuario** — al recargar, la conversación retrocedía como si el usuario nunca hubiera escrito.
+- **Impacto:** Pérdida de trazabilidad de la acción humana y del trabajo parcial generado. Para una capa de control con trazabilidad como propuesta de valor, el hallazgo más relevante de esta auditoría de errores.
+- **Resolución aplicada:** Persistencia separada en tres momentos: (1) `userMsg` se persiste antes de iniciar `POST /api/chat` (fail-open con log si falla); (2) el flujo exitoso persiste solo `[assistantMsg]` — sin duplicar userMsg; (3) si el stream se corta con `fullContent` no vacío, el parcial se conserva en pantalla y se persiste como assistant message con sufijo `⚠️ Response interrupted — the connection was lost mid-stream.`, y el error visible pasa a `The response was interrupted. Your message has been saved.`. Los errores pre-stream (400 sin key, 429) conservan su mensaje accionable real.
+- **Fuera de scope (deliberado):** SMPanel (efímero, no persiste mensajes — solo pierde el parcial de pantalla).
+- **Estado:** CLOSED — commit `fix: persist userMsg before stream and preserve partial content on interruption` (2026-06-11).

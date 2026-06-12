@@ -274,3 +274,12 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Decisión:** Toda route que inserta entidades vinculadas a workspace debe verificar ownership mediante la cadena `workspaces → teams → projects → account_id` antes del INSERT (patrón `checkpoint/[id]`): 404 si no existe, 403 si no pertenece. `audit_log` solo después del insert principal exitoso. IDs secundarios del body (team_id, project_id) se validan contra la cadena real del workspace.
 - **Razón:** Evita que un usuario autenticado cree registros (y eventos de audit trail) asociados a workspaces ajenos — integridad del audit log como activo central del producto.
 - **Estado:** Accepted / Implemented en handoff-package y save-selection (SEC-008).
+
+---
+
+## 2026-06-11 — Persistir userMsg antes de iniciar streams en AgentPanel
+
+- **Decisión:** En `AgentPanel.sendPrompt()`, el mensaje del usuario se persiste en `/api/messages` antes de iniciar `POST /api/chat`. El flujo exitoso persiste solo `assistantMsg`. Si el stream se corta con contenido parcial, el parcial se conserva y persiste como assistant message marcado como interrumpido.
+- **Razón:** AISync es una capa de control y trazabilidad. Con la persistencia acoplada a un único punto de éxito posterior al stream, cualquier interrupción eliminaba tanto la acción humana como la respuesta parcial (ERR-003).
+- **Detalles:** la persistencia previa es fail-open (si falla, el chat continúa y se loguea). El marcador de interrupción va en el content (la tabla `messages` no tiene columna de flags y el schema está congelado) — así sobrevive en checkpoints y handoffs, coherente con trazabilidad. Los errores pre-stream (400 sin key, 429) conservan su mensaje accionable — el texto "interrupted" solo aparece cuando hubo tokens parciales reales.
+- **Estado:** Accepted / Implemented for AgentPanel. SMPanel fuera de scope (no persiste mensajes).
