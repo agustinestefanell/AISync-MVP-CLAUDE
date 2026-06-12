@@ -5521,3 +5521,114 @@ Error Handling 1 aplicado en `AgentPanel.sendPrompt()`. El mensaje del usuario s
 
 ### Estado
 Cerrado.
+
+---
+
+## [2026-06-12] — feat SEC-005: cifrado de API keys con Supabase Vault (dual-read)
+
+### Cambio realizado
+SEC-005 implementado a nivel de repo. Migración `026_vault_api_keys.sql` con columnas `vault_secret_id`/`key_last4` y 6 RPCs `SECURITY DEFINER` (set/get/delete para known y custom providers). Las settings routes escriben keys nuevas vía RPC a Vault y enmascaran desde `key_last4`; `resolveProviderApiKey` lee Vault primero con fallback a plaintext legacy. **Nada se aplicó contra producción** — migración y backfill son operación manual.
+
+### Archivos tocados
+- `supabase/migrations/026_vault_api_keys.sql` (nuevo) — NO ejecutada aún
+- `src/app/api/settings/keys/route.ts` — POST vía `set_provider_key`; GET con `key_last4` (fallback transicional a api_key solo para last4); DELETE vía `delete_provider_key` con fallback legacy
+- `src/app/api/settings/providers/route.ts` — POST: metadata primero (insert con `api_key: ''` por NOT NULL legacy / update sin tocar key), después `set_custom_provider_key`; GET con `key_last4`; DELETE vía RPC con fallback. Además: `Groq` agregado a `RESERVED` y string español residual traducido (ver desvíos)
+- `src/lib/providers/resolveApiKey.ts` — Vault-first en known y custom, fallback legacy intacto, dev fallback al final
+
+### Decisiones técnicas y desvíos justificados del template de la OE
+1. **`provider` NO se lowercasea en operaciones de tabla** (el template hacía `lower()` en INSERT/WHERE): las filas existentes usan display names (`'Anthropic'`) — lowercasear creaba filas duplicadas y rompía fallback y GET. `lower()` quedó solo en el nombre del secret.
+2. **Campo real `name`** (no `provider_name`) en custom providers; secret name por `id` de fila — estable y sin colisiones de case. `user_custom_providers` NO tiene `updated_at` (el template lo seteaba).
+3. **`vault.create_secret()`/`vault.update_secret()`** en vez de INSERT/UPDATE directo a `vault.secrets` — API documentada, maneja nonce/key_id. Evita además depender de unique constraint para ON CONFLICT (punto 15.2 de la OE: resuelto con select-then-create).
+4. **`api_key NOT NULL` legacy:** inserts nuevos con `''`; el write nuevo limpia el plaintext de ESA fila (`api_key = ''`) — una fila Vault-backed no necesita su plaintext y retener la key vieja sería un secreto stale. El plaintext de filas no migradas no se toca (regla de la OE respetada: el backfill/limpieza general es manual y posterior).
+5. **RPCs de DELETE agregadas** (no estaban en la OE): borrar solo la fila dejaba el secret vivo y huérfano en Vault — contradice la intención del usuario al borrar su key. El DELETE de las routes usa la RPC con fallback al delete legacy (ventana pre-migración).
+6. **REVOKE FROM PUBLIC** además del GRANT — Postgres da EXECUTE a PUBLIC por defecto.
+7. **Colaterales corregidos en `settings/providers`** (archivo ya autorizado, hallazgos reportados ayer al Director): `Groq` en `RESERVED` (sin esto, un custom llamado "Groq" sería irresoluble desde ARC-001) y el string español residual de ARC-002 (`"...es un provider reservado..."` → inglés).
+
+### Orden de despliegue recomendado (ventana conocida)
+El código es deployable ANTES de la migración (rpc inexistente → `{ data: null, error }` sin throw → todo cae a legacy), EXCEPTO guardar keys nuevas: el POST de settings devuelve 500 hasta aplicar la 026 (sin fallback plaintext, deliberado). **Aplicar la migración inmediatamente después del deploy** (o pegarla en SQL Editor antes de que termine el deploy de Vercel).
+
+### Operación manual pendiente
+1. **Aplicar migración:** Supabase Dashboard → SQL Editor → ejecutar el contenido de `supabase/migrations/026_vault_api_keys.sql`.
+2. **Backfill** (solo después de validar las RPCs — p.ej. guardar una key de prueba y chequear `vault_secret_id`):
+
+```sql
+-- SQL MANUAL — Backfill legacy API keys to Vault
+-- Ejecutar SOLO después de aplicar 026_vault_api_keys.sql y validar las RPCs.
+-- No borra plaintext — eso es fase posterior.
+
+-- Known providers
+DO $$
+DECLARE
+  r record;
+  v_secret_id uuid;
+  v_name text;
+BEGIN
+  FOR r IN
+    SELECT account_id, provider, api_key
+    FROM public.user_api_keys
+    WHERE api_key IS NOT NULL AND api_key <> '' AND vault_secret_id IS NULL
+  LOOP
+    v_name := 'provider_key_' || r.account_id::text || '_' || lower(trim(r.provider));
+    SELECT id INTO v_secret_id FROM vault.secrets WHERE name = v_name;
+    IF v_secret_id IS NULL THEN
+      v_secret_id := vault.create_secret(r.api_key, v_name);
+    ELSE
+      PERFORM vault.update_secret(v_secret_id, r.api_key);
+    END IF;
+    UPDATE public.user_api_keys
+    SET vault_secret_id = v_secret_id, key_last4 = right(r.api_key, 4), updated_at = now()
+    WHERE account_id = r.account_id AND provider = r.provider;
+  END LOOP;
+END $$;
+
+-- Custom providers
+DO $$
+DECLARE
+  r record;
+  v_secret_id uuid;
+  v_name text;
+BEGIN
+  FOR r IN
+    SELECT id, api_key
+    FROM public.user_custom_providers
+    WHERE api_key IS NOT NULL AND api_key <> '' AND vault_secret_id IS NULL
+  LOOP
+    v_name := 'custom_provider_key_' || r.id::text;
+    SELECT id INTO v_secret_id FROM vault.secrets WHERE name = v_name;
+    IF v_secret_id IS NULL THEN
+      v_secret_id := vault.create_secret(r.api_key, v_name);
+    ELSE
+      PERFORM vault.update_secret(v_secret_id, r.api_key);
+    END IF;
+    UPDATE public.user_custom_providers
+    SET vault_secret_id = v_secret_id, key_last4 = right(r.api_key, 4)
+    WHERE id = r.id;
+  END LOOP;
+END $$;
+
+-- Verificación post-backfill (todas las filas deben tener vaulted = true):
+-- SELECT provider, key_last4, (api_key <> '') AS has_plaintext, vault_secret_id IS NOT NULL AS vaulted FROM user_api_keys;
+-- SELECT name, key_last4, (api_key <> '') AS has_plaintext, vault_secret_id IS NOT NULL AS vaulted FROM user_custom_providers;
+```
+
+3. **Fase posterior (NO ahora):** validar runtime Vault-first en producción → limpiar `api_key` plaintext (`SET api_key = ''`) → opcional: migración futura que haga la columna nullable o la elimine.
+
+### Alternativas descartadas
+- Cifrado a nivel aplicación (AES-GCM con master key en Vercel): mueve el riesgo al env de Vercel en vez de eliminarlo del perímetro DB; rotación manual.
+- Vault directo desde el cliente supabase-js: `vault.decrypted_secrets` no es accesible con el rol `authenticated` — las RPCs `SECURITY DEFINER` son el único camino que mantiene "cliente de usuario primero".
+- Limpiar todo el plaintext en esta OE: rompería BYOK para filas no backfilleadas — prohibido por la OE y por sentido común.
+
+### Riesgos / deuda técnica
+- Ventana POST-500 entre deploy y aplicación manual de la 026 (solo guardar keys nuevas; lectura/chat intactos).
+- El GET de settings aún lee `api_key` legacy (solo para last4 transicional) — quitar ese fallback en la fase de limpieza.
+- Secrets en Vault quedan si se borra una fila por fuera de las RPCs (p.ej. SQL manual) — el patrón de nombres determinístico permite identificar huérfanos.
+- La validación funcional de las RPCs solo puede hacerse después de la aplicación manual — tabla de casos en el reporte de la OE.
+
+### Build
+✓ `npm run lint` (2 warnings preexistentes) · ✓ `npx tsc --noEmit` (script typecheck no existe) · ✓ `npm run build` limpio.
+
+### Commit
+`feat: encrypt api keys with supabase vault (SEC-005)`
+
+### Estado
+Cerrado a nivel repo — operación manual pendiente (migración + backfill).

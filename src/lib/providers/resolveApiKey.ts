@@ -15,11 +15,14 @@ export type ResolvedProviderKey =
   | { isCustom: true; apiKey: string | null; endpointUrl: string }
   | { isCustom: false; apiKey: string }
 
-// Orden de resolución (DECISIONS.md 2026-06-11, BYOK estricto):
-// 1. Provider no conocido → user_custom_providers (api_key puede ser null — Ollama)
-// 2. Provider conocido → key del usuario en user_api_keys
+// Orden de resolución (DECISIONS.md 2026-06-11/12 — BYOK estricto + SEC-005 Vault):
+// 1. Provider no conocido → user_custom_providers: key desde Vault (RPC), fallback
+//    a api_key plaintext legacy (api_key puede ser null/'' — Ollama)
+// 2. Provider conocido → Vault (RPC get_provider_key), fallback a user_api_keys
 // 3. Solo en development → fallback a ENV_KEYS de plataforma
 // 4. Sin key → null (la route decide el error 400)
+// Nota dual-read: supabase.rpc() con función inexistente devuelve { data: null, error }
+// sin throw — si la migración 026 no está aplicada, todo cae a legacy sin romper.
 export async function resolveProviderApiKey(
   supabase: SupabaseClient,
   userId: string,
@@ -34,7 +37,21 @@ export async function resolveProviderApiKey(
       .maybeSingle()
 
     if (!custom) return null
-    return { isCustom: true, apiKey: custom.api_key, endpointUrl: custom.endpoint_url }
+
+    const { data: vaultCustomKey } = await supabase.rpc('get_custom_provider_key', {
+      p_provider_name: provider,
+    })
+
+    const apiKey = (vaultCustomKey as string | null) ?? (custom.api_key || null)
+    return { isCustom: true, apiKey, endpointUrl: custom.endpoint_url }
+  }
+
+  const { data: vaultKey } = await supabase.rpc('get_provider_key', {
+    p_provider: provider,
+  })
+
+  if (vaultKey) {
+    return { isCustom: false, apiKey: vaultKey as string }
   }
 
   const { data: keyRow } = await supabase
@@ -44,7 +61,7 @@ export async function resolveProviderApiKey(
     .eq('provider', provider)
     .maybeSingle()
 
-  const apiKey = keyRow?.api_key ??
+  const apiKey = (keyRow?.api_key || undefined) ??
     (process.env.NODE_ENV === 'development' ? ENV_KEYS[provider] : undefined)
 
   if (!apiKey) return null

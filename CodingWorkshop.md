@@ -1035,3 +1035,23 @@ AgentPanel persiste userMsg antes de POST /api/chat; el persist final guarda sol
 
 ### Lección
 Persistir el mensaje del usuario antes de iniciar el stream es una regla de trazabilidad, no solo de UX. Si la persistencia y la acción ocurren en el mismo paso final, cualquier fallo destruye ambas. Y al endurecer un catch genérico, cuidar los errores específicos que ya pasaban por ahí — un mensaje nuevo incondicional habría pisado los 400 accionables.
+
+## Entrada #24 — SEC-005 — Supabase Vault con RPCs SECURITY DEFINER
+
+### Problema
+Las API keys BYOK y custom provider keys estaban guardadas en plaintext dentro de tablas públicas de aplicación.
+
+### Causa raíz
+El sistema trataba los secrets como datos normales de aplicación — legibles por cualquier actor con acceso DB, service role o backups.
+
+### Proceso de solución
+Se adoptó Supabase Vault con RPCs `SECURITY DEFINER` que validan `auth.uid()` y guardan solo `vault_secret_id`/`key_last4` como metadata. Transición dual-read: Vault primero, plaintext legacy como fallback hasta backfill. Tres trampas que el diseño inicial no veía:
+1. **Normalización vs. datos existentes:** lowercasear el provider en las RPCs habría creado filas duplicadas (`'Anthropic'` vs `'anthropic'`) — toda normalización nueva debe chequearse contra los datos ya guardados.
+2. **El borrado tiene dos mitades:** borrar la fila sin borrar el secret deja la key viva en Vault, huérfana — un secret store agrega un segundo lugar del que borrar.
+3. **Permisos default de Postgres:** las funciones nuevas dan EXECUTE a PUBLIC — un `SECURITY DEFINER` sin REVOKE es invocable por `anon`.
+
+### Solución final
+Migración 026 (manual) + settings routes vía RPC + `resolveProviderApiKey` Vault-first. Los GET enmascaran desde `key_last4` — el único punto del sistema que descifra es el runtime de chat.
+
+### Lección
+Las operaciones con privilegios elevados se encapsulan detrás de RPCs `SECURITY DEFINER` con validación estricta de `auth.uid()` y REVOKE de PUBLIC. Y en toda migración de datos sensibles: dual-read primero, backfill después, limpieza al final — nunca big-bang.

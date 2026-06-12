@@ -8,16 +8,20 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // SEC-005: key_last4 es la fuente del enmascarado; api_key legacy solo como
+  // fallback transicional para filas pre-Vault. Nunca se devuelve la key real.
   const { data } = await supabase
     .from('user_api_keys')
-    .select('provider, api_key')
+    .select('provider, key_last4, api_key')
     .eq('account_id', user.id)
 
-  // Devuelve versión enmascarada: nunca el valor real al cliente
-  const masked = (data ?? []).map(row => ({
-    provider: row.provider,
-    masked: '•'.repeat(Math.max(0, row.api_key.length - 4)) + row.api_key.slice(-4),
-  }))
+  const masked = (data ?? []).map(row => {
+    const last4 = row.key_last4 ?? (row.api_key ? row.api_key.slice(-4) : '')
+    return {
+      provider: row.provider,
+      masked: last4 ? '••••••••' + last4 : '',
+    }
+  })
 
   return NextResponse.json(masked)
 }
@@ -32,11 +36,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'provider and key are required.' }, { status: 400 })
   }
 
-  const { error } = await supabase.from('user_api_keys').upsert(
-    { account_id: user.id, provider, api_key: key.trim(), updated_at: new Date().toISOString() },
-    { onConflict: 'account_id,provider' }
-  )
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // SEC-005: la key va a Vault vía RPC SECURITY DEFINER — nunca más plaintext.
+  // Requiere migración 026 aplicada; sin ella este POST falla (sin fallback
+  // plaintext deliberadamente).
+  const { error } = await supabase.rpc('set_provider_key', {
+    p_provider: provider,
+    p_key: key.trim(),
+  })
+  if (error) {
+    console.error('[settings/keys] failed to store provider key in Vault', error)
+    return NextResponse.json({ error: 'Failed to save provider key.' }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }
@@ -50,12 +60,19 @@ export async function DELETE(req: Request) {
   const provider = searchParams.get('provider')
   if (!provider) return NextResponse.json({ error: 'provider is required.' }, { status: 400 })
 
-  const { error } = await supabase
-    .from('user_api_keys')
-    .delete()
-    .eq('account_id', user.id)
-    .eq('provider', provider)
+  // SEC-005: la RPC borra fila + secret en Vault (borrar solo la fila dejaría el
+  // secret vivo y huérfano). Fallback al delete legacy si la 026 no está aplicada.
+  const { error: rpcError } = await supabase.rpc('delete_provider_key', {
+    p_provider: provider,
+  })
+  if (rpcError) {
+    const { error } = await supabase
+      .from('user_api_keys')
+      .delete()
+      .eq('account_id', user.id)
+      .eq('provider', provider)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-11 (Error Handling 1 — ERR-003 cerrado; ERR-001/002 abiertos)
+Last updated: 2026-06-12 (SEC-005 Vault — migración 026 creada; aplicación manual y backfill pendientes)
 
 ---
 
@@ -163,6 +163,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | 023_token_usage.sql | ✅ Applied — 2026-06-10, manually via Supabase SQL Editor |
 | 024_token_usage_capture_method.sql | ✅ Applied — 2026-06-10, manually via Supabase SQL Editor |
 | 025_workspaces_update_policy.sql | ✅ Applied — 2026-06-11, manually via Supabase SQL Editor (SEC-007) |
+| 026_vault_api_keys.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor inmediatamente después del deploy (SEC-005); luego backfill manual (SQL en handoff.md 2026-06-12) |
 
 ---
 
@@ -210,6 +211,21 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 - Error visible accionable: "The response was interrupted. Your message has been saved." (solo con tokens parciales reales; los 400/429 conservan su mensaje)
 - Pendientes: ERR-001 (Anthropic lazy stream init — errores pre-token inconsistentes) y ERR-002 (sin try/catch en for await de providers — sin log server-side), ambos zona providers, OEs dedicadas
 - SMPanel fuera de scope (efímero, no persiste mensajes)
+
+---
+
+## SEC-005 / API key encryption (2026-06-12)
+
+- Supabase Vault habilitado (pgsodium 3.1.8, supabase_vault 0.3.1) y soportado
+- Migración 026 creada en repo — ⏳ aplicación manual pendiente
+- `user_api_keys` y `user_custom_providers` preparados con `vault_secret_id`/`key_last4`
+- Nuevas escrituras van a Vault vía RPCs SECURITY DEFINER (set/get/delete × 2 tablas)
+- Runtime lee Vault primero, plaintext legacy como fallback (dual-read)
+- GET settings muestra `key_last4` — nunca la API key real
+- DELETE borra fila + secret en Vault (sin secrets huérfanos)
+- ⚠️ Ventana conocida: guardar keys nuevas da 500 hasta aplicar la 026 (deliberado — sin fallback plaintext)
+- Backfill manual pendiente (SQL en handoff.md 2026-06-12)
+- Limpieza de plaintext legacy → fase posterior, tras validar Vault-first en producción
 
 ---
 

@@ -283,3 +283,21 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Razón:** AISync es una capa de control y trazabilidad. Con la persistencia acoplada a un único punto de éxito posterior al stream, cualquier interrupción eliminaba tanto la acción humana como la respuesta parcial (ERR-003).
 - **Detalles:** la persistencia previa es fail-open (si falla, el chat continúa y se loguea). El marcador de interrupción va en el content (la tabla `messages` no tiene columna de flags y el schema está congelado) — así sobrevive en checkpoints y handoffs, coherente con trazabilidad. Los errores pre-stream (400 sin key, 429) conservan su mensaje accionable — el texto "interrupted" solo aparece cuando hubo tokens parciales reales.
 - **Estado:** Accepted / Implemented for AgentPanel. SMPanel fuera de scope (no persiste mensajes).
+
+---
+
+## 2026-06-12 — API keys cifradas con Supabase Vault vía RPCs SECURITY DEFINER
+
+- **Decisión:** Las API keys BYOK y de custom providers se almacenan en Supabase Vault. Las tablas `user_api_keys` y `user_custom_providers` conservan solo metadata no sensible (`vault_secret_id`, `key_last4`). Toda escritura/lectura/borrado de secrets pasa por RPCs `SECURITY DEFINER` que validan `auth.uid()` (migración 026).
+- **Razón:** Plaintext en tablas de aplicación expone todas las keys de todos los clientes ante acceso a la base, leak de service role o backup filtrado (SEC-005). Vault aísla los secrets y las RPCs encapsulan el privilegio de descifrado en funciones auditadas — sin exponer service role al cliente.
+- **Detalles:** el enmascarado de settings sale de `key_last4` (los GET nunca tocan Vault ni devuelven la key); solo `resolveProviderApiKey` descifra, en runtime. El DELETE borra fila + secret (sin huérfanos). Los nombres de provider se conservan con su case original — `lower()` solo en nombres de secret.
+- **Estado:** Accepted / Implemented in repo — migración y backfill manuales pendientes.
+
+---
+
+## 2026-06-12 — Dual-read hasta completar backfill
+
+- **Decisión:** `resolveProviderApiKey` lee Vault primero y cae a `api_key` plaintext legacy. Los GET de settings calculan last4 desde `key_last4` con fallback a la columna legacy. El fallback no se elimina hasta validar que todas las filas tienen `vault_secret_id`.
+- **Razón:** Ignorar el plaintext inmediatamente rompería BYOK para toda key existente antes del backfill. `supabase.rpc()` no lanza ante función inexistente, así que el código dual-read es deployable incluso antes de aplicar la migración.
+- **Ventana aceptada:** guardar keys nuevas falla con 500 entre el deploy y la aplicación manual de la 026 — sin fallback plaintext deliberadamente (una key nueva nunca más toca plaintext).
+- **Estado:** Accepted.

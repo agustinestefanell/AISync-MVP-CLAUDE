@@ -44,13 +44,15 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Resolución sugerida:** Decisión de producto en `DECISIONS.md`: qué tablas son inmutables por diseño y cuáles necesitan políticas UPDATE/DELETE para el dueño.
 - **Estado:** OPEN.
 
-### SEC-005 🟡 OPEN — API keys en texto plano en DB
+### SEC-005 🟡 CLOSED (repo) — API keys en texto plano en DB
 
 - **Descripción:** `user_api_keys.api_key` y `user_custom_providers.api_key` se guardan sin cifrar (`settings/keys/route.ts` hace upsert de `key.trim()` directo). La RLS protege el acceso vía API, pero cualquiera con acceso a la base las lee completas: dashboard de Supabase, leak de la service role key o un backup filtrado expondrían todas las API keys de todos los clientes — credenciales de pago de terceros (Anthropic, OpenAI, Google).
 - **Lo que SÍ está bien:** la exposición vía API está correctamente manejada — GET `/api/settings/keys` y `/api/settings/providers` devuelven solo versión enmascarada (últimos 4 caracteres); la key real nunca viaja al cliente. En runtime (`chat`, `sm-doc-chat`) se lee server-side con doble filtro (`account_id` + RLS) y no se devuelve en la respuesta.
-- **Mitigación futura:** Supabase Vault (o cifrado a nivel aplicación).
-- **Decisión pendiente:** riesgo aceptado para beta vs. cifrado antes de usuarios reales.
-- **Estado:** OPEN.
+- **Decisión tomada (2026-06-12):** Supabase Vault con RPCs `SECURITY DEFINER` + transición dual-read. Vault habilitado en el proyecto (pgsodium 3.1.8, supabase_vault 0.3.1).
+- **Resolución aplicada:** Migración `026_vault_api_keys.sql` — columnas `vault_secret_id`/`key_last4` en ambas tablas + 6 RPCs `SECURITY DEFINER` (set/get/delete por tabla) que validan `auth.uid()`, usan `vault.create_secret()`/`vault.update_secret()` y revocan EXECUTE de PUBLIC. Las settings routes escriben vía RPC (nunca más plaintext nuevo; el delete borra fila + secret para no dejar secrets huérfanos). Los GET enmascaran desde `key_last4` (fallback transicional a `api_key` legacy solo para calcular last4 — nunca devuelven la key). `resolveProviderApiKey` lee Vault primero y cae a plaintext legacy; como `supabase.rpc()` no lanza ante función inexistente, el código es deployable antes de aplicar la migración.
+- **Estado operativo:** migración creada en repo — **aplicación manual pendiente** (Dashboard → SQL Editor); **backfill manual pendiente** (SQL en handoff.md 2026-06-12); limpieza de plaintext legacy en fase posterior, tras validar runtime Vault-first.
+- **Ventana conocida:** entre el deploy de este commit y la aplicación manual de la 026, guardar keys nuevas devuelve 500 (sin fallback plaintext, deliberado). Lecturas y chat no se afectan (dual-read). Aplicar la migración inmediatamente después del deploy.
+- **Estado:** CLOSED (repo) — commit `feat: encrypt api keys with supabase vault (SEC-005)` (2026-06-12). Cierre operativo total al completar migración + backfill.
 
 ### SEC-006 🟡 OPEN — Fallback a ENV_KEYS de plataforma activo en producción
 
