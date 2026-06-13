@@ -5,7 +5,51 @@ Registro canónico acumulativo de decisiones importantes, estados cerrados, hall
 
 ---
 
-## Sesión 2026-06-13 — Mini OE: 3 fixes post OE-A Scope Isolated Team
+## Sesión 2026-06-13 — Fix crítico: scope_isolated_workspace_id para navegación cross-account
+
+**Fecha:** 2026-06-13
+**Archivos modificados:**
+- supabase/migrations/029_isolated_workspace_id.sql (nueva migración)
+- src/app/api/connections/[id]/route.ts
+- src/app/api/connections/route.ts
+- src/components/teams/ConnectTeamModal.tsx (Connection interface)
+- src/components/ProjectList.tsx
+
+**Problema detectado:**
+El invitado no podía navegar al workspace del isolated team. El botón "Open →" en Connected Teams dashboard redirigía a `/teams` en lugar del workspace compartido.
+
+**Causa raíz:**
+RLS en tabla `teams` bloquea SELECT cross-account. El isolated team está en la cuenta del anfitrión. Cuando el invitado hace GET /api/connections, el join a `scope_isolated_team:scope_isolated_team_id(workspaces(id))` retorna `null` porque RLS impide ver teams de otra cuenta.
+
+**Decisión técnica:**
+Opción C — Persistir `scope_isolated_workspace_id` directamente en `team_connections`:
+- Más simple que admin client en GET
+- Más robusta que nueva policy RLS compleja
+- workspace_id se llena en el mismo momento que se crea el isolated team
+- No requiere joins cross-account
+
+**Solución implementada:**
+1. Migración 029: `ALTER TABLE team_connections ADD COLUMN scope_isolated_workspace_id uuid REFERENCES workspaces(id)`
+2. Accept flow: UPDATE workspace_id junto con team_id al crear isolated team
+3. GET /api/connections: SELECT incluye `scope_isolated_workspace_id` directamente
+4. ProjectList.tsx: usar workspace_id directo como fuente primaria, join como fallback legacy
+
+**Alternativas descartadas:**
+- Opción A: Admin client en GET /api/connections — agrega complejidad innecesaria
+- Opción B: Policy RLS para isolated teams via connections — difícil de mantener
+
+**Riesgos conocidos:**
+- Conexiones creadas antes de migración 029 tienen `scope_isolated_workspace_id = null` → fallback a join funciona para anfitrión
+- Migración es additive (ADD COLUMN IF NOT EXISTS) — safe para rolling deployments
+
+**Estado:** CERRADA. Migración 029 aplicada en Supabase 2026-06-13. Build exitoso. Commits: c210c78, cfc8960.
+
+**Lección clave:**
+Cuando dos cuentas comparten una referencia, persistir los IDs necesarios directamente en la tabla de conexión. No asumir que joins cross-account funcionan bajo RLS de usuario.
+
+---
+
+## Sesión 2026-06-13 — Mini OE: 3 fixes post OE-A Scope Isolated Team (ACTUALIZACIÓN)
 
 **Fecha:** 2026-06-13
 **Archivos modificados:**
@@ -21,7 +65,13 @@ Fix 3 requería modificación de backend para hacer receiver_team_id opcional en
 
 **Fixes implementados:**
 1. ✅ Isolated team card badge — fondo negro (#000000) con letras blancas (#ffffff)
+   - **CORRECCIÓN:** Badge se aplicó inicialmente en `AgentCard.tsx` (componente no usado)
+   - Fix real aplicado en `TeamAgentCard.tsx` línea 227 + tag array línea 327
+   - Commit d9c937e — fix: apply shared session badge to correct TeamAgentCard component
 2. ✅ "Open →" en Connected Teams dashboard — navega a workspace del isolated team cuando existe
+   - **CORRECCIÓN:** Join cross-account bloqueado por RLS para invitado
+   - Fix real requirió migración 029 (`scope_isolated_workspace_id`)
+   - Ver entrada separada "Fix crítico: scope_isolated_workspace_id"
 3. ✅ Modal accept invitado — selector de team eliminado, mensaje automático "A shared workspace will be created automatically when you accept"
 
 **Cambios de backend (Fix 3):**
@@ -35,9 +85,10 @@ Fix 3 requería modificación de backend para hacer receiver_team_id opcional en
   - Mini OE más eficiente que OE formal para esta corrección
 
 **Riesgos conocidos:**
-- Ninguno. Los 3 fixes son compatibles hacia atrás (isolated teams ya existentes siguen funcionando).
+- Fix 1 aplicado al componente equivocado inicialmente (AgentCard vs TeamAgentCard)
+- Fix 2 requirió corrección arquitectural profunda (workspace_id directo)
 
-**Estado:** CERRADA. Build exitoso. Pendiente commit y push.
+**Estado:** CERRADA. Todos los fixes completados con correcciones. Commits: ad81b41 (inicial), d9c937e (badge correcto), c210c78 (workspace_id).
 
 ---
 
