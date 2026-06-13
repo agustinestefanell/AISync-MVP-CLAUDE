@@ -70,7 +70,9 @@ export default function AgentCard({ node, onOpen, onEdit }: Props) {
               style={{ borderColor, backgroundColor: soft }}
             >
               <div className="text-[10px] uppercase tracking-[0.16em] font-semibold" style={{ color: ribbon }}>Team Type</div>
-              <div className="mt-1.5 text-[13px] font-semibold text-neutral-900">{teamType}</div>
+              <div className="mt-1.5 text-[13px] font-semibold text-neutral-900">
+                {teamType === 'isolated' ? 'Shared Session' : teamType}
+              </div>
               {connected && <div className="mt-0.5 text-[11px] text-emerald-600">Connected</div>}
             </div>
           </div>
@@ -159,12 +161,12 @@ export default function AgentCard({ node, onOpen, onEdit }: Props) {
           <span
             className="rounded-full border px-2 py-1 text-[10px] font-semibold"
             style={{
-              color:      teamType === 'SAT' ? '#0f766e' : '#7c3aed',
-              background: teamType === 'SAT' ? 'rgba(15,118,110,0.10)' : 'rgba(124,58,237,0.10)',
-              borderColor: teamType === 'SAT' ? 'rgba(15,118,110,0.25)' : 'rgba(124,58,237,0.25)',
+              color:      teamType === 'SAT' ? '#0f766e' : teamType === 'isolated' ? '#c2410c' : '#7c3aed',
+              background: teamType === 'SAT' ? 'rgba(15,118,110,0.10)' : teamType === 'isolated' ? 'rgba(194,65,12,0.10)' : 'rgba(124,58,237,0.10)',
+              borderColor: teamType === 'SAT' ? 'rgba(15,118,110,0.25)' : teamType === 'isolated' ? 'rgba(194,65,12,0.25)' : 'rgba(124,58,237,0.25)',
             }}
           >
-            {teamType}
+            {teamType === 'isolated' ? 'Shared Session' : teamType}
           </span>
           {connected && (
             <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700">

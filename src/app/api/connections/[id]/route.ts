@@ -59,6 +59,95 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // OE A: Create Scope Isolated Team (fail-open — accept must succeed even if this fails)
+    try {
+      // Check if isolated team already exists (prevent duplicates on retry)
+      if (!data.scope_isolated_team_id) {
+        // Fetch full connection data to get requester info
+        const { data: fullConnection } = await supabase
+          .from('team_connections')
+          .select('requester_account_id, requester_team_id, requester_team_name, receiver_email')
+          .eq('id', params.id)
+          .single()
+
+        if (fullConnection) {
+          // Fetch requester team to get project_id and default provider/model
+          const { data: requesterTeam } = await supabase
+            .from('teams')
+            .select('project_id, workspaces(agent_sessions(provider, model))')
+            .eq('id', fullConnection.requester_team_id)
+            .single()
+
+          if (requesterTeam) {
+            // Get provider/model from requester team's first agent_session
+            const firstSession = requesterTeam.workspaces?.[0]?.agent_sessions?.[0]
+            const defaultProvider = firstSession?.provider || 'Anthropic'
+            const defaultModel = firstSession?.model || 'Claude 3.5 Sonnet'
+
+            // Create isolated team
+            const isolatedTeamName = `Shared: ${fullConnection.requester_team_name} ↔ ${fullConnection.receiver_email}`
+            const { data: isolatedTeam } = await supabase
+              .from('teams')
+              .insert({
+                project_id: requesterTeam.project_id,
+                name: isolatedTeamName,
+                type: 'isolated',
+                parent_id: null,
+                description: `Shared workspace with ${fullConnection.receiver_email}`,
+              })
+              .select()
+              .single()
+
+            if (isolatedTeam) {
+              // Create workspace
+              const { data: isolatedWorkspace } = await supabase
+                .from('workspaces')
+                .insert({
+                  team_id: isolatedTeam.id,
+                  name: `Workspace ${isolatedTeamName}`,
+                })
+                .select()
+                .single()
+
+              if (isolatedWorkspace) {
+                // Create 3 agent_sessions (manager, worker1, worker2)
+                await supabase.from('agent_sessions').insert([
+                  {
+                    workspace_id: isolatedWorkspace.id,
+                    agent_role: 'manager',
+                    provider: defaultProvider,
+                    model: defaultModel,
+                  },
+                  {
+                    workspace_id: isolatedWorkspace.id,
+                    agent_role: 'worker1',
+                    provider: defaultProvider,
+                    model: defaultModel,
+                  },
+                  {
+                    workspace_id: isolatedWorkspace.id,
+                    agent_role: 'worker2',
+                    provider: defaultProvider,
+                    model: defaultModel,
+                  },
+                ])
+
+                // Link isolated team to connection
+                await supabase
+                  .from('team_connections')
+                  .update({ scope_isolated_team_id: isolatedTeam.id })
+                  .eq('id', params.id)
+              }
+            }
+          }
+        }
+      }
+    } catch (isolatedTeamError) {
+      // Fail-open: log error but don't block accept
+      console.error('[accept] Failed to create Scope Isolated Team:', isolatedTeamError)
+    }
+
     return NextResponse.json({ ...data, direction: 'incoming' })
   }
 

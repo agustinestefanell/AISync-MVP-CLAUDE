@@ -847,3 +847,97 @@ AISync usa Supabase Vault para las API keys BYOK y de custom providers. `user_ap
 ### Active Project Architecture (ARC-004)
 
 AISync persiste el proyecto activo en `accounts.active_project_id` (migración 027). La mutación pasa por la RPC `set_active_project` con ownership check (`projects.account_id = auth.uid()` + `status = 'active'`). La lectura centralizada vive en `getActiveProjectId()` (`src/lib/db/teams.ts`): valida la selección persistida y cae al primer proyecto activo si es null, borrada o inactiva — "el primero" es solo fallback, nunca arquitectura principal. `active-workspace` y toda superficie multi-proyecto deben consumir este helper en vez de duplicar lógica. La API client-side es `GET/PATCH /api/projects/active` (GET devuelve `{ projectId, projects }` para selectores de UI). Nota operativa: la lectura usa cliente de usuario sobre `accounts` — si el switch nunca persiste, verificar la recursión RLS de SEC-002.
+
+---
+
+## Connected Teams — Shared Workspace Architecture
+**Decisión tomada:** Semana 7, sesión 2026-06-13
+**Estado:** Diseño aprobado, pendiente de implementación
+
+### Modelo conceptual
+El modelo es "sesión anfitrión": Usuario 1 (anfitrión) crea un workspace compartido 
+dentro de su propia cuenta. Usuario 2 (invitado) entra a ese workspace específico 
+a través de la dinámica de Connected Teams. Al finalizar, el workspace queda en la 
+cuenta del anfitrión. El invitado no tiene acceso a ningún otro team o workspace 
+del anfitrión.
+
+### Flujo de conexión
+1. El anfitrión presiona "Connect Team"
+2. AISync crea automáticamente un Scope Isolated Team (visualmente distinto 
+   al resto de los teams) y envía la invitación al invitado
+3. El invitado recibe la invitación (mismo flujo actual de Connected Teams)
+4. El invitado acepta la invitación y accede al Scope Isolated Team
+5. El anfitrión recibe notificación de que la invitación fue aceptada
+
+A partir del paso 3, el flujo es idéntico al sistema de Connected Teams actual.
+
+### Scope Isolated Team
+- Es un tipo de workspace nuevo, creado automáticamente por AISync
+- Visualmente distinto al resto de los teams del anfitrión
+- Aislado por diseño: el invitado NO puede ver otros teams o workspaces 
+  del anfitrión desde este scope
+- NO se usa un workspace existente del anfitrión (evita vulnerabilidades 
+  de scope)
+- Al desconectar: el team NO se borra — el anfitrión tiene opción de 
+  archivarlo
+
+### 3 paneles del workspace compartido
+- Panel 1: Agente ↔ Usuario 1 (anfitrión)
+- Panel 2: Mismo agente ↔ Usuario 2 (invitado)  
+- Panel 3: Chat libre Usuario 1 ↔ Usuario 2 (sin IA)
+
+El agente recibe snapshot de los 3 paneles (extensión del mecanismo SAT existente).
+
+### Gobernanza y trazabilidad cross-cell
+**Nota 1 — Metadata package:**
+El anfitrión tiene la opción de enviar un paquete de metadata al invitado
+para su Doc Mode y Audit Log.
+
+**Nota 2 — Registro en Doc Mode del invitado:**
+Doc Mode del invitado registra la conexión y el usuario que lo invitó,
+independientemente de si se recibe metadata.
+
+**Nota 3 — Datos de trazabilidad ausentes:**
+Si el anfitrión NO envía el paquete de metadata, el evento en Doc Mode 
+del invitado mostrará en los detalles:
+"Datos de trazabilidad ausentes. Están en cuenta de [Usuario]."
+Esto preserva la trazabilidad sin forzar al anfitrión a compartir.
+
+**Nota 4 — Send Checkpoint al invitado:**
+En Doc Mode del anfitrión, cada checkpoint de una sesión compartida tiene 
+la opción "Send Checkpoint to [Usuario]".
+El invitado recibe el checkpoint en su Doc Mode con trazabilidad completa.
+Si el checkpoint NO es enviado, aplica la misma regla de Nota 3:
+"Datos de trazabilidad ausentes. Están en cuenta de [Usuario]."
+
+### Arquitectura técnica
+- Base: mecanismo SAT existente (buildOtherPanelsSnapshot + Capa 4 del prompt stack)
+- Sincronización cross-browser: Supabase Realtime
+- Persistencia: nueva tabla cross_cell_messages con RLS por connection_id
+- Aislamiento: RLS estricto — el invitado solo accede al workspace compartido
+- Control: el anfitrión puede cerrar la sesión en cualquier momento
+
+### Gaps a implementar
+1. Migración nueva: tabla cross_cell_messages (RLS por connection_id)
+2. Supabase Realtime en WorkspaceShell para sincronización cross-browser
+3. Refactor de buildOtherPanelsSnapshot para leer desde DB además de panelRefs
+4. Modificación de /api/chat para construir snapshot cross-cell desde DB
+5. UI: Panel 3 como canal humano persistido
+6. Flujo de invitación: U2 recibe notificación dentro de Connected Teams
+7. Creación automática de Scope Isolated Team en POST /api/connections
+8. UI para envío opcional de metadata package (anfitrión → invitado)
+9. Registro de conexión en Doc Mode del invitado con fallback a "datos ausentes"
+
+### Restricciones de diseño
+- El invitado DEBE tener cuenta AISync — no hay acceso por link anónimo
+- El workspace compartido es propiedad del anfitrión
+- El invitado no puede ver otros teams o workspaces del anfitrión
+- Todo ocurre dentro de la infraestructura de Connected Teams existente
+- Invitados sin cuenta AISync: descartado para MVP y fases futuras cercanas
+
+### Infraestructura existente reutilizable
+- team_connections (migración 008): tabla base para verificar conexión válida
+- Patrón ownership check cross-account (SEC-008): establecido y funcional
+- Rate limiting por route: ya aplicado
+- resolveApiKey centralizado: funcional
+- SAT snapshot mechanism: reutilizable con extensión para DB

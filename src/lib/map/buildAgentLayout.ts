@@ -12,7 +12,7 @@ export interface MapAgentNode {
   workspaceId: string
   teamId: string
   teamName: string
-  teamType: 'SAT' | 'MAT'
+  teamType: 'SAT' | 'MAT' | 'isolated'
   teamDescription: string | null
   parentId: string | null
   ribbon: string

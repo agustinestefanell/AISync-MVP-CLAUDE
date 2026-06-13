@@ -11,7 +11,7 @@ export interface AgentNode {
   teamId: string
   teamName: string
   teamParentId: string | null
-  teamType: 'SAT' | 'MAT'
+  teamType: 'SAT' | 'MAT' | 'isolated'
   teamDescription: string | null
   projectId: string
 }

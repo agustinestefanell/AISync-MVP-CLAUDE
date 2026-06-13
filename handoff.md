@@ -5,6 +5,71 @@ Registro canónico acumulativo de decisiones importantes, estados cerrados, hall
 
 ---
 
+## Sesión 2026-06-13 — Diseño Connected Teams Shared Workspace
+
+**Decisiones tomadas:**
+- SM↔SM cross-cell confirmado como ghost feature (sin backend)
+- Diseño aprobado: Shared Workspace (Sesión Anfitrión) como canal operativo
+- 3 paneles: Agente↔U1 / Agente↔U2 / Chat libre U1↔U2
+- Sincronización via Supabase Realtime
+- Invitados sin cuenta AISync: descartado
+
+**Archivos que se modificarán cuando se implemente:**
+- WorkspaceShell.tsx (Supabase Realtime + buildOtherPanelsSnapshot cross-cell)
+- /api/chat/route.ts (snapshot desde DB para paneles cross-cell)
+- Nueva migración: cross_cell_messages
+- Connected Teams UI (flujo de invitación)
+
+**Estado:** Diseño documentado. Implementación pendiente de OE formal.
+**Próximo paso:** OE formal para implementación — requiere Fable 5.
+
+---
+
+## Sesión 2026-06-13 — OE A: Scope Isolated Team — Fundación de Shared Workspace
+
+**Cambio realizado:**
+OE A Scope Isolated Team implementada. Al aceptar una conexión de Connected Teams, el sistema crea automáticamente un team `type='isolated'` en la cuenta del anfitrión, con workspace y 3 agent_sessions preconfiguradas (`manager`, `worker1`, `worker2`). `team_connections.scope_isolated_team_id` referencia el team creado. Teams Map muestra badge "Shared Session" en color naranja distintivo.
+
+**Archivos modificados:**
+- `supabase/migrations/028_scope_isolated_team.sql` — nueva migración con constraint `teams_type_check` extendido, columna `scope_isolated_team_id`, y 2 RLS policies para lectura del workspace aislado
+- `src/app/api/connections/[id]/route.ts` — accept flow crea Scope Isolated Team (fail-open con try/catch)
+- `src/components/teams/map/AgentCard.tsx` — badge "Shared Session" para `type === 'isolated'`
+- `src/lib/map/buildAgentLayout.ts` — tipo `MapAgentNode.teamType` extendido
+- `src/lib/db/agent-map.ts` — tipo `AgentNode.teamType` extendido
+
+**Decisión técnica:**
+Creación del Scope Isolated Team ocurre DESPUÉS del UPDATE a `active` en el accept flow, implementado como fail-open — si la creación falla, el accept no se revierte. Provider/model se resuelven desde las `agent_sessions` del `requester_team`; si no puede resolverse, usa defaults `Anthropic` / `Claude 3.5 Sonnet`. Protección contra duplicados: verifica `scope_isolated_team_id` antes de crear.
+
+**Alternativas descartadas:**
+- Creación del isolated team ANTES del accept — descartado porque bloquearía el accept si falla la creación
+- Usar un workspace existente del anfitrión — descartado por riesgo de vulnerabilidad de scope
+- Defaults desde código duro — descartado, se resuelven desde el requester team
+
+**Alcance:**
+Fundación de Shared Workspace para Connected Teams (OE A de 3). No incluye Supabase Realtime, sincronización cross-browser, Panel 3 funcional, ni pantalla de bienvenida (pendientes para OE B).
+
+**Restricciones respetadas:**
+No se modificaron reject, disconnect, WorkspaceShell, /api/chat, providers, streaming ni estructura existente de agent_sessions.
+
+**Validación:**
+- ✅ Migration 028 creada — pendiente de aplicación manual en Supabase
+- ✅ Accept flow preserva verificaciones de receiver
+- ✅ UPDATE a `active` se ejecuta primero
+- ✅ Isolated team se crea después (fail-open)
+- ✅ Teams Map badge "Shared Session" implementado
+- ✅ Build exitoso sin errores
+
+**Riesgos conocidos / deuda técnica:**
+- Migration 028 NO aplicada en Supabase — funcionalidad completa requiere ejecución manual del SQL
+- RLS policy para invitee depende de migración aplicada
+- Panel 3 como chat U1↔U2 no está funcional (solo estructura de agent_sessions)
+- Sincronización cross-browser pendiente de OE B (Supabase Realtime)
+
+**Próximo paso:**
+Aplicar migration 028 en Supabase Dashboard → SQL Editor, luego validar accept flow en producción.
+
+---
+
 ## [2026-05-17 ~11:00] — GAP_BETWEEN_ROOT_TREES no tiene efecto visual aparente
 
 ### Contexto

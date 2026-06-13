@@ -310,3 +310,29 @@ Fecha usada como fecha de registro documental, no como fecha original de decisi�
 - **Razón:** Multi-proyecto no puede depender de elegir siempre el primer proyecto (ARC-004). El proyecto activo es estado del producto por usuario — debe sobrevivir reloads y dispositivos, y tener ownership check server-side. Se eligió columna en DB sobre cookie/localStorage por coherencia con la filosofía control-layer (estado auditable, no preferencia de navegador).
 - **Detalles:** `ON DELETE SET NULL` en la FK — borrar el proyecto activo degrada limpio al fallback. `active-workspace` consume el helper en vez de duplicar la lógica. El Dashboard activa por botón explícito "Set active" (no click en card — las cards tienen Links anidados y el click-card garantizaba activaciones accidentales).
 - **Estado:** Accepted / Implemented in repo — migración 027 manual pendiente.
+
+---
+
+## DEC-XXX — Connected Teams: Shared Workspace como canal operativo cross-cell
+**Fecha:** 2026-06-13
+**Estado:** Aprobado
+**Área:** Producto + Arquitectura
+
+**Decisión:**
+El canal operativo entre teams conectados se implementa como "Shared Workspace 
+(Sesión Anfitrión)": un workspace en la cuenta del anfitrión al que el invitado 
+accede con scope aislado, sincronizado via Supabase Realtime.
+
+**Razón:**
+- Evita sincronización bidireccional compleja entre cuentas
+- Mantiene ownership claro (workspace = propiedad del anfitrión)
+- Reutiliza mecanismo SAT existente
+- Alineado con modelo de célula soberana de AISync
+- Más seguro: el invitado opera dentro del perímetro del anfitrión, no en paralelo
+
+**Alternativas descartadas:**
+- Cross-cell messaging (tabla forward_messages): más complejo, sin ownership claro
+- Email via R&F (OpenClaude): descartado — infraestructura innecesaria
+- Invitados sin cuenta AISync: descartado — riesgo de seguridad
+
+**Impacto:** WorkspaceShell, /api/chat, nueva migración, Supabase Realtime

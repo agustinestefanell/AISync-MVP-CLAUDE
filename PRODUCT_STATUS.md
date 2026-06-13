@@ -165,6 +165,26 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | 025_workspaces_update_policy.sql | ✅ Applied — 2026-06-11, manually via Supabase SQL Editor (SEC-007) |
 | 026_vault_api_keys.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor inmediatamente después del deploy (SEC-005); luego backfill manual (SQL en handoff.md 2026-06-12) |
 | 027_active_project.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (ARC-004 Switch Project); su prueba post-aplicación verifica además SEC-002 |
+| 028_scope_isolated_team.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE A Scope Isolated Team); extiende constraint teams_type_check + agrega scope_isolated_team_id + RLS policies para invitee |
+
+---
+
+## Connected Teams — Shared Workspace (OE A — 2026-06-13)
+
+| Feature | Status | Notes |
+|---|---|---|
+| Scope Isolated Team creation on accept | ✅ Closed | Migration 028 + accept flow + Teams Map badge |
+| `team_connections.scope_isolated_team_id` | ✅ Closed | Links active connection to isolated team (FK to teams ON DELETE SET NULL) |
+| `teams.type` supports `'isolated'` | ✅ Closed | Constraint `teams_type_check` updated: `('SAT', 'MAT', 'isolated')` |
+| Isolated workspace RLS for invitee | ✅ Closed | Policy "Invitee can read isolated workspace" + "Invitee can read isolated agent_sessions" |
+| Teams Map badge "Shared Session" | ✅ Closed | Orange badge (`#c2410c`) for `type === 'isolated'` — GM and SM/Worker cards |
+| Accept creates team/workspace/3 sessions | ✅ Closed | Fail-open implementation — accept succeeds even if isolated team creation fails |
+| Provider/model resolution | ✅ Closed | Resolved from requester team's agent_sessions; defaults to Anthropic/Claude 3.5 Sonnet |
+| Duplicate protection | ✅ Closed | Checks `scope_isolated_team_id` before creating new isolated team |
+| Supabase Realtime sync | Pending | OE B — cross-browser synchronization |
+| Panel 3 functional (U1↔U2 chat) | Pending | OE B — human-to-human channel |
+| Welcome screen for shared workspace | Pending | OE B — onboarding UX |
+| Metadata package (host → invitee) | Pending | OE B — optional governance sharing |
 
 ---
 
