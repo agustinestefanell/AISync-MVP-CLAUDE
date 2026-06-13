@@ -178,3 +178,32 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 - **Commit:** `d9c937e` — fix: apply shared session badge to correct TeamAgentCard component
 
 - **Lección:** Antes de aplicar un fix visual, verificar cuál componente se renderiza realmente en producción. No asumir por nombre similar — usar grep del componente padre para confirmar import. Dos componentes con nombres similares en el mismo contexto (`AgentCard` vs `TeamAgentCard`) requieren verificación explícita de flujo de render. El fix "correcto" en el componente equivocado es invisible para el usuario.
+
+---
+
+### 8. scope_isolated_team join bloqueado por RLS para el invitado
+
+- **Problema:** El invitado no podía navegar al workspace del isolated team. ProjectList.tsx resolvía el workspaceId via join a `scope_isolated_team`, pero el botón "Open →" redirigía a `/teams` en lugar del workspace compartido.
+
+- **Causa raíz:** RLS en tabla `teams` solo permite `SELECT` a proyectos del propio account (`exists (select 1 from projects p where p.id = teams.project_id and p.account_id = auth.uid())`). El isolated team está en el proyecto del requester, no del receiver. Cuando el receiver hace GET /api/connections, el join a `scope_isolated_team:scope_isolated_team_id(workspaces(id))` es bloqueado por RLS — retorna `null` silenciosamente. El código asume que el join funciona para ambos lados.
+
+- **Consecuencia:** Feature no funcional para el invitado. El anfitrión puede abrir el workspace (el team está en su cuenta), pero el invitado ve botón "Open →" que lleva a `/teams` sin workspace compartido. Arquitectura cross-account sin considerar RLS ownership model.
+
+- **Proceso de solución:**
+  - Diagnóstico: el invitado no tiene `scope_isolated_team` en su cuenta, solo existe en la cuenta del anfitrión
+  - Inspección de RLS policies en `teams`: SELECT requiere ownership via projects
+  - Evaluación de 3 opciones:
+    - A: Admin client en GET (similar a OE A)
+    - B: Nueva policy RLS para isolated teams via connections (complejo)
+    - **C: Persistir workspace_id directamente en team_connections** (elegida)
+
+- **Solución final:**
+  - Migración 029: `ALTER TABLE team_connections ADD COLUMN scope_isolated_workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL`
+  - Accept flow: UPDATE `scope_isolated_workspace_id` al crear isolated team
+  - GET /api/connections: SELECT incluye `scope_isolated_workspace_id` directamente
+  - Connection interface: agregar campo `scope_isolated_workspace_id?: string | null`
+  - ProjectList.tsx: usar `scope_isolated_workspace_id` como fuente primaria, join como fallback para conexiones legacy
+
+- **Commit:** `c210c78` — fix: add scope_isolated_workspace_id to team_connections for cross-account nav
+
+- **Lección:** Cuando dos cuentas comparten una referencia, persistir los IDs necesarios directamente en la tabla de conexión. No asumir que joins cross-account funcionan bajo RLS de usuario — RLS ownership bloquea acceso a datos de otra cuenta incluso en queries de solo lectura. El patrón "desnormalizar para evitar RLS cross-account" es más robusto que admin client o policies complejas. Siempre considerar el lado receiver al diseñar features cross-account.
