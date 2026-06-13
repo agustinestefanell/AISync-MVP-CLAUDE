@@ -1069,3 +1069,38 @@ No existía estado persistido de proyecto activo por usuario. Además `active-wo
 
 ### Lección
 Todo estado de selección multi-entidad que afecta navegación o datos debe persistirse y centralizarse — elegir "el primero" es válido solo como fallback, no como arquitectura. Y una UI que muestra un badge de estado que el backend no modela es deuda disfrazada de feature: el ghost se detectó precisamente porque el badge decía "active" en todas las cards.
+
+---
+
+## Entrada #26 — Scope Isolated Team — INSERT bloqueado por RLS al usar cliente del receiver
+
+### Problema
+La creación del Scope Isolated Team fallaba silenciosamente en producción. `scope_isolated_team_id` quedaba NULL en `team_connections` después del accept. El isolated team nunca aparecía en Teams Map.
+
+### Causa raíz
+El INSERT del isolated team usaba el cliente Supabase del receiver (invitado). RLS en `teams` requiere que `projects.account_id = auth.uid()`. El `auth.uid()` era el receiver, pero el `project_id` del isolated team pertenecía al requester (anfitrión). El INSERT fallaba silenciosamente con 0 filas afectadas porque estaba dentro de un `try/catch` fail-open — diseñado para no bloquear el accept si la creación del isolated team falla, pero ocultando el bug real.
+
+### Consecuencia
+El isolated team nunca se creaba. El accept funcionaba correctamente (status = `'active'`, `receiver_team_id` asignado), pero el Scope Isolated Team no existía en DB ni en Teams Map. La feature parecía implementada pero no funcionaba.
+
+### Proceso de solución
+Diagnóstico en producción confirmó `scope_isolated_team_id = NULL` y ausencia de teams con `type = 'isolated'`. Inspección del código del accept flow mostró que todos los INSERTs y SELECTs del isolated team usaban `supabase` (cliente del usuario autenticado = receiver), no `createAdminClient()`. El patrón correcto ya existía en `connections/route.ts` (Gap 1, commit `013c2a0`) para el lookup cross-account del receiver. Se aplicó el mismo patrón: `createAdminClient()` para todos los INSERTs/SELECTs que cruzan ownership boundaries dentro del bloque try del isolated team.
+
+### Solución final
+En `src/app/api/connections/[id]/route.ts`, dentro del bloque try de creación del isolated team (líneas ~64-149):
+- `import { createAdminClient } from '@/lib/supabase/admin'`
+- Reemplazar `supabase` con `createAdminClient()` para:
+  1. SELECT de fullConnection (necesita leer datos del anfitrión)
+  2. SELECT de requesterTeam (necesita leer datos del anfitrión)
+  3. INSERT del isolated team en teams
+  4. INSERT del workspace
+  5. INSERT de agent_sessions
+  6. UPDATE de team_connections.scope_isolated_team_id
+
+El cliente `supabase` del usuario se mantiene para todo lo demás (receiver verification, UPDATE a `active`, `receiver_team_id`).
+
+### Commit
+`[pending]` — fix aplicado, pendiente de commit
+
+### Lección
+En flujos cross-account, identificar exactamente qué operaciones cruzan ownership boundaries **antes** de implementar. El fail-open es necesario para no bloquear el flujo principal, pero puede ocultar bugs críticos de RLS que no lanzan excepciones — solo afectan 0 filas y retornan éxito silencioso. Siempre verificar con SELECT en DB después de implementar features con try/catch. El patrón seguro para cross-account INSERTs ya existía en el mismo archivo — reutilizar patrones de seguridad existentes en lugar de inventar nuevos evita este tipo de bugs.

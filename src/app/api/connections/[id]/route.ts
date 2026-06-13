@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -65,15 +66,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       // Check if isolated team already exists (prevent duplicates on retry)
       if (!data.scope_isolated_team_id) {
         // Fetch full connection data to get requester info
-        const { data: fullConnection } = await supabase
+        const { data: fullConnection } = await createAdminClient()
           .from('team_connections')
           .select('requester_account_id, requester_team_id, requester_team_name, receiver_email')
           .eq('id', params.id)
           .single()
 
         if (fullConnection) {
-          // Fetch requester team to get project_id and default provider/model
-          const { data: requesterTeam } = await supabase
+          // Fetch requester team to get project_id and default provider/model (uses admin client to read requester's data)
+          const { data: requesterTeam } = await createAdminClient()
             .from('teams')
             .select('project_id, workspaces(agent_sessions(provider, model))')
             .eq('id', fullConnection.requester_team_id)
@@ -85,9 +86,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             const defaultProvider = firstSession?.provider || 'Anthropic'
             const defaultModel = firstSession?.model || 'Claude 3.5 Sonnet'
 
-            // Create isolated team
+            // Create isolated team (uses admin client to bypass RLS — team belongs to requester's project)
             const isolatedTeamName = `Shared: ${fullConnection.requester_team_name} ↔ ${fullConnection.receiver_email}`
-            const { data: isolatedTeam } = await supabase
+            const { data: isolatedTeam } = await createAdminClient()
               .from('teams')
               .insert({
                 project_id: requesterTeam.project_id,
@@ -100,8 +101,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
               .single()
 
             if (isolatedTeam) {
-              // Create workspace
-              const { data: isolatedWorkspace } = await supabase
+              // Create workspace (uses admin client)
+              const { data: isolatedWorkspace } = await createAdminClient()
                 .from('workspaces')
                 .insert({
                   team_id: isolatedTeam.id,
@@ -111,8 +112,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
                 .single()
 
               if (isolatedWorkspace) {
-                // Create 3 agent_sessions (manager, worker1, worker2)
-                await supabase.from('agent_sessions').insert([
+                // Create 3 agent_sessions (manager, worker1, worker2) (uses admin client)
+                await createAdminClient().from('agent_sessions').insert([
                   {
                     workspace_id: isolatedWorkspace.id,
                     agent_role: 'manager',
@@ -133,8 +134,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
                   },
                 ])
 
-                // Link isolated team to connection
-                await supabase
+                // Link isolated team to connection (uses admin client)
+                await createAdminClient()
                   .from('team_connections')
                   .update({ scope_isolated_team_id: isolatedTeam.id })
                   .eq('id', params.id)
