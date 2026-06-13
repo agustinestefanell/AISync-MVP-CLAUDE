@@ -26,6 +26,7 @@ export interface Connection {
   direction: 'outgoing' | 'incoming'
   created_at: string
   updated_at: string
+  scope_isolated_workspace_id?: string | null
   scope_isolated_team?: {
     workspaces: { id: string }[]
   } | null

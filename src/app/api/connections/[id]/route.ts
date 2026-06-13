@@ -132,10 +132,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
                   },
                 ])
 
-                // Link isolated team to connection (uses admin client)
+                // Link isolated team and workspace to connection (uses admin client)
                 await createAdminClient()
                   .from('team_connections')
-                  .update({ scope_isolated_team_id: isolatedTeam.id })
+                  .update({
+                    scope_isolated_team_id: isolatedTeam.id,
+                    scope_isolated_workspace_id: isolatedWorkspace.id,
+                  })
                   .eq('id', params.id)
               }
             }

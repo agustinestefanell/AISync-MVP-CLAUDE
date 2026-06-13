@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('team_connections')
-    .select('*, scope_isolated_team:scope_isolated_team_id(workspaces(id))')
+    .select('*, scope_isolated_workspace_id, scope_isolated_team:scope_isolated_team_id(workspaces(id))')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

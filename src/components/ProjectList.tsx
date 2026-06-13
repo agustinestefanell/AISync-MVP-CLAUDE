@@ -301,9 +301,11 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Link
                         href={
-                          c.scope_isolated_team?.workspaces?.[0]?.id
-                            ? `/workspace/${c.scope_isolated_team.workspaces[0].id}`
-                            : '/teams'
+                          c.scope_isolated_workspace_id
+                            ? `/workspace/${c.scope_isolated_workspace_id}`
+                            : c.scope_isolated_team?.workspaces?.[0]?.id
+                              ? `/workspace/${c.scope_isolated_team.workspaces[0].id}`
+                              : '/teams'
                         }
                         className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-2.5 py-1 rounded transition-colors"
                       >
