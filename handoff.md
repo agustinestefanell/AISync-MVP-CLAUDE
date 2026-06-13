@@ -5,6 +5,27 @@ Registro canónico acumulativo de decisiones importantes, estados cerrados, hall
 
 ---
 
+## Sesión 2026-06-13 — Cierre parcial OE A
+
+**Estado al cierre:**
+OE A funcional — Scope Isolated Team se crea correctamente al aceptar conexión.
+Bug de RLS resuelto (commit 022ca92) — admin client para creación cross-account.
+
+**5 fixes pendientes para próxima sesión:**
+
+MINI OE (arrancar por acá):
+1. Color card isolated — fondo negro, letras blancas
+2. "Open →" en dashboard Connected Teams — debe ir al workspace del isolated team, no a Teams Map
+3. Modal del invitado — eliminar selector de team al aceptar (el isolated team se crea automáticamente)
+
+OE B (Realtime — después de mini OE):
+4. Badge "1" en Requests — no aparece sin refresh
+5. Box de conexión en anfitrión — no aparece sin refresh después del accept
+
+**Próximo paso:** Mini OE con fixes 1, 2 y 3.
+
+---
+
 ## Sesión 2026-06-13 — Diseño Connected Teams Shared Workspace
 
 **Decisiones tomadas:**
