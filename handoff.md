@@ -5,6 +5,42 @@ Registro canónico acumulativo de decisiones importantes, estados cerrados, hall
 
 ---
 
+## Sesión 2026-06-13 — Mini OE: 3 fixes post OE-A Scope Isolated Team
+
+**Fecha:** 2026-06-13
+**Archivos modificados:**
+- src/components/teams/map/AgentCard.tsx
+- src/app/api/connections/route.ts
+- src/components/teams/ConnectTeamModal.tsx
+- src/components/ProjectList.tsx
+- src/app/api/connections/[id]/route.ts
+- src/components/teams/IncomingRequestsPanel.tsx
+
+**Decisión técnica:**
+Fix 3 requería modificación de backend para hacer receiver_team_id opcional en el flujo de accept. Decidido modificar backend en la misma Mini OE en lugar de crear nueva OE.
+
+**Fixes implementados:**
+1. ✅ Isolated team card badge — fondo negro (#000000) con letras blancas (#ffffff)
+2. ✅ "Open →" en Connected Teams dashboard — navega a workspace del isolated team cuando existe
+3. ✅ Modal accept invitado — selector de team eliminado, mensaje automático "A shared workspace will be created automatically when you accept"
+
+**Cambios de backend (Fix 3):**
+- Eliminada validación que requería receiver_team_id en PATCH accept
+- receiver_team_id ahora opcional en UPDATE team_connections
+- Lógica fail-open preservada (accept exitoso incluso si isolated team falla)
+
+**Alternativas descartadas:**
+- Fix 3 Opción B: nueva OE de diseño
+  - Descartada porque lógica simple y no cambia flujo core
+  - Mini OE más eficiente que OE formal para esta corrección
+
+**Riesgos conocidos:**
+- Ninguno. Los 3 fixes son compatibles hacia atrás (isolated teams ya existentes siguen funcionando).
+
+**Estado:** CERRADA. Build exitoso. Pendiente commit y push.
+
+---
+
 ## Sesión 2026-06-13 — Cierre parcial OE A
 
 **Estado al cierre:**

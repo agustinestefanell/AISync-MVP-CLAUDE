@@ -6,7 +6,7 @@ import type { Connection } from './ConnectTeamModal'
 
 interface IncomingRequestsPanelProps {
   connections: Connection[]
-  myTeams: TeamWithWorkspaces[]
+  myTeams: TeamWithWorkspaces[] // no longer used (isolated team is created automatically)
   onClose: () => void
   onAccepted: (updated: Connection) => void
   onRejected: (id: string) => void
@@ -21,7 +21,7 @@ function formatDate(iso: string) {
 
 export default function IncomingRequestsPanel({
   connections,
-  myTeams,
+  myTeams: _myTeams,
   onClose,
   onAccepted,
   onRejected,
@@ -30,14 +30,10 @@ export default function IncomingRequestsPanel({
   const active  = connections.filter(c => c.status === 'active'  && c.direction === 'incoming')
 
   const [acceptingId, setAcceptingId]   = useState<string | null>(null)
-  const [selectedTeam, setSelectedTeam] = useState<string>(myTeams[0]?.id ?? '')
   const [loading, setLoading]           = useState<string | null>(null)
   const [error, setError]               = useState('')
 
   async function handleAccept(conn: Connection) {
-    if (!selectedTeam) { setError('Select a team to accept.'); return }
-    const team = myTeams.find(t => t.id === selectedTeam)
-    if (!team) return
     setLoading(conn.id)
     setError('')
     try {
@@ -46,8 +42,6 @@ export default function IncomingRequestsPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'accept',
-          receiver_team_id:   team.id,
-          receiver_team_name: team.name,
         }),
       })
       if (!res.ok) {
@@ -123,14 +117,7 @@ export default function IncomingRequestsPanel({
 
               {acceptingId === conn.id ? (
                 <div className="space-y-2 pt-1 border-t border-gray-200">
-                  <p className="text-xs text-gray-500">Select your team for this connection:</p>
-                  <select
-                    value={selectedTeam}
-                    onChange={e => setSelectedTeam(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-indigo-500 transition-colors"
-                  >
-                    {myTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
+                  <p className="text-xs text-gray-500">A shared workspace will be created automatically when you accept.</p>
                   {error && <p className="text-xs text-red-400">{error}</p>}
                   <div className="flex gap-2">
                     <button

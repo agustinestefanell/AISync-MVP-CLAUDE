@@ -43,15 +43,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   if (body.action === 'accept') {
-    if (!body.receiver_team_id || !body.receiver_team_name) {
-      return NextResponse.json({ error: 'Please select a team to accept the connection.' }, { status: 400 })
-    }
+    // receiver_team_id is now optional — isolated team is created automatically
     const { data, error } = await supabase
       .from('team_connections')
       .update({
         receiver_account_id: user.id,
-        receiver_team_id:    body.receiver_team_id,
-        receiver_team_name:  body.receiver_team_name,
+        receiver_team_id:    body.receiver_team_id ?? null,
+        receiver_team_name:  body.receiver_team_name ?? null,
         status:              'active',
         updated_at:          new Date().toISOString(),
       })

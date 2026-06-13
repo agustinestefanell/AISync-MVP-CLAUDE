@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-12 (Switch Project ARC-004 — migración 027 creada; aplicación manual pendiente)
+Last updated: 2026-06-13 (Mini OE: 3 fixes post OE-A Scope Isolated Team — cerrada)
 
 ---
 
@@ -67,7 +67,8 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Connected Teams column | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | Layout `grid-cols-[1fr_360px]`. Consume `GET /api/connections` client-side, filtra `status === 'active'`. Muestra team name, partner email, badge outgoing/incoming, botón Open → `/teams`. Empty state "There are no connected teams yet." |
 | Connected Teams — + Connect button | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón `+ Connect` en header abre `ConnectTeamModal`. Re-fetch post-connect. |
 | ConnectTeamModal — team codes en dropdown | ✅ Closed | commit fix: show team codes in ConnectTeamModal host team dropdown | `computeTeamCodes` + `useMemo` + sort por código + `{code} · {name}`. Mismo patrón que `AddTeamModal`. |
-| Connected Teams — Requests panel | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón `Requests` con badge rojo (count incoming pendientes). Abre `IncomingRequestsPanel`. Accept con team selector. Reject. Re-fetch post-action. |
+| Connected Teams — Requests panel | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón `Requests` con badge rojo (count incoming pendientes). Abre `IncomingRequestsPanel`. Accept automático (isolated team creado por backend). Reject. Re-fetch post-action. |
+| **Connected Teams — Mini OE post OE-A fixes** | ✅ Closed | Mini OE 2026-06-13 | 3 fixes: (1) Isolated team card badge → fondo negro con letras blancas; (2) "Open →" en dashboard navega a workspace del isolated team cuando existe; (3) Modal accept invitado sin selector de team + mensaje informativo. Incluye modificación de backend para hacer receiver_team_id opcional. Ver handoff.md para detalle completo. |
 | Connected Teams — Disconnect | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón Disconnect inline → confirmación con email del partner → botón rojo confirm + Cancel. Usa `PATCH { action: 'reject' }` (no DELETE — solo para pending+requester). |
 | Connected Teams — IncomingRequestsPanel light mode | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | 7 clases dark reemplazadas: borders, títulos, emails, labels, select, botones Confirm/Accept/Reject todos en light tokens. |
 | API error strings — English | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | 5 strings en español en `connections/route.ts` y `connections/[id]/route.ts` traducidos al inglés. |

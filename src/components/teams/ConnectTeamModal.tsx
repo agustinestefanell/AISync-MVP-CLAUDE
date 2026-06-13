@@ -26,6 +26,9 @@ export interface Connection {
   direction: 'outgoing' | 'incoming'
   created_at: string
   updated_at: string
+  scope_isolated_team?: {
+    workspaces: { id: string }[]
+  } | null
 }
 
 export default function ConnectTeamModal({ teams, onClose, onConnected }: ConnectTeamModalProps) {

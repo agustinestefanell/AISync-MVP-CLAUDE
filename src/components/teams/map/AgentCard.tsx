@@ -161,9 +161,9 @@ export default function AgentCard({ node, onOpen, onEdit }: Props) {
           <span
             className="rounded-full border px-2 py-1 text-[10px] font-semibold"
             style={{
-              color:      teamType === 'SAT' ? '#0f766e' : teamType === 'isolated' ? '#c2410c' : '#7c3aed',
-              background: teamType === 'SAT' ? 'rgba(15,118,110,0.10)' : teamType === 'isolated' ? 'rgba(194,65,12,0.10)' : 'rgba(124,58,237,0.10)',
-              borderColor: teamType === 'SAT' ? 'rgba(15,118,110,0.25)' : teamType === 'isolated' ? 'rgba(194,65,12,0.25)' : 'rgba(124,58,237,0.25)',
+              color:      teamType === 'SAT' ? '#0f766e' : teamType === 'isolated' ? '#ffffff' : '#7c3aed',
+              background: teamType === 'SAT' ? 'rgba(15,118,110,0.10)' : teamType === 'isolated' ? '#000000' : 'rgba(124,58,237,0.10)',
+              borderColor: teamType === 'SAT' ? 'rgba(15,118,110,0.25)' : teamType === 'isolated' ? '#000000' : 'rgba(124,58,237,0.25)',
             }}
           >
             {teamType === 'isolated' ? 'Shared Session' : teamType}
