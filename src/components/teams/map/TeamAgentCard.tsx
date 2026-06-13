@@ -224,7 +224,16 @@ function GMCard({
           </div>
           <div>
             <div className="text-[8.5px] uppercase tracking-[0.16em] leading-[1.1] text-neutral-500">Team Type</div>
-            <div className="mt-0.5 text-[12px] font-semibold leading-[1.1] text-neutral-900">{node.teamType}</div>
+            <div
+              className="mt-0.5 text-[12px] font-semibold leading-[1.1]"
+              style={
+                node.teamType === 'isolated'
+                  ? { color: '#ffffff', background: '#000000', borderRadius: '4px', padding: '1px 6px' }
+                  : { color: '#1a1a1a' }
+              }
+            >
+              {node.teamType === 'isolated' ? 'Shared Session' : node.teamType}
+            </div>
             {node.connected
               ? <div className="text-[10px] leading-[1.1] text-emerald-600">Connected</div>
               : <div className="text-[10px] leading-[1.1] text-neutral-400">—</div>
@@ -315,7 +324,7 @@ export default function TeamAgentCard({ node, teamCode, nodeType, onOpen, onEdit
   const functionLabel = brief
     ? (isWorker ? 'Execution lane' : 'Team coordination and management')
     : (isWorker ? 'Execution lane' : 'Sub-team coordination')
-  const tags        = [node.provider, node.teamType]
+  const tags        = [node.provider, node.teamType === 'isolated' ? 'Shared Session' : node.teamType]
 
   return (
     <TreeWorkspaceCard
