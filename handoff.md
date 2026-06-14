@@ -41,7 +41,10 @@ Agregar metadata (description + color) a team_connections para personalizar Shar
 - Conexiones creadas antes de migración 030 tienen description=null y color=null. Frontend maneja nulls correctamente (no muestra description si falta, color default en backend).
 - Color custom desde connections no se propaga aún al card (usa negro default). Requiere refactor de data flow teams → connections → map (pendiente para extensión futura).
 
-**Estado:** CERRADA. Migración 030 aplicación manual pendiente. Build exitoso. Commit pendiente.
+**DEUDA TÉCNICA — Color custom no propaga al mapa:**
+El color elegido en ConnectTeamModal se persiste en team_connections pero no llega a TeamAgentCard. El card isolated usa #000000 siempre. Para propagar el color se necesita extender: team_connections → agent-map.ts → buildAgentLayout.ts → TeamAgentCard. Esta extensión requiere join entre teams e isolated connections en la query del mapa. Pendiente para post-MVP o cuando haya múltiples colores activos que justifiquen el refactor.
+
+**Estado:** CERRADA. Migración 030 aplicación manual pendiente. Build exitoso. Commit cc3ff6e pushed.
 
 **Lección clave:**
 Metadata de conexión (description/color) vive en team_connections, no en teams. Para propagar a Teams Map se requiere join connections + teams + agent layout, agregando complejidad. Usar defaults visuales permite feature funcional sin refactor profundo de data flow.
