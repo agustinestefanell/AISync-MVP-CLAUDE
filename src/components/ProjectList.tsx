@@ -290,6 +290,9 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{teamName}</p>
                       <p className="text-xs text-gray-400 truncate">{partnerEmail}</p>
+                      {c.description && (
+                        <p className="text-xs text-gray-500 mt-1 italic">{c.description}</p>
+                      )}
                       <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full border ${
                         c.direction === 'outgoing'
                           ? 'text-blue-700 bg-blue-50 border-blue-200'

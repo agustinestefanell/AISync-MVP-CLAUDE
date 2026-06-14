@@ -1,8 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
-import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 
 interface ConnectTeamModalProps {
   teams: TeamWithWorkspaces[]
@@ -26,27 +25,43 @@ export interface Connection {
   direction: 'outgoing' | 'incoming'
   created_at: string
   updated_at: string
+  description?: string | null
+  color?: string | null
   scope_isolated_workspace_id?: string | null
   scope_isolated_team?: {
     workspaces: { id: string }[]
   } | null
 }
 
+const CONNECTION_COLORS = [
+  '#000000',
+  '#1e3a5f',
+  '#14532d',
+  '#7f1d1d',
+  '#3b0764',
+  '#134e4a',
+  '#7c2d12',
+  '#1c1c1c',
+]
+
 export default function ConnectTeamModal({ teams, onClose, onConnected }: ConnectTeamModalProps) {
-  const [hostTeamId, setHostTeamId] = useState(teams[0]?.id ?? '')
   const [receiverEmail, setReceiverEmail] = useState('')
+  const [description, setDescription] = useState('')
+  const [selectedColor, setSelectedColor] = useState(CONNECTION_COLORS[0])
   const [error, setError]   = useState('')
   const [saving, setSaving] = useState(false)
 
-  const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])
+  // Use first team automatically (no selector shown to user)
+  const hostTeamId = teams[0]?.id ?? ''
   const hostTeam = teams.find(t => t.id === hostTeamId)
 
   async function handleSubmit() {
-    if (!hostTeamId) { setError('Select a host team.'); return }
+    if (!hostTeamId) { setError('No team available. Please create a team first.'); return }
     if (!receiverEmail.trim()) { setError('Enter the external account email.'); return }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receiverEmail.trim())) {
       setError('Invalid email.'); return
     }
+    if (!description.trim()) { setError('Description is required.'); return }
     setSaving(true)
     setError('')
     try {
@@ -57,6 +72,8 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
           requester_team_id:   hostTeamId,
           requester_team_name: hostTeam?.name ?? '',
           receiver_email:      receiverEmail.trim(),
+          description:         description.trim(),
+          color:               selectedColor,
           connection_type:     'project-bound',
           scope:               'no-shared-repo',
         }),
@@ -90,22 +107,6 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
         </div>
 
         <div className="px-6 py-5 space-y-5">
-          {/* Host team */}
-          <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
-              Your host team (outgoing SM)
-            </label>
-            <select
-              value={hostTeamId}
-              onChange={e => setHostTeamId(e.target.value)}
-              className="w-full bg-[var(--color-surface-subtle)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
-            >
-              {[...teams]
-                .sort((a, b) => (teamCodes[a.id] ?? '').localeCompare(teamCodes[b.id] ?? ''))
-                .map(t => <option key={t.id} value={t.id}>{teamCodes[t.id] ?? '—'} · {t.name}</option>)}
-            </select>
-          </div>
-
           {/* Receiver email */}
           <div>
             <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
@@ -120,6 +121,44 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
               placeholder="other@company.com"
               className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-400 focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
             />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
+              Description <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              placeholder="Ej: Trabajo con Martín para cliente JML"
+              className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-400 focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
+            />
+          </div>
+
+          {/* Color selector */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-2">
+              Card color
+            </label>
+            <div className="flex gap-2.5">
+              {CONNECTION_COLORS.map(color => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setSelectedColor(color)}
+                  className={`w-8 h-8 rounded-full transition-all ${
+                    selectedColor === color
+                      ? 'ring-2 ring-indigo-600 ring-offset-2'
+                      : 'hover:scale-110'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  aria-label={`Select color ${color}`}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Connection type */}
@@ -176,7 +215,7 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
           </button>
           <button
             onClick={handleSubmit}
-            disabled={saving}
+            disabled={saving || !description.trim()}
             className="text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-lg transition-colors"
           >
             {saving ? 'Sending…' : 'Send request'}

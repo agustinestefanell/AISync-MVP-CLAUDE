@@ -184,12 +184,16 @@ function GMCard({
   onOpen:    () => void
   onEdit:    () => void
 }) {
+  // Isolated team (Shared Session) gets full-card color treatment
+  const isIsolated = node.teamType === 'isolated'
+  const isolatedColor = '#000000' // Default black for Shared Session (color from team_connections not yet propagated)
+
   return (
     <div
       className="h-full w-full flex flex-col overflow-hidden rounded-[22px]"
       style={{
-        border:     `1.5px solid ${tokens.border}`,
-        background: `linear-gradient(180deg, ${tokens.header} 0%, ${tokens.bg} 100%)`,
+        border:     isIsolated ? `1.5px solid ${isolatedColor}` : `1.5px solid ${tokens.border}`,
+        background: isIsolated ? isolatedColor : `linear-gradient(180deg, ${tokens.header} 0%, ${tokens.bg} 100%)`,
         boxShadow:  '0 18px 38px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.80)',
       }}
     >
@@ -197,17 +201,17 @@ function GMCard({
       <div
         className="shrink-0 px-5 pt-2 pb-1.5"
         style={{
-          borderBottom: `1px solid ${tokens.border}`,
-          background:   tokens.header,
+          borderBottom: isIsolated ? '1px solid rgba(255,255,255,0.15)' : `1px solid ${tokens.border}`,
+          background:   isIsolated ? 'transparent' : tokens.header,
         }}
       >
         <div
           className="text-[9px] font-semibold uppercase tracking-[0.20em] leading-[1.1]"
-          style={{ color: tokens.badge }}
+          style={{ color: isIsolated ? 'rgba(255,255,255,0.6)' : tokens.badge }}
         >
           General Manager
         </div>
-        <div className="mt-0.5 text-[14px] font-bold leading-tight text-neutral-950 line-clamp-1">
+        <div className={`mt-0.5 text-[14px] font-bold leading-tight line-clamp-1 ${isIsolated ? 'text-white' : 'text-neutral-950'}`}>
           {teamCode ? `${teamCode} · ${node.teamName}` : node.teamName}
         </div>
       </div>
@@ -218,38 +222,38 @@ function GMCard({
         {/* Two columns: Provider | Team Type */}
         <div className="flex shrink-0 gap-8">
           <div>
-            <div className="text-[8.5px] uppercase tracking-[0.16em] leading-[1.1] text-neutral-500">Provider</div>
-            <div className="mt-0.5 text-[12px] font-semibold leading-[1.1] text-neutral-900">{node.provider}</div>
-            <div className="text-[10px] leading-[1.1] text-neutral-500">{node.model}</div>
+            <div className={`text-[8.5px] uppercase tracking-[0.16em] leading-[1.1] ${isIsolated ? 'text-white/50' : 'text-neutral-500'}`}>Provider</div>
+            <div className={`mt-0.5 text-[12px] font-semibold leading-[1.1] ${isIsolated ? 'text-white' : 'text-neutral-900'}`}>{node.provider}</div>
+            <div className={`text-[10px] leading-[1.1] ${isIsolated ? 'text-white/60' : 'text-neutral-500'}`}>{node.model}</div>
           </div>
           <div>
-            <div className="text-[8.5px] uppercase tracking-[0.16em] leading-[1.1] text-neutral-500">Team Type</div>
+            <div className={`text-[8.5px] uppercase tracking-[0.16em] leading-[1.1] ${isIsolated ? 'text-white/50' : 'text-neutral-500'}`}>Team Type</div>
             <div
               className="mt-0.5 text-[12px] font-semibold leading-[1.1]"
               style={
-                node.teamType === 'isolated'
-                  ? { color: '#ffffff', background: '#000000', borderRadius: '4px', padding: '1px 6px' }
+                isIsolated
+                  ? { color: '#ffffff', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 6px' }
                   : { color: '#1a1a1a' }
               }
             >
-              {node.teamType === 'isolated' ? 'Shared Session' : node.teamType}
+              {isIsolated ? 'Shared Session' : node.teamType}
             </div>
             {node.connected
-              ? <div className="text-[10px] leading-[1.1] text-emerald-600">Connected</div>
-              : <div className="text-[10px] leading-[1.1] text-neutral-400">—</div>
+              ? <div className={`text-[10px] leading-[1.1] ${isIsolated ? 'text-emerald-300' : 'text-emerald-600'}`}>Connected</div>
+              : <div className={`text-[10px] leading-[1.1] ${isIsolated ? 'text-white/40' : 'text-neutral-400'}`}>—</div>
             }
           </div>
         </div>
 
         {/* Description — full width, fills remaining space */}
         <div
-          className="flex-1 min-h-0 rounded-[10px] px-3 py-1.5 text-[10px] leading-[1.45] text-neutral-700 overflow-hidden"
+          className={`flex-1 min-h-0 rounded-[10px] px-3 py-1.5 text-[10px] leading-[1.45] overflow-hidden ${isIsolated ? 'text-white/80' : 'text-neutral-700'}`}
           style={{
-            border:     `1px solid ${tokens.border}`,
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+            border:     isIsolated ? '1px solid rgba(255,255,255,0.15)' : `1px solid ${tokens.border}`,
+            background: isIsolated ? 'rgba(255,255,255,0.08)' : 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
           }}
         >
-          {node.teamDescription || <span className="italic text-neutral-400">No description yet.</span>}
+          {node.teamDescription || <span className={`italic ${isIsolated ? 'text-white/40' : 'text-neutral-400'}`}>No description yet.</span>}
         </div>
       </div>
 
@@ -257,14 +261,14 @@ function GMCard({
       <div
         className="shrink-0 flex items-center justify-center gap-2 px-5 py-1.5"
         style={{
-          borderTop:  `1px solid ${tokens.border}`,
-          background: 'linear-gradient(180deg, rgba(247,249,252,0.8) 0%, rgba(239,244,248,0.88) 100%)',
+          borderTop:  isIsolated ? '1px solid rgba(255,255,255,0.15)' : `1px solid ${tokens.border}`,
+          background: isIsolated ? 'rgba(255,255,255,0.05)' : 'linear-gradient(180deg, rgba(247,249,252,0.8) 0%, rgba(239,244,248,0.88) 100%)',
         }}
       >
         <button
           type="button"
           data-pan-block="true"
-          className="rounded-[10px] bg-[#1e293b] px-6 py-1.5 text-[11px] font-medium text-white hover:bg-[#334155]"
+          className={`rounded-[10px] px-6 py-1.5 text-[11px] font-medium ${isIsolated ? 'bg-white/90 text-black hover:bg-white' : 'bg-[#1e293b] text-white hover:bg-[#334155]'}`}
           onPointerDown={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
           onClick={e => { e.preventDefault(); e.stopPropagation(); onOpen() }}
@@ -317,14 +321,20 @@ export default function TeamAgentCard({ node, teamCode, nodeType, onOpen, onEdit
   }
 
   const isWorker    = node.type === 'worker'
-  const subtitle    = isWorker ? 'Team Worker' : 'Sub-Team Workspace'
+  const isIsolated  = node.teamType === 'isolated'
+
+  // Isolated teams (Shared Session) get custom labels based on role
+  const subtitle    = isIsolated
+    ? (node.agentRole === 'manager' ? 'Host + AI' : node.agentRole === 'worker1' ? 'Guest + AI' : 'Host ↔ Guest')
+    : (isWorker ? 'Team Worker' : 'Sub-Team Workspace')
+
   const brief       = isWorker
     ? (node.agentDescription ?? node.teamDescription ?? '')
     : (node.teamDescription ?? '')
   const functionLabel = brief
     ? (isWorker ? 'Execution lane' : 'Team coordination and management')
     : (isWorker ? 'Execution lane' : 'Sub-team coordination')
-  const tags        = [node.provider, node.teamType === 'isolated' ? 'Shared Session' : node.teamType]
+  const tags        = [node.provider, isIsolated ? 'Shared Session' : node.teamType]
 
   return (
     <TreeWorkspaceCard

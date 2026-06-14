@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('team_connections')
-    .select('*, scope_isolated_workspace_id, scope_isolated_team:scope_isolated_team_id(workspaces(id))')
+    .select('*, description, color, scope_isolated_workspace_id, scope_isolated_team:scope_isolated_team_id(workspaces(id))')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -50,14 +50,20 @@ export async function POST(req: Request) {
     requester_team_id: string
     requester_team_name: string
     receiver_email: string
+    description: string
+    color?: string
     connection_type?: string
     scope?: string
   }
 
-  const { requester_team_id, requester_team_name, receiver_email } = body
+  const { requester_team_id, requester_team_name, receiver_email, description, color } = body
 
   if (!requester_team_id || !requester_team_name || !receiver_email?.trim()) {
     return NextResponse.json({ error: 'Incomplete data.' }, { status: 400 })
+  }
+
+  if (!description?.trim()) {
+    return NextResponse.json({ error: 'description is required.' }, { status: 400 })
   }
 
   if (receiver_email.trim().toLowerCase() === user.email?.toLowerCase()) {
@@ -104,6 +110,8 @@ export async function POST(req: Request) {
       requester_team_id,
       requester_team_name,
       receiver_email:       receiver_email.trim().toLowerCase(),
+      description:          description.trim(),
+      color:                color || '#000000',
       connection_type:      body.connection_type ?? 'project-bound',
       scope:                body.scope           ?? 'no-shared-repo',
     })

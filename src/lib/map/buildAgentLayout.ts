@@ -19,6 +19,7 @@ export interface MapAgentNode {
   soft: string
   connected: boolean
   projectId: string
+  agentRole?: 'manager' | 'worker1' | 'worker2' // Added for Shared Session labels
 }
 
 export interface AgentPlacement {
@@ -312,6 +313,7 @@ export function agentNodesToMapNodes(
       soft:      palette.soft,
       connected: connectedTeamIds.has(a.teamId),
       projectId: a.projectId,
+      agentRole: a.role, // Pass through for Shared Session labels
     }
   })
 }

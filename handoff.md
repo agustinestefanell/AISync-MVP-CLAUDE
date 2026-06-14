@@ -5,6 +5,49 @@ Registro canónico acumulativo de decisiones importantes, estados cerrados, hall
 
 ---
 
+## Sesión 2026-06-13 — Mini OE: ConnectTeamModal rediseño + Shared Session visual
+
+**Fecha:** 2026-06-13
+**Archivos modificados:**
+- supabase/migrations/030_connection_description_color.sql (nueva migración)
+- src/components/teams/ConnectTeamModal.tsx
+- src/app/api/connections/route.ts
+- src/components/ProjectList.tsx
+- src/components/teams/map/TeamAgentCard.tsx
+- src/lib/map/buildAgentLayout.ts
+
+**Decisión técnica:**
+Agregar metadata (description + color) a team_connections para personalizar Shared Session experience. ConnectTeamModal simplificado: no muestra selector de host team (usa primer team automáticamente), exige descripción obligatoria y permite seleccionar color de 8 opciones. TeamAgentCard colorea completamente el card de isolated teams con fondo negro y texto blanco, labels personalizados para roles (Host + AI / Guest + AI / Host ↔ Guest).
+
+**Cambios implementados:**
+1. Migración 030: `ALTER TABLE team_connections ADD COLUMN description text, ADD COLUMN color text DEFAULT '#000000'`
+2. ConnectTeamModal: 
+   - Eliminado selector "Your host team (outgoing SM)"
+   - Agregado campo description (obligatorio)
+   - Agregado paleta visual de 8 colores
+   - Botón "Send request" bloqueado si description vacía
+3. POST /api/connections: valida description (400 si falta), persiste description + color (default #000000)
+4. GET /api/connections: incluye description y color en select
+5. ProjectList: muestra description bajo email del partner (solo si existe)
+6. TeamAgentCard (General Manager): full-card color para isolated (fondo negro, texto blanco, borders semi-transparentes)
+7. TeamAgentCard (workers/seniors): labels isolated → manager: "Host + AI", worker1: "Guest + AI", worker2: "Host ↔ Guest"
+8. buildAgentLayout: agrega campo agentRole a MapAgentNode para pasar role a TeamAgentCard
+
+**Alternativas descartadas:**
+- Propagar color dinámico desde team_connections al mapa: requiere modificar teams/page.tsx (no autorizado) y hacer lookup de connections. Se usó color default #000000 para todos los isolated (extensible a futuro).
+- Mostrar selector de team en ConnectTeamModal: removed per OE spec (auto-usa primer team del usuario).
+
+**Riesgos conocidos:**
+- Conexiones creadas antes de migración 030 tienen description=null y color=null. Frontend maneja nulls correctamente (no muestra description si falta, color default en backend).
+- Color custom desde connections no se propaga aún al card (usa negro default). Requiere refactor de data flow teams → connections → map (pendiente para extensión futura).
+
+**Estado:** CERRADA. Migración 030 aplicación manual pendiente. Build exitoso. Commit pendiente.
+
+**Lección clave:**
+Metadata de conexión (description/color) vive en team_connections, no en teams. Para propagar a Teams Map se requiere join connections + teams + agent layout, agregando complejidad. Usar defaults visuales permite feature funcional sin refactor profundo de data flow.
+
+---
+
 ## Sesión 2026-06-13 — Fix crítico: scope_isolated_workspace_id para navegación cross-account
 
 **Fecha:** 2026-06-13
