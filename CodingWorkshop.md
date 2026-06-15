@@ -300,3 +300,48 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 - SELECT desde `projects` → `teams` falla si `projects.account_id != auth.uid()`, aunque `teams` tenga policy que permite SELECT directo
 - Para cross-account data visible solo en tabla hija: usar query paralela directa a la tabla hija, no nested join desde padre
 - Admin client necesario para leer team_connections de otro account (requester_account_id != auth.uid()) y hacer nested join a teams de ese account
+
+---
+
+### 11. Isolated team pierde description y color al desconectar
+
+**Contexto:**
+- Bug reportado: isolated team muestra description y color correctos mientras la conexión está active
+- Al desconectar (status → cancelled), el team pierde description y color porque venían de team_connections
+- MapView/TreeView leen connectionMap que filtra solo conexiones active → data desaparece
+
+**Diagnóstico:**
+- Description y color se guardaban solo en team_connections, no en teams
+- Accept flow copiaba description genérica auto-generada al team (`"Shared workspace with {email}"`)
+- No copiaba la description personalizada del usuario ni el color
+- Al cancelar conexión, connectionMap queda vacío para ese team → fallback a null
+
+**Solución:**
+- Migración 031: agregar columna `color TEXT DEFAULT '#000000'` a teams
+- Accept flow: copiar `description` y `color` de team_connections a teams en el INSERT del isolated team
+- agent-map.ts: priorizar team.description/color, fallback a connectionMap para backward compatibility
+- types.ts: agregar `color: string | null` a Team interface
+
+**Implementación:**
+- supabase/migrations/031_teams_color.sql — ALTER TABLE teams ADD COLUMN color
+- src/app/api/connections/[id]/route.ts línea 69: agregar description y color al SELECT de fullConnection
+- src/app/api/connections/[id]/route.ts líneas 96-97: cambiar INSERT de isolated team:
+  ```typescript
+  description: fullConnection.description ?? `Shared workspace with ${receiver_email}`,
+  color: fullConnection.color ?? '#000000',
+  ```
+- src/lib/db/agent-map.ts líneas 55-56: priorizar team.description/color sobre connectionData
+- src/lib/db/types.ts: agregar color a Team interface
+
+**Archivos modificados:**
+- supabase/migrations/031_teams_color.sql — nueva migración
+- src/app/api/connections/[id]/route.ts — SELECT + INSERT con description y color
+- src/lib/db/agent-map.ts — priorizar team metadata sobre connection metadata
+- src/lib/db/types.ts — Team interface con color
+
+**Build:** ✅ Pasó sin errores
+
+**Lección:**
+- Metadata de trazabilidad debe persistir en la entidad durable (el team), no solo en la relación (la conexión) que puede cambiar de estado
+- Copiar data de la relación a la entidad en el momento de creación garantiza persistencia independiente del ciclo de vida de la relación
+- Fallback a la relación permite backward compatibility para entidades creadas antes de la migración

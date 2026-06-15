@@ -33,6 +33,8 @@ export function deriveAgentNodesFromTeams(
     const workspace = team.workspaces[0]
     if (!workspace) continue
 
+    // For isolated teams: prioritize team.description/color (copied at accept),
+    // fallback to connectionMap for backward compatibility (teams created before migration 031)
     const connectionData = team.type === 'isolated' && connectionMap
       ? connectionMap[team.id]
       : null
@@ -52,8 +54,8 @@ export function deriveAgentNodesFromTeams(
         teamType:         team.type,
         teamDescription:  team.description,
         projectId:        team.project_id,
-        connectionDescription: connectionData?.description ?? null,
-        connectionColor:       connectionData?.color ?? null,
+        connectionDescription: team.type === 'isolated' ? (team.description ?? connectionData?.description ?? null) : null,
+        connectionColor:       team.type === 'isolated' ? (team.color ?? connectionData?.color ?? null) : null,
       })
     }
   }

@@ -21,6 +21,7 @@ export interface Team {
   description: string | null
   lead_role: 'manager' | 'submanager' | 'worker'
   tags: string[]
+  color: string | null
 }
 
 export interface Workspace {

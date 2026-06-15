@@ -5918,3 +5918,60 @@ Cambiar de proyecto y recargar. Si el cambio persiste → ARC-004 cerrado operat
 
 ### Estado
 Cerrado a nivel repo — migración 027 manual pendiente.
+
+---
+
+## [2026-06-15] — fix CONN-003: Shared Session metadata persiste al desconectar
+
+### Cambio realizado
+Fix en dos partes para bugs de metadata en isolated teams (Shared Sessions):
+
+**Parte 1: Invitado no ve isolated teams en Teams Map**
+- Diagnóstico: `getProjectsWithHierarchy()` usa RLS de projects que bloquea cross-account → isolated teams no aparecen aunque policies de teams/workspaces/agent_sessions sean permisivas
+- Causa raíz: RLS en tabla padre bloquea nested joins aunque la tabla hija tenga policy permisiva
+- Solución: query paralela con admin client directo a team_connections → teams, merge con allTeams
+
+**Parte 2: Isolated team pierde description y color al desconectar**
+- Diagnóstico: description y color venían solo de team_connections → al cancelar conexión (status=cancelled), MapView/TreeView filtran `status='active'` → connectionMap vacío → data desaparece
+- Causa raíz: metadata de trazabilidad guardada solo en la relación (conexión), no en la entidad durable (team)
+- Solución: copiar description y color de team_connections a teams en el momento del accept
+
+### Archivos tocados
+**Parte 1:**
+- `src/app/teams/page.tsx` — query paralela con admin client, merge isolated teams
+- `src/components/teams/MapView.tsx` — filtrar `status === 'active'` en connectionMap
+- `src/components/teams/TreeView.tsx` — ídem
+
+**Parte 2:**
+- `supabase/migrations/031_teams_color.sql` (nuevo) — ALTER TABLE teams ADD COLUMN color TEXT DEFAULT '#000000'
+- `src/app/api/connections/[id]/route.ts` — SELECT description + color en fullConnection; INSERT isolated team con description y color de la conexión
+- `src/lib/db/agent-map.ts` — priorizar team.description/color, fallback a connectionMap para backward compatibility
+- `src/lib/db/types.ts` — Team interface con `color: string | null`
+
+### Decisiones técnicas
+1. **Query paralela vs modificar getProjectsWithHierarchy()**: mantener helper existente intacto, agregar query especializada para isolated teams — menor blast radius
+2. **Admin client para fetch isolated teams**: necesario para leer team_connections de otro account y hacer nested join a teams de ese account
+3. **Prioridad team.description/color sobre connectionMap**: garantiza persistencia post-desconexión; fallback permite backward compatibility con teams creados antes de migración 031
+4. **Filtro `status='active'` en cliente, no backend**: GET /api/connections devuelve todas las conexiones del usuario para otros usos (ProjectList); filtro en MapView/TreeView más granular
+
+### Alternativas descartadas
+- Modificar getProjectsWithHierarchy() para incluir isolated teams: rompería la lógica de "proyectos propios" del helper, blast radius mayor
+- No copiar color a teams, solo description: inconsistencia de metadata — ambos o ninguno
+- Filtrar `status='active'` en GET /api/connections: rompería ProjectList que necesita ver conexiones pending/rejected
+
+### Riesgos / deuda técnica
+- **Migración 031 NO aplicada** — teams creados post-deploy y pre-migración tendrán `color=null` (default de SQL aplica solo a INSERT post-migración). Accept flow tolera vía `?? '#000000'`.
+- Isolated teams creados antes de este fix: seguirán dependiendo de connectionMap (backward compatibility garantizada por el fallback en agent-map.ts)
+- connectionMap sigue siendo necesario para teams legacy — no se puede eliminar hasta backfill manual de todos los isolated teams existentes
+
+### Build
+✓ `npm run build` limpio (warnings preexistentes en CanvasViewport.tsx no relacionados)
+
+### Commits
+1. `fix: propagate connection description to isolated team card` — data flow extension para connectionDescription/connectionColor
+2. `fix: filter active connections only when building isolated team card metadata` — filtro status en MapView/TreeView
+3. `fix: fetch isolated teams for invitee via team_connections in teams page` — query paralela para invitado
+4. `fix: copy connection description and color to isolated team on accept` — persistencia en team entity
+
+### Estado
+Parte 1 cerrada a nivel repo. Parte 2 cerrada a nivel repo — migración 031 manual pendiente.

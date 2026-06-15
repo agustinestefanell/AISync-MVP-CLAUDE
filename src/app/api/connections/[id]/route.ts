@@ -66,7 +66,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         // Fetch full connection data to get requester info
         const { data: fullConnection } = await createAdminClient()
           .from('team_connections')
-          .select('requester_account_id, requester_team_id, requester_team_name, receiver_email')
+          .select('requester_account_id, requester_team_id, requester_team_name, receiver_email, description, color')
           .eq('id', params.id)
           .single()
 
@@ -93,7 +93,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
                 name: isolatedTeamName,
                 type: 'isolated',
                 parent_id: null,
-                description: `Shared workspace with ${fullConnection.receiver_email}`,
+                description: fullConnection.description ?? `Shared workspace with ${fullConnection.receiver_email}`,
+                color: fullConnection.color ?? '#000000',
               })
               .select()
               .single()
