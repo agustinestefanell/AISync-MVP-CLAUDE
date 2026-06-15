@@ -4620,7 +4620,96 @@ Implementar Chat-First Onboarding para usuario nuevo siguiendo Demo First (PageJ
 - ✅ npm run lint: passing (warnings pre-existentes en CanvasViewport)
 - ✅ npm run build: successful (ruta `/start` listada en build output)
 
-**Commit:** (pendiente)
+**Commit:** 5721d17 feat: add chat-first onboarding with api key modal and auto-project creation
+
+
+---
+
+## [2026-06-15] — Post-OE Chat-First — Fix persist initialIntent
+
+**Problema detectado:**
+El `initialIntent` escrito por el usuario en `/start` se recibía en `/api/onboarding/start` pero NO se persistía en la tabla `messages`. El usuario llegaba al workspace vacío, sin el contexto inicial que había escrito.
+
+**Archivos modificados:**
+- `src/app/api/onboarding/start/route.ts`
+
+**Solución implementada:**
+Modificar el step 6 de creación de agent_sessions para:
+1. Recuperar las sessions creadas con `.select('id, agent_role')`
+2. Encontrar la session del manager via `find(s => s.agent_role === 'manager')`
+3. Persistir el `initialIntent` como primer mensaje:
+   ```typescript
+   await supabase.from('messages').insert({
+     session_id: managerSession.id,
+     role: 'user',
+     content: initialIntent.trim(),
+   })
+   ```
+4. Inserción no bloqueante — si falla, la estructura ya está creada
+
+**Alternativas descartadas:**
+- Persistir el mensaje en frontend después de navegar: descartado — el mensaje debe existir antes de que el workspace cargue para que aparezca en `initialMessages`
+
+**Riesgos conocidos:**
+- Si la inserción del mensaje falla, el usuario llega a un workspace vacío pero funcional
+- No hay retry ni validación de que el mensaje se persistió correctamente
+
+**Commit:** 5ee3b70 fix: persist initialIntent as first user message in onboarding
+
+
+---
+
+## [2026-06-15] — Post-OE Chat-First — Fix autostart Manager
+
+**Problema detectado:**
+El mensaje del usuario aparecía correctamente en el panel del manager (se persistió bien), pero el Manager no respondía automáticamente. El usuario veía su mensaje pero el agente estaba en silencio. Tenía que presionar Send manualmente para obtener respuesta.
+
+**Causa:**
+El mensaje se cargaba en `initialMessages` pero nadie disparaba el stream. El workspace mostraba el historial pero no procesaba automáticamente mensajes al cargar.
+
+**Archivos modificados:**
+- `src/app/api/onboarding/start/route.ts`
+- `src/components/onboarding/ChatFirstClient.tsx`
+- `src/app/workspace/[id]/page.tsx`
+- `src/components/workspace/WorkspaceClient.tsx`
+- `src/components/workspace/WorkspaceShell.tsx`
+- `src/components/workspace/AgentPanel.tsx`
+
+**Solución implementada — Query param autostart:**
+1. **Backend response:** `/api/onboarding/start` devuelve `{ workspaceId, managerSessionId }`
+2. **Navegación:** `ChatFirstClient` navega a `/workspace/${workspaceId}?autostart=${managerSessionId}`
+3. **Propagación del param:**
+   - `workspace/[id]/page.tsx` lee `searchParams.autostart`
+   - Lo pasa como `autostartSessionId` a `WorkspaceClient`
+   - `WorkspaceClient` lo pasa a `WorkspaceShell`
+4. **Trigger automático:** `WorkspaceShell` en `useEffect`:
+   - Espera 1500ms (delay para asegurar que panel está montado)
+   - Llama `panelRefs.current[autostartSessionId]?.triggerAutoSend()`
+5. **Método nuevo en AgentPanel:** `triggerAutoSend()` expuesto via `useImperativeHandle`:
+   - Verifica que el último mensaje sea `role: 'user'`
+   - Verifica que `streaming === false`
+   - Llama `sendMessage()` automáticamente
+
+**Patrón reutilizable:**
+El patrón de autostart via URL param puede reutilizarse para cualquier flujo que requiera auto-enviar un mensaje al cargar el workspace (ej: templates, quick actions, external integrations).
+
+**Alternativas descartadas:**
+- Generar respuesta del manager en el backend: descartado — requiere manejar streaming server-side, complejidad innecesaria
+- Auto-send sin delay: descartado — timing race condition, el ref puede no existir
+- Auto-send en AgentPanel sin trigger externo: descartado — no hay forma de saber que viene de onboarding vs carga normal
+
+**Riesgos conocidos:**
+- Delay de 1500ms es empírico — en máquinas lentas podría fallar
+- Si el usuario navega muy rápido fuera del workspace, el auto-send puede no ejecutarse
+- El query param `autostart` queda en la URL después del trigger (no se limpia)
+
+**Deuda técnica:**
+- Logs de debug en consola (`console.log('[autostart]...')`) — remover cuando se confirme que funciona en producción
+- Delay fijo de 1500ms — considerar usar callback de montaje del panel en vez de timeout
+
+**Commits:**
+- 01aca2c fix: auto-send initial message on workspace load after onboarding
+- 464a661 debug: add autostart logs and increase delay to 1500ms
 
 ---
 

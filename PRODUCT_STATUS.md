@@ -76,7 +76,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Connected Teams — "How it works" link | ✅ Closed | commit fix: replace ? button with how connected teams work link | Link de texto `How Connected Teams work` debajo del título de la columna. Abre `HowConnectedTeamsModal`. |
 | Connected Teams — How it works modal (v2) | ✅ Closed | commit docs: update how connected teams work modal with approved content | 6 secciones aprobadas + tabla quick reference (5 filas: send/accept/view/map/disconnect). Modal ampliado a `max-w-2xl`. |
 | Connected Teams — Realtime updates | Partial | commit b9d4b72 | Dashboard connections: realtime ✅. Pending badge: realtime ✅. Disconnect en cuenta pasiva: pendiente OE B completo. |
-| **Chat-First Onboarding** | ✅ Closed | Migration 032 + /start page + API routes | Usuario nuevo redirigido a /start. Layout 3 columnas portado de PageJ.tsx demo. Modal provider (Groq, Gemini, Anthropic, OpenAI). Validación pre-flight API key. Auto-creación: Project + Team SAT + Workspace + 3 sessions. Skip setup disponible. Dashboard redirect si onboarding_completed=false. Manual migration 032 pending in Supabase. |
+| **Chat-First Onboarding** | ✅ Closed | Commits 5721d17, 5ee3b70, 01aca2c, 464a661 | Usuario nuevo redirigido a /start. Layout 3 columnas portado de PageJ.tsx demo. Modal provider (Groq, Gemini, Anthropic, OpenAI). Validación pre-flight API key. Auto-creación: Project + Team SAT + Workspace + 3 sessions. initialIntent persistido como primer mensaje. Autostart via URL param — Manager responde automáticamente. Skip setup disponible. Dashboard redirect si onboarding_completed=false. Debug logs activos. Manual migration 032 pending in Supabase. |
 
 ---
 

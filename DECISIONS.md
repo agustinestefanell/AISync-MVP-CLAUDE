@@ -336,3 +336,18 @@ accede con scope aislado, sincronizado via Supabase Realtime.
 - Invitados sin cuenta AISync: descartado — riesgo de seguridad
 
 **Impacto:** WorkspaceShell, /api/chat, nueva migración, Supabase Realtime
+
+---
+
+## 2026-06-15 — Autostart via URL param para trigger automático de mensajes
+
+- **Decisión:** El autostart de mensajes al cargar un workspace se implementa via query param `?autostart=<sessionId>`. El workspace page lee el param, lo propaga a `WorkspaceShell`, que llama `panelRefs.current[sessionId]?.triggerAutoSend()` después de un delay de 1500ms. `AgentPanel` expone el método `triggerAutoSend()` via `useImperativeHandle`, que verifica que el último mensaje sea `role: 'user'` y `streaming === false`, y llama `sendMessage()` automáticamente.
+- **Razón:** El mensaje del usuario se persiste correctamente en DB y aparece en el workspace, pero nadie dispara el stream. El usuario ve su mensaje pero el agente está en silencio. Generar la respuesta en el backend requiere manejar streaming server-side (complejidad innecesaria). Auto-send directo en `AgentPanel` al montar no distingue carga normal de onboarding. Query param es explícito, trazable y no afecta comportamiento normal.
+- **Alternativas descartadas:**
+  - Generar respuesta del manager en `/api/onboarding/start`: descartado — requiere streaming server-side, duplica lógica de chat
+  - Auto-send sin delay: descartado — timing race condition, el ref puede no existir al momento del trigger
+  - Auto-send en `AgentPanel` sin trigger externo: descartado — no hay forma de saber que viene de onboarding vs carga normal de historial
+  - Delay de 500ms: descartado — insuficiente para garantizar montaje completo del panel
+- **Detalles:** El delay de 1500ms es empírico (puede requerir ajuste en máquinas lentas). El query param queda en la URL después del trigger (no se limpia). Logs de debug activos en consola (`[autostart]`) para diagnosticar en producción — remover cuando se confirme funcional.
+- **Patrón reutilizable:** El patrón de autostart via URL param puede reutilizarse para cualquier flujo que requiera auto-enviar un mensaje al cargar el workspace (templates, quick actions, external integrations).
+- **Estado:** Implemented — commits 01aca2c (autostart) + 464a661 (debug logs + delay 1500ms). Pendiente validación en producción post-migración 032.
