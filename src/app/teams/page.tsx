@@ -50,16 +50,6 @@ export default async function TeamsPage() {
       if (!c.isolated_team) return null
       // Ensure color and description are present (copied at accept, but fallback to connection for safety)
       const team = c.isolated_team
-
-      // DEBUG: Log isolated team data from query
-      console.log('[teams/page] Isolated team from query:', {
-        teamId: team.id,
-        teamName: team.name,
-        teamColor: team.color,
-        connectionColor: c.color,
-        finalColor: team.color ?? c.color ?? null,
-      })
-
       return {
         ...team,
         color: team.color ?? c.color ?? null,

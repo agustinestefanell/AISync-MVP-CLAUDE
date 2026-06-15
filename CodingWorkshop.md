@@ -427,3 +427,39 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 - Lo que funciona para gradients (regular teams) no funciona para colores sólidos (isolated teams)
 - CSS visual debe ser condicional cuando los estilos de background difieren radicalmente
 - Debug logs fueron útiles para confirmar que el problema NO era data pipeline
+
+---
+
+### 14. Color sigue lavado — body section tiene background blanco por defecto
+
+**Contexto:**
+- Debug logs confirmaron: color llega correcto (#15803d verde)
+- Fix anterior (boxShadow opacity 0.20) no resolvió el lavado
+- Diagnóstico: div raíz tiene background correcto, pero elementos internos lo tapan
+
+**Diagnosis:**
+- GMCard línea 233: body div sin background explícito → navegador aplica blanco por defecto
+- Este background blanco tapa el color del div raíz (violeta #3b0764 o verde #15803d)
+- Los elementos internos (header, description box, footer) con backgrounds semitransparentes se ven sobre blanco, no sobre el color
+
+**Solución:**
+- Agregar `background: 'transparent'` condicional al body div para isolated teams
+  ```typescript
+  <div
+    className="flex flex-1 min-h-0 flex-col gap-1 px-5 py-1"
+    style={{ background: isIsolated ? 'transparent' : undefined }}
+  >
+  ```
+- Remover debug logs temporales (teams/page.tsx, agent-map.ts, TeamAgentCard.tsx)
+
+**Archivos modificados:**
+- src/components/teams/map/TeamAgentCard.tsx — body background transparent línea 233-236
+- src/app/teams/page.tsx — removed debug logs
+- src/lib/db/agent-map.ts — removed debug logs
+
+**Build:** ✅ Pasó sin errores
+
+**Lección:**
+- Elementos sin background explícito heredan blanco por defecto del navegador, no transparent
+- Cuando un div padre tiene color sólido, TODOS los hijos deben tener `background: transparent` explícito para que el color sea visible
+- Los logs confirmaron que el problema era CSS puro, no data pipeline — color correcto llegaba pero quedaba oculto debajo de capas blancas

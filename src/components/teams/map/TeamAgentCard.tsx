@@ -186,17 +186,6 @@ function GMCard({
 }) {
   // Isolated team (Shared Session) gets full-card color treatment
   const isIsolated = node.teamType === 'isolated'
-
-  // DEBUG: Log isolated team color for troubleshooting
-  if (isIsolated) {
-    console.log('[TeamAgentCard] Isolated team:', {
-      teamName: node.teamName,
-      teamId: node.teamId,
-      connectionColor: node.connectionColor,
-      connectionDescription: node.connectionDescription,
-    })
-  }
-
   const isolatedColor = isIsolated ? (node.connectionColor || '#000000') : '#000000'
 
   return (
@@ -230,7 +219,10 @@ function GMCard({
       </div>
 
       {/* Body — info columns + description */}
-      <div className="flex flex-1 min-h-0 flex-col gap-1 px-5 py-1">
+      <div
+        className="flex flex-1 min-h-0 flex-col gap-1 px-5 py-1"
+        style={{ background: isIsolated ? 'transparent' : undefined }}
+      >
 
         {/* Two columns: Provider | Team Type */}
         <div className="flex shrink-0 gap-8">

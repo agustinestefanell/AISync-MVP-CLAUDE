@@ -39,17 +39,6 @@ export function deriveAgentNodesFromTeams(
       ? connectionMap[team.id]
       : null
 
-    // DEBUG: Log isolated team color derivation
-    if (team.type === 'isolated') {
-      console.log('[agent-map] Isolated team:', {
-        teamId: team.id,
-        teamName: team.name,
-        teamColor: team.color,
-        connectionDataColor: connectionData?.color,
-        finalColor: team.color ?? connectionData?.color ?? null,
-      })
-    }
-
     for (const agent of workspace.agent_sessions) {
       nodes.push({
         agentId:          agent.id,

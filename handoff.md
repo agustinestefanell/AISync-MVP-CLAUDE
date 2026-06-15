@@ -6066,8 +6066,52 @@ Fix de CSS visual para isolated team cards:
 ### Build
 ✓ `npm run build` limpio
 
-### Commit
-`fix: reduce inset shadow opacity for isolated teams to prevent color washing`
+### Commits
+1. `fix: reduce inset shadow opacity for isolated teams to prevent color washing` — boxShadow 0.80 → 0.20
+2. `fix: remove white background from isolated team card inner sections` — body transparent + remove debug logs
 
 ### Estado
-Cerrado a nivel repo. Debug logs pendientes de remoción post-verificación.
+Cerrado a nivel repo.
+
+---
+
+## [2026-06-15] — fix CONN-006: Body section background blanco tapa color
+
+### Cambio realizado
+Fix CSS final para color lavado:
+
+**Problema:**
+- Debug logs confirmaron: color llega correcto (#15803d verde)
+- Fix anterior (boxShadow opacity) no suficiente
+- Body div sin background explícito → navegador aplica blanco por defecto
+
+**Solución:**
+- Agregar `background: 'transparent'` condicional al body div (línea 233)
+- Permite que color del div raíz sea visible a través de elementos internos
+- Remover debug logs (verificación completada)
+
+### Archivos tocados
+- `src/components/teams/map/TeamAgentCard.tsx` — body background transparent
+- `src/app/teams/page.tsx` — removed debug logs
+- `src/lib/db/agent-map.ts` — removed debug logs
+
+### Decisiones técnicas
+1. **`background: transparent` solo para isolated**: regular teams usan gradient, no necesitan transparent
+2. **Remover logs después de confirmar causa**: logs confirmaron problema era CSS, no data pipeline
+3. **No modificar description box ni footer backgrounds**: sus backgrounds semitransparentes funcionan correctamente sobre el color una vez el body es transparent
+
+### Alternativas descartadas
+- Agregar background color al body también: duplica código, transparent es más limpio
+- Remover backgrounds semitransparentes de description/footer: pierde contraste visual necesario
+
+### Riesgos / deuda técnica
+- Ninguno — fix quirúrgico sin efectos secundarios
+
+### Build
+✓ `npm run build` limpio
+
+### Commit
+`fix: remove white background from isolated team card inner sections`
+
+### Estado
+Cerrado a nivel repo. Verificación visual pendiente en producción.
