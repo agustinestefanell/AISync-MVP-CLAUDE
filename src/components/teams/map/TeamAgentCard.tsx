@@ -225,7 +225,10 @@ function GMCard({
       >
 
         {/* Two columns: Provider | Team Type */}
-        <div className="flex shrink-0 gap-8">
+        <div
+          className="flex shrink-0 gap-8"
+          style={{ background: isIsolated ? 'transparent' : undefined }}
+        >
           <div>
             <div className={`text-[8.5px] uppercase tracking-[0.16em] leading-[1.1] ${isIsolated ? 'text-white/50' : 'text-neutral-500'}`}>Provider</div>
             <div className={`mt-0.5 text-[12px] font-semibold leading-[1.1] ${isIsolated ? 'text-white' : 'text-neutral-900'}`}>{node.provider}</div>
