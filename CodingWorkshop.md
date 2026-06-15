@@ -258,3 +258,45 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 - Server/client boundary: no se puede importar server utilities (createClient) en módulos compartidos que luego son usados por client components
 - Patrón correcto: fetch client-side en useEffect, build map, pass como parámetro a funciones sync
 - Tipo TeamType debe estar sincronizado con valores reales en DB — 'isolated' estaba ausente del union type
+
+---
+
+### 10. Invitado no ve isolated teams en Teams Map
+
+**Contexto:**
+- Bug reportado: invitado ve labels correctos en isolated team card pero descripción y color antiguos
+- Diagnóstico: múltiples conexiones en DB con mismo scope_isolated_team_id, connectionMap sobrescrito por conexión cancelled vieja
+- Fix parcial aplicado: filtrar `status === 'active'` en MapView/TreeView
+- Problema persistente: invitado no ve isolated teams en absoluto
+
+**Diagnosis profunda:**
+- teams/page.tsx trae teams via `getProjectsWithHierarchy()` que hace SELECT desde `projects` con nested join a `teams`
+- RLS en projects: solo permite leer proyectos donde `account_id = auth.uid()`
+- El invitado NO puede leer el proyecto del anfitrión → los isolated teams no aparecen en el resultado
+- Las RLS policies de teams/workspaces/agent_sessions (migración 028) **solo aplican en SELECT directo**, no en nested joins desde projects
+- **RLS en tabla padre bloquea joins aunque la tabla hija tenga policy permisiva**
+
+**Solución:**
+- Query adicional con admin client directo a team_connections para traer isolated teams del invitado
+- Mergear isolated teams con allTeams existentes antes de pasar a TeamsClient
+- No modificar getProjectsWithHierarchy() — mantener query paralela
+
+**Implementación:**
+- teams/page.tsx:
+  - Import createAdminClient
+  - Después de getProjectsWithHierarchy(), SELECT team_connections con nested join a teams/workspaces/agent_sessions
+  - Filtros: `receiver_account_id = user.id`, `status = 'active'`, `scope_isolated_team_id IS NOT NULL`
+  - Map resultado a TeamWithWorkspaces[], filter nulls
+  - Merge: `allTeams = [...projects.flatMap(...), ...isolatedTeams]`
+- Interface temporal IsolatedConnectionRow para type safety
+
+**Archivos modificados:**
+- src/app/teams/page.tsx — fetch isolated teams via admin client, merge con allTeams
+
+**Build:** ✅ Pasó sin errores
+
+**Lección:**
+- RLS en tabla padre bloquea nested joins aunque la tabla hija tenga policy permisiva
+- SELECT desde `projects` → `teams` falla si `projects.account_id != auth.uid()`, aunque `teams` tenga policy que permite SELECT directo
+- Para cross-account data visible solo en tabla hija: usar query paralela directa a la tabla hija, no nested join desde padre
+- Admin client necesario para leer team_connections de otro account (requester_account_id != auth.uid()) y hacer nested join a teams de ese account
