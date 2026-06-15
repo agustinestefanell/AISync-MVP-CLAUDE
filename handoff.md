@@ -6395,3 +6395,48 @@ Ninguno — solución más simple, más natural y mejor UX.
 El usuario debe tener control sobre lo que envía. Autostart automático sacrificaba UX por "magia" — el prefill da transparencia sin perder flujo. Una solución más simple casi siempre es mejor que una solución "inteligente" con timing issues.
 
 **Estado:** CERRADA. Commit e22ec23. Build exitoso. Push exitoso. 50 líneas netas eliminadas.
+
+---
+
+## Sesión 2026-06-15 — Feature: Project name y Team name en Chat-First Onboarding
+
+**Fecha:** 2026-06-15
+**Archivos modificados:**
+- src/components/onboarding/ChatFirstClient.tsx
+- src/app/api/onboarding/start/route.ts
+
+**Cambio realizado:**
+Agregados dos campos de texto en /start para permitir al usuario especificar Project name y Team name antes de crear la estructura. Campos pre-llenados con "My First Project" y "My First Team" como defaults. Usuario puede editar ambos antes de presionar "Start with the General Manager".
+
+**Decisión técnica:**
+Layout grid 2 columnas (sm:grid-cols-2) para los campos, ubicados ANTES del textarea de initialIntent. Team name tiene helper text "You can edit this later" debajo del input. Validación requiere que los 3 campos estén llenos (projectName, teamName, initialIntent) para habilitar el botón. Backend acepta projectName y teamName opcionales para backward compatibility — si no vienen, usa defaults.
+
+**Cambios implementados:**
+1. ChatFirstClient:
+   - Estados agregados: `projectName` (default "My First Project"), `teamName` (default "My First Team")
+   - Validación: verifica que projectName.trim(), teamName.trim() e initialIntent.trim() no estén vacíos
+   - UI: grid 2 columnas con label, input, y helper text en team name
+   - POST /api/onboarding/start: body incluye `projectName` y `teamName` además de `initialIntent`
+   - Botón deshabilitado si alguno de los 3 campos está vacío
+
+2. /api/onboarding/start:
+   - Interface OnboardingPayload extendida con `projectName?: string` y `teamName?: string`
+   - Lógica: `finalProjectName = projectName?.trim() || 'My First Project'`
+   - Lógica: `finalTeamName = teamName?.trim() || 'My First Team'`
+   - INSERT projects: usa `finalProjectName` en vez de hardcoded
+   - INSERT teams: usa `finalTeamName` en vez de hardcoded
+
+**Alternativas descartadas:**
+- Campos opcionales sin defaults — descartado porque genera confusión al usuario
+- Validación server-side estricta — descartado porque backend acepta defaults para backward compatibility
+
+**Riesgos conocidos:**
+Ninguno — feature aditiva, no rompe flujos existentes.
+
+**Deuda técnica:**
+Ninguna.
+
+**Lección clave:**
+Backward compatibility mediante defaults opcionales permite agregar campos sin romper integraciones previas. Pre-llenar con valores sensatos reduce friction del usuario nuevo.
+
+**Estado:** CERRADA. Commit 373853c. Build exitoso. Push exitoso.
