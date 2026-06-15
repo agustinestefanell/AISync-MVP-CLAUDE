@@ -207,3 +207,54 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 - **Commit:** `c210c78` — fix: add scope_isolated_workspace_id to team_connections for cross-account nav
 
 - **Lección:** Cuando dos cuentas comparten una referencia, persistir los IDs necesarios directamente en la tabla de conexión. No asumir que joins cross-account funcionan bajo RLS de usuario — RLS ownership bloquea acceso a datos de otra cuenta incluso en queries de solo lectura. El patrón "desnormalizar para evitar RLS cross-account" es más robusto que admin client o policies complejas. Siempre considerar el lado receiver al diseñar features cross-account.
+
+---
+
+### 9. Connection description no se propagaba al isolated team card
+
+**Contexto:**
+- Handoff.md documentaba que la connection description (team_connections.description) no se mostraba en TeamAgentCard para Shared Sessions (isolated teams) en Teams Map
+- Bug 2 reportado (Open Workspace navigation) ya funcionaba correctamente, no requería fix
+
+**Diagnosis:**
+- `agent-map.ts:deriveAgentNodesFromTeams()` solo leía `team.description`, no `team_connections.description`
+- AgentNode interface no tenía campos para connection metadata
+- MapAgentNode interface no tenía campos para connection metadata
+- TeamAgentCard.tsx mostraba `node.teamDescription` para todos los tipos de team, sin distinguir isolated
+
+**Primer intento — server-side fetch bloqueado por importación cruzada:**
+- Convertí deriveAgentNodesFromTeams a async e importé createClient() from server.ts para JOIN connections
+- Build error: "You're importing a component that needs next/headers"
+- Cadena: server.ts → agent-map.ts → MapView.tsx (client component)
+- Problema: No se puede importar server utilities en módulos que luego se usan en client components
+
+**Solución final — client-side fetch:**
+- Extendí AgentNode interface con `connectionDescription?: string | null; connectionColor?: string | null`
+- Extendí MapAgentNode interface con los mismos campos
+- Cambié deriveAgentNodesFromTeams a recibir `connectionMap?: Record<string, ConnectionMetadata>` como parámetro
+- MapView.tsx y TreeView.tsx:
+  - useState + useEffect para fetch('/api/connections') cuando hay isolated teams
+  - Build connectionMap keyed por scope_isolated_team_id
+  - useMemo(() => deriveAgentNodesFromTeams(teams, connectionMap), [teams, connectionMap])
+- `buildAgentLayout.ts`: pass-through de connectionDescription/connectionColor en mapping
+- `TeamAgentCard.tsx`: cambiar líneas 255-259 para mostrar connectionDescription en isolated teams, y línea 189 para usar connectionColor
+
+**Cambios adicionales:**
+- `types.ts`: agregar 'isolated' a TeamType union (estaba missing, causaba type error)
+- MapView.tsx y TreeView.tsx: type annotation para connections array (eliminar `any[]`)
+
+**Archivos modificados:**
+- src/lib/db/types.ts — TeamType = 'SAT' | 'MAT' | 'isolated'
+- src/lib/db/agent-map.ts — AgentNode interface, ConnectionMetadata interface, deriveAgentNodesFromTeams parámetro
+- src/lib/map/buildAgentLayout.ts — MapAgentNode interface + pass-through
+- src/components/teams/map/TeamAgentCard.tsx — mostrar connectionDescription para isolated teams, usar connectionColor
+- src/components/teams/MapView.tsx — fetch connections client-side, build connectionMap
+- src/components/teams/TreeView.tsx — mismo patrón
+
+**Build:** ✅ Pasó sin errores (warnings pre-existentes en CanvasViewport.tsx no relacionados)
+
+**Lección:** 
+- Metadata de connection y metadata de team son entidades distintas que deben propagarse separadamente a través de la data flow
+- Server/client boundary: no se puede importar server utilities (createClient) en módulos compartidos que luego son usados por client components
+- Patrón correcto: fetch client-side en useEffect, build map, pass como parámetro a funciones sync
+- Tipo TeamType debe estar sincronizado con valores reales en DB — 'isolated' estaba ausente del union type

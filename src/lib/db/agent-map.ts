@@ -14,13 +14,29 @@ export interface AgentNode {
   teamType: 'SAT' | 'MAT' | 'isolated'
   teamDescription: string | null
   projectId: string
+  connectionDescription?: string | null
+  connectionColor?: string | null
 }
 
-export function deriveAgentNodesFromTeams(teams: TeamWithWorkspaces[]): AgentNode[] {
+export interface ConnectionMetadata {
+  description: string | null
+  color: string | null
+}
+
+export function deriveAgentNodesFromTeams(
+  teams: TeamWithWorkspaces[],
+  connectionMap?: Record<string, ConnectionMetadata>
+): AgentNode[] {
   const nodes: AgentNode[] = []
+
   for (const team of teams) {
     const workspace = team.workspaces[0]
     if (!workspace) continue
+
+    const connectionData = team.type === 'isolated' && connectionMap
+      ? connectionMap[team.id]
+      : null
+
     for (const agent of workspace.agent_sessions) {
       nodes.push({
         agentId:          agent.id,
@@ -36,6 +52,8 @@ export function deriveAgentNodesFromTeams(teams: TeamWithWorkspaces[]): AgentNod
         teamType:         team.type,
         teamDescription:  team.description,
         projectId:        team.project_id,
+        connectionDescription: connectionData?.description ?? null,
+        connectionColor:       connectionData?.color ?? null,
       })
     }
   }

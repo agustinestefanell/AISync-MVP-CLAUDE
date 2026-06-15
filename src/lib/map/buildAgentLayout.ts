@@ -20,6 +20,8 @@ export interface MapAgentNode {
   connected: boolean
   projectId: string
   agentRole?: 'manager' | 'worker1' | 'worker2' // Added for Shared Session labels
+  connectionDescription?: string | null // Added for Shared Session from team_connections
+  connectionColor?: string | null // Added for Shared Session card color
 }
 
 export interface AgentPlacement {
@@ -314,6 +316,8 @@ export function agentNodesToMapNodes(
       connected: connectedTeamIds.has(a.teamId),
       projectId: a.projectId,
       agentRole: a.role, // Pass through for Shared Session labels
+      connectionDescription: a.connectionDescription, // Pass through for Shared Session
+      connectionColor:       a.connectionColor, // Pass through for Shared Session card color
     }
   })
 }

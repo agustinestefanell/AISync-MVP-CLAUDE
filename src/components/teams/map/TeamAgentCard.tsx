@@ -186,7 +186,7 @@ function GMCard({
 }) {
   // Isolated team (Shared Session) gets full-card color treatment
   const isIsolated = node.teamType === 'isolated'
-  const isolatedColor = '#000000' // Default black for Shared Session (color from team_connections not yet propagated)
+  const isolatedColor = isIsolated ? (node.connectionColor || '#000000') : '#000000'
 
   return (
     <div
@@ -253,7 +253,10 @@ function GMCard({
             background: isIsolated ? 'rgba(255,255,255,0.08)' : 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
           }}
         >
-          {node.teamDescription || <span className={`italic ${isIsolated ? 'text-white/40' : 'text-neutral-400'}`}>No description yet.</span>}
+          {isIsolated
+            ? (node.connectionDescription || <span className="italic text-white/40">No description yet.</span>)
+            : (node.teamDescription || <span className="italic text-neutral-400">No description yet.</span>)
+          }
         </div>
       </div>
 

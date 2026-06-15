@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo }    from 'react'
+import { useMemo, useState, useEffect }    from 'react'
 import CanvasViewport from './map/CanvasViewport'
 import { deriveAgentNodesFromTeams }    from '@/lib/db/agent-map'
 import { agentNodesToMapNodes }         from '@/lib/map/buildAgentLayout'
@@ -162,7 +162,34 @@ export default function TreeView({
   zoomOutSignal,
   resetSignal,
 }: TreeViewProps) {
-  const agentNodes = useMemo(() => deriveAgentNodesFromTeams(teams), [teams])
+  const [connectionMap, setConnectionMap] = useState<Record<string, { description: string | null; color: string | null }>>({})
+
+  useEffect(() => {
+    const isolatedTeamIds = teams.filter(t => t.type === 'isolated').map(t => t.id)
+    if (isolatedTeamIds.length === 0) {
+      setConnectionMap({})
+      return
+    }
+
+    fetch('/api/connections')
+      .then(r => r.json())
+      .then((connections: Array<{ scope_isolated_team_id?: string; description?: string | null; color?: string | null }>) => {
+        const map: Record<string, { description: string | null; color: string | null }> = {}
+        for (const conn of connections) {
+          if (conn.scope_isolated_team_id && isolatedTeamIds.includes(conn.scope_isolated_team_id)) {
+            map[conn.scope_isolated_team_id] = {
+              description: conn.description ?? null,
+              color: conn.color ?? null,
+            }
+          }
+        }
+        setConnectionMap(map)
+      })
+      .catch(() => setConnectionMap({}))
+  }, [teams])
+
+  const agentNodes = useMemo(() => deriveAgentNodesFromTeams(teams, connectionMap), [teams, connectionMap])
+
   const mapNodes   = useMemo(
     () => agentNodesToMapNodes(agentNodes, connectedTeamIds),
     [agentNodes, connectedTeamIds],

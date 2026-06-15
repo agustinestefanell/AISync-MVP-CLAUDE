@@ -1,5 +1,5 @@
 export type ProjectStatus = 'active' | 'archived'
-export type TeamType = 'SAT' | 'MAT'
+export type TeamType = 'SAT' | 'MAT' | 'isolated'
 export type LockState = 'unlocked' | 'locked'
 export type AgentRole = 'manager' | 'worker1' | 'worker2'
 

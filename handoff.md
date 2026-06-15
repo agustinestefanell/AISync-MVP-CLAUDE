@@ -51,6 +51,26 @@ Metadata de conexión (description/color) vive en team_connections, no en teams.
 
 ---
 
+## Pausa sesión 2026-06-14 — diagnóstico pendiente
+
+**Bug detectado — isolated team nombre invertido:**
+El isolated team se crea con nombre "Shared: Equipo generico ↔ agustinestefanell@gmail.com" pero agustinestefanell es el ANFITRIÓN, no el invitado. El nombre debería ser "Shared: Equipo generico ↔ agustin.viaje@gmail.com". Posible causa: requester_email y receiver_email invertidos en la construcción del nombre.
+
+**Bug detectado — anfitrión no ve el Shared Session en Teams Map:**
+agustinestefanell no ve el card Shared Session en su Teams Map. agustin.viaje (invitado) sí lo ve. El isolated team existe en DB con project_id del invitado (f5f65d8c-...) — POSIBLE causa: el isolated team se está creando en el proyecto del invitado, no del anfitrión.
+
+**Diagnóstico pendiente:**
+Verificar en src/app/api/connections/[id]/route.ts:
+1. Cómo se construye el nombre del isolated team
+2. En qué account/project se crea el isolated team
+3. Si requester y receiver están invertidos en el accept flow
+
+**Próximo paso:** diagnóstico profundo local con Claude Code al retomar.
+
+**Estado:** Pendiente de fix. No hacer commit de este handoff — agregar al commit del fix.
+
+---
+
 ## Sesión 2026-06-13 — Fix crítico: scope_isolated_workspace_id para navegación cross-account
 
 **Fecha:** 2026-06-13
