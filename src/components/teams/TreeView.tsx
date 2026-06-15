@@ -173,10 +173,10 @@ export default function TreeView({
 
     fetch('/api/connections')
       .then(r => r.json())
-      .then((connections: Array<{ scope_isolated_team_id?: string; description?: string | null; color?: string | null }>) => {
+      .then((connections: Array<{ scope_isolated_team_id?: string; description?: string | null; color?: string | null; status?: string }>) => {
         const map: Record<string, { description: string | null; color: string | null }> = {}
         for (const conn of connections) {
-          if (conn.scope_isolated_team_id && isolatedTeamIds.includes(conn.scope_isolated_team_id)) {
+          if (conn.status === 'active' && conn.scope_isolated_team_id && isolatedTeamIds.includes(conn.scope_isolated_team_id)) {
             map[conn.scope_isolated_team_id] = {
               description: conn.description ?? null,
               color: conn.color ?? null,
