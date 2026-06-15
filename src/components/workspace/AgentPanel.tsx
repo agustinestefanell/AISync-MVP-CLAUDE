@@ -96,7 +96,6 @@ export interface AgentPanelHandle {
   restoreMessages(messages: ChatMessage[]): void
   getSelectedMessages(): ChatMessage[]
   clearSelection(): void
-  triggerAutoSend(): void
 }
 
 interface PanelSnapshot {
@@ -120,6 +119,7 @@ interface Props {
   projectId?:               string
   teamType?:                'SAT' | 'MAT'
   getOtherPanelsSnapshot?:  () => PanelSnapshot[]
+  initialInput?:            string
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
   ({
     session, initialMessages, workspaceLocked, onSelectionChange,
     forwardTargets, onForward, onCreateHandoff, onSaveVersion, onOpenSaveSelection,
-    teamId, projectId, teamType, getOtherPanelsSnapshot,
+    teamId, projectId, teamType, getOtherPanelsSnapshot, initialInput,
   }, ref) => {
     const role         = ROLE_CONFIG[session.agent_role] ?? DEFAULT_ROLE
     const guidePrompts = GUIDE_PROMPTS[session.agent_role] ?? GUIDE_PROMPTS.worker1
@@ -177,6 +177,13 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { onSelectionChange(selectedIndices.size) }, [selectedIndices.size])
 
+    // Prefill input from onboarding
+    useEffect(() => {
+      if (initialInput) {
+        setInput(initialInput)
+      }
+    }, [initialInput])
+
     // Scroll al final al montar — carga inicial de mensajes históricos
     useEffect(() => {
       if (initialMessages.length > 0) {
@@ -209,20 +216,6 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       clearSelection: () => {
         setSelectedIndices(new Set())
         onSelectionChange(0)
-      },
-      triggerAutoSend: () => {
-        console.log('[autostart] triggerAutoSend invoked')
-        const allMessages = messages
-        console.log('[autostart] messages count:', allMessages.length)
-        const lastMessage = allMessages[allMessages.length - 1]
-        console.log('[autostart] last message role:', lastMessage?.role)
-        console.log('[autostart] streaming:', streaming)
-        if (lastMessage?.role === 'user' && !streaming) {
-          console.log('[autostart] sending message')
-          sendMessage()
-        } else {
-          console.log('[autostart] conditions not met - skipping send')
-        }
       },
     }))
 

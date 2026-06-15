@@ -36,10 +36,10 @@ interface Props {
   workspace:           WorkspaceWithAgents
   initialMessages:     Record<string, Message[]>
   initialCheckpointId?: string
-  autostartSessionId?: string
+  prefillMessage?:     string
 }
 
-export default function WorkspaceClient({ pageName, accentColor, badge, workspace, initialMessages, initialCheckpointId, autostartSessionId }: Props) {
+export default function WorkspaceClient({ pageName, accentColor, badge, workspace, initialMessages, initialCheckpointId, prefillMessage }: Props) {
   const [showMainGuide, setShowMainGuide] = useState(false)
 
   return (
@@ -58,7 +58,7 @@ export default function WorkspaceClient({ pageName, accentColor, badge, workspac
           workspace={workspace}
           initialMessages={initialMessages}
           initialCheckpointId={initialCheckpointId}
-          autostartSessionId={autostartSessionId}
+          prefillMessage={prefillMessage}
         />
       </main>
 

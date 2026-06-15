@@ -158,20 +158,17 @@ export async function POST(req: Request) {
     workspaceId = workspace.id
 
     // ── Step 6: Crear 3 agent sessions ───────────────────────────────────
-    const { data: createdSessions, error: agentsErr } = await supabase
-      .from('agent_sessions')
-      .insert(
-        agents.map((a) => ({
-          workspace_id: workspaceId,
-          agent_role: a.role,
-          provider: a.provider,
-          model: a.model,
-          config: null,
-        }))
-      )
-      .select('id, agent_role')
+    const { error: agentsErr } = await supabase.from('agent_sessions').insert(
+      agents.map((a) => ({
+        workspace_id: workspaceId,
+        agent_role: a.role,
+        provider: a.provider,
+        model: a.model,
+        config: null,
+      }))
+    )
 
-    if (agentsErr || !createdSessions) {
+    if (agentsErr) {
       console.error(
         '[onboarding/start] failed to create agent_sessions',
         agentsErr
@@ -186,26 +183,7 @@ export async function POST(req: Request) {
       )
     }
 
-    // ── Step 7: Persistir initialIntent como primer mensaje del usuario ──
-    const managerSession = createdSessions.find((s) => s.agent_role === 'manager')
-
-    if (managerSession) {
-      const { error: messageErr } = await supabase.from('messages').insert({
-        session_id: managerSession.id,
-        role: 'user',
-        content: initialIntent.trim(),
-      })
-
-      if (messageErr) {
-        console.error(
-          '[onboarding/start] failed to save initial message',
-          messageErr
-        )
-        // No bloqueante — la estructura ya está creada
-      }
-    }
-
-    // ── Step 8: Marcar onboarding completado ─────────────────────────────
+    // ── Step 7: Marcar onboarding completado ─────────────────────────────
     const { error: completeErr } = await supabase
       .from('accounts')
       .update({ onboarding_completed: true })
@@ -219,10 +197,7 @@ export async function POST(req: Request) {
       // No bloqueante — la estructura ya está creada, el usuario puede entrar
     }
 
-    return NextResponse.json({
-      workspaceId,
-      managerSessionId: managerSession?.id ?? null,
-    })
+    return NextResponse.json({ workspaceId })
   } catch (error) {
     console.error('[onboarding/start] unexpected error', error)
 

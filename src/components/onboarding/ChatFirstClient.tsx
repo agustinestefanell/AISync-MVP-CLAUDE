@@ -69,11 +69,8 @@ export default function ChatFirstClient() {
         return
       }
 
-      const { workspaceId, managerSessionId } = await res.json()
-      const url = managerSessionId
-        ? `/workspace/${workspaceId}?autostart=${managerSessionId}`
-        : `/workspace/${workspaceId}`
-      router.push(url)
+      const { workspaceId } = await res.json()
+      router.push(`/workspace/${workspaceId}?prefill=${encodeURIComponent(initialIntent)}`)
     } catch {
       setValidationMessage('Network error. Please try again.')
       setIsStarting(false)

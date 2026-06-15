@@ -27,12 +27,12 @@ interface Props {
   workspace: WorkspaceWithAgents
   initialMessages: Record<string, Message[]>
   initialCheckpointId?: string
-  autostartSessionId?: string
+  prefillMessage?: string
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-export default function WorkspaceShell({ workspace, initialMessages, initialCheckpointId, autostartSessionId }: Props) {
+export default function WorkspaceShell({ workspace, initialMessages, initialCheckpointId, prefillMessage }: Props) {
   const [lockState, setLockState]       = useState(workspace.lock_state)
   const [_lockLoading, setLockLoading]  = useState(false)
   const [_checkpoints, setCheckpoints]  = useState<Checkpoint[]>([])
@@ -90,22 +90,6 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       .catch(() => {})
   }, [workspace.id])
 
-  // Auto-send initial message from onboarding
-  useEffect(() => {
-    if (!autostartSessionId) return
-
-    const timer = setTimeout(() => {
-      console.log('[autostart] attempting trigger for session:', autostartSessionId)
-      const ref = panelRefs.current[autostartSessionId]
-      console.log('[autostart] ref found:', !!ref)
-      if (ref) {
-        ref.triggerAutoSend()
-        console.log('[autostart] triggerAutoSend called')
-      }
-    }, 1500) // Increased delay to ensure panel is fully mounted
-
-    return () => clearTimeout(timer)
-  }, [autostartSessionId])
 
   function getAgentMessages(sessionId: string) {
     return panelRefs.current[sessionId]?.getAllMessages() ?? []
@@ -373,6 +357,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
             projectId={workspace.teams?.project_id ?? undefined}
             teamType={teamType}
             getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(session.id)}
+            initialInput={session.agent_role === 'manager' ? prefillMessage : undefined}
           />
         ))}
       </div>
