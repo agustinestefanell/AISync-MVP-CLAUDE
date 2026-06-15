@@ -46,7 +46,16 @@ export default async function TeamsPage() {
     .not('scope_isolated_team_id', 'is', null)
 
   const isolatedTeams = (isolatedConnections as IsolatedConnectionRow[] | null ?? [])
-    .map(c => c.isolated_team)
+    .map(c => {
+      if (!c.isolated_team) return null
+      // Ensure color and description are present (copied at accept, but fallback to connection for safety)
+      const team = c.isolated_team
+      return {
+        ...team,
+        color: team.color ?? c.color ?? null,
+        description: team.description ?? c.description ?? null,
+      } as TeamWithWorkspaces
+    })
     .filter((t): t is TeamWithWorkspaces => t != null)
 
   // All projects in a single map; active project is highlighted.

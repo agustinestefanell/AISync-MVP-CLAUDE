@@ -34,14 +34,25 @@ export interface Connection {
 }
 
 const CONNECTION_COLORS = [
-  '#000000',
-  '#1e3a5f',
-  '#14532d',
-  '#7f1d1d',
-  '#3b0764',
-  '#134e4a',
-  '#7c2d12',
-  '#1c1c1c',
+  // Originales (oscuros neutros)
+  '#000000', // Negro
+  '#1e3a5f', // Azul oscuro
+  '#3b0764', // Violeta
+  '#134e4a', // Teal
+  '#1c1c1c', // Gris carbón
+  '#2d1b69', // Índigo oscuro
+  '#1a1a2e', // Azul noche
+  '#0f2027', // Verde azulado oscuro
+  // Rojos
+  '#7f1d1d', // Rojo oscuro
+  '#991b1b', // Rojo medio
+  '#7c2d12', // Naranja oscuro
+  '#78180a', // Rojo ladrillo
+  // Verdes
+  '#14532d', // Verde oscuro
+  '#166534', // Verde medio
+  '#15803d', // Verde claro oscuro
+  '#065f46', // Esmeralda oscuro
 ]
 
 export default function ConnectTeamModal({ teams, onClose, onConnected }: ConnectTeamModalProps) {
@@ -143,7 +154,7 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
             <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-2">
               Card color
             </label>
-            <div className="flex gap-2.5">
+            <div className="grid grid-cols-8 gap-2.5">
               {CONNECTION_COLORS.map(color => (
                 <button
                   key={color}

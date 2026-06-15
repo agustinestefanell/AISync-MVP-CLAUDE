@@ -5972,6 +5972,57 @@ Fix en dos partes para bugs de metadata en isolated teams (Shared Sessions):
 2. `fix: filter active connections only when building isolated team card metadata` — filtro status en MapView/TreeView
 3. `fix: fetch isolated teams for invitee via team_connections in teams page` — query paralela para invitado
 4. `fix: copy connection description and color to isolated team on accept` — persistencia en team entity
+5. `fix: invitee isolated team color, expand color palette to 16` — propagación explícita de color/description en teams/page.tsx + paleta 16 colores
 
 ### Estado
 Parte 1 cerrada a nivel repo. Parte 2 cerrada a nivel repo — migración 031 manual pendiente.
+
+---
+
+## [2026-06-15] — fix CONN-004: Invitado ve color lavado + paleta expandida
+
+### Cambio realizado
+Fix triple en una intervención:
+
+**Fix 1: Color lavado del invitado**
+- Diagnóstico: teams/page.tsx extraía solo `isolated_team` del query result, descartando color/description de la conexión
+- Causa: map simplificado `c => c.isolated_team` no propagaba campos explícitamente
+- Solución: cambiar map para garantizar color y description presentes con fallback a connection
+- teams/page.tsx líneas 48-58: map explícito con `team.color ?? c.color ?? null`
+
+**Fix 2: Paleta expandida a 16 colores**
+- ConnectTeamModal.tsx: CONNECTION_COLORS de 8 → 16 colores
+- Agregados: 4 rojos (#7f1d1d, #991b1b, #7c2d12, #78180a) + 4 verdes (#14532d, #166534, #15803d, #065f46)
+- Layout: `flex gap-2.5` → `grid grid-cols-8 gap-2.5` para 2 filas de 8
+
+**Fix 3: Documentación**
+- CodingWorkshop.md entrada 12: diagnóstico de color lavado + solución
+- handoff.md actualizado con commit 5 y estado
+
+### Archivos tocados
+- `src/app/teams/page.tsx` — map explícito de isolated teams con fallback
+- `src/components/teams/ConnectTeamModal.tsx` — paleta 16 colores + grid layout
+
+### Decisiones técnicas
+1. **Fallback explícito en teams/page.tsx**: garantiza color presente incluso para teams creados antes de migración 031 donde `team.color` puede ser null
+2. **No modificar connectionMap logic**: MapView/TreeView ya funcionan correctamente, el problema era upstream en teams/page.tsx
+3. **Grid 8x2 en selector**: mantiene densidad visual compacta, 16 colores caben sin scroll
+
+### Alternativas descartadas
+- Modificar MapView connectionMap: innecesario, ya funciona para incoming connections
+- Backfill manual de teams.color: solución temporal costosa, fallback garantiza robustez
+- Paleta infinita con color picker: overkill para MVP, 16 colores suficientes para diferenciación
+
+### Riesgos / deuda técnica
+- Map explícito con casting `as TeamWithWorkspaces` bypasses type checking — confiar en estructura de query result
+- Paleta fija no personalizable — feature request futura si usuarios necesitan más colores
+- connectionMap sigue siendo necesario como fallback — no se puede eliminar
+
+### Build
+✓ `npm run build` limpio (warnings preexistentes en CanvasViewport.tsx no relacionados)
+
+### Commit
+`fix: invitee isolated team color, expand color palette to 16`
+
+### Estado
+Cerrado a nivel repo. Ready para verificación en producción.

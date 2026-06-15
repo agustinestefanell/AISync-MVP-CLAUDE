@@ -345,3 +345,49 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 - Metadata de trazabilidad debe persistir en la entidad durable (el team), no solo en la relación (la conexión) que puede cambiar de estado
 - Copiar data de la relación a la entidad en el momento de creación garantiza persistencia independiente del ciclo de vida de la relación
 - Fallback a la relación permite backward compatibility para entidades creadas antes de la migración
+
+---
+
+### 12. Invitado ve color lavado — isolated team no pasa color/description desde teams/page
+
+**Contexto:**
+- Bug reportado: invitado ve isolated team pero con color lavado (negro #000000 en vez del violeta #3b0764)
+- DB verificada: isolated team tiene color y description correctos
+- Diagnóstico: teams/page.tsx extrae solo `isolated_team` del query result, descartando color/description de la conexión
+- connectionMap en MapView vacío porque solo lee conexiones outgoing del usuario
+
+**Diagnosis:**
+- teams/page.tsx líneas 48-50: `map(c => c.isolated_team)` descarta campos `c.color` y `c.description` del query
+- El team SÍ tiene color copiado en accept, pero el map no propaga correctamente
+- MapView.tsx connectionMap se llena correctamente desde GET /api/connections (trae incoming y outgoing por RLS)
+- El problema era subtle: isolated_team se extraía sin garantizar que color/description estuvieran presentes
+
+**Solución:**
+- teams/page.tsx: cambiar map para propagar explícitamente color y description con fallback
+  ```typescript
+  .map(c => {
+    if (!c.isolated_team) return null
+    const team = c.isolated_team
+    return {
+      ...team,
+      color: team.color ?? c.color ?? null,  // team primero, connection fallback
+      description: team.description ?? c.description ?? null,
+    } as TeamWithWorkspaces
+  })
+  ```
+
+**Bonus — Paleta expandida:**
+- ConnectTeamModal.tsx: CONNECTION_COLORS expandido de 8 a 16 colores
+- Agregados 4 rojos + 4 verdes además de los 8 neutros originales
+- Layout cambiado de `flex gap-2.5` a `grid grid-cols-8 gap-2.5` para 2 filas de 8
+
+**Archivos modificados:**
+- src/app/teams/page.tsx — map isolated teams con fallback explícito
+- src/components/teams/ConnectTeamModal.tsx — paleta 16 colores + grid layout
+
+**Build:** ✅ Pasó sin errores
+
+**Lección:**
+- Cuando haces nested join con Supabase, el map debe propagar explícitamente todos los campos necesarios — no asumir que "ya están en el objeto"
+- team.color puede ser null si fue creado antes de la migración, fallback a connection garantiza color presente
+- La estructura del query result no es idéntica al tipo de destino — casting explícito necesario
