@@ -205,7 +205,9 @@ function GMCard({
       style={{
         border:     isIsolated ? `1.5px solid ${isolatedColor}` : `1.5px solid ${tokens.border}`,
         background: isIsolated ? isolatedColor : `linear-gradient(180deg, ${tokens.header} 0%, ${tokens.bg} 100%)`,
-        boxShadow:  '0 18px 38px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.80)',
+        boxShadow:  isIsolated
+          ? '0 18px 38px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.20)'
+          : '0 18px 38px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.80)',
       }}
     >
       {/* Header — label + name */}

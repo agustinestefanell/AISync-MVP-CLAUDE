@@ -6021,8 +6021,53 @@ Fix triple en una intervención:
 ### Build
 ✓ `npm run build` limpio (warnings preexistentes en CanvasViewport.tsx no relacionados)
 
-### Commit
-`fix: invitee isolated team color, expand color palette to 16`
+### Commits
+1. `fix: invitee isolated team color, expand color palette to 16` — propagación explícita + paleta
+2. `debug: add console logs to track isolated team color flow for invitee` — logs temporales
+3. `fix: reduce inset shadow opacity for isolated teams to prevent color washing` — boxShadow condicional
 
 ### Estado
 Cerrado a nivel repo. Ready para verificación en producción.
+
+---
+
+## [2026-06-15] — fix CONN-005: Color lavado por inset box-shadow
+
+### Cambio realizado
+Fix de CSS visual para isolated team cards:
+
+**Problema:**
+- Color llegaba correcto (#3b0764 violeta) pero se veía lavado/desaturado
+- Data pipeline verificada correcta con debug logs
+- Causa: `boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.80)'` no condicional
+
+**Solución:**
+- Hacer boxShadow condicional por isIsolated
+- Isolated teams: opacidad 0.20 (no lava color sólido)
+- Regular teams: opacidad 0.80 (funciona con gradient)
+
+### Archivos tocados
+- `src/components/teams/map/TeamAgentCard.tsx` — boxShadow condicional línea 208
+
+### Decisiones técnicas
+1. **Opacidad 0.20 vs eliminar completamente**: mantener subtle highlight sin lavar color
+2. **No modificar otros shadows**: solo inset top, otros shadows OK
+3. **Debug logs temporales**: útiles para confirmar problema era CSS, no data
+
+### Alternativas descartadas
+- Eliminar inset shadow completamente: pierde subtle depth visual
+- Cambiar a shadow negro: invierte el efecto pero pierde consistencia con regular cards
+- Aplicar mismo fix a regular teams: innecesario, funcionan bien con gradient
+
+### Riesgos / deuda técnica
+- Debug logs en producción (commit previo) — remover después de verificación
+- Opacidad 0.20 es valor empírico — puede requerir ajuste fino según feedback visual
+
+### Build
+✓ `npm run build` limpio
+
+### Commit
+`fix: reduce inset shadow opacity for isolated teams to prevent color washing`
+
+### Estado
+Cerrado a nivel repo. Debug logs pendientes de remoción post-verificación.

@@ -391,3 +391,39 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 - Cuando haces nested join con Supabase, el map debe propagar explícitamente todos los campos necesarios — no asumir que "ya están en el objeto"
 - team.color puede ser null si fue creado antes de la migración, fallback a connection garantiza color presente
 - La estructura del query result no es idéntica al tipo de destino — casting explícito necesario
+
+---
+
+### 13. Color lavado — inset box-shadow blanco al 80% lava isolated team colors
+
+**Contexto:**
+- Bug reportado: invitado ve color correcto (#3b0764 violeta) pero parece transparente/lavado
+- Data pipeline verificada: color llega correctamente a TeamAgentCard
+- Diagnóstico visual: el color se aplica pero se ve desaturado
+
+**Diagnosis:**
+- TeamAgentCard.tsx línea 208: `boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.80)'`
+- Inset shadow blanco al 80% de opacidad pone capa blanca semitransparente sobre el background
+- Efecto: lava cualquier color oscuro (violeta #3b0764 → gris lavado)
+- boxShadow NO era condicional, se aplicaba igual a isolated y regular teams
+
+**Solución:**
+- Hacer boxShadow condicional por isIsolated
+- Isolated teams: reducir opacidad del inset shadow de 0.80 → 0.20
+- Regular teams: mantener 0.80 (funcionan con gradient, no color sólido)
+  ```typescript
+  boxShadow: isIsolated
+    ? '0 18px 38px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.20)'
+    : '0 18px 38px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.80)',
+  ```
+
+**Archivos modificados:**
+- src/components/teams/map/TeamAgentCard.tsx — boxShadow condicional línea 208-210
+
+**Build:** ✅ Pasó sin errores
+
+**Lección:**
+- Inset box-shadows blancos con alta opacidad lavan colores oscuros sólidos
+- Lo que funciona para gradients (regular teams) no funciona para colores sólidos (isolated teams)
+- CSS visual debe ser condicional cuando los estilos de background difieren radicalmente
+- Debug logs fueron útiles para confirmar que el problema NO era data pipeline
