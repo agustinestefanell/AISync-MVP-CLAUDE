@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 import { createProjectAction } from '@/app/actions'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import ConnectTeamModal, { type Connection } from '@/components/teams/ConnectTeamModal'
@@ -46,6 +47,29 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   }, [])
 
   useEffect(() => { fetchConnections(); fetchActiveProject() }, [fetchConnections, fetchActiveProject])
+
+  // Realtime subscription for connection changes
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('dashboard-connections-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'team_connections'
+      }, () => {
+        fetchConnections()
+      })
+      .subscribe()
+
+    // Fallback polling every 15s in case realtime misses cross-account events
+    const interval = setInterval(fetchConnections, 15000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(interval)
+    }
+  }, [fetchConnections])
 
   async function setActiveProject(projectId: string) {
     if (projectId === activeProjectId || switchingProject) return
