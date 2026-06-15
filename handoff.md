@@ -6336,3 +6336,62 @@ Cerrado a nivel repo. Verificación visual pendiente en producción.
 
 ### Estado
 Decisión arquitectural registrada. Teams Map funcional pero con deuda visual. Reconstrucción programada para OE post-MVP.
+
+---
+
+## Sesión 2026-06-15 — Fix: prefill en vez de autostart para Chat-First Onboarding
+
+**Fecha:** 2026-06-15
+**Archivos modificados:**
+- src/app/api/onboarding/start/route.ts
+- src/components/onboarding/ChatFirstClient.tsx
+- src/app/workspace/[id]/page.tsx
+- src/components/workspace/WorkspaceClient.tsx
+- src/components/workspace/WorkspaceShell.tsx
+- src/components/workspace/AgentPanel.tsx
+
+**Problema detectado:**
+El autostart implementado en commit 464a661 era funcional pero innecesariamente complejo: timing issues con delay de 1500ms, logs de debug en consola, trigger vía useImperativeHandle, y UX subóptima — el usuario no veía su mensaje antes de que el Manager respondiera automáticamente.
+
+**Decisión técnica:**
+Reemplazar autostart automático por prefill simple del input. El usuario llega al workspace, ve su initialIntent ya escrito en el input del Manager, y presiona Send cuando quiera. Elimina timing issues, logs de debug, y toda la lógica de triggerAutoSend. Mejor UX — el usuario tiene control sobre lo que va a enviar antes de dispararlo.
+
+**Cambios implementados:**
+1. `/api/onboarding/start`: removido Step 7 (persistir initialIntent como mensaje), response cambió de `{workspaceId, managerSessionId}` a solo `{workspaceId}`
+2. `ChatFirstClient`: navegación cambió de `?autostart=${managerSessionId}` a `?prefill=${encodeURIComponent(initialIntent)}`
+3. `workspace/[id]/page`: searchParams cambió de `autostart?: string` a `prefill?: string`
+4. `WorkspaceClient`: props cambió de `autostartSessionId` a `prefillMessage`
+5. `WorkspaceShell`: 
+   - Props cambió de `autostartSessionId` a `prefillMessage`
+   - Removido useEffect completo con lógica de autostart y console.logs
+   - Pasa `initialInput={session.agent_role === 'manager' ? prefillMessage : undefined}` al panel manager
+6. `AgentPanel`:
+   - Removido `triggerAutoSend` de AgentPanelHandle interface
+   - Agregado `initialInput?: string` a Props
+   - Agregado useEffect para prefill: `if (initialInput) { setInput(initialInput) }`
+   - Removido implementación de triggerAutoSend con todos los console.log
+
+**Alternativas descartadas:**
+- Mantener autostart con timing mejorado — descartado porque el problema no era solo timing, era UX y complejidad innecesaria
+- Auto-send sin delay — descartado en diseño original por timing race conditions
+- Generar respuesta server-side — descartado por complejidad de streaming
+
+**Impacto en código:**
+- **-81 líneas** (código de autostart + debug logs eliminados)
+- **+31 líneas** (prefill limpio)
+- **Neto: -50 líneas** de código
+
+**Riesgos conocidos:**
+Ninguno — solución más simple, más natural y mejor UX.
+
+**Deuda técnica eliminada:**
+- Timing race conditions con delay empírico de 1500ms
+- Debug logs en consola de producción
+- Lógica de trigger automático con useImperativeHandle
+- Query param ?autostart en URL que quedaba después del trigger
+- Mensaje persistido en DB antes de que el usuario lo viera enviado
+
+**Lección clave:**
+El usuario debe tener control sobre lo que envía. Autostart automático sacrificaba UX por "magia" — el prefill da transparencia sin perder flujo. Una solución más simple casi siempre es mejor que una solución "inteligente" con timing issues.
+
+**Estado:** CERRADA. Commit e22ec23. Build exitoso. Push exitoso. 50 líneas netas eliminadas.

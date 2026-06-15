@@ -430,7 +430,32 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
 ---
 
-### 14. Color sigue lavado — body section tiene background blanco por defecto
+### 14. Autostart con timing issues reemplazado por prefill más simple
+
+- **Problema:** El autostart implementado para Chat-First Onboarding funcionaba pero tenía timing issues con delay empírico de 1500ms, console.logs de debug en producción, y UX subóptima — el usuario no veía su mensaje antes de que el Manager respondiera automáticamente.
+
+- **Causa raíz:** Lógica de trigger automático via `useImperativeHandle` + `useEffect` con delay arbitrario + verificación de estado de streaming + logs de debug. Solución funcional pero innecesariamente compleja. El problema de fondo era que el mensaje se persistía en DB y luego se intentaba auto-enviar con timing frágil.
+
+- **Consecuencia:** Timing race conditions (500ms insuficiente, 1500ms empírico), logs de debug contaminando consola de producción, UX sin control del usuario (mensaje disparado automáticamente sin que el usuario lo viera pre-fill), query param `?autostart` en URL que quedaba después del trigger.
+
+- **Proceso de solución:** Usuario identificó que "Es más simple y más natural. El usuario llega al workspace, ve su texto ya escrito en el input del Manager, y presiona Send. No hay autostart, no hay timing issues, no hay debug." Cambio de enfoque completo: de "auto-send" a "pre-fill".
+
+- **Solución final:**
+  1. `/api/onboarding/start`: removido Step 7 (persistir initialIntent como mensaje), response solo `{workspaceId}`
+  2. `ChatFirstClient`: navegación cambió a `?prefill=${encodeURIComponent(initialIntent)}`
+  3. `workspace/[id]/page`: searchParams cambió a `prefill?: string`
+  4. `WorkspaceClient` + `WorkspaceShell`: props cambió a `prefillMessage`, removido useEffect de autostart completo
+  5. `AgentPanel`: agregado `initialInput?: string` prop + useEffect simple `if (initialInput) setInput(initialInput)`, removido triggerAutoSend completo
+  
+  **Impacto:** -81 líneas (autostart + debug), +31 líneas (prefill) = **-50 líneas netas**
+
+- **Commit:** `e22ec23` — fix: use prefill input instead of autostart for onboarding initial message
+
+- **Lección:** El usuario debe tener control sobre lo que envía. Autostart automático sacrificaba UX por "magia". El prefill da transparencia sin perder flujo. Una solución más simple casi siempre es mejor que una solución "inteligente" con timing issues. Cuando múltiples signals apuntan a complejidad innecesaria (debug logs, delay empírico, race conditions), reevaluar el enfoque completo — no parchear.
+
+---
+
+### 15. Color sigue lavado — body section tiene background blanco por defecto
 
 **Contexto:**
 - Debug logs confirmaron: color llega correcto (#15803d verde)

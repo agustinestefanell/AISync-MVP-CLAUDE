@@ -339,15 +339,15 @@ accede con scope aislado, sincronizado via Supabase Realtime.
 
 ---
 
-## 2026-06-15 — Autostart via URL param para trigger automático de mensajes
+## 2026-06-15 — Prefill vs autostart para Chat-First Onboarding (prefill ganó)
 
-- **Decisión:** El autostart de mensajes al cargar un workspace se implementa via query param `?autostart=<sessionId>`. El workspace page lee el param, lo propaga a `WorkspaceShell`, que llama `panelRefs.current[sessionId]?.triggerAutoSend()` después de un delay de 1500ms. `AgentPanel` expone el método `triggerAutoSend()` via `useImperativeHandle`, que verifica que el último mensaje sea `role: 'user'` y `streaming === false`, y llama `sendMessage()` automáticamente.
-- **Razón:** El mensaje del usuario se persiste correctamente en DB y aparece en el workspace, pero nadie dispara el stream. El usuario ve su mensaje pero el agente está en silencio. Generar la respuesta en el backend requiere manejar streaming server-side (complejidad innecesaria). Auto-send directo en `AgentPanel` al montar no distingue carga normal de onboarding. Query param es explícito, trazable y no afecta comportamiento normal.
+- **Decisión:** El initialIntent de Chat-First Onboarding se pasa como pre-fill del input del Manager via query param `?prefill=<encodedText>`. El usuario llega al workspace, ve su texto ya escrito en el input, y presiona Send cuando quiera. **No hay autostart automático, no hay timing issues, no hay debug logs.**
+- **Razón:** El autostart implementado originalmente (commits 01aca2c + 464a661) era funcional pero innecesariamente complejo: timing race conditions con delay empírico de 1500ms, console.logs de debug en producción, trigger vía `useImperativeHandle`, y UX subóptima — el usuario no veía su mensaje antes de que el Manager respondiera automáticamente. El usuario identificó: "Es más simple y más natural. El usuario llega al workspace, ve su texto ya escrito en el input del Manager, y presiona Send. No hay autostart, no hay timing issues, no hay debug. Además es mejor UX — el usuario tiene control de lo que va a enviar antes de dispararlo."
 - **Alternativas descartadas:**
+  - Autostart automático con timing mejorado: descartado — el problema no era solo timing, era complejidad y UX
   - Generar respuesta del manager en `/api/onboarding/start`: descartado — requiere streaming server-side, duplica lógica de chat
-  - Auto-send sin delay: descartado — timing race condition, el ref puede no existir al momento del trigger
-  - Auto-send en `AgentPanel` sin trigger externo: descartado — no hay forma de saber que viene de onboarding vs carga normal de historial
-  - Delay de 500ms: descartado — insuficiente para garantizar montaje completo del panel
-- **Detalles:** El delay de 1500ms es empírico (puede requerir ajuste en máquinas lentas). El query param queda en la URL después del trigger (no se limpia). Logs de debug activos en consola (`[autostart]`) para diagnosticar en producción — remover cuando se confirme funcional.
-- **Patrón reutilizable:** El patrón de autostart via URL param puede reutilizarse para cualquier flujo que requiera auto-enviar un mensaje al cargar el workspace (templates, quick actions, external integrations).
-- **Estado:** Implemented — commits 01aca2c (autostart) + 464a661 (debug logs + delay 1500ms). Pendiente validación en producción post-migración 032.
+  - Persistir initialIntent como mensaje en DB antes de abrir workspace: descartado — genera mensaje "fantasma" que el usuario no envió conscientemente
+- **Impacto en código:** -81 líneas (autostart + debug logs eliminados), +31 líneas (prefill limpio), **neto: -50 líneas**
+- **Detalles técnicos:** `AgentPanel` recibe `initialInput?: string` prop y usa `useEffect` simple para pre-llenar el input. No hay trigger automático, no hay refs, no hay delay. El query param `?prefill` se consume al cargar — el texto aparece en el input inmediatamente sin persistir en DB.
+- **Lección clave:** El usuario debe tener control sobre lo que envía. Autostart automático sacrificaba UX por "magia". Prefill da transparencia sin perder flujo. Una solución más simple casi siempre es mejor que una solución "inteligente" con timing issues.
+- **Estado:** Implemented — commit e22ec23 (fix: use prefill input instead of autostart for onboarding initial message). Build exitoso, push exitoso, autostart completamente eliminado.
