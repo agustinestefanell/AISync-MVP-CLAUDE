@@ -5,6 +5,8 @@ export const dynamic = 'force-dynamic'
 
 interface OnboardingPayload {
   initialIntent: string
+  projectName?: string
+  teamName?: string
 }
 
 function computeType(agents: Array<{ provider: string }>): 'SAT' | 'MAT' {
@@ -23,7 +25,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
   }
 
-  const { initialIntent }: OnboardingPayload = await req.json()
+  const { initialIntent, projectName, teamName }: OnboardingPayload = await req.json()
 
   if (!initialIntent?.trim()) {
     return NextResponse.json(
@@ -31,6 +33,9 @@ export async function POST(req: Request) {
       { status: 400 }
     )
   }
+
+  const finalProjectName = projectName?.trim() || 'My First Project'
+  const finalTeamName = teamName?.trim() || 'My First Team'
 
   // ── Step 1: Verificar API key ────────────────────────────────────────────
   const { data: keys } = await supabase
@@ -70,7 +75,7 @@ export async function POST(req: Request) {
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .insert({
-        name: 'My First Project',
+        name: finalProjectName,
         account_id: user.id,
         status: 'active',
       })
@@ -114,7 +119,7 @@ export async function POST(req: Request) {
       .from('teams')
       .insert({
         project_id: projectId,
-        name: 'My First Team',
+        name: finalTeamName,
         type: teamType,
         parent_id: null,
       })
