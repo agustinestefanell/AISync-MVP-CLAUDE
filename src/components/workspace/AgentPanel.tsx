@@ -211,10 +211,17 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
         onSelectionChange(0)
       },
       triggerAutoSend: () => {
-        // If there are messages and the last one is from user, trigger send
-        const lastMessage = messages[messages.length - 1]
+        console.log('[autostart] triggerAutoSend invoked')
+        const allMessages = messages
+        console.log('[autostart] messages count:', allMessages.length)
+        const lastMessage = allMessages[allMessages.length - 1]
+        console.log('[autostart] last message role:', lastMessage?.role)
+        console.log('[autostart] streaming:', streaming)
         if (lastMessage?.role === 'user' && !streaming) {
+          console.log('[autostart] sending message')
           sendMessage()
+        } else {
+          console.log('[autostart] conditions not met - skipping send')
         }
       },
     }))

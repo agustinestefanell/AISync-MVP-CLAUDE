@@ -95,11 +95,14 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     if (!autostartSessionId) return
 
     const timer = setTimeout(() => {
-      const panel = panelRefs.current[autostartSessionId]
-      if (panel) {
-        panel.triggerAutoSend()
+      console.log('[autostart] attempting trigger for session:', autostartSessionId)
+      const ref = panelRefs.current[autostartSessionId]
+      console.log('[autostart] ref found:', !!ref)
+      if (ref) {
+        ref.triggerAutoSend()
+        console.log('[autostart] triggerAutoSend called')
       }
-    }, 500) // Small delay to ensure panel is mounted
+    }, 1500) // Increased delay to ensure panel is fully mounted
 
     return () => clearTimeout(timer)
   }, [autostartSessionId])
