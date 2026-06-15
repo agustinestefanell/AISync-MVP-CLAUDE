@@ -6110,8 +6110,56 @@ Fix CSS final para color lavado:
 ### Build
 ✓ `npm run build` limpio
 
-### Commit
-`fix: remove white background from isolated team card inner sections`
+### Commits
+1. `fix: remove white background from isolated team card inner sections`
+2. `fix: add transparent background to Provider/Team Type columns section`
 
 ### Estado
 Cerrado a nivel repo. Verificación visual pendiente en producción.
+
+---
+
+## DECISIÓN ARQUITECTURAL — Teams Map reconstrucción pendiente
+
+**Fecha:** 2026-06-15
+
+**Decisión:** No seguir invirtiendo tiempo en fixes locales de Teams Map. Reconstrucción completa como OE dedicada post-MVP.
+
+**Contexto:**
+- Color lavado del invitado: 4 intentos de fix (boxShadow opacity, body transparent, middle section transparent, columns transparent)
+- Bug persiste después de commits: 6e2ea08, b4179ed, 8362a83, 37fb288
+- Datos verificados correctos (logs confirmaron color llega #15803d verde)
+- Problema es CSS/layout únicamente, no data pipeline
+
+**Deuda visual acumulada en Teams Map:**
+1. Color lavado isolated team (invitado) — no resuelto
+2. Viewport cortado — cards fuera de vista
+3. Teams muy separados — spacing excesivo
+4. Descripción de teams no aparece en algunos casos
+5. Layout general necesita reorganización visual
+
+**Decisión operativa:**
+- **NO tocar Teams Map** hasta OE dedicada de reconstrucción
+- Reconstrucción seguirá **Demo First obligatorio** (portar desde MVP demo)
+- Estado actual: **funcional para uso básico**, deuda visual documentada
+- Todos los datos llegan correctos — problema es puramente CSS/layout
+
+**Scope de reconstrucción (OE futura):**
+- Port completo de Teams Map desde demo (C:\proyectos\AISync\MVP)
+- Fix de viewport, spacing, colors, descriptions en una sola intervención
+- No fixes incrementales — reconstrucción limpia
+
+**Commits de intentos de fix (referencia histórica):**
+- `6e2ea08` — Propagación color/description + paleta 16
+- `4498f7f` — Debug logs
+- `b4179ed` — boxShadow opacity 0.20
+- `8362a83` — Body transparent
+- `37fb288` — Columns transparent
+
+**Lección aprendida:**
+- Fixes locales CSS en componentes complejos pueden no resolver problemas sistémicos
+- Cuando múltiples fixes fallan, señal de que el diseño base necesita revisión
+- Demo First evita este tipo de deuda — mejor portar lo que ya funciona que arreglar lo que no
+
+### Estado
+Decisión arquitectural registrada. Teams Map funcional pero con deuda visual. Reconstrucción programada para OE post-MVP.
