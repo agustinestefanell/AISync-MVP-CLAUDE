@@ -11,9 +11,15 @@ export default async function HomePage() {
   if (!user) redirect('/login')
 
   const [{ data: account }, projects] = await Promise.all([
-    supabase.from('accounts').select('name, email, role').eq('id', user.id).single(),
+    supabase.from('accounts').select('name, email, role, onboarding_completed').eq('id', user.id).single(),
     getProjectsWithHierarchy(),
   ])
+
+  // ── Check onboarding status ────────────────────────────────────────────
+  // Si no completó onboarding → redirect a Chat-First
+  if (!account?.onboarding_completed) {
+    redirect('/start')
+  }
 
   const userName = (account as { name?: string } | null)?.name ?? user.email?.split('@')[0]
 

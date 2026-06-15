@@ -4538,6 +4538,90 @@ Panel "Active in this context" restaurado completo desde HEAD~4:
 
 Botón del ribbon interno en `TeamsClient.tsx`: "How to Connect Team" → "How to CONNECT with other users". Título del modal intacto.
 
+
+---
+
+## [2026-06-15] — OE B Connected Teams (parcial) — Realtime + badge
+
+**Archivos modificados:**
+- `src/app/(main)/dashboard/ProjectList.tsx`
+
+**Decisión técnica:**
+Implementar Supabase Realtime subscription en ProjectList para actualización automática de conexiones y badge de pending requests, copiando el patrón validado de TeamsClient.tsx:
+- Channel individual por usuario: `dashboard-connections:${accountId}`
+- Realtime solo en eventos de la tabla `team_connections`
+- Fallback de polling (15s) conservado para latencias de Realtime
+- Badge numérico reactivo (`pendingCount`) con cálculo client-side de `filter(c => c.status === 'pending' && c.receiver_account_id === accountId)`
+
+**Alternativas descartadas:**
+- Polling puro (sin Realtime): funcional pero con lag perceptible en UX cross-browser
+- Realtime sin fallback polling: riesgo de estado desincronizado si Realtime tiene latencia > 3s
+- Channel global de `team_connections`: genera tráfico innecesario; channel por usuario es mejor granularidad
+
+**Riesgos conocidos:**
+- Realtime subscription depende de Supabase Realtime activado en producción
+- Badge cuenta correctamente incoming requests, pero no hay UX para outgoing requests pending del usuario activo (diferido a iteración futura si se requiere)
+- Disconnect desde cuenta pasiva aún no dispara actualización en cuenta activa (OE B completo pendiente)
+
+**Deuda técnica:**
+- Pendiente: Realtime para evento `disconnect` disparado desde cuenta pasiva → notificación a cuenta activa (requiere channel bidireccional o channel por connection individual)
+
+**Commit:** b9d4b72 feat: add realtime updates to dashboard connections
+
+
+---
+
+## [2026-06-15] — Chat-First Onboarding
+
+**Archivos creados:**
+- `supabase/migrations/032_onboarding_flag.sql`
+- `src/app/(main)/start/page.tsx`
+- `src/components/onboarding/ChatFirstClient.tsx`
+- `src/components/onboarding/ApiKeyRequiredModal.tsx`
+- `src/app/api/onboarding/start/route.ts`
+- `src/app/api/onboarding/skip/route.ts`
+
+**Archivos modificados:**
+- `src/app/page.tsx` (dashboard redirect logic)
+
+**Decisión técnica:**
+Implementar Chat-First Onboarding para usuario nuevo siguiendo Demo First (PageJ.tsx de MVP demo):
+- Layout de 3 columnas con estructura visual portada directamente de la demo
+- Modal de provider con 4 opciones (Groq, Gemini, Anthropic, OpenAI) + links a console
+- Validación pre-flight de API key antes de crear estructura
+- Auto-creación backend: Project "My First Project" + Team SAT "My First Team" + Workspace "Main Workspace" + 3 agent_sessions (manager, worker1, worker2)
+- Rollback manual en caso de fallo en algún step
+- Flag `accounts.onboarding_completed` solo se marca `true` al final exitoso
+- Dashboard redirige a `/start` si flag es `false`
+- Botón "Skip setup" marca flag sin crear estructura (lleva directo al dashboard)
+
+**Patrón de creación reutilizado:**
+- Copiado de `/api/teams/route.ts`: creación de team + workspace + agent_sessions
+- Función `computeType()` reutilizada para determinar SAT/MAT
+- Provider/model defaults según API key del usuario (Anthropic → claude-3-5-sonnet-20241022, OpenAI → gpt-4o, Google → gemini-1.5-pro-latest, Groq → llama-3.1-70b-versatile)
+
+**Alternativas descartadas:**
+- Generar respuesta del manager en onboarding: descartado por complejidad (stream vs JSON) y porque el workspace puede generarla al abrirse
+- Modal wizard multi-step: descartado — Chat-First de la demo es más fluido
+- Validación reactiva en workspace vacío: descartado — trata síntoma, no causa
+- Persistir `account_id` en teams/workspaces/agent_sessions: innecesario — arquitectura RLS pura valida ownership via joins a projects.account_id
+
+**Riesgos conocidos:**
+- Migración 032 requiere aplicación manual en Supabase Dashboard → SQL Editor
+- Migración 026 (Vault) debe estar aplicada en producción para que `/api/settings/keys` POST funcione
+- Si migration 032 no está aplicada, el campo `onboarding_completed` no existe y el redirect falla (el código ya maneja este caso tratando `null` como `false`)
+- Rollback es best-effort manual (no transaccional) — si falla un step intermedio puede dejar estructura parcial
+
+**Deuda técnica:**
+- Backfill automático para usuarios existentes: pendiente — usuarios con proyectos pero sin flag marcado verían `/start` erróneamente
+- Provider custom: no soportado en Chat-First MVP — solo providers conocidos (Anthropic, OpenAI, Google, Groq)
+
+**Validaciones:**
+- ✅ npm run lint: passing (warnings pre-existentes en CanvasViewport)
+- ✅ npm run build: successful (ruta `/start` listada en build output)
+
+**Commit:** (pendiente)
+
 ---
 
 ## [2026-06-04] — Drag & drop en AgentPanel
