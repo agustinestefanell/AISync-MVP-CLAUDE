@@ -219,7 +219,10 @@ export async function POST(req: Request) {
       // No bloqueante — la estructura ya está creada, el usuario puede entrar
     }
 
-    return NextResponse.json({ workspaceId })
+    return NextResponse.json({
+      workspaceId,
+      managerSessionId: managerSession?.id ?? null,
+    })
   } catch (error) {
     console.error('[onboarding/start] unexpected error', error)
 

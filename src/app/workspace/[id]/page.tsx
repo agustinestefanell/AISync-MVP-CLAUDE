@@ -31,7 +31,7 @@ export default async function WorkspacePage({
   searchParams,
 }: {
   params: { id: string }
-  searchParams: { checkpoint?: string }
+  searchParams: { checkpoint?: string; autostart?: string }
 }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -73,6 +73,7 @@ export default async function WorkspacePage({
       workspace={workspace}
       initialMessages={initialMessages}
       initialCheckpointId={searchParams.checkpoint}
+      autostartSessionId={searchParams.autostart}
     />
   )
 }

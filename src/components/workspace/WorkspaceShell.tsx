@@ -27,11 +27,12 @@ interface Props {
   workspace: WorkspaceWithAgents
   initialMessages: Record<string, Message[]>
   initialCheckpointId?: string
+  autostartSessionId?: string
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-export default function WorkspaceShell({ workspace, initialMessages, initialCheckpointId }: Props) {
+export default function WorkspaceShell({ workspace, initialMessages, initialCheckpointId, autostartSessionId }: Props) {
   const [lockState, setLockState]       = useState(workspace.lock_state)
   const [_lockLoading, setLockLoading]  = useState(false)
   const [_checkpoints, setCheckpoints]  = useState<Checkpoint[]>([])
@@ -88,6 +89,20 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       .then(setCheckpoints)
       .catch(() => {})
   }, [workspace.id])
+
+  // Auto-send initial message from onboarding
+  useEffect(() => {
+    if (!autostartSessionId) return
+
+    const timer = setTimeout(() => {
+      const panel = panelRefs.current[autostartSessionId]
+      if (panel) {
+        panel.triggerAutoSend()
+      }
+    }, 500) // Small delay to ensure panel is mounted
+
+    return () => clearTimeout(timer)
+  }, [autostartSessionId])
 
   function getAgentMessages(sessionId: string) {
     return panelRefs.current[sessionId]?.getAllMessages() ?? []

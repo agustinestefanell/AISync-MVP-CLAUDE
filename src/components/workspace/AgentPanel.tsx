@@ -96,6 +96,7 @@ export interface AgentPanelHandle {
   restoreMessages(messages: ChatMessage[]): void
   getSelectedMessages(): ChatMessage[]
   clearSelection(): void
+  triggerAutoSend(): void
 }
 
 interface PanelSnapshot {
@@ -208,6 +209,13 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       clearSelection: () => {
         setSelectedIndices(new Set())
         onSelectionChange(0)
+      },
+      triggerAutoSend: () => {
+        // If there are messages and the last one is from user, trigger send
+        const lastMessage = messages[messages.length - 1]
+        if (lastMessage?.role === 'user' && !streaming) {
+          sendMessage()
+        }
       },
     }))
 
