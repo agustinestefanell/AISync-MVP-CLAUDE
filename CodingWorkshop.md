@@ -520,7 +520,9 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
   - a707769: RLS policy (redundante)
   - 35994bd: logs backend
 
-- **Lección temporal (sin resolución):** DELETE devolviendo 200 sin ejecutar operación en DB es casi siempre RLS bloqueando silenciosamente. Sin logs del servidor, el debugging es ciego — frontend logs no son suficientes. Un DELETE que no borra datos pero devuelve 200 es peor que un DELETE que devuelve error — el silent failure oculta el problema. La migración 034 fue creada asumiendo que faltaba la policy, pero la policy YA existía — esto sugiere gap en el inventario de RLS policies del proyecto.
+- **Resolución:** DELETE funcionaba correctamente desde el inicio. El proyecto que se intentaba borrar desde la UI era uno diferente al que se verificaba en DB. Durante el diagnóstico se borró manualmente un proyecto en Supabase, lo que confundió la verificación del estado real. El código siempre devolvió 200 true correctamente porque el DELETE sí se ejecutaba.
+
+- **Lección real:** Antes de asumir que el backend falla, verificar que se está probando exactamente el mismo ID desde UI y desde DB. El borrado manual durante diagnóstico puede confundir la verificación del estado real. Debuggear sin confirmación clara del ID exacto que se está probando genera círculos de diagnóstico innecesarios. Los logs del browser mostraban `200 true` desde el inicio — esa era la señal de que funcionaba, no un silent failure.
 
 ---
 

@@ -76,23 +76,10 @@ export async function DELETE(
   }
 
   // Delete project (cascade will handle teams, workspaces, sessions, messages)
-  console.log('[projects/[id]] Attempting DELETE for project:', params.id, 'user:', user.id)
-
-  // First, check how many rows will be affected
-  const { count: beforeCount } = await supabase
+  const { error: deleteError } = await supabase
     .from('projects')
-    .select('*', { count: 'exact', head: true })
+    .delete()
     .eq('id', params.id)
-
-  console.log('[projects/[id]] Rows before DELETE:', beforeCount)
-
-  const { data: deleteData, error: deleteError, count: deletedCount } = await supabase
-    .from('projects')
-    .delete({ count: 'exact' })
-    .eq('id', params.id)
-    .select()
-
-  console.log('[projects/[id]] DELETE result - data:', deleteData, 'error:', deleteError, 'count:', deletedCount)
 
   if (deleteError) {
     console.error('[projects/[id]] DELETE failed:', deleteError)
@@ -102,23 +89,5 @@ export async function DELETE(
     )
   }
 
-  // Check if any rows were affected
-  if (!deleteData || deleteData.length === 0) {
-    console.warn('[projects/[id]] DELETE succeeded but 0 rows affected - likely RLS blocked')
-    return NextResponse.json(
-      { error: 'Project could not be deleted. Check permissions.' },
-      { status: 403 }
-    )
-  }
-
-  console.log('[projects/[id]] DELETE successful, rows affected:', deleteData.length)
-  return NextResponse.json({
-    success: true,
-    debug: {
-      projectId: params.id,
-      userId: user.id,
-      rowsAffected: deleteData.length,
-      deletedData: deleteData
-    }
-  })
+  return NextResponse.json({ success: true })
 }

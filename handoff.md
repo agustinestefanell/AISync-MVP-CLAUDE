@@ -6776,3 +6776,5 @@ Revisar logs de Vercel para confirmar:
 DELETE devolviendo 200 sin ejecutar operación en DB es señal de RLS bloqueando silenciosamente. Los logs server-side son críticos — sin ellos, el debugging es ciego.
 
 **Estado:** EN DIAGNÓSTICO. 6 commits acumulados. Logs activos. Pendiente revisión de logs Vercel.
+
+**RESOLUCIÓN:** Delete funciona correctamente confirmado. El bug era aparente — el proyecto borrado manualmente en Supabase durante el diagnóstico confundía la verificación. Delete real desde UI funciona. Logs de debug removidos en commit 130d68f + cleanup final. Feature completa y funcional.

@@ -133,17 +133,14 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   }
 
   async function handleArchive(projectId: string) {
-    console.log('[ProjectList] handleArchive called:', projectId)
     setArchivingProject(projectId)
     setProjectError('')
     try {
-      console.log('[ProjectList] Fetching PATCH /api/projects/' + projectId)
       const res = await fetch(`/api/projects/${projectId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'archived' }),
       })
-      console.log('[ProjectList] Archive response:', res.status, res.ok)
       if (!res.ok) {
         const d = await res.json().catch(() => null)
         setProjectError(d?.error ?? 'Failed to archive project.')
@@ -158,23 +155,17 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   }
 
   async function handleDelete(projectId: string) {
-    console.log('[ProjectList] handleDelete called:', projectId)
     setDeletingProject(projectId)
     setProjectError('')
     try {
-      console.log('[ProjectList] Fetching DELETE /api/projects/' + projectId)
       const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' })
-      console.log('[ProjectList] Delete response:', res.status, res.ok)
       if (!res.ok) {
         const d = await res.json().catch(() => null)
         setProjectError(d?.error ?? 'Failed to delete project.')
         return
       }
       setConfirmDelete(null)
-      console.log('[ProjectList] Calling router.refresh() after delete')
       router.refresh()
-      // Force a hard refresh after delete to ensure UI updates
-      setTimeout(() => window.location.reload(), 500)
     } catch {
       setProjectError('Network error. Please try again.')
     } finally {
