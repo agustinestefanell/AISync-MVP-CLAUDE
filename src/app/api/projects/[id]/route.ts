@@ -76,10 +76,14 @@ export async function DELETE(
   }
 
   // Delete project (cascade will handle teams, workspaces, sessions, messages)
-  const { error: deleteError } = await supabase
+  console.log('[projects/[id]] Attempting DELETE for project:', params.id, 'user:', user.id)
+  const { data: deleteData, error: deleteError } = await supabase
     .from('projects')
     .delete()
     .eq('id', params.id)
+    .select()
+
+  console.log('[projects/[id]] DELETE result - data:', deleteData, 'error:', deleteError)
 
   if (deleteError) {
     console.error('[projects/[id]] DELETE failed:', deleteError)
@@ -89,5 +93,15 @@ export async function DELETE(
     )
   }
 
+  // Check if any rows were affected
+  if (!deleteData || deleteData.length === 0) {
+    console.warn('[projects/[id]] DELETE succeeded but 0 rows affected - likely RLS blocked')
+    return NextResponse.json(
+      { error: 'Project could not be deleted. Check permissions.' },
+      { status: 403 }
+    )
+  }
+
+  console.log('[projects/[id]] DELETE successful, rows affected:', deleteData.length)
   return NextResponse.json({ success: true })
 }
