@@ -6811,3 +6811,27 @@ DELETE devolviendo 200 sin ejecutar operación en DB es señal de RLS bloqueando
 3. Textos residuales en español
 4. Bloque 3 pre-launch cleanup
 5. Aplicar migraciones pendientes en Supabase (032, 033, 034)
+
+---
+
+## Fix directo — Traducción de strings en español (2026-06-16)
+
+**Archivos modificados:**
+- src/components/LogoutButton.tsx (línea 20)
+- src/components/settings/ApiKeysManager.tsx (líneas 166, 174)
+
+**Decisión técnica:**
+Traducir últimos 3 strings visibles en español a inglés:
+- "Cerrar sesión" → "Sign out"
+- "Guardar" → "Save"
+- "Eliminar" → "Delete"
+
+**Alternativas descartadas:**
+- Mantener español: contradice la regla "100% inglés en UI" de CLAUDE.md
+- Internacionalización (i18n): overkill para MVP, diferido a post-launch
+
+**Riesgos conocidos:**
+Ninguno. Fix quirúrgico sin impacto en lógica.
+
+**Deuda técnica:**
+Comentarios en español en código permanecen (no visibles al usuario).

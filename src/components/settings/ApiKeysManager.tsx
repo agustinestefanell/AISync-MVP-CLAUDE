@@ -163,7 +163,7 @@ export default function ApiKeysManager() {
                     disabled={!st.input.trim() || st.saving}
                     className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
                   >
-                    {st.saving ? '…' : 'Guardar'}
+                    {st.saving ? '…' : 'Save'}
                   </button>
                   {saved && (
                     <button
@@ -171,7 +171,7 @@ export default function ApiKeysManager() {
                       disabled={st.deleting}
                       className="text-xs text-red-500 hover:text-red-400 disabled:opacity-40 px-3 py-2 border border-red-900 rounded-lg transition-colors"
                     >
-                      {st.deleting ? '…' : 'Eliminar'}
+                      {st.deleting ? '…' : 'Delete'}
                     </button>
                   )}
                 </div>
