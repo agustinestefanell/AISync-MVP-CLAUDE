@@ -74,6 +74,7 @@ export default async function WorkspacePage({
       initialMessages={initialMessages}
       initialCheckpointId={searchParams.checkpoint}
       prefillMessage={searchParams.prefill}
+      userEmail={user.email ?? undefined}
     />
   )
 }

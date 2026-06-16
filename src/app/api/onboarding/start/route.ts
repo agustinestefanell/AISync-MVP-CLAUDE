@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       : defaultProvider === 'Google'
       ? 'gemini-1.5-pro-latest'
       : defaultProvider === 'Groq'
-      ? 'llama-3.1-70b-versatile'
+      ? 'llama-3.3-70b-versatile'
       : 'claude-3-5-sonnet-20241022'
 
   let projectId: string | undefined

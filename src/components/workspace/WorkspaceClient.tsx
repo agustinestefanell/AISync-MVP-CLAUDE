@@ -37,9 +37,10 @@ interface Props {
   initialMessages:     Record<string, Message[]>
   initialCheckpointId?: string
   prefillMessage?:     string
+  userEmail?:          string
 }
 
-export default function WorkspaceClient({ pageName, accentColor, badge, workspace, initialMessages, initialCheckpointId, prefillMessage }: Props) {
+export default function WorkspaceClient({ pageName, accentColor, badge, workspace, initialMessages, initialCheckpointId, prefillMessage, userEmail }: Props) {
   const [showMainGuide, setShowMainGuide] = useState(false)
 
   return (
@@ -51,6 +52,7 @@ export default function WorkspaceClient({ pageName, accentColor, badge, workspac
         accentColor={accentColor}
         badge={badge}
         rightBadge={<TokenUsageBadge workspaceId={workspace.id} />}
+        userName={userEmail}
       />
 
       <main className="flex-1 overflow-hidden min-h-0 flex flex-col">

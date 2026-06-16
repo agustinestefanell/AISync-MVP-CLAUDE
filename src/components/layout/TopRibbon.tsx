@@ -33,8 +33,8 @@ export default function TopRibbon({
       }}
     >
 
-      {/* LEFT — logo + wordmark (clickeable → dashboard) */}
-      <a href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+      {/* LEFT — logo + wordmark (clickeable → start) */}
+      <a href="/start" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
         <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center shrink-0">
           <span className="text-white text-xs font-bold leading-none">AI</span>
         </div>
