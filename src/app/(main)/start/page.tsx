@@ -20,7 +20,7 @@ export default async function StartPage() {
     .single()
 
   if (account?.onboarding_completed) {
-    redirect('/')
+    redirect('/dashboard')
   }
 
   return <ChatFirstClient />
