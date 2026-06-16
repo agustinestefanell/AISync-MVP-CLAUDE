@@ -17,7 +17,7 @@ const CLOUD_PROVIDERS = [
     color: 'text-green-700',
     border: 'border-[var(--color-border-default)]',
     bg: 'bg-[var(--color-surface)]',
-    hint: 'Empieza con sk-…',
+    hint: 'Starts with sk-…',
   },
   {
     name: 'Google',

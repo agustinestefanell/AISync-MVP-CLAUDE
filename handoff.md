@@ -6873,3 +6873,28 @@ Ninguno. Fix quirúrgico solo en strings UI.
 
 **Deuda técnica:**
 Ninguna. SetupGuide tiene steps en español (comentarios internos de setup, no visibles como UI final).
+
+---
+
+## Fix directo — 5 strings residuales Settings (2026-06-16)
+
+**Archivos modificados:**
+- src/components/settings/ApiKeysManager.tsx (línea 20)
+- src/components/settings/CustomProvidersManager.tsx (líneas 92, 116, 126, 163)
+
+**Decisión técnica:**
+Traducir últimos 5 strings en español de Settings:
+- "Empieza con sk-…" → "Starts with sk-…" (placeholder OpenAI)
+- "Modelo:" → "Model:" (custom provider card)
+- "Nombre *" → "Name *" (form label)
+- "Modelo default *" → "Default model *" (form label)
+- "El modelo se puede cambiar por agente al crear un equipo." → "The model can be changed per agent when creating a team."
+
+**Alternativas descartadas:**
+- Mantener español: contradice regla "100% inglés en UI"
+
+**Riesgos conocidos:**
+Ninguno. Fix quirúrgico en labels y hints.
+
+**Deuda técnica:**
+Settings 100% en inglés confirmado. SetupGuide steps permanecen en español (contenido informativo interno, no UI crítica).

@@ -89,7 +89,7 @@ export default function CustomProvidersManager() {
                 </div>
                 <p className="text-xs text-gray-500 truncate">{p.endpoint_url}</p>
                 <div className="flex items-center gap-3 text-xs text-gray-600">
-                  <span>Modelo: <span className="text-gray-400">{p.model}</span></span>
+                  <span>Model: <span className="text-gray-400">{p.model}</span></span>
                   <span>Key: <span className="font-mono">{p.masked_key}</span></span>
                 </div>
               </div>
@@ -113,7 +113,7 @@ export default function CustomProvidersManager() {
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Nombre *</label>
+            <label className="block text-xs text-gray-600 mb-1">Name *</label>
             <input
               type="text"
               value={form.name}
@@ -123,7 +123,7 @@ export default function CustomProvidersManager() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Modelo default *</label>
+            <label className="block text-xs text-gray-600 mb-1">Default model *</label>
             <input
               type="text"
               value={form.model}
@@ -160,7 +160,7 @@ export default function CustomProvidersManager() {
 
         <div className="flex items-center justify-between pt-1">
           <p className="text-xs text-gray-600">
-            El modelo se puede cambiar por agente al crear un equipo.
+            The model can be changed per agent when creating a team.
           </p>
           <button
             onClick={handleSave}

@@ -328,4 +328,4 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 - Cross Verification: full scope deferred. See `Needs Review` in Documentation Mode table and `DECISIONS.md`.
 - OpenAI PDF support: requiere Files API. Diferido.
 - Google multimodal en historial: solo `lastMessage` soporta `inlineData`. Limitación MVP documentada.
-- UI strings en español: ✅ Closed — 2 fixes directos 2026-06-16. (1) LogoutButton.tsx ("Sign out"), ApiKeysManager.tsx ("Save", "Delete"). (2) Settings completo: SetupGuide, ApiKeysManager, CustomProvidersManager — 16 strings traducidos. 100% inglés en UI confirmado.
+- UI strings en español: ✅ Closed — 3 fixes directos 2026-06-16. (1) LogoutButton + ApiKeysManager: 3 strings. (2) Settings: 16 strings. (3) Settings residuales: 5 strings (placeholders, labels, hints). Total: 24 strings. Settings 100% inglés confirmado.
