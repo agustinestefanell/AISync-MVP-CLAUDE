@@ -7048,3 +7048,38 @@ Ninguno. Implementación basada en specs completas.
 
 **Deuda técnica:**
 Bundle optimizado: 5.61 kB → 4.66 kB (-950 bytes). Implementación más eficiente.
+
+---
+
+## Sesión 2026-06-16 — Fix directo: SMPanel altura + dark mode cleanup
+
+**Fecha:** 2026-06-16
+**Archivos modificados:**
+- src/components/sm/SMPanel.tsx
+- src/components/documentation/AuditView.tsx
+- src/components/documentation/KnowledgeMap.tsx
+
+**Decisión técnica:**
+TAREA 4: Ajustar altura del Sub-Manager panel para que llegue al bottom ribbon. TAREA 5: Eliminar restos de dark mode hardcodeados en Documentation Mode (AuditView y KnowledgeMap).
+
+**Cambios implementados:**
+1. SMPanel.tsx: Agregado `h-full` al contenedor principal (línea 249) para que el panel ocupe toda la altura disponible entre TopRibbon y BottomRibbon
+2. AuditView.tsx: Reemplazado `bg-gray-100 text-gray-800` por `bg-[var(--color-surface-soft)] text-[var(--color-text-secondary)]` en mensajes de agente (línea 319)
+3. KnowledgeMap.tsx: Reemplazados colores dark hardcodeados:
+   - COLOR_MAP borders: border-indigo-600 → border-indigo-300, border-emerald-600 → border-emerald-300, border-blue-600 → border-blue-300, border-gray-600 → border-gray-300
+   - COLOR_MAP backgrounds: bg-indigo-950/60 → bg-indigo-50, bg-emerald-950/60 → bg-emerald-50, bg-blue-950/60 → bg-blue-50, bg-gray-900 → bg-gray-50
+   - COLOR_MAP badges: text-indigo-300 → text-indigo-700, text-emerald-300 → text-emerald-700, text-blue-300 → text-blue-700, text-gray-400 → text-gray-600
+   - Handle colors: !bg-gray-600 !border-gray-500 → !bg-gray-300 !border-gray-400
+   - Node label: text-white → text-[var(--color-text-primary)]
+
+**Alternativas descartadas:**
+- Usar altura fija en SMPanel: descartado — altura dinámica basada en flex layout es más robusta
+- Mantener colores dark en KnowledgeMap "porque es mapa": descartado — toda la app debe usar light mode consistente
+
+**Riesgos conocidos:**
+- KnowledgeMap está "under development" (ver DocClient.tsx línea 91) — cambios visuales aplicados pero feature no completamente funcional aún
+
+**Estado:** CERRADA. Build exitoso. Commit pendiente push.
+
+**Lección clave:**
+Componentes anidados en flex layouts necesitan `h-full` explícito para tomar toda la altura del contenedor padre. Buscar dark colors hardcodeados: grep por `bg-gray-[789]`, `bg-slate-[789]`, `border-gray-[789]`, `text-gray-[789]`, etc.

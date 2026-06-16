@@ -247,7 +247,7 @@ export default function SMPanel({
     <>
       {/* ── Panel body ─────────────────────────────────────────────────────── */}
       <div
-        className="shrink-0 flex flex-col overflow-hidden transition-all duration-200 ease-in-out"
+        className="h-full shrink-0 flex flex-col overflow-hidden transition-all duration-200 ease-in-out"
         style={{
           width: open ? '20rem' : '52px',
           background: 'var(--color-surface)',

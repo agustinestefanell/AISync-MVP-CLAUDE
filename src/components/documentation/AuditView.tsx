@@ -316,7 +316,7 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
                       <div className="p-3 space-y-2 overflow-y-auto max-h-72">
                         {g.messages.map((msg, i) => (
                           <div key={i} className={`text-xs rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap ${
-                            msg.role === 'user' ? 'bg-[var(--color-badge-structural-bg)] text-[var(--color-text-primary)] ml-3' : 'bg-gray-100 text-gray-800 mr-3'
+                            msg.role === 'user' ? 'bg-[var(--color-badge-structural-bg)] text-[var(--color-text-primary)] ml-3' : 'bg-[var(--color-surface-soft)] text-[var(--color-text-secondary)] mr-3'
                           }`}>
                             <span className="font-medium text-[var(--color-text-muted)] block mb-0.5">{msg.role === 'user' ? 'User' : 'Agent'}</span>
                             {msg.content}

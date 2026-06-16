@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-16 (Fix visual: /start exact SVG reconstruction — cerrada)
+Last updated: 2026-06-16 (Fix directo: SMPanel altura + dark mode cleanup — cerrada)
 
 ---
 

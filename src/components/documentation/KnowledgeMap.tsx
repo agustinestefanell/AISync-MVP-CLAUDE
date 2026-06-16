@@ -14,10 +14,10 @@ import type { ProjectWithTeams } from '@/lib/db/types'
 interface DocNodeData { label: string; sub?: string; badge?: string; color: string }
 
 const COLOR_MAP: Record<string, { border: string; bg: string; badge: string }> = {
-  project:   { border: 'border-indigo-600',  bg: 'bg-indigo-950/60',  badge: 'text-indigo-300' },
-  team:      { border: 'border-emerald-600', bg: 'bg-emerald-950/60', badge: 'text-emerald-300' },
-  workspace: { border: 'border-blue-600',    bg: 'bg-blue-950/60',    badge: 'text-blue-300' },
-  checkpoint:{ border: 'border-gray-600',    bg: 'bg-gray-900',       badge: 'text-gray-400' },
+  project:   { border: 'border-indigo-300',  bg: 'bg-indigo-50',      badge: 'text-indigo-700' },
+  team:      { border: 'border-emerald-300', bg: 'bg-emerald-50',     badge: 'text-emerald-700' },
+  workspace: { border: 'border-blue-300',    bg: 'bg-blue-50',        badge: 'text-blue-700' },
+  checkpoint:{ border: 'border-gray-300',    bg: 'bg-gray-50',        badge: 'text-gray-600' },
 }
 
 function DocFlowNode({ data }: NodeProps) {
@@ -25,11 +25,11 @@ function DocFlowNode({ data }: NodeProps) {
   const cls = COLOR_MAP[d.color] ?? COLOR_MAP.checkpoint
   return (
     <div className={`border ${cls.border} ${cls.bg} rounded-xl px-3 py-2 w-52 shadow-lg`}>
-      <Handle type="target" position={Position.Left}  isConnectable={false} className="!bg-gray-600 !border-gray-500 !w-1.5 !h-1.5" />
-      <p className="text-xs font-semibold text-white leading-tight truncate">{d.label}</p>
+      <Handle type="target" position={Position.Left}  isConnectable={false} className="!bg-gray-300 !border-gray-400 !w-1.5 !h-1.5" />
+      <p className="text-xs font-semibold text-[var(--color-text-primary)] leading-tight truncate">{d.label}</p>
       {d.sub   && <p className={`text-xs mt-0.5 truncate ${cls.badge}`}>{d.sub}</p>}
       {d.badge && <span className={`text-xs font-bold uppercase tracking-wide ${cls.badge}`}>{d.badge}</span>}
-      <Handle type="source" position={Position.Right} isConnectable={false} className="!bg-gray-600 !border-gray-500 !w-1.5 !h-1.5" />
+      <Handle type="source" position={Position.Right} isConnectable={false} className="!bg-gray-300 !border-gray-400 !w-1.5 !h-1.5" />
     </div>
   )
 }
