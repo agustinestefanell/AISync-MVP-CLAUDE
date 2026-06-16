@@ -6558,3 +6558,74 @@ Ninguno. Arquitectura más limpia y performante (un redirect menos en caso prome
 Separar routing logic de UI logic. Un router inteligente en `/` + rutas especializadas (`/dashboard`, `/start`) es más mantenible que lógica condicional mezclada en la root page. Cada link debe tener un destino claro y predecible.
 
 **Estado:** CERRADA. Commit 983bdc1. Build exitoso. Push exitoso. Nueva ruta `/dashboard` funcional.
+
+**REVERTIDO:** Commit 6f30555. Refactor sobrecomplicado revertido. Ver entrada siguiente.
+
+---
+
+## Sesión 2026-06-15 — Fix: Revertir complejidad de router, rutas directas simples
+
+**Fecha:** 2026-06-15
+**Archivos modificados:**
+- src/app/page.tsx (revertido a dashboard simple sin lógica de onboarding)
+- src/app/dashboard/page.tsx (ELIMINADO)
+- src/app/(main)/start/page.tsx (redirect a `/` en vez de `/dashboard`)
+- src/components/layout/BottomRibbon.tsx (Dashboard → `/`)
+- src/components/layout/TopRibbon.tsx (Logo → `/start`)
+
+**Problema detectado:**
+El "intelligent router" en `/` del commit 983bdc1 rompió todos los links del ribbon. Solución sobrecomplicada para un problema simple. La separación de `/` y `/dashboard` agregó complejidad innecesaria sin beneficio real.
+
+**Decisión técnica:**
+Revertir el refactor completo. Volver a arquitectura simple:
+- `/` = Dashboard directo (sin lógica de onboarding)
+- `/start` = Chat-First Onboarding (ya existente y funcional)
+- Logo AISync → `/start` (directo, sin routers intermedios)
+- Link "Dashboard" → `/` (directo al dashboard)
+
+**Cambios implementados:**
+
+1. **src/app/page.tsx — Dashboard simple:**
+   - Revertido a dashboard original
+   - Sin `onboarding_completed` check
+   - Sin redirect logic
+   - SELECT solo `name, email, role` (no `onboarding_completed`)
+
+2. **src/app/dashboard/page.tsx — ELIMINADO:**
+   - Ruta `/dashboard` removida completamente
+   - Era duplicación innecesaria
+
+3. **src/app/(main)/start/page.tsx:**
+   - Redirect cambió de `/dashboard` → `/`
+   - Coherente con arquitectura simple
+
+4. **BottomRibbon.tsx:**
+   - Link "Dashboard" vuelve a `href: '/'`
+
+5. **TopRibbon.tsx:**
+   - Logo vuelve a `href: '/start'`
+
+**Arquitectura resultante (simple):**
+```
+/ (root)          → Dashboard directo (sin routing logic)
+/start            → Chat-First Onboarding
+Logo AISync       → /start (directo)
+Link "Dashboard"  → / (directo)
+```
+
+**Alternativas descartadas:**
+- Mantener router inteligente — descartado, rompe links del ribbon sin beneficio real
+- Mantener `/dashboard` separado — descartado, duplicación innecesaria
+
+**Riesgos conocidos:**
+Ninguno. Arquitectura más simple y menos propensa a errores.
+
+**Deuda técnica eliminada:**
+- Router inteligente innecesario
+- Ruta `/dashboard` duplicada
+- Complejidad de routing sin beneficio
+
+**Lección clave:**
+KISS (Keep It Simple, Stupid). El refactor "inteligente" agregó complejidad sin resolver un problema real. Dos rutas simples (`/` dashboard, `/start` onboarding) son mejores que tres rutas con lógica de routing intermedia. La simplicidad gana sobre la "elegancia arquitectónica" cuando no hay beneficio concreto.
+
+**Estado:** CERRADA. Commit 6f30555. Build exitoso. Push exitoso. Refactor revertido completamente.

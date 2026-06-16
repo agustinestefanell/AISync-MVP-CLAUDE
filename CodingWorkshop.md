@@ -484,7 +484,9 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
 - **Commit:** `983bdc1` — refactor: separate dashboard route and intelligent root router
 
-- **Lección:** Separar routing logic de UI logic. Un router inteligente en root + rutas especializadas es más mantenible que lógica condicional mezclada. Cada link debe tener un destino claro y predecible. Si una página intenta ser dos cosas, probablemente necesita ser dos páginas. La performance importa: eliminar redirects innecesarios aunque sean "rápidos" — la arquitectura limpia paga dividendos en mantenibilidad.
+- **Lección ORIGINAL (INCORRECTA):** Separar routing logic de UI logic. Un router inteligente en root + rutas especializadas es más mantenible que lógica condicional mezclada.
+
+- **LECCIÓN REAL (DESPUÉS DEL REVERT):** El "intelligent router" fue **sobreingeniería**. Rompió todos los links del ribbon y agregó complejidad sin beneficio. Dos rutas simples (`/` dashboard, `/start` onboarding) son mejores que tres rutas con lógica de routing intermedia. **KISS (Keep It Simple, Stupid)** — la simplicidad gana sobre la "elegancia arquitectónica" cuando no hay problema concreto que resolver. La solución fue revertida completamente en commit 6f30555.
 
 ---
 

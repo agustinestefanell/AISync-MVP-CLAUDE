@@ -339,25 +339,21 @@ accede con scope aislado, sincronizado via Supabase Realtime.
 
 ---
 
-## 2026-06-15 — Intelligent root router + dedicated dashboard route
+## 2026-06-15 — Intelligent root router + dedicated dashboard route [REVERTIDO]
 
-- **Decisión:** Root `/` es un router inteligente puro que solo decide redirección según `onboarding_completed`. Dashboard vive en ruta dedicada `/dashboard` sin lógica de onboarding. Logo AISync → `/` (router decide). Link "Dashboard" → `/dashboard` (destino fijo).
-- **Razón:** Lógica de onboarding mezclada en `/` generaba redirects innecesarios y links sin destinos claros. Logo iba a `/start` (fix ff56050) pero para usuarios con onboarding completado causaba redirect `/start` → `/` innecesario. Separar routing logic de UI logic hace el código más mantenible y elimina redirects.
-- **Alternativas descartadas:**
-  - Mantener lógica mixta en `/`: descartado — genera redirects innecesarios y mezcla responsabilidades
-  - Logo directo a `/dashboard`: descartado — rompe flujo para usuarios nuevos que deben ir a `/start`
-  - Logo directo a `/start`: descartado — redirect innecesario para usuarios existentes que deben ir a `/dashboard`
-- **Arquitectura resultante:**
+- **Decisión ORIGINAL:** Root `/` es un router inteligente puro que solo decide redirección según `onboarding_completed`. Dashboard vive en ruta dedicada `/dashboard` sin lógica de onboarding.
+- **Razón ORIGINAL:** Separar routing logic de UI logic hace el código más mantenible y elimina redirects.
+- **RESULTADO REAL:** El router inteligente **rompió todos los links del ribbon**. Sobrecomplicó la arquitectura sin beneficio concreto. Agregó una ruta extra (`/dashboard`) innecesaria.
+- **REVERT:** Commit 6f30555 revirtió completamente este refactor.
+- **Arquitectura FINAL (después del revert):**
   ```
-  / (root)          → Router inteligente → /start o /dashboard
-  /dashboard        → Dashboard limpio (usuarios existentes)
-  /start            → Chat-First Onboarding (usuarios nuevos)
-  Logo AISync       → / (router decide)
-  Link "Dashboard"  → /dashboard (destino fijo)
+  / (root)          → Dashboard directo (sin routing logic)
+  /start            → Chat-First Onboarding
+  Logo AISync       → /start (directo)
+  Link "Dashboard"  → / (directo)
   ```
-- **Impacto:** +17 líneas netas (`/dashboard` nuevo, `/` simplificado), -1 redirect en caso promedio, arquitectura más clara
-- **Lección clave:** Si una página intenta ser dos cosas, probablemente necesita ser dos páginas. Router inteligente en root + rutas especializadas > lógica condicional mezclada. Cada link debe tener destino claro y predecible.
-- **Estado:** Implemented — commit 983bdc1 (refactor: separate dashboard route and intelligent root router)
+- **Lección REAL:** **KISS (Keep It Simple, Stupid).** El refactor "inteligente" fue sobreingeniería. Dos rutas simples son mejores que tres rutas con lógica de routing intermedia. La simplicidad gana sobre la "elegancia arquitectónica" cuando no hay problema concreto que resolver. No agregar abstracciones sin beneficio demostrable.
+- **Estado:** Reverted — commit 983bdc1 implementado, commit 6f30555 lo revirtió completamente
 
 ---
 
