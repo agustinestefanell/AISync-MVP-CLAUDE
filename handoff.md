@@ -6629,3 +6629,66 @@ Ninguno. Arquitectura más simple y menos propensa a errores.
 KISS (Keep It Simple, Stupid). El refactor "inteligente" agregó complejidad sin resolver un problema real. Dos rutas simples (`/` dashboard, `/start` onboarding) son mejores que tres rutas con lógica de routing intermedia. La simplicidad gana sobre la "elegancia arquitectónica" cuando no hay beneficio concreto.
 
 **Estado:** CERRADA. Commit 6f30555. Build exitoso. Push exitoso. Refactor revertido completamente.
+
+---
+
+## Sesión 2026-06-15 — Feature: Archive y Delete de proyectos en Dashboard
+
+**Fecha:** 2026-06-15
+**Archivos modificados:**
+- supabase/migrations/033_project_archive.sql (nueva migración)
+- src/app/api/projects/[id]/route.ts (nueva ruta API)
+- src/components/ProjectList.tsx
+- src/lib/db/projects.ts (ya tenía filtro `status = 'active'`)
+
+**Cambio realizado:**
+Agregadas opciones de gestión de proyectos en Dashboard: Archive (soft delete reversible) y Delete (hard delete permanente con confirmación doble).
+
+**Decisión técnica:**
+- Archive cambia `status` a `'archived'`, oculta del dashboard pero datos intactos
+- Delete borra permanentemente con confirmación explícita
+- Cascade automático (teams, workspaces, sessions, messages)
+- Ownership check obligatorio en ambas operaciones
+
+**Cambios implementados:**
+
+1. **Migración 033:**
+   ```sql
+   ALTER TABLE projects ADD COLUMN status text DEFAULT 'active' CHECK (status IN ('active', 'archived'));
+   CREATE INDEX idx_projects_status ON projects(status);
+   ```
+   - **⏳ Aplicación manual pendiente en Supabase Dashboard**
+
+2. **API /api/projects/[id] (nueva):**
+   - **PATCH:** actualiza `status` ('active' / 'archived')
+   - **DELETE:** borra proyecto permanentemente
+   - Ambos con ownership check (`project.account_id === user.id`)
+   - 404 si no existe, 403 si no es owner
+
+3. **ProjectList.tsx UI:**
+   - Botón "Archive" discreto junto al badge activo
+   - Botón "Delete" con confirmación doble inline
+   - Estados: `archivingProject`, `deletingProject`, `confirmDelete`, `projectError`
+   - Archive sin confirmación (reversible)
+   - Delete: primer click → "Are you sure?", segundo click → borrado
+
+4. **getProjectsWithHierarchy:**
+   - Ya tenía filtro `.eq('status', 'active')` en línea 18
+   - Solo proyectos activos visibles en dashboard
+
+**Alternativas descartadas:**
+- Menú de 3 puntos — descartado, botones inline más directos
+- Delete sin confirmación — descartado, muy peligroso
+- Archive con confirmación — descartado, es reversible
+
+**Riesgos conocidos:**
+- Migración 033 NO aplicada en Supabase — funcionalidad completa requiere ejecución manual
+- Delete permanente no tiene undo — por diseño (confirmación doble)
+
+**Deuda técnica:**
+Ninguna. Sección "Archived projects" con restore diferida para OE futura.
+
+**Lección clave:**
+Soft delete (archive) sin confirmación + hard delete con confirmación doble = balance entre usabilidad y seguridad. Ownership check obligatorio en toda operación destructiva.
+
+**Estado:** CERRADA. Commit 65939e5. Build exitoso. Push exitoso. Migración 033 pendiente de aplicación manual.

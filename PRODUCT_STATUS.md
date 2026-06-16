@@ -62,6 +62,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Feature | Estado | Evidencia | Notas |
 |---|---|---|---|
 | Dashboard en `/` (arquitectura simple) | ✅ Closed | commit 6f30555 | Dashboard directo en `/` sin lógica de onboarding. Refactor de "intelligent router" (commit 983bdc1) revertido en 6f30555 — sobrecomplicado, rompía links del ribbon. Arquitectura simple: `/` = dashboard, `/start` = onboarding, logo → `/start`, link Dashboard → `/`. KISS principle aplicado. |
+| Archive y Delete proyectos | ✅ Closed | commit 65939e5 | Botones Archive y Delete inline en cada proyecto. Archive sin confirmación (soft delete, status → 'archived'). Delete con confirmación doble (hard delete permanente + cascade). API `/api/projects/[id]` con PATCH/DELETE + ownership check. Migración 033 pendiente aplicación manual. Solo proyectos activos visibles (filtro ya existía). Restore de archived diferido para OE futura. |
 | Light mode cleanup | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | `border-gray-800` → `border-gray-200`, `border-indigo-800` → `border-indigo-300`, worker colors `text-blue/teal/orange-400` → `text-gray-600`. Badges actualizados a light: active (green-50/700), free (gray-50/600), locked (amber-50/700). |
 | Textos en inglés | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | My Projects, New Project, Create/Cancel, Open →, active/free/locked, empty states en inglés. |
 | Jerarquía visual de teams | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | Team names con `font-semibold`. Separadores `border-t border-gray-100` entre team blocks. Workers en `text-gray-600`. |
@@ -159,6 +160,8 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Migration | Status |
 |---|---|
 | 000_accounts_baseline.sql | 📄 Documental — schema y trigger de accounts creados a mano pre-001; YA aplicada en producción, NO ejecutar (SEC-003) |
+| 032_onboarding_flag.sql | ⏳ PENDING — agregar accounts.onboarding_completed para Chat-First |
+| 033_project_archive.sql | ⏳ PENDING — agregar projects.status para Archive/Delete feature |
 | 016_prompt_library.sql | ✅ Applied |
 | 017_context_sources.sql | ✅ Applied |
 | 018_agent_session_description.sql | ✅ Applied |
