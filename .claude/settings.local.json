@@ -74,7 +74,8 @@
       "Bash(echo \"exit=$?\")",
       "PowerShell(\\(Get-Content C:\\\\proyectos\\\\AISync\\\\aisync-mvp-claude\\\\handoff.md | Measure-Object -Line\\).Lines)",
       "Bash(cat src/app/\\\\\\(main\\\\\\)/dashboard/page.tsx)",
-      "Bash(cat src/app/\\\\\\(main\\\\\\)/page.tsx)"
+      "Bash(cat src/app/\\\\\\(main\\\\\\)/page.tsx)",
+      "Bash(xargs grep -l \"Start your project\")"
     ]
   }
 }

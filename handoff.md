@@ -6898,3 +6898,46 @@ Ninguno. Fix quirúrgico en labels y hints.
 
 **Deuda técnica:**
 Settings 100% en inglés confirmado. SetupGuide steps permanecen en español (contenido informativo interno, no UI crítica).
+
+---
+
+## Implementación BLOQUE 1.1 — Rediseño visual /start (2026-06-16)
+
+**Archivos modificados:**
+- src/components/onboarding/ChatFirstClient.tsx (reescritura completa visual)
+
+**Decisión técnica:**
+Aplicar colorimetría y parámetros visuales exactos del BLOQUE 1.1:
+- Layout 3 columnas: Work structure (left), Hero + inputs (center), How it works (right)
+- Copy exacto: "Start your AI work in a structured, traceable way"
+- Main AI Session con badge "AI" púrpura (#7C3AED)
+- Research Session verde (#22C55E) y Review Session naranja (#F59E0B)
+- CTA azul prominente: "Start governed work →" (#0969FF)
+- Ilustración SVG inline: robot + checklist + shield (240x190px)
+- 3 example chips: "Create a research brief", "Organize prompts in a library", "Organize AI sessions as teams"
+- Conectores visuales en sidebar izquierdo (split connector)
+- Step 2 exacto: "AISync structures your first work path."
+
+**Cambios visuales aplicados:**
+- Fondo general: `radial-gradient(circle at 50% 0%, rgba(219,234,254,0.75) 0%, rgba(246,249,253,1) 42%)`
+- Navy textos: #071A33 (headline), #0B1F3A (titles), #53657D (secondary), #708198 (muted)
+- Azul AISync: #0969FF (CTA, focus rings, iconos principales)
+- Púrpura Main AI: #7C3AED (badge, border, icon background)
+- Verde Research: #22C55E (icon, dot)
+- Naranja Review: #F59E0B (icon, dot)
+- Sombras suaves: `0_18px_45px_rgba(15,23,42,0.08)` pattern
+- Borders redondeados: 24px paneles, 16px cards, 12px inputs
+- Typography: 40px-44px headline extrabold, 18px step titles, 17px CTA
+
+**Alternativas descartadas:**
+- Mantener diseño anterior con "General Manager": contradice brief de rediseño
+- Usar imagen external para robot: preferido SVG inline local
+- Crear archivo CSS separado: todo en Tailwind inline según restricciones
+
+**Riesgos conocidos:**
+- Aumento de bundle size: /start pasó de 3.69 kB a 5.09 kB (+1.4 kB) por SVG inline
+- SetupGuide steps en español permanecen (contenido informativo, no UI crítica)
+
+**Deuda técnica:**
+- SVG robot es básico — puede refinarse si se requiere más detalle visual
+- Split connector usa divs absolutos — puede mejorarse con SVG si se complica layout responsive
