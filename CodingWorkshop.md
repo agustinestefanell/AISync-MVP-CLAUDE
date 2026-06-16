@@ -490,7 +490,41 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
 ---
 
-### 16. Color sigue lavado — body section tiene background blanco por defecto
+### 16. DELETE silencioso — devuelve 200 pero no borra datos de DB
+
+- **Problema:** DELETE de proyectos devuelve status 200 true desde el servidor pero NO borra los datos de Supabase. Archive funciona correctamente. Frontend muestra `[ProjectList] Delete response: 200 true` pero el proyecto sigue existiendo en DB.
+
+- **Causa raíz:** PENDIENTE DE CONFIRMACIÓN. Hipótesis activas: (1) RLS bloqueando silenciosamente — policy existe pero quizá mal configurada; (2) CASCADE constraints bloqueando delete; (3) Transaction rollback silencioso sin error; (4) Cache de Supabase client.
+
+- **Consecuencia:** Feature de Delete no funcional. 6 commits acumulados de debugging (65939e5 → 35994bd) sin resolución definitiva. Logs de producción activos. `window.location.reload()` forzado como workaround temporal que no resuelve el problema de fondo.
+
+- **Proceso de diagnóstico:**
+  1. Verificado que fetch se ejecuta (200 response confirmado en browser)
+  2. Agregado stopPropagation a botones (04fd03f)
+  3. Agregado console.logs frontend (4d62997) — handlers SÍ se ejecutan
+  4. Agregado force reload (237deaf) — no resuelve
+  5. Creada migración 034 RLS DELETE policy (a707769) — descubierto que policy YA existía
+  6. Agregado logging server-side detallado (35994bd) — `beforeCount` y `deletedCount`
+
+- **Solución pendiente:** Revisar logs de Vercel para confirmar:
+  - Si DELETE handler se ejecuta en servidor
+  - Cuántas rows reporta beforeCount (debe ser 1)
+  - Cuántas rows reporta deletedCount (debe ser 1 si funciona, 0 si RLS bloquea)
+  - Si hay error de CASCADE o constraint violation
+
+- **Commits involucrados:**
+  - 65939e5: feat inicial
+  - 04fd03f: stopPropagation
+  - 4d62997: logs frontend
+  - 237deaf: force reload
+  - a707769: RLS policy (redundante)
+  - 35994bd: logs backend
+
+- **Lección temporal (sin resolución):** DELETE devolviendo 200 sin ejecutar operación en DB es casi siempre RLS bloqueando silenciosamente. Sin logs del servidor, el debugging es ciego — frontend logs no son suficientes. Un DELETE que no borra datos pero devuelve 200 es peor que un DELETE que devuelve error — el silent failure oculta el problema. La migración 034 fue creada asumiendo que faltaba la policy, pero la policy YA existía — esto sugiere gap en el inventario de RLS policies del proyecto.
+
+---
+
+### 17. Color sigue lavado — body section tiene background blanco por defecto
 
 **Contexto:**
 - Debug logs confirmaron: color llega correcto (#15803d verde)

@@ -6692,3 +6692,87 @@ Ninguna. Sección "Archived projects" con restore diferida para OE futura.
 Soft delete (archive) sin confirmación + hard delete con confirmación doble = balance entre usabilidad y seguridad. Ownership check obligatorio en toda operación destructiva.
 
 **Estado:** CERRADA. Commit 65939e5. Build exitoso. Push exitoso. Migración 033 pendiente de aplicación manual.
+
+---
+
+## Sesión 2026-06-15 — Debug: Delete de proyectos no ejecuta en DB (6 commits de diagnóstico)
+
+**Fecha:** 2026-06-15
+**Commits acumulados:**
+- 65939e5: feat: add archive and delete project options to dashboard
+- a4f71ae: docs: CIERRE DURO - archive and delete projects
+- 04fd03f: fix: add stopPropagation to archive and delete buttons
+- 4d62997: debug: add console logs to archive and delete handlers
+- 237deaf: fix: refresh project list after delete
+- a707769: fix: add missing RLS DELETE policy for projects
+- 35994bd: debug: add detailed logging to DELETE handler
+
+**Problema detectado:**
+Archive funciona correctamente. Delete devuelve 200 OK desde el servidor pero NO borra los datos de DB. Logs del browser muestran `[ProjectList] Delete response: 200 true` pero el proyecto sigue existiendo en Supabase.
+
+**Diagnóstico ejecutado:**
+
+1. **04fd03f — stopPropagation:**
+   - Agregado `e.stopPropagation()` a botones Archive/Delete
+   - Mismo patrón que botón "Set active"
+   - Fix preventivo de event bubbling
+
+2. **4d62997 — Console logs frontend:**
+   - Agregado logging en `handleArchive` y `handleDelete`
+   - Confirmado que handlers SÍ se ejecutan
+   - Log: `[ProjectList] Delete response: 200 true` visible
+
+3. **237deaf — Force reload:**
+   - Agregado `window.location.reload()` con 500ms delay
+   - Intento de forzar refresh de UI post-delete
+   - No resolvió el problema (datos no borrados)
+
+4. **a707769 — RLS DELETE policy:**
+   - Detectado que NO existía `projects_delete` policy en migración 001
+   - Creada migración 034 con la policy faltante
+   - **DESCUBIERTO:** Policy YA existía en DB (aplicada manualmente antes)
+
+5. **35994bd — Server-side logging:**
+   - Agregado logging detallado en DELETE handler
+   - `beforeCount` para verificar existencia pre-DELETE
+   - `deletedCount` para verificar rows afectados
+   - Pendiente: revisar logs de Vercel
+
+**Estado actual del problema:**
+- ✅ Archive funciona correctamente
+- ⏳ Delete en diagnóstico activo
+- ✅ Fetch se ejecuta (200 response confirmado)
+- ❌ Datos NO se borran de DB
+- ⏳ Logs del servidor pendientes de revisión
+
+**Hipótesis activas:**
+1. RLS bloqueando silenciosamente (policy existe pero quizá mal configurada)
+2. CASCADE no funciona (FK constraints bloquean delete)
+3. Transaction rollback silencioso
+4. Cache de Supabase client
+
+**Archivos modificados:**
+- src/components/ProjectList.tsx (stopPropagation + logs frontend + reload)
+- src/app/api/projects/[id]/route.ts (logs server-side + count tracking)
+- supabase/migrations/034_projects_delete_policy.sql (policy redundante)
+
+**Migraciones pendientes:**
+- 032: onboarding_completed
+- 033: projects.status (archive)
+- 034: projects_delete policy (creada, pero policy YA existía en DB)
+
+**Deuda técnica acumulada:**
+- 6 commits de debug sin resolución definitiva
+- Logs de producción activos (console.log en frontend y backend)
+- `window.location.reload()` forzado (workaround temporal)
+
+**Próximo paso:**
+Revisar logs de Vercel para confirmar:
+- Si el DELETE handler se ejecuta en servidor
+- Cuántas rows reporta `beforeCount` y `deletedCount`
+- Si hay error de RLS, CASCADE o transacción
+
+**Lección temporal:**
+DELETE devolviendo 200 sin ejecutar operación en DB es señal de RLS bloqueando silenciosamente. Los logs server-side son críticos — sin ellos, el debugging es ciego.
+
+**Estado:** EN DIAGNÓSTICO. 6 commits acumulados. Logs activos. Pendiente revisión de logs Vercel.
