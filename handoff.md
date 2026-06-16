@@ -51,6 +51,39 @@ Metadata de conexión (description/color) vive en team_connections, no en teams.
 
 ---
 
+## Sesión 2026-06-16 — Fix visual: /start exact SVG reconstruction
+
+**Fecha:** 2026-06-16
+**Archivos modificados:**
+- src/components/onboarding/ChatFirstClient.tsx
+
+**Decisión técnica:**
+Reescritura completa de ChatFirstClient.tsx copiando EXACTAMENTE los elementos visuales del SVG de referencia (design-refs/aisync_start_page_reconstruction.svg). Implementación literal línea por línea sin interpretación ni racionalización del código anterior.
+
+**Cambios implementados:**
+1. Robot illustration (líneas 54-59 del SVG): círculo de fondo #EAF3FF, checklist rect con stroke #DCE7F5, líneas horizontales #CBD5E1, checkmark badge #0969FF, robot head #071A33 con ojos #38BDF8, órbita curva #38BDF8, badge verde #22C55E
+2. Conectores left sidebar (líneas 32, 37-38): línea vertical stroke #64748B y path de split con curvas Q para Research/Review
+3. Mini-card paso 2 right sidebar (línea 82): rect stroke #DCE7F5, circle #7C3AED, line horizontal #7C3AED, path triangular verde #22C55E
+4. Coordinación de viewBox ajustada al componente (365x840 sidebars, viewport principal 650-1030)
+5. Atributos SVG convertidos solo donde necesario: stroke-width→strokeWidth, stroke-dasharray→strokeDasharray, stroke-linecap→strokeLinecap
+
+**Alternativas descartadas:**
+- Racionalizar o "mejorar" el código actual: explícitamente rechazado por usuario
+- Reinterpretar elementos visuales: explícitamente rechazado — copiar literalmente del SVG
+- Mantener estructura anterior con ajustes incrementales: descartado — reescritura completa autorizada
+
+**Riesgos conocidos:**
+- Bundle size 4.69kB (vs 4.68kB anterior) — incremento de 10 bytes, aceptable
+- SVG inline aumenta complejidad del JSX pero garantiza fidelidad visual exacta al diseño de referencia
+- Screenshot visual no disponible por middleware de autenticación (Playwright redirige a /login)
+
+**Estado:** CERRADA. Build exitoso. Commit pendiente push.
+
+**Lección clave:**
+Cuando existe un asset de referencia visual exacto (SVG, Figma export), la estrategia correcta es copia literal sin interpretación. "Demo first" aplica también a assets de diseño: si el SVG de referencia lo tiene, se copia. Racionalizar o justificar el código actual genera rework y frustración.
+
+---
+
 ## Pausa sesión 2026-06-14 — diagnóstico pendiente
 
 **Bug detectado — isolated team nombre invertido:**

@@ -97,107 +97,64 @@ export default function ChatFirstClient() {
 
           {/* LEFT SIDEBAR - Work structure */}
           <aside className="hidden lg:flex flex-col rounded-[24px] border border-[#E2E8F0] bg-white p-8 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EAF3FF]">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M4 6c3-8 13-8 16 0M8 5a4 4 0 1 0 8 0" stroke="#0969FF" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-              </div>
-              <h2 className="text-[21px] font-bold leading-7 text-[#071A33]">Work structure</h2>
-            </div>
+            {/* SVG exacto líneas 27-48 del SVG de referencia, coordenadas ajustadas */}
+            <svg viewBox="0 0 365 840" className="w-full h-full">
+              <text className="font-sans text-[21px] font-bold fill-[#071A33]" x="84" y="54">Work structure</text>
+              <circle cx="52" cy="45" r="12" fill="#EAF3FF"/>
+              <path d="M44 50c3-8 13-8 16 0M48 39a4 4 0 1 0 8 0" stroke="#0969FF" strokeWidth="2" strokeLinecap="round"/>
 
-            <div className="flex-1 space-y-4">
               {/* Project node */}
-              <div className="rounded-[16px] border border-[#BFD7FF] bg-[#FAFCFF] p-5">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#EAF3FF]">
-                    <svg width="30" height="22" viewBox="0 0 30 22" fill="none">
-                      <rect x="2" y="2" width="26" height="18" rx="4" fill="#0969FF"/>
-                      <path d="M4 0h8l3 4h11" stroke="#60A5FA" strokeWidth="3"/>
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-[16px] font-bold leading-[22px] text-[#0B1F3A]">Project</div>
-                    <div className="mt-1 text-[15px] leading-6 text-[#53657D]">Your governed workspace</div>
-                  </div>
-                </div>
-              </div>
+              <rect x="35" y="87" width="290" height="92" rx="16" fill="#FAFCFF" stroke="#BFD7FF"/>
+              <circle cx="85" cy="133" r="28" fill="#EAF3FF"/>
+              <rect x="70" y="125" width="30" height="22" rx="4" fill="#0969FF"/>
+              <path d="M72 123h11l3 4h14" stroke="#60A5FA" strokeWidth="3"/>
+              <text className="font-sans text-[16px] font-bold fill-[#0B1F3A]" x="130" y="121">Project</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="130" y="151">Your governed workspace</text>
 
               {/* Connector */}
-              <div className="mx-auto h-12 w-0.5 bg-[#64748B]"/>
+              <line x1="180" y1="179" x2="180" y2="230" stroke="#64748B" strokeWidth="2"/>
 
               {/* Main AI Session node */}
-              <div className="rounded-[16px] border-[1.5px] border-[#7C3AED] bg-[#F9F6FF] p-5">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#F5F0FF]">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#7C3AED]">
-                      <div className="flex gap-2.5">
-                        <div className="h-1.5 w-1.5 rounded-full bg-[#38BDF8]"/>
-                        <div className="h-1.5 w-1.5 rounded-full bg-[#38BDF8]"/>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-[16px] font-bold leading-[22px] text-[#0B1F3A]">Main AI Session</div>
-                      <span className="rounded-md bg-[#7C3AED] px-2 py-1 text-[12px] font-extrabold leading-none text-white">AI</span>
-                    </div>
-                    <div className="mt-1 text-[15px] leading-6 text-[#53657D]">Structures the main line of work</div>
-                  </div>
-                </div>
-              </div>
+              <rect x="35" y="230" width="290" height="118" rx="16" fill="#F9F6FF" stroke="#7C3AED" strokeWidth="1.5"/>
+              <circle cx="85" cy="289" r="28" fill="#F5F0FF"/>
+              <rect x="69" y="275" width="32" height="24" rx="10" fill="#7C3AED"/>
+              <circle cx="81" cy="287" r="3" fill="#38BDF8"/>
+              <circle cx="91" cy="287" r="3" fill="#38BDF8"/>
+              <rect x="284" y="255" width="28" height="22" rx="5" fill="#7C3AED"/>
+              <text className="font-sans text-[12px] font-extrabold fill-white" x="290" y="271">AI</text>
+              <text className="font-sans text-[16px] font-bold fill-[#0B1F3A]" x="130" y="270">Main AI Session</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="130" y="301">Structures the main line</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="130" y="325">of work</text>
 
-              {/* Split connector */}
-              <div className="mx-auto h-14 w-0.5 bg-[#64748B]"/>
-              <svg className="mx-auto -my-2" width="290" height="48" viewBox="0 0 290 48">
-                <path d="M145 0 V12 Q145 24 157 24 H283 Q295 24 295 36 V48" stroke="#64748B" strokeWidth="2" fill="none"/>
-                <path d="M145 0 V12 Q145 24 133 24 H12 Q0 24 0 36 V48" stroke="#64748B" strokeWidth="2" fill="none"/>
-              </svg>
+              {/* Connector + split */}
+              <line x1="180" y1="348" x2="180" y2="406" stroke="#64748B" strokeWidth="2"/>
+              <path d="M85 406 V382 Q85 370 97 370 H263 Q275 370 275 382 V406" stroke="#64748B" strokeWidth="2" fill="none"/>
 
-              {/* Research and Review nodes in grid */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* Research Session */}
-                <div className="rounded-[16px] border border-[#DCE7F5] bg-white p-4">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF3]">
-                      <svg width="16" height="26" fill="#22C55E">
-                        <circle cx="8" cy="8" r="8"/>
-                        <path d="M1 26c3-13 29-13 32 0" transform="translate(-8 0)"/>
-                      </svg>
-                    </div>
-                    <div className="mt-2 flex items-center gap-1.5">
-                      <div className="h-3 w-3 rounded-full bg-[#22C55E]"/>
-                      <div className="text-[16px] font-bold text-[#0B1F3A]">Research Session</div>
-                    </div>
-                    <div className="mt-1 text-[15px] leading-6 text-[#53657D]">Supports research and analysis</div>
-                  </div>
-                </div>
+              {/* Research and Review nodes */}
+              <rect x="35" y="406" width="290" height="94" rx="16" fill="white" stroke="#DCE7F5"/>
+              <circle cx="85" cy="453" r="28" fill="#ECFDF3"/>
+              <circle cx="85" cy="442" r="8" fill="#22C55E"/>
+              <path d="M69 468c3-13 29-13 32 0" fill="#22C55E"/>
+              <circle cx="310" cy="426" r="6" fill="#22C55E"/>
+              <text className="font-sans text-[16px] font-bold fill-[#0B1F3A]" x="130" y="439">Research Session</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="130" y="468">Supports research and</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="130" y="492">analysis</text>
 
-                {/* Review Session */}
-                <div className="rounded-[16px] border border-[#EFE3D0] bg-white p-4">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF7E6]">
-                      <svg width="16" height="26" fill="#F59E0B">
-                        <circle cx="8" cy="8" r="8"/>
-                        <path d="M1 26c3-13 29-13 32 0" transform="translate(-8 0)"/>
-                      </svg>
-                    </div>
-                    <div className="mt-2 flex items-center gap-1.5">
-                      <div className="h-3 w-3 rounded-full bg-[#F59E0B]"/>
-                      <div className="text-[16px] font-bold text-[#0B1F3A]">Review Session</div>
-                    </div>
-                    <div className="mt-1 text-[15px] leading-6 text-[#53657D]">Supports review and documentation</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+              <rect x="35" y="546" width="290" height="94" rx="16" fill="white" stroke="#EFE3D0"/>
+              <circle cx="85" cy="593" r="28" fill="#FFF7E6"/>
+              <circle cx="85" cy="582" r="8" fill="#F59E0B"/>
+              <path d="M69 608c3-13 29-13 32 0" fill="#F59E0B"/>
+              <circle cx="310" cy="566" r="6" fill="#F59E0B"/>
+              <text className="font-sans text-[16px] font-bold fill-[#0B1F3A]" x="130" y="579">Review Session</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="130" y="608">Supports review and</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="130" y="632">documentation</text>
 
-            {/* Footer */}
-            <div className="mt-6 rounded-[16px] border border-[#CFE0F5] bg-[#F8FBFF] p-5">
-              <p className="text-[15px] leading-6 text-[#53657D]">
-                AISync organizes AI sessions while preserving context, checkpoints, and traceability.
-              </p>
-            </div>
+              {/* Footer */}
+              <rect x="26" y="710" width="310" height="96" rx="16" fill="#F8FBFF" stroke="#CFE0F5"/>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="95" y="744">AISync organizes AI sessions while</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="95" y="768">preserving context, checkpoints,</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="95" y="792">and traceability.</text>
+            </svg>
           </aside>
 
           {/* CENTER PANEL */}
@@ -215,33 +172,22 @@ export default function ChatFirstClient() {
                   </p>
                 </div>
 
-                {/* Illustration */}
-                <div className="hidden md:flex justify-center items-start pt-4">
-                  <svg width="280" height="200" viewBox="0 0 280 200" fill="none">
-                    {/* Background circle */}
-                    <circle cx="140" cy="100" r="76" fill="#EAF3FF"/>
-
-                    {/* Orbital ring around robot */}
-                    <circle cx="45" cy="109" r="55" stroke="#93C5FD" strokeWidth="2" fill="none" strokeDasharray="6 6" opacity="0.6"/>
-
-                    {/* Checklist card */}
-                    <rect x="80" y="88" width="100" height="96" rx="12" fill="white" stroke="#DCE7F5" strokeWidth="1.5"/>
-                    <line x1="110" y1="115" x2="155" y2="115" stroke="#CBD5E1" strokeWidth="5" strokeLinecap="round"/>
-                    <line x1="110" y1="140" x2="150" y2="140" stroke="#CBD5E1" strokeWidth="5" strokeLinecap="round"/>
-                    <circle cx="97" cy="114" r="7" fill="#0969FF"/>
-                    <path d="M94 114l2 2 4-5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-
-                    {/* Robot head */}
-                    <rect x="14" y="85" width="62" height="48" rx="18" fill="#071A33"/>
-                    <circle cx="35" cy="109" r="5" fill="#38BDF8"/>
-                    <circle cx="56" cy="109" r="5" fill="#38BDF8"/>
-
-                    {/* Orbit path */}
-                    <path d="M-2 184c6-45 18-70 47-70s41 25 47 70" stroke="#38BDF8" strokeWidth="3" fill="none"/>
-
-                    {/* Checkmark badge */}
-                    <circle cx="195" cy="65" r="20" fill="#22C55E"/>
-                    <path d="M187 64l6 6 12-14" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                {/* Robot illustration - SVG exacto líneas 54-59 */}
+                <div className="hidden md:block">
+                  <svg width="380" height="260" viewBox="650 150 380 260" fill="none">
+                    {/* Líneas 54-59 del SVG de referencia EXACTAS */}
+                    <circle cx="1160" cy="220" r="76" fill="#EAF3FF"/>
+                    <rect x="1100" y="208" width="100" height="96" rx="12" fill="white" stroke="#DCE7F5"/>
+                    <line x1="1130" y1="235" x2="1175" y2="235" stroke="#CBD5E1" strokeWidth="5" strokeLinecap="round"/>
+                    <line x1="1130" y1="260" x2="1170" y2="260" stroke="#CBD5E1" strokeWidth="5" strokeLinecap="round"/>
+                    <circle cx="1117" cy="234" r="7" fill="#0969FF"/>
+                    <path d="M1114 234l2 2 4-5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                    <rect x="1034" y="205" width="62" height="48" rx="18" fill="#071A33"/>
+                    <circle cx="1055" cy="229" r="5" fill="#38BDF8"/>
+                    <circle cx="1076" cy="229" r="5" fill="#38BDF8"/>
+                    <path d="M1018 304c6-45 18-70 47-70s41 25 47 70" stroke="#38BDF8" strokeWidth="3" fill="none"/>
+                    <circle cx="1215" cy="185" r="20" fill="#22C55E"/>
+                    <path d="M1207 184l6 6 12-14" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
               </div>
@@ -340,78 +286,52 @@ export default function ChatFirstClient() {
 
           {/* RIGHT SIDEBAR - How it works */}
           <aside className="hidden lg:flex flex-col rounded-[24px] border border-[#E2E8F0] bg-white p-8 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EAF3FF]">
-                <svg width="16" height="16" fill="#0969FF">
-                  <path d="M8 1l2 8 8 2-8 2-2 8-2-8-8-2 8-2 2-8z"/>
-                </svg>
-              </div>
-              <h2 className="text-[21px] font-bold leading-7 text-[#071A33]">How it works</h2>
-            </div>
+            {/* SVG exacto líneas 76-86 del SVG de referencia */}
+            <svg viewBox="0 0 365 840" className="w-full h-full">
+              <text className="font-sans text-[21px] font-bold fill-[#071A33]" x="84" y="54">How it works</text>
+              <circle cx="53" cy="45" r="12" fill="#EAF3FF"/>
+              <path d="M53 33l2 8 8 2-8 2-2 8-2-8-8-2 8-2 2-8z" fill="#0969FF"/>
 
-            <div className="flex-1 space-y-6">
               {/* Step 1 */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0969FF] text-[15px] font-extrabold text-white shadow-md">
-                  1
-                </div>
-                <p className="pt-1 text-[18px] font-bold leading-6 text-[#071A33]">Describe the work.</p>
-              </div>
+              <circle cx="53" cy="134" r="18" fill="#0969FF"/>
+              <text className="font-sans text-[15px] font-extrabold fill-white" x="48" y="140">1</text>
+              <text className="font-sans text-[18px] font-bold fill-[#071A33]" x="91" y="141">Describe the work.</text>
 
-              {/* Mini card step 1 */}
-              <div className="ml-12 rounded-[12px] border-[1.5px] border-[#7C3AED] bg-white p-4">
-                <div className="space-y-2">
-                  <div className="h-1 w-16 rounded-full bg-[#CBD5E1]"/>
-                  <div className="h-1 w-24 rounded-full bg-[#CBD5E1]"/>
-                </div>
-              </div>
+              {/* Mini card step 1 - línea 79 */}
+              <rect x="79" y="174" width="205" height="70" rx="12" fill="white" stroke="#7C3AED" strokeWidth="1.5"/>
+              <line x1="114" y1="202" x2="179" y2="202" stroke="#CBD5E1" strokeWidth="4"/>
+              <line x1="114" y1="222" x2="207" y2="222" stroke="#CBD5E1" strokeWidth="4"/>
 
               {/* Arrow */}
-              <div className="flex justify-center text-[42px] leading-none text-[#7C8EA6]">↓</div>
+              <text x="145" y="294" fontSize="42" fill="#7C8EA6">↓</text>
 
               {/* Step 2 */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0969FF] text-[15px] font-extrabold text-white shadow-md">
-                  2
-                </div>
-                <div>
-                  <p className="text-[18px] font-bold leading-6 text-[#071A33]">AISync structures your first work path.</p>
-                </div>
-              </div>
+              <circle cx="53" cy="324" r="18" fill="#0969FF"/>
+              <text className="font-sans text-[15px] font-extrabold fill-white" x="48" y="330">2</text>
+              <text className="font-sans text-[18px] font-bold fill-[#071A33]" x="91" y="320">AISync structures your</text>
+              <text className="font-sans text-[18px] font-bold fill-[#071A33]" x="91" y="346">first work path.</text>
 
-              {/* Mini card step 2 - Path visual */}
-              <div className="ml-12 rounded-[12px] border border-[#DCE7F5] bg-white p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-6 w-6 rounded-full bg-[#7C3AED]"/>
-                  <div className="h-0.5 flex-1 rounded-full bg-[#7C3AED]"/>
-                  <div className="relative h-8 w-8">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="h-0 w-0 border-y-8 border-l-16 border-y-transparent border-l-[#22C55E]"/>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* Mini card step 2 - línea 82 EXACTA */}
+              <rect x="79" y="404" width="205" height="70" rx="12" fill="white" stroke="#DCE7F5"/>
+              <circle cx="119" cy="439" r="13" fill="#7C3AED"/>
+              <line x1="149" y1="439" x2="231" y2="439" stroke="#7C3AED" strokeWidth="4" strokeLinecap="round"/>
+              <path d="M241 424v32l28-16-28-16z" fill="#22C55E"/>
 
               {/* Arrow */}
-              <div className="flex justify-center text-[42px] leading-none text-[#7C8EA6]">↓</div>
+              <text x="145" y="519" fontSize="42" fill="#7C8EA6">↓</text>
 
               {/* Step 3 */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0969FF] text-[15px] font-extrabold text-white shadow-md">
-                  3
-                </div>
-                <div>
-                  <p className="text-[18px] font-bold leading-6 text-[#071A33]">AISync tracks context, checkpoints, and handoffs.</p>
-                </div>
-              </div>
-            </div>
+              <circle cx="53" cy="549" r="18" fill="#0969FF"/>
+              <text className="font-sans text-[15px] font-extrabold fill-white" x="48" y="555">3</text>
+              <text className="font-sans text-[18px] font-bold fill-[#071A33]" x="91" y="542">AISync tracks context,</text>
+              <text className="font-sans text-[18px] font-bold fill-[#071A33]" x="91" y="568">checkpoints, and handoffs.</text>
 
-            {/* Footer */}
-            <div className="mt-6 rounded-[16px] border border-[#CFE0F5] bg-[#F8FBFF] p-5">
-              <p className="text-[15px] leading-6 text-[#53657D]">
-                AISync keeps your AI work traceable, recoverable, and ready to continue.
-              </p>
-            </div>
+              {/* Footer */}
+              <rect x="31" y="724" width="300" height="96" rx="16" fill="#F8FBFF" stroke="#CFE0F5"/>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="119" y="754">AISync keeps your AI work</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="119" y="778">traceable, recoverable, and</text>
+              <text className="font-sans text-[15px] fill-[#53657D]" x="119" y="802">ready to continue.</text>
+            </svg>
           </aside>
         </div>
       </div>
