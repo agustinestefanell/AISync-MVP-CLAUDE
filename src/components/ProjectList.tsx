@@ -31,6 +31,10 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const [switchingProject,  setSwitchingProject]  = useState<string | null>(null)
   const [switchError,       setSwitchError]       = useState('')
   const [showHowModal,      setShowHowModal]      = useState(false)
+  const [archivingProject,  setArchivingProject]  = useState<string | null>(null)
+  const [deletingProject,   setDeletingProject]   = useState<string | null>(null)
+  const [confirmDelete,     setConfirmDelete]     = useState<string | null>(null)
+  const [projectError,      setProjectError]      = useState('')
 
   const fetchConnections = useCallback(() => {
     fetch('/api/connections')
@@ -128,6 +132,47 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
     }
   }
 
+  async function handleArchive(projectId: string) {
+    setArchivingProject(projectId)
+    setProjectError('')
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'archived' }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => null)
+        setProjectError(d?.error ?? 'Failed to archive project.')
+        return
+      }
+      router.refresh()
+    } catch {
+      setProjectError('Network error. Please try again.')
+    } finally {
+      setArchivingProject(null)
+    }
+  }
+
+  async function handleDelete(projectId: string) {
+    setDeletingProject(projectId)
+    setProjectError('')
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const d = await res.json().catch(() => null)
+        setProjectError(d?.error ?? 'Failed to delete project.')
+        return
+      }
+      setConfirmDelete(null)
+      router.refresh()
+    } catch {
+      setProjectError('Network error. Please try again.')
+    } finally {
+      setDeletingProject(null)
+    }
+  }
+
   const activeConnections   = connections.filter(c => c.status === 'active')
   const pendingIncoming     = connections.filter(c => c.status === 'pending' && c.direction === 'incoming')
   const pendingIncomingCount = pendingIncoming.length
@@ -181,6 +226,10 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
           <p className="text-xs text-red-600">{switchError}</p>
         )}
 
+        {projectError && (
+          <p className="text-xs text-red-600">{projectError}</p>
+        )}
+
         {projects.length === 0 && (
           <div className="bg-white border border-dashed border-gray-200 rounded-xl p-10 text-center">
             <p className="text-gray-500 text-sm">No projects yet.</p>
@@ -192,20 +241,64 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
           <div key={project.id} className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-[var(--color-text-primary)]">{project.name}</h3>
-              {project.id === activeProjectId ? (
-                <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
-                  active
-                </span>
-              ) : (
+              <div className="flex items-center gap-2">
+                {project.id === activeProjectId ? (
+                  <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+                    active
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); setActiveProject(project.id) }}
+                    disabled={switchingProject !== null}
+                    className="text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 hover:text-indigo-600 hover:border-indigo-200 disabled:opacity-50 px-2.5 py-1 rounded-full transition-colors"
+                  >
+                    {switchingProject === project.id ? 'Switching…' : 'Set active'}
+                  </button>
+                )}
+
+                {/* Archive button */}
                 <button
                   type="button"
-                  onClick={e => { e.stopPropagation(); setActiveProject(project.id) }}
-                  disabled={switchingProject !== null}
-                  className="text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 hover:text-indigo-600 hover:border-indigo-200 disabled:opacity-50 px-2.5 py-1 rounded-full transition-colors"
+                  onClick={() => handleArchive(project.id)}
+                  disabled={archivingProject === project.id}
+                  className="text-xs text-gray-500 hover:text-amber-600 disabled:opacity-50 px-2 py-1 transition-colors"
+                  title="Archive project"
                 >
-                  {switchingProject === project.id ? 'Switching…' : 'Set active'}
+                  {archivingProject === project.id ? '...' : 'Archive'}
                 </button>
-              )}
+
+                {/* Delete button */}
+                {confirmDelete === project.id ? (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-red-600">Are you sure?</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(project.id)}
+                      disabled={deletingProject === project.id}
+                      className="text-xs text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 px-2 py-1 rounded transition-colors"
+                    >
+                      {deletingProject === project.id ? '...' : 'Delete'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(null)}
+                      className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(project.id)}
+                    className="text-xs text-gray-500 hover:text-red-600 px-2 py-1 transition-colors"
+                    title="Delete project permanently"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="text-sm">
