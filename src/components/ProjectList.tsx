@@ -260,7 +260,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                 {/* Archive button */}
                 <button
                   type="button"
-                  onClick={() => handleArchive(project.id)}
+                  onClick={e => { e.stopPropagation(); handleArchive(project.id) }}
                   disabled={archivingProject === project.id}
                   className="text-xs text-gray-500 hover:text-amber-600 disabled:opacity-50 px-2 py-1 transition-colors"
                   title="Archive project"
@@ -274,7 +274,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                     <span className="text-xs text-red-600">Are you sure?</span>
                     <button
                       type="button"
-                      onClick={() => handleDelete(project.id)}
+                      onClick={e => { e.stopPropagation(); handleDelete(project.id) }}
                       disabled={deletingProject === project.id}
                       className="text-xs text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 px-2 py-1 rounded transition-colors"
                     >
@@ -282,7 +282,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                     </button>
                     <button
                       type="button"
-                      onClick={() => setConfirmDelete(null)}
+                      onClick={e => { e.stopPropagation(); setConfirmDelete(null) }}
                       className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1"
                     >
                       Cancel
@@ -291,7 +291,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setConfirmDelete(project.id)}
+                    onClick={e => { e.stopPropagation(); setConfirmDelete(project.id) }}
                     className="text-xs text-gray-500 hover:text-red-600 px-2 py-1 transition-colors"
                     title="Delete project permanently"
                   >
