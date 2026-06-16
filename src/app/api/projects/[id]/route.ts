@@ -112,5 +112,13 @@ export async function DELETE(
   }
 
   console.log('[projects/[id]] DELETE successful, rows affected:', deleteData.length)
-  return NextResponse.json({ success: true })
+  return NextResponse.json({
+    success: true,
+    debug: {
+      projectId: params.id,
+      userId: user.id,
+      rowsAffected: deleteData.length,
+      deletedData: deleteData
+    }
+  })
 }
