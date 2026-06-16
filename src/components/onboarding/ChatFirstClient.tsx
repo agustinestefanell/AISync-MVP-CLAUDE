@@ -167,7 +167,7 @@ export default function ChatFirstClient() {
                     </div>
                     <div className="mt-2 flex items-center gap-1.5">
                       <div className="h-3 w-3 rounded-full bg-[#22C55E]"/>
-                      <div className="text-[16px] font-bold text-[#0B1F3A]">Research</div>
+                      <div className="text-[16px] font-bold text-[#0B1F3A]">Research Session</div>
                     </div>
                     <div className="mt-1 text-[15px] leading-6 text-[#53657D]">Supports research and analysis</div>
                   </div>
@@ -184,7 +184,7 @@ export default function ChatFirstClient() {
                     </div>
                     <div className="mt-2 flex items-center gap-1.5">
                       <div className="h-3 w-3 rounded-full bg-[#F59E0B]"/>
-                      <div className="text-[16px] font-bold text-[#0B1F3A]">Review</div>
+                      <div className="text-[16px] font-bold text-[#0B1F3A]">Review Session</div>
                     </div>
                     <div className="mt-1 text-[15px] leading-6 text-[#53657D]">Supports review and documentation</div>
                   </div>
@@ -221,6 +221,9 @@ export default function ChatFirstClient() {
                     {/* Background circle */}
                     <circle cx="140" cy="100" r="76" fill="#EAF3FF"/>
 
+                    {/* Orbital ring around robot */}
+                    <circle cx="45" cy="109" r="55" stroke="#93C5FD" strokeWidth="2" fill="none" strokeDasharray="6 6" opacity="0.6"/>
+
                     {/* Checklist card */}
                     <rect x="80" y="88" width="100" height="96" rx="12" fill="white" stroke="#DCE7F5" strokeWidth="1.5"/>
                     <line x1="110" y1="115" x2="155" y2="115" stroke="#CBD5E1" strokeWidth="5" strokeLinecap="round"/>
@@ -236,9 +239,15 @@ export default function ChatFirstClient() {
                     {/* Orbit path */}
                     <path d="M-2 184c6-45 18-70 47-70s41 25 47 70" stroke="#38BDF8" strokeWidth="3" fill="none"/>
 
-                    {/* Checkmark badge */}
-                    <circle cx="195" cy="65" r="20" fill="#22C55E"/>
-                    <path d="M187 64l6 6 12-14" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                    {/* Larger prominent checkmark badges */}
+                    <circle cx="195" cy="65" r="24" fill="#22C55E"/>
+                    <path d="M186 64l7 7 14-16" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+
+                    <circle cx="220" cy="130" r="24" fill="#22C55E"/>
+                    <path d="M211 129l7 7 14-16" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+
+                    <circle cx="15" cy="45" r="24" fill="#22C55E"/>
+                    <path d="M6 44l7 7 14-16" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
               </div>
@@ -320,7 +329,7 @@ export default function ChatFirstClient() {
                 )}
                 <button
                   onClick={startWithGeneralManager}
-                  disabled={isStarting || !projectName.trim() || !teamName.trim() || !message.trim()}
+                  disabled={isStarting}
                   className="h-[60px] min-w-[288px] rounded-[12px] bg-[#0969FF] px-8 text-[18px] font-bold text-white shadow-lg transition-all hover:bg-[#0757D8] disabled:cursor-not-allowed disabled:bg-[#AFC3DA] disabled:shadow-none"
                 >
                   {isStarting ? 'Starting...' : 'Start governed work →'}
