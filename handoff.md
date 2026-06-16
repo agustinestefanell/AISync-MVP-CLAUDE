@@ -6778,3 +6778,36 @@ DELETE devolviendo 200 sin ejecutar operación en DB es señal de RLS bloqueando
 **Estado:** EN DIAGNÓSTICO. 6 commits acumulados. Logs activos. Pendiente revisión de logs Vercel.
 
 **RESOLUCIÓN:** Delete funciona correctamente confirmado. El bug era aparente — el proyecto borrado manualmente en Supabase durante el diagnóstico confundía la verificación. Delete real desde UI funciona. Logs de debug removidos en commit 130d68f + cleanup final. Feature completa y funcional.
+
+---
+
+## Cierre sesión 2026-06-15
+
+**Estado al cierre:**
+- Chat-First Onboarding: ✅ completo y funcional (commits e22ec23, 373853c, ff56050)
+- Archive proyectos: ✅ completo (commit 65939e5)
+- Delete proyectos: ✅ completo (commits 65939e5 → 27a8f44, 7 commits debug + cleanup)
+- Groq modelo actualizado: ✅ llama-3.3-70b-versatile (commit ff56050)
+- User email en workspace: ✅ visible en TopRibbon (commit ff56050)
+- Logo AISync → /start: ✅ (commit 6f30555)
+- Dashboard → /: ✅ arquitectura simple (commit 6f30555, revert de intelligent router)
+- Debug logs: ✅ limpiados (commit 27a8f44)
+
+**Migraciones pendientes aplicación manual:**
+- 032: onboarding_completed (Chat-First)
+- 033: projects.status (Archive)
+- 034: projects_delete policy (Delete)
+
+**Commits de la sesión:**
+- Total: 20+ commits
+- Features: 3 (Chat-First, Archive/Delete, fixes varios)
+- Fixes: 4 (Groq modelo, ribbon links, user email, router revert)
+- Debug: 7 (Delete diagnostics + cleanup)
+- Docs: 4 (CIERRE DURO completos)
+
+**Próxima sesión arrancar con:**
+1. Verificar landing /start con usuario nuevo end-to-end
+2. Implementar versión 2 visual de /start (Screenshot 2 aprobado)
+3. Textos residuales en español
+4. Bloque 3 pre-launch cleanup
+5. Aplicar migraciones pendientes en Supabase (032, 033, 034)
