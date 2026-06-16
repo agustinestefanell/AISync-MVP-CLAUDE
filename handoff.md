@@ -6941,3 +6941,43 @@ Aplicar colorimetría y parámetros visuales exactos del BLOQUE 1.1:
 **Deuda técnica:**
 - SVG robot es básico — puede refinarse si se requiere más detalle visual
 - Split connector usa divs absolutos — puede mejorarse con SVG si se complica layout responsive
+
+---
+
+## Fix directo — Ajustes visuales /start (2026-06-16)
+
+**Archivos modificados:**
+- src/components/onboarding/ChatFirstClient.tsx (111 insertions, 58 deletions)
+
+**Decisión técnica:**
+Aplicar 2 ajustes visuales para alinear con sistema de diseño global y mejorar jerarquía visual:
+
+**AJUSTE 1 — Tipografía:**
+- Aplicar IBM Plex Sans global: `font-[family-name:var(--font-ibm-plex-sans)]` en wrapper
+- Alinear con tokens.css del proyecto (--font-ui)
+
+**AJUSTE 2 — Distribución espacial:**
+- Left sidebar íconos con color fill real:
+  * Project: carpeta azul #0969FF fill sobre #EAF3FF
+  * Main AI: robot púrpura #7C3AED fill sobre #F5F0FF
+  * Research: persona verde #22C55E fill sobre #ECFDF3
+  * Review: persona naranja #F59E0B fill sobre #FFF7E6
+- Robot hero mejorado (280x220px):
+  * Órbita decorativa doble (#93C5FD, #DBEAFE)
+  * 3 checkmarks flotantes verdes alrededor
+  * Antena con glow
+- Right sidebar paso 2 mini-card:
+  * Path visual completo: Project → Main AI (badge) → Checkpoint verde
+- Right sidebar paso 3 mini-card:
+  * 2 figuras personas conectadas con checkmarks (colaboración traceable)
+
+**Alternativas descartadas:**
+- Mantener íconos stroke-only: menos prominencia visual
+- Robot sin órbita decorativa: menos impacto hero
+- Mini-cards sin ilustraciones: menos claridad conceptual
+
+**Riesgos conocidos:**
+Ninguno. Ajustes puramente visuales sin cambio funcional.
+
+**Deuda técnica:**
+Bundle aumentó: 5.09 kB → 5.61 kB (+520 bytes) por SVG mejorado y mini-cards.

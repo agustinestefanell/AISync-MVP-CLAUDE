@@ -94,7 +94,7 @@ export default function ChatFirstClient() {
 
   return (
     <>
-      <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,_rgba(219,234,254,0.75)_0%,_rgba(246,249,253,1)_42%,_rgba(248,250,252,1)_100%)] px-6 py-8">
+      <div className="min-h-screen font-[family-name:var(--font-ibm-plex-sans)] bg-[radial-gradient(circle_at_50%_0%,_rgba(219,234,254,0.75)_0%,_rgba(246,249,253,1)_42%,_rgba(248,250,252,1)_100%)] px-6 py-8">
         <div className="mx-auto grid max-w-[1780px] grid-cols-1 gap-6 lg:grid-cols-[0.86fr_2.12fr_0.86fr]">
           {/* Left sidebar — Work structure */}
           <aside className="hidden lg:block rounded-[24px] border border-[#E2E8F0] bg-white p-8 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
@@ -110,10 +110,9 @@ export default function ChatFirstClient() {
               {/* Project node */}
               <div className="relative rounded-[16px] border border-[#BFD7FF] bg-[#FAFCFF] p-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#EAF3FF] text-[#0969FF]">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                      <polyline points="9 22 9 12 15 12 15 22"/>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#EAF3FF]">
+                    <svg className="w-6 h-6 text-[#0969FF]" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
                     </svg>
                   </div>
                   <div className="min-w-0 flex-1">
@@ -129,12 +128,9 @@ export default function ChatFirstClient() {
               {/* Main AI Session node */}
               <div className="relative rounded-[16px] border border-[#7C3AED] bg-[#F9F6FF] p-5 shadow-[0_14px_30px_rgba(124,58,237,0.13)]">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F5F0FF] text-[#7C3AED]">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <circle cx="15.5" cy="8.5" r="1.5"/>
-                      <path d="M9 16s1 2 3 2 3-2 3-2"/>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F5F0FF]">
+                    <svg className="w-7 h-7 text-[#7C3AED]" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zM7.5 11.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5S9.83 13 9 13s-1.5-.67-1.5-1.5zM16 17H8v-2h8v2zm-.5-4c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                     </svg>
                   </div>
                   <div className="min-w-0 flex-1">
@@ -160,10 +156,9 @@ export default function ChatFirstClient() {
                 {/* Research Session */}
                 <div className="rounded-[16px] border border-[#DCE7F5] bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                   <div className="flex flex-col items-center text-center">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#ECFDF3] text-[#22C55E]">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                        <circle cx="11" cy="11" r="8"/>
-                        <path d="m21 21-4.35-4.35"/>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#ECFDF3]">
+                      <svg className="w-5 h-5 text-[#22C55E]" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                       </svg>
                     </div>
                     <div className="mt-2 flex items-center gap-1.5">
@@ -177,13 +172,9 @@ export default function ChatFirstClient() {
                 {/* Review Session */}
                 <div className="rounded-[16px] border border-[#EFE3D0] bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                   <div className="flex flex-col items-center text-center">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF7E6] text-[#F59E0B]">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="16" y1="13" x2="8" y2="13"/>
-                        <line x1="16" y1="17" x2="8" y2="17"/>
-                        <polyline points="10 9 9 9 8 9"/>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF7E6]">
+                      <svg className="w-5 h-5 text-[#F59E0B]" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                       </svg>
                     </div>
                     <div className="mt-2 flex items-center gap-1.5">
@@ -218,37 +209,52 @@ export default function ChatFirstClient() {
                   </p>
                 </div>
 
-                {/* Illustration */}
-                <div className="hidden md:block">
-                  <svg className="w-[240px] h-[190px]" viewBox="0 0 240 190" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Enhanced illustration */}
+                <div className="hidden md:block relative">
+                  <svg className="w-[280px] h-[220px]" viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* Decorative orbit background */}
+                    <circle cx="140" cy="110" r="85" stroke="#93C5FD" strokeWidth="1.5" fill="none" strokeDasharray="6 6" opacity="0.4"/>
+                    <circle cx="140" cy="110" r="65" stroke="#DBEAFE" strokeWidth="2" fill="none" strokeDasharray="4 4" opacity="0.5"/>
+
                     {/* Robot head */}
-                    <rect x="80" y="40" width="80" height="70" rx="8" stroke="#38BDF8" strokeWidth="2.5" fill="white"/>
+                    <rect x="100" y="60" width="80" height="70" rx="10" stroke="#38BDF8" strokeWidth="3" fill="white"/>
                     {/* Eyes */}
-                    <circle cx="100" cy="65" r="6" fill="#38BDF8"/>
-                    <circle cx="140" cy="65" r="6" fill="#38BDF8"/>
+                    <circle cx="120" cy="85" r="7" fill="#38BDF8"/>
+                    <circle cx="160" cy="85" r="7" fill="#38BDF8"/>
                     {/* Smile */}
-                    <path d="M 100 85 Q 120 95 140 85" stroke="#071A33" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                    <path d="M 120 105 Q 140 115 160 105" stroke="#071A33" strokeWidth="3" fill="none" strokeLinecap="round"/>
                     {/* Antenna */}
-                    <line x1="120" y1="40" x2="120" y2="20" stroke="#38BDF8" strokeWidth="2.5" strokeLinecap="round"/>
-                    <circle cx="120" cy="15" r="5" fill="#0969FF"/>
+                    <line x1="140" y1="60" x2="140" y2="35" stroke="#38BDF8" strokeWidth="3" strokeLinecap="round"/>
+                    <circle cx="140" cy="28" r="6" fill="#0969FF"/>
+                    <circle cx="140" cy="28" r="10" stroke="#0969FF" strokeWidth="1.5" fill="none" opacity="0.3"/>
+
+                    {/* Floating checkmarks */}
+                    <g opacity="0.85">
+                      <circle cx="60" cy="80" r="12" fill="#22C55E"/>
+                      <path d="M 55 80 L 58 83 L 65 76" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    </g>
+                    <g opacity="0.85">
+                      <circle cx="220" cy="100" r="12" fill="#22C55E"/>
+                      <path d="M 215 100 L 218 103 L 225 96" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    </g>
+                    <g opacity="0.85">
+                      <circle cx="200" cy="150" r="12" fill="#22C55E"/>
+                      <path d="M 195 150 L 198 153 L 205 146" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    </g>
 
                     {/* Checklist card */}
-                    <rect x="20" y="120" width="90" height="60" rx="8" fill="white" stroke="#DCE7F5" strokeWidth="1.5"/>
-                    <line x1="30" y1="135" x2="70" y2="135" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round"/>
-                    <circle cx="90" cy="135" r="4" stroke="#0969FF" strokeWidth="2" fill="none"/>
-                    <line x1="30" y1="150" x2="70" y2="150" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round"/>
-                    <circle cx="90" cy="150" r="4" fill="#0969FF"/>
-                    <line x1="87" y1="150" x2="89" y2="152" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                    <line x1="89" y1="152" x2="93" y2="148" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                    <line x1="30" y1="165" x2="70" y2="165" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round"/>
-                    <circle cx="90" cy="165" r="4" stroke="#0969FF" strokeWidth="2" fill="none"/>
+                    <rect x="20" y="140" width="100" height="70" rx="10" fill="white" stroke="#DCE7F5" strokeWidth="2"/>
+                    <line x1="32" y1="158" x2="78" y2="158" stroke="#CBD5E1" strokeWidth="2.5" strokeLinecap="round"/>
+                    <circle cx="98" cy="158" r="5" stroke="#0969FF" strokeWidth="2" fill="none"/>
+                    <line x1="32" y1="175" x2="78" y2="175" stroke="#CBD5E1" strokeWidth="2.5" strokeLinecap="round"/>
+                    <circle cx="98" cy="175" r="5" fill="#0969FF"/>
+                    <path d="M 94.5 175 L 97 177.5 L 101.5 173" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    <line x1="32" y1="192" x2="78" y2="192" stroke="#CBD5E1" strokeWidth="2.5" strokeLinecap="round"/>
+                    <circle cx="98" cy="192" r="5" stroke="#0969FF" strokeWidth="2" fill="none"/>
 
                     {/* Shield */}
-                    <path d="M 180 130 L 180 110 Q 180 105 185 105 L 205 105 Q 210 105 210 110 L 210 130 Q 195 145 195 145 Q 180 130 180 130 Z" fill="#22C55E"/>
-                    <path d="M 188 125 L 192 129 L 202 117" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-
-                    {/* Decorative orbit */}
-                    <circle cx="195" cy="75" r="35" stroke="#93C5FD" strokeWidth="1.5" fill="none" strokeDasharray="4 4" opacity="0.5"/>
+                    <path d="M 210 160 L 210 138 Q 210 132 216 132 L 238 132 Q 244 132 244 138 L 244 160 Q 227 178 227 178 Q 210 160 210 160 Z" fill="#22C55E"/>
+                    <path d="M 219 155 L 224 160 L 235 146" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                   </svg>
                 </div>
               </div>
@@ -381,24 +387,41 @@ export default function ChatFirstClient() {
                 </svg>
               </div>
 
-              {/* Step 2 */}
+              {/* Step 2 - Enhanced with path visual */}
               <div className="flex items-start gap-4">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0969FF] text-sm font-bold text-white shadow-[0_8px_18px_rgba(9,105,255,0.25)]">
                   2
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-[18px] font-bold leading-6 text-[#071A33]">AISync structures your first work path.</p>
-                  <div className="mt-3 space-y-2">
-                    <div className="rounded-[12px] border border-[#DCE7F5] bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
-                      <div className="text-[12px] font-semibold text-[#0B1F3A]">Project</div>
-                      <div className="mt-0.5 h-1 w-16 rounded-full bg-[#BFD7FF]"/>
-                    </div>
-                    <div className="rounded-[12px] border border-[#DCE7F5] bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
+                  <div className="mt-3 rounded-[12px] border border-[#DCE7F5] bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
+                    {/* Visual path */}
+                    <div className="space-y-3">
                       <div className="flex items-center gap-2">
-                        <div className="text-[12px] font-semibold text-[#0B1F3A]">Main AI</div>
-                        <span className="rounded bg-[#7C3AED] px-1.5 py-0.5 text-[9px] font-bold text-white">AI</span>
+                        <div className="h-6 w-6 rounded-full bg-[#BFD7FF] flex items-center justify-center">
+                          <div className="h-2.5 w-2.5 rounded-full bg-[#0969FF]"/>
+                        </div>
+                        <div className="text-[11px] font-semibold text-[#0B1F3A]">Project</div>
                       </div>
-                      <div className="mt-0.5 h-1 w-20 rounded-full bg-[#A78BFA]"/>
+                      <div className="ml-3 h-4 w-px bg-[#7C3AED]"/>
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full bg-[#A78BFA] flex items-center justify-center">
+                          <div className="h-2.5 w-2.5 rounded-full bg-[#7C3AED]"/>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="text-[11px] font-semibold text-[#0B1F3A]">Main AI</div>
+                          <span className="rounded bg-[#7C3AED] px-1 py-0.5 text-[8px] font-bold text-white">AI</span>
+                        </div>
+                      </div>
+                      <div className="ml-3 h-4 w-px bg-[#64748B]"/>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center rounded-md bg-[#DCFCE7] border border-[#BBF7D0] px-2 py-1">
+                          <svg className="w-3 h-3 text-[#22C55E]" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                          </svg>
+                        </div>
+                        <div className="text-[10px] text-[#53657D]">Checkpoint</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -411,13 +434,43 @@ export default function ChatFirstClient() {
                 </svg>
               </div>
 
-              {/* Step 3 */}
+              {/* Step 3 - Enhanced with collaboration visual */}
               <div className="flex items-start gap-4">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0969FF] text-sm font-bold text-white shadow-[0_8px_18px_rgba(9,105,255,0.25)]">
                   3
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-[18px] font-bold leading-6 text-[#071A33]">AISync tracks context, checkpoints, and handoffs.</p>
+                  <div className="mt-3 rounded-[12px] border border-[#DCE7F5] bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
+                    {/* Collaboration visual */}
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="relative">
+                        <div className="h-8 w-8 rounded-full bg-[#EAF3FF] border-2 border-[#0969FF] flex items-center justify-center">
+                          <svg className="w-4 h-4 text-[#0969FF]" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                          </svg>
+                        </div>
+                        <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#22C55E] border border-white"/>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <svg className="w-3 h-3 text-[#22C55E]" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                        <div className="h-px w-4 bg-[#CBD5E1]"/>
+                        <svg className="w-3 h-3 text-[#22C55E]" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                      </div>
+                      <div className="relative">
+                        <div className="h-8 w-8 rounded-full bg-[#F5F0FF] border-2 border-[#7C3AED] flex items-center justify-center">
+                          <svg className="w-4 h-4 text-[#7C3AED]" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                          </svg>
+                        </div>
+                        <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#22C55E] border border-white"/>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
