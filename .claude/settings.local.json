@@ -75,7 +75,14 @@
       "PowerShell(\\(Get-Content C:\\\\proyectos\\\\AISync\\\\aisync-mvp-claude\\\\handoff.md | Measure-Object -Line\\).Lines)",
       "Bash(cat src/app/\\\\\\(main\\\\\\)/dashboard/page.tsx)",
       "Bash(cat src/app/\\\\\\(main\\\\\\)/page.tsx)",
-      "Bash(xargs grep -l \"Start your project\")"
+      "Bash(xargs grep -l \"Start your project\")",
+      "PowerShell(npm.cmd run dev)",
+      "Bash(npx playwright *)",
+      "PowerShell(Start-Sleep 5; curl.exe http://localhost:3000/start -Method HEAD)",
+      "PowerShell(npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3000/start C:\\\\tmp\\\\start-exact-svg.png)",
+      "PowerShell(Start-Sleep 12; npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3000/documentation C:\\\\tmp\\\\sm-panel-height-fix.png)",
+      "PowerShell(Start-Sleep 15; npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3000/documentation C:\\\\tmp\\\\sm-panel-height-fix.png)",
+      "PowerShell(npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3001/documentation C:\\\\tmp\\\\sm-panel-height-fix.png)"
     ]
   }
 }

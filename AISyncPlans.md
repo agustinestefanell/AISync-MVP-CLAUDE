@@ -850,6 +850,30 @@ AISync persiste el proyecto activo en `accounts.active_project_id` (migración 0
 
 ---
 
+## Backlog diferido — Features pendientes
+
+### KNOWLEDGE MAP — Construcción completa pendiente
+
+Knowledge Map es una de las 5 vistas de Documentation Mode (Repository, Structure, Audit, Investigate, Knowledge). Su objetivo es visualización tipo Obsidian de relaciones entre documentos, checkpoints, handoff packages, saved selections, y otros objetos documentales.
+
+**Estado actual (2026-06-16):**
+- Estructura visual básica implementada en `src/components/documentation/KnowledgeMap.tsx`
+- Usa ReactFlow para grafo de nodos y edges
+- Color scheme actualizado a light mode (bg-*-50, border-*-300, text-*-700)
+- Sin contenido real: no hay lógica de construcción de grafo desde datos reales
+- Tab "Knowledge Map" visible pero marcado como "under development" en DocClient.tsx línea 91
+
+**Requisitos para implementación completa:**
+- OE dedicada con diseño visual aprobado (mockup de nodos, edges, layout)
+- Definir qué relaciones se visualizan: checkpoint → handoff package, checkpoint → saved selection, team → workspace → agent session, project → teams, etc.
+- Implementar algoritmo de layout automático (jerarquizado, force-directed, o timeline)
+- Definir interacciones: click en nodo abre DetailPanel, zoom/pan, filtros por tipo de objeto
+- Integrar con datos reales desde `DocClient.tsx` props (checkpoints, projects, handoffPackages, savedSelections)
+
+**No tocar hasta tener spec visual aprobada.** La implementación actual es estructura placeholder — cualquier cambio debe partir de diseño completo, no iteración incremental.
+
+---
+
 ## Connected Teams — Shared Workspace Architecture
 **Decisión tomada:** Semana 7, sesión 2026-06-13
 **Estado:** Diseño aprobado, pendiente de implementación

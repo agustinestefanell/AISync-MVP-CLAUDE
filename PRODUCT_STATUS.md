@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-16 (Fix directo: SMPanel altura + dark mode cleanup — cerrada)
+Last updated: 2026-06-16 (CIERRE SESIÓN SEMANA 8 — 4 fixes completados, Knowledge Map backlog documentado)
 
 ---
 

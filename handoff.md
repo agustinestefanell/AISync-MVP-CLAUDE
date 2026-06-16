@@ -7083,3 +7083,42 @@ TAREA 4: Ajustar altura del Sub-Manager panel para que llegue al bottom ribbon. 
 
 **Lección clave:**
 Componentes anidados en flex layouts necesitan `h-full` explícito para tomar toda la altura del contenedor padre. Buscar dark colors hardcodeados: grep por `bg-gray-[789]`, `bg-slate-[789]`, `border-gray-[789]`, `text-gray-[789]`, etc.
+
+---
+
+## CIERRE DE SESIÓN — Semana 8 (2026-06-16)
+
+**Fecha:** 2026-06-16
+**Commits de la sesión:**
+1. c80a3c5 — fix: /start page visual reconstruction - exact SVG copy from design reference
+2. dbee857 — fix: SMPanel height to bottom ribbon + documentation dark mode cleanup
+3. 195b6dc — fix: skip onboarding link now navigates to dashboard correctly
+
+**Trabajo completado:**
+1. **Visual reconstruction /start:** Reescritura completa de ChatFirstClient.tsx copiando EXACTAMENTE elementos del SVG de referencia (design-refs/aisync_start_page_reconstruction.svg). Robot illustration, conectores left sidebar, mini-card paso 2 copiados literalmente. Bundle 4.69kB.
+
+2. **SMPanel altura:** Agregado `h-full` al contenedor principal para que el Sub-Manager panel llegue al bottom ribbon en layout flex.
+
+3. **Dark mode cleanup Documentation:** Eliminados colores oscuros hardcodeados en AuditView.tsx (bg-gray-100 text-gray-800) y KnowledgeMap.tsx (bg-*-950/60, border-gray-600, text-white). Reemplazados por light mode tokens y colores claros (bg-*-50, border-*-300, text-*-700).
+
+4. **Skip onboarding fix urgente:** Link "Skip setup → go to dashboard" no funcionaba porque handler solo navegaba si API respondía OK. Fix: `router.push('/')` ejecuta siempre, independiente del resultado de API.
+
+5. **Knowledge Map backlog:** Agregada entrada en AISyncPlans.md bajo "Backlog diferido" documentando estado actual (estructura placeholder sin contenido real) y requisitos para implementación completa (OE dedicada con diseño visual aprobado).
+
+**Decisiones técnicas tomadas:**
+- "Demo first" aplica también a assets de diseño: si el SVG de referencia lo tiene, se copia literalmente sin interpretación
+- Componentes en flex layouts necesitan `h-full` explícito para tomar altura del contenedor padre
+- Skip onboarding debe navegar siempre, independiente del resultado de API (no bloquear usuario)
+- Knowledge Map no se toca hasta tener spec visual aprobada — es placeholder, no feature incremental
+
+**Deuda técnica generada:**
+Ninguna. Todos los fixes son soluciones directas sin workarounds pendientes.
+
+**Estado del proyecto:**
+- Build: ✅ Exitoso (lint OK, bundle estable)
+- Tests: N/A (no hay suite de tests activa)
+- Migraciones: Sin cambios de DB en esta sesión
+- Deploy: Listo para deploy (commits pushed a main)
+
+**Próxima sesión:**
+Continuar con bloques pendientes de PRODUCT_STATUS.md o nuevas OEs según prioridad del usuario.
