@@ -68,8 +68,8 @@ export default function CustomProvidersManager() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-600">Providers personalizados</h2>
-        <span className="text-xs text-gray-600">Compatible con cualquier API formato OpenAI</span>
+        <h2 className="text-sm font-semibold text-gray-600">Custom providers</h2>
+        <span className="text-xs text-gray-600">Compatible with any OpenAI-format API</span>
       </div>
 
       {/* Lista de providers guardados */}
@@ -84,7 +84,7 @@ export default function CustomProvidersManager() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-[var(--color-text-primary)]">{p.name}</span>
                   <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
-                    activo
+                    active
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 truncate">{p.endpoint_url}</p>
@@ -98,7 +98,7 @@ export default function CustomProvidersManager() {
                 disabled={deletingName === p.name}
                 className="shrink-0 text-xs text-red-600 hover:text-red-400 disabled:opacity-40 transition-colors px-2 py-1 border border-red-900/50 rounded-lg"
               >
-                {deletingName === p.name ? '…' : 'Eliminar'}
+                {deletingName === p.name ? '…' : 'Delete'}
               </button>
             </div>
           ))}
@@ -108,7 +108,7 @@ export default function CustomProvidersManager() {
       {/* Formulario para agregar */}
       <div className="border border-gray-200 rounded-xl px-4 py-4 space-y-3 bg-white/30">
         <p className="text-xs font-medium text-gray-400">
-          {providers.length === 0 ? 'Agregá tu primer provider personalizado' : 'Agregar otro provider'}
+          {providers.length === 0 ? 'Add your first custom provider' : 'Add another provider'}
         </p>
 
         <div className="grid grid-cols-2 gap-2">
@@ -167,7 +167,7 @@ export default function CustomProvidersManager() {
             disabled={saving}
             className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
           >
-            {saving ? 'Guardando…' : 'Agregar provider'}
+            {saving ? 'Saving…' : 'Add provider'}
           </button>
         </div>
       </div>

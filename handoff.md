@@ -6835,3 +6835,41 @@ Ninguno. Fix quirúrgico sin impacto en lógica.
 
 **Deuda técnica:**
 Comentarios en español en código permanecen (no visibles al usuario).
+
+---
+
+## Fix directo — Traducción Settings componentes (2026-06-16)
+
+**Archivos modificados:**
+- src/components/settings/SetupGuide.tsx (líneas 72, 75)
+- src/components/settings/ApiKeysManager.tsx (líneas 126, 141, 144, 158, 191, 193, 197, 204, 214, 218)
+- src/components/settings/CustomProvidersManager.tsx (líneas 71, 72, 87, 101, 111, 170)
+
+**Decisión técnica:**
+Traducir 16 strings en español de Settings a inglés:
+- "¿Cómo conectar tus agentes de IA?" → "How to connect your AI agents?"
+- "Guía rápida de configuración" → "Quick setup guide"
+- "API Keys de proveedores cloud" → "Cloud provider API Keys"
+- "sin key" → "no key"
+- "key guardada" → "key saved"
+- "Nueva key (reemplaza la actual)" → "New key (replaces current)"
+- "IA Local" → "Local AI"
+- "sin key necesaria" → "no key required"
+- Instrucciones de Local AI y párrafo técnico completos
+- "Prioridad de keys" → "Key priority"
+- "Providers personalizados" → "Custom providers"
+- "Compatible con cualquier API formato OpenAI" → "Compatible with any OpenAI-format API"
+- "activo" → "active"
+- "Eliminar" → "Delete"
+- "Agregar otro provider" → "Add another provider"
+- "Agregar provider" / "Guardando…" → "Add provider" / "Saving…"
+
+**Alternativas descartadas:**
+- Mantener español: contradice regla "100% inglés en UI"
+- i18n: diferido a post-launch
+
+**Riesgos conocidos:**
+Ninguno. Fix quirúrgico solo en strings UI.
+
+**Deuda técnica:**
+Ninguna. SetupGuide tiene steps en español (comentarios internos de setup, no visibles como UI final).

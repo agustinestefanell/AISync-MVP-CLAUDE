@@ -69,10 +69,10 @@ export default function SetupGuide() {
       >
         <div className="flex items-center gap-2.5">
           <span className="text-sm font-semibold text-gray-800">
-            ¿Cómo conectar tus agentes de IA?
+            How to connect your AI agents?
           </span>
           <span className="text-xs text-gray-600 hidden sm:inline">
-            Guía rápida de configuración
+            Quick setup guide
           </span>
         </div>
         <span

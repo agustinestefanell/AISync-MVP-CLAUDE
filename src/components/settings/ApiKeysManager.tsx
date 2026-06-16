@@ -123,7 +123,7 @@ export default function ApiKeysManager() {
 
       {/* Cloud providers */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-600 mb-4">API Keys de proveedores cloud</h2>
+        <h2 className="text-sm font-semibold text-gray-600 mb-4">Cloud provider API Keys</h2>
         <div className="space-y-3">
           {CLOUD_PROVIDERS.map(p => {
             const saved = savedKey(p.name)
@@ -138,10 +138,10 @@ export default function ApiKeysManager() {
                   <span className={`text-sm font-bold ${p.color}`}>{p.name}</span>
                   {saved ? (
                     <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                      ✓ key guardada
+                      ✓ key saved
                     </span>
                   ) : (
-                    <span className="text-xs text-[var(--color-text-muted)]">sin key</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">no key</span>
                   )}
                 </div>
 
@@ -155,7 +155,7 @@ export default function ApiKeysManager() {
                     value={st.input}
                     onChange={e => setField(p.name, { input: e.target.value })}
                     onKeyDown={e => e.key === 'Enter' && handleSave(p.name)}
-                    placeholder={saved ? 'Nueva key (reemplaza la actual)' : p.hint}
+                    placeholder={saved ? 'New key (replaces current)' : p.hint}
                     className="flex-1 bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] placeholder-gray-400 focus:outline-none focus:border-[var(--color-border-focus)] transition-colors font-mono"
                   />
                   <button
@@ -188,20 +188,20 @@ export default function ApiKeysManager() {
       {/* IA Local info */}
       <div className="border border-gray-200 rounded-xl px-5 py-4 bg-gray-50/30">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-sm font-bold text-gray-600">IA Local</span>
+          <span className="text-sm font-bold text-gray-600">Local AI</span>
           <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">
-            sin key necesaria
+            no key required
           </span>
         </div>
         <p className="text-xs text-gray-500 leading-relaxed">
-          Para usar Ollama o LM Studio, seleccioná <strong className="text-gray-400">IA Local</strong> como provider en Add Team / Edit Team e ingresá el endpoint de tu servidor local (ej.{' '}
+          To use Ollama or LM Studio, select <strong className="text-gray-400">Local AI</strong> as the provider in Add Team / Edit Team and enter your local server endpoint (e.g.{' '}
           <code className="text-gray-400 bg-white px-1 rounded">http://localhost:11434/v1</code>
-          ) junto con el nombre del modelo (ej.{' '}
+          ) along with the model name (e.g.{' '}
           <code className="text-gray-400 bg-white px-1 rounded">llama3</code>
           ).
         </p>
         <p className="text-xs text-gray-600 mt-2">
-          El servidor local debe exponer una API compatible con OpenAI.
+          The local server must expose an OpenAI-compatible API.
         </p>
       </div>
 
@@ -211,11 +211,11 @@ export default function ApiKeysManager() {
       {/* Env var note */}
       <div className="border border-[var(--color-border-default)] rounded-xl px-5 py-4">
         <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-          <strong className="text-[var(--color-text-secondary)]">Prioridad de keys:</strong> Si guardás una key aquí, tiene prioridad sobre las variables de entorno del servidor (
+          <strong className="text-[var(--color-text-secondary)]">Key priority:</strong> If you save a key here, it takes priority over server environment variables (
           <code className="text-[var(--color-text-secondary)]">ANTHROPIC_API_KEY</code>,{' '}
           <code className="text-[var(--color-text-secondary)]">OPENAI_API_KEY</code>,{' '}
           <code className="text-[var(--color-text-secondary)]">GOOGLE_AI_API_KEY</code>
-          ). Las keys se almacenan en Supabase con RLS — solo vos podés acceder a las tuyas.
+          ). Keys are stored in Supabase with RLS — only you can access yours.
         </p>
       </div>
     </div>
