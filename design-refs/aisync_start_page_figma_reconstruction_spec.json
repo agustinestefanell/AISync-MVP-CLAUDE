@@ -1,0 +1,144 @@
+{
+  "name": "AISync Start Page — Onboarding Redesign",
+  "version": "1.0",
+  "note": "Reconstruction spec for Figma/plugin use. This is not a native .fig file.",
+  "canvas": {
+    "width": 1792,
+    "height": 1024,
+    "background": "#F6F9FD"
+  },
+  "colors": {
+    "pageBg": "#F6F9FD",
+    "surface": "#FFFFFF",
+    "surfaceSoft": "#FAFCFF",
+    "navy950": "#071A33",
+    "navy900": "#0B1F3A",
+    "muted": "#53657D",
+    "softText": "#708198",
+    "blue": "#0969FF",
+    "blueHover": "#0757D8",
+    "blueSoft": "#EAF3FF",
+    "blueBorder": "#BFD7FF",
+    "purple": "#7C3AED",
+    "purpleSoft": "#F5F0FF",
+    "purpleBorder": "#A78BFA",
+    "green": "#22C55E",
+    "greenSoft": "#ECFDF3",
+    "orange": "#F59E0B",
+    "orangeSoft": "#FFF7E6",
+    "border": "#E2E8F0",
+    "innerBorder": "#DCE7F5"
+  },
+  "typography": {
+    "fontFamily": "Inter",
+    "headline": {
+      "fontSize": 44,
+      "lineHeight": 50,
+      "fontWeight": 800,
+      "letterSpacing": -1.5
+    },
+    "subtitle": {
+      "fontSize": 17,
+      "lineHeight": 28,
+      "fontWeight": 400
+    },
+    "panelTitle": {
+      "fontSize": 21,
+      "lineHeight": 28,
+      "fontWeight": 700
+    },
+    "cardTitle": {
+      "fontSize": 16,
+      "lineHeight": 22,
+      "fontWeight": 700
+    },
+    "body": {
+      "fontSize": 15,
+      "lineHeight": 24,
+      "fontWeight": 400
+    },
+    "label": {
+      "fontSize": 13,
+      "lineHeight": 18,
+      "fontWeight": 650
+    },
+    "button": {
+      "fontSize": 18,
+      "lineHeight": 24,
+      "fontWeight": 700
+    }
+  },
+  "layout": {
+    "columns": {
+      "left": {
+        "x": 40,
+        "y": 96,
+        "width": 365,
+        "height": 840
+      },
+      "center": {
+        "x": 429,
+        "y": 96,
+        "width": 918,
+        "height": 840
+      },
+      "right": {
+        "x": 1371,
+        "y": 96,
+        "width": 365,
+        "height": 840
+      }
+    },
+    "panelRadius": 24,
+    "cardRadius": 16,
+    "inputRadius": 12,
+    "shadow": "0 18 45 rgba(15,23,42,0.08)"
+  },
+  "copy": {
+    "headline": "Start your AI work in a structured, traceable way",
+    "subtitle": "Describe the work you want to structure. AISync helps you organize AI sessions, preserve context, and keep work traceable from the start.",
+    "projectLabel": "Project name",
+    "teamLabel": "Team name",
+    "teamHelper": "You can edit this later",
+    "textareaPlaceholder": "Describe the task, decision, document, or workflow you want AISync to structure and track...",
+    "examplesLabel": "Try an example",
+    "examples": [
+      "Create a research brief",
+      "Organize prompts in a library",
+      "Organize AI sessions as teams"
+    ],
+    "cta": "Start governed work →",
+    "leftTitle": "Work structure",
+    "leftNodes": [
+      {
+        "title": "Project",
+        "description": "Your governed workspace"
+      },
+      {
+        "title": "Main AI Session",
+        "description": "Structures the main line of work",
+        "badge": "AI"
+      },
+      {
+        "title": "Research Session",
+        "description": "Supports research and analysis"
+      },
+      {
+        "title": "Review Session",
+        "description": "Supports review and documentation"
+      }
+    ],
+    "leftFooter": "AISync organizes AI sessions while preserving context, checkpoints, and traceability.",
+    "rightTitle": "How it works",
+    "steps": [
+      "Describe the work.",
+      "AISync structures your first work path.",
+      "AISync tracks context, checkpoints, and handoffs."
+    ],
+    "rightFooter": "AISync keeps your AI work traceable, recoverable, and ready to continue."
+  },
+  "figma_plugin_hint": {
+    "description": "A Figma plugin can iterate this JSON and create frames, rectangles, text layers, icons/SVGs, and auto-layout groups from the coordinates and style tokens.",
+    "recommended_import": "Use the companion SVG for immediate visual import; use this JSON as the editable rebuild blueprint."
+  }
+}

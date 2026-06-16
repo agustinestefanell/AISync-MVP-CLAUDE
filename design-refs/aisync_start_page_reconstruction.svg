@@ -1,0 +1,87 @@
+<svg width="1792" height="1024" viewBox="0 0 1792 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0F172A" flood-opacity="0.08"/>
+  </filter>
+  <linearGradient id="bg" x1="896" y1="0" x2="896" y2="1024" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#EEF6FF"/>
+    <stop offset="0.42" stop-color="#F6F9FD"/>
+    <stop offset="1" stop-color="#F8FAFC"/>
+  </linearGradient>
+  <style>
+    .font { font-family: Inter, Arial, sans-serif; }
+    .headline { font-size:44px; font-weight:800; letter-spacing:-1.5px; fill:#071A33; }
+    .panelTitle { font-size:21px; font-weight:700; fill:#071A33; }
+    .cardTitle { font-size:16px; font-weight:700; fill:#0B1F3A; }
+    .body { font-size:15px; fill:#53657D; }
+    .label { font-size:13px; font-weight:650; fill:#0B1F3A; }
+    .button { font-size:18px; font-weight:700; fill:white; }
+    .step { font-size:18px; font-weight:700; fill:#071A33; }
+  </style>
+</defs>
+<rect width="1792" height="1024" fill="url(#bg)"/>
+<rect x="40" y="96" width="365" height="840" rx="24" fill="white" stroke="#E2E8F0" filter="url(#shadow)"/>
+<rect x="429" y="96" width="918" height="840" rx="24" fill="white" stroke="#E2E8F0" filter="url(#shadow)"/>
+<rect x="1371" y="96" width="365" height="840" rx="24" fill="white" stroke="#E2E8F0" filter="url(#shadow)"/>
+
+<text class="font panelTitle" x="124" y="150">Work structure</text>
+<circle cx="92" cy="141" r="12" fill="#EAF3FF"/><path d="M84 146c3-8 13-8 16 0M88 135a4 4 0 1 0 8 0" stroke="#0969FF" stroke-width="2" stroke-linecap="round"/>
+<rect x="75" y="183" width="290" height="92" rx="16" fill="#FAFCFF" stroke="#BFD7FF"/>
+<circle cx="125" cy="229" r="28" fill="#EAF3FF"/><rect x="110" y="221" width="30" height="22" rx="4" fill="#0969FF"/><path d="M112 219h11l3 4h14" stroke="#60A5FA" stroke-width="3"/>
+<text class="font cardTitle" x="170" y="217">Project</text><text class="font body" x="170" y="247">Your governed workspace</text>
+<line x1="220" y1="275" x2="220" y2="326" stroke="#64748B" stroke-width="2"/>
+<rect x="75" y="326" width="290" height="118" rx="16" fill="#F9F6FF" stroke="#7C3AED" stroke-width="1.5"/>
+<circle cx="125" cy="385" r="28" fill="#F5F0FF"/><rect x="109" y="371" width="32" height="24" rx="10" fill="#7C3AED"/><circle cx="121" cy="383" r="3" fill="#38BDF8"/><circle cx="131" cy="383" r="3" fill="#38BDF8"/>
+<rect x="324" y="351" width="28" height="22" rx="5" fill="#7C3AED"/><text class="font" x="330" y="367" font-size="12" font-weight="800" fill="white">AI</text>
+<text class="font cardTitle" x="170" y="366">Main AI Session</text><text class="font body" x="170" y="397">Structures the main line</text><text class="font body" x="170" y="421">of work</text>
+<line x1="220" y1="444" x2="220" y2="502" stroke="#64748B" stroke-width="2"/>
+<path d="M125 502 V478 Q125 466 137 466 H303 Q315 466 315 478 V502" stroke="#64748B" stroke-width="2" fill="none"/>
+<rect x="75" y="502" width="290" height="94" rx="16" fill="white" stroke="#DCE7F5"/>
+<circle cx="125" cy="549" r="28" fill="#ECFDF3"/><circle cx="125" cy="538" r="8" fill="#22C55E"/><path d="M109 564c3-13 29-13 32 0" fill="#22C55E"/>
+<circle cx="350" cy="522" r="6" fill="#22C55E"/>
+<text class="font cardTitle" x="170" y="535">Research Session</text><text class="font body" x="170" y="564">Supports research and</text><text class="font body" x="170" y="588">analysis</text>
+<rect x="75" y="642" width="290" height="94" rx="16" fill="white" stroke="#EFE3D0"/>
+<circle cx="125" cy="689" r="28" fill="#FFF7E6"/><circle cx="125" cy="678" r="8" fill="#F59E0B"/><path d="M109 704c3-13 29-13 32 0" fill="#F59E0B"/>
+<circle cx="350" cy="662" r="6" fill="#F59E0B"/>
+<text class="font cardTitle" x="170" y="675">Review Session</text><text class="font body" x="170" y="704">Supports review and</text><text class="font body" x="170" y="728">documentation</text>
+<rect x="66" y="806" width="310" height="96" rx="16" fill="#F8FBFF" stroke="#CFE0F5"/>
+<text class="font body" x="135" y="840">AISync organizes AI sessions while</text><text class="font body" x="135" y="864">preserving context, checkpoints,</text><text class="font body" x="135" y="888">and traceability.</text>
+
+<text class="font headline" x="520" y="180">Start your AI work in a</text><text class="font headline" x="520" y="232">structured, traceable way</text>
+<text class="font body" x="520" y="310" font-size="17">Describe the work you want to structure. AISync helps you</text>
+<text class="font body" x="520" y="338" font-size="17">organize AI sessions, preserve context, and keep work</text>
+<text class="font body" x="520" y="366" font-size="17">traceable from the start.</text>
+<circle cx="1160" cy="220" r="76" fill="#EAF3FF"/><rect x="1100" y="208" width="100" height="96" rx="12" fill="white" stroke="#DCE7F5"/>
+<line x1="1130" y1="235" x2="1175" y2="235" stroke="#CBD5E1" stroke-width="5" stroke-linecap="round"/><line x1="1130" y1="260" x2="1170" y2="260" stroke="#CBD5E1" stroke-width="5" stroke-linecap="round"/>
+<circle cx="1117" cy="234" r="7" fill="#0969FF"/><path d="M1114 234l2 2 4-5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+<rect x="1034" y="205" width="62" height="48" rx="18" fill="#071A33"/><circle cx="1055" cy="229" r="5" fill="#38BDF8"/><circle cx="1076" cy="229" r="5" fill="#38BDF8"/>
+<path d="M1018 304c6-45 18-70 47-70s41 25 47 70" stroke="#38BDF8" stroke-width="3" fill="none"/>
+<circle cx="1215" cy="185" r="20" fill="#22C55E"/><path d="M1207 184l6 6 12-14" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="font label" x="508" y="386">Project name</text>
+<rect x="508" y="396" width="380" height="52" rx="12" fill="white" stroke="#CFE0F5"/>
+<text class="font" x="526" y="430" font-size="17" fill="#071A33">My First Project</text>
+<text class="font label" x="918" y="386">Team name</text>
+<rect x="918" y="396" width="380" height="52" rx="12" fill="white" stroke="#CFE0F5"/>
+<text class="font" x="936" y="430" font-size="17" fill="#071A33">My First Team</text>
+<text class="font body" x="918" y="474" font-size="13">You can edit this later</text>
+<rect x="508" y="497" width="790" height="190" rx="16" fill="white" stroke="#0969FF" stroke-width="1.5"/>
+<text class="font" x="532" y="552" font-size="18" fill="#53657D">Describe the task, decision, document, or workflow you want AISync to structure</text>
+<text class="font" x="532" y="584" font-size="18" fill="#53657D">and track...</text>
+<text class="font label" x="508" y="735">Try an example</text>
+<rect x="508" y="753" width="220" height="60" rx="12" fill="white" stroke="#CFE0F5"/><text class="font cardTitle" x="570" y="790">Create a research brief</text>
+<rect x="750" y="753" width="220" height="60" rx="12" fill="white" stroke="#CFE0F5"/><text class="font cardTitle" x="805" y="780">Organize prompts</text><text class="font cardTitle" x="818" y="802">in a library</text>
+<rect x="992" y="753" width="250" height="60" rx="12" fill="white" stroke="#CFE0F5"/><text class="font cardTitle" x="1060" y="780">Organize AI sessions</text><text class="font cardTitle" x="1086" y="802">as teams</text>
+<rect x="1010" y="856" width="288" height="60" rx="12" fill="#0969FF"/><text class="font button" x="1050" y="894">Start governed work →</text>
+
+<text class="font panelTitle" x="1455" y="150">How it works</text>
+<circle cx="1424" cy="141" r="12" fill="#EAF3FF"/><path d="M1424 129l2 8 8 2-8 2-2 8-2-8-8-2 8-2 2-8z" fill="#0969FF"/>
+<circle cx="1424" cy="230" r="18" fill="#0969FF"/><text class="font" x="1419" y="236" font-size="15" font-weight="800" fill="white">1</text><text class="font step" x="1462" y="237">Describe the work.</text>
+<rect x="1450" y="270" width="205" height="70" rx="12" fill="white" stroke="#7C3AED" stroke-width="1.5"/><line x1="1485" y1="298" x2="1550" y2="298" stroke="#CBD5E1" stroke-width="4"/><line x1="1485" y1="318" x2="1578" y2="318" stroke="#CBD5E1" stroke-width="4"/>
+<text x="1516" y="390" font-size="42" fill="#7C8EA6">↓</text>
+<circle cx="1424" cy="420" r="18" fill="#0969FF"/><text class="font" x="1419" y="426" font-size="15" font-weight="800" fill="white">2</text><text class="font step" x="1462" y="416">AISync structures your</text><text class="font step" x="1462" y="442">first work path.</text>
+<rect x="1450" y="500" width="205" height="70" rx="12" fill="white" stroke="#DCE7F5"/><circle cx="1490" cy="535" r="13" fill="#7C3AED"/><line x1="1520" y1="535" x2="1602" y2="535" stroke="#7C3AED" stroke-width="4" stroke-linecap="round"/><path d="M1612 520v32l28-16-28-16z" fill="#22C55E"/>
+<text x="1516" y="615" font-size="42" fill="#7C8EA6">↓</text>
+<circle cx="1424" cy="645" r="18" fill="#0969FF"/><text class="font" x="1419" y="651" font-size="15" font-weight="800" fill="white">3</text><text class="font step" x="1462" y="638">AISync tracks context,</text><text class="font step" x="1462" y="664">checkpoints, and handoffs.</text>
+<rect x="1402" y="820" width="300" height="96" rx="16" fill="#F8FBFF" stroke="#CFE0F5"/>
+<text class="font body" x="1490" y="850">AISync keeps your AI work</text><text class="font body" x="1490" y="874">traceable, recoverable, and</text><text class="font body" x="1490" y="898">ready to continue.</text>
+</svg>

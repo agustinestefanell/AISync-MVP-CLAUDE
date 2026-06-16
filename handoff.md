@@ -6981,3 +6981,37 @@ Ninguno. Ajustes puramente visuales sin cambio funcional.
 
 **Deuda técnica:**
 Bundle aumentó: 5.09 kB → 5.61 kB (+520 bytes) por SVG mejorado y mini-cards.
+
+---
+
+## Rediseño /start — Implementación desde assets de referencia (2026-06-16)
+
+**Archivos modificados:**
+- src/components/onboarding/ChatFirstClient.tsx (163 insertions, 243 deletions)
+
+**Decisión técnica:**
+Reescritura completa de ChatFirstClient.tsx basada en assets de referencia exactos:
+- SVG: `design-refs/aisync_start_page_reconstruction.svg` (referencia visual completa)
+- JSON: `design-refs/aisync_start_page_figma_reconstruction_spec.json` (specs de colores, layout, copy, radios, sombras)
+
+**Cambios aplicados:**
+- Layout 3 columnas exacto: 365px / 918px / 365px (del JSON spec)
+- Gradiente de fondo: `from-[#EEF6FF] via-[#F6F9FD] to-[#F8FAFC]` (del SVG)
+- Typography del JSON: headline 44px/800/-1.5px, panel title 21px/700, card title 16px/700, body 15px, label 13px/650, button 18px/700
+- Colores exactos del JSON: navy (#071A33, #0B1F3A), blue (#0969FF), purple (#7C3AED), green (#22C55E), orange (#F59E0B)
+- Panel radius 24px, card radius 16px, input radius 12px (del JSON)
+- Shadow: `0_18px_45px_rgba(15,23,42,0.08)` (del JSON)
+- Split connector en left sidebar con SVG path (del SVG referencia)
+- Mini-cards ilustrativas en steps (del SVG)
+- Copy exacto del JSON confirmado
+- IBM Plex Sans mantenida (fuente del sistema, no Inter del JSON)
+
+**Alternativas descartadas:**
+- Cambiar a Inter font: contradice sistema de diseño actual (IBM Plex Sans)
+- Mantener implementación anterior: no alineada con assets de referencia oficiales
+
+**Riesgos conocidos:**
+Ninguno. Implementación basada en specs completas.
+
+**Deuda técnica:**
+Bundle optimizado: 5.61 kB → 4.66 kB (-950 bytes). Implementación más eficiente.
