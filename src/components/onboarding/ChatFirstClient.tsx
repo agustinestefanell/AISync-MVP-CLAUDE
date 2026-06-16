@@ -94,7 +94,7 @@ export default function ChatFirstClient() {
 
   return (
     <>
-      <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,rgba(219,234,254,0.75)_0%,rgba(246,249,253,1)_42%,rgba(248,250,252,1)_100%)] px-6 py-8">
+      <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,_rgba(219,234,254,0.75)_0%,_rgba(246,249,253,1)_42%,_rgba(248,250,252,1)_100%)] px-6 py-8">
         <div className="mx-auto grid max-w-[1780px] grid-cols-1 gap-6 lg:grid-cols-[0.86fr_2.12fr_0.86fr]">
           {/* Left sidebar — Work structure */}
           <aside className="hidden lg:block rounded-[24px] border border-[#E2E8F0] bg-white p-8 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
