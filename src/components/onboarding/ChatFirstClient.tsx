@@ -239,15 +239,9 @@ export default function ChatFirstClient() {
                     {/* Orbit path */}
                     <path d="M-2 184c6-45 18-70 47-70s41 25 47 70" stroke="#38BDF8" strokeWidth="3" fill="none"/>
 
-                    {/* Larger prominent checkmark badges */}
-                    <circle cx="195" cy="65" r="24" fill="#22C55E"/>
-                    <path d="M186 64l7 7 14-16" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-
-                    <circle cx="220" cy="130" r="24" fill="#22C55E"/>
-                    <path d="M211 129l7 7 14-16" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-
-                    <circle cx="15" cy="45" r="24" fill="#22C55E"/>
-                    <path d="M6 44l7 7 14-16" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+                    {/* Checkmark badge */}
+                    <circle cx="195" cy="65" r="20" fill="#22C55E"/>
+                    <path d="M187 64l6 6 12-14" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
               </div>
