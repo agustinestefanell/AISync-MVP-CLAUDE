@@ -171,7 +171,10 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
         return
       }
       setConfirmDelete(null)
+      console.log('[ProjectList] Calling router.refresh() after delete')
       router.refresh()
+      // Force a hard refresh after delete to ensure UI updates
+      setTimeout(() => window.location.reload(), 500)
     } catch {
       setProjectError('Network error. Please try again.')
     } finally {
