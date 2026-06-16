@@ -77,13 +77,22 @@ export async function DELETE(
 
   // Delete project (cascade will handle teams, workspaces, sessions, messages)
   console.log('[projects/[id]] Attempting DELETE for project:', params.id, 'user:', user.id)
-  const { data: deleteData, error: deleteError } = await supabase
+
+  // First, check how many rows will be affected
+  const { count: beforeCount } = await supabase
     .from('projects')
-    .delete()
+    .select('*', { count: 'exact', head: true })
+    .eq('id', params.id)
+
+  console.log('[projects/[id]] Rows before DELETE:', beforeCount)
+
+  const { data: deleteData, error: deleteError, count: deletedCount } = await supabase
+    .from('projects')
+    .delete({ count: 'exact' })
     .eq('id', params.id)
     .select()
 
-  console.log('[projects/[id]] DELETE result - data:', deleteData, 'error:', deleteError)
+  console.log('[projects/[id]] DELETE result - data:', deleteData, 'error:', deleteError, 'count:', deletedCount)
 
   if (deleteError) {
     console.error('[projects/[id]] DELETE failed:', deleteError)
