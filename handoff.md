@@ -6487,3 +6487,74 @@ Ninguna.
 Modelos de providers cambian sin aviso. Mantener MODEL_MAP actualizado y sincronizado con defaults de onboarding. El email del usuario es dato útil de contexto — mostrarlo no es overhead, es transparencia.
 
 **Estado:** CERRADA. Commit ff56050. Build exitoso. Push exitoso.
+
+---
+
+## Sesión 2026-06-15 — Refactor: Dashboard en ruta dedicada + router inteligente en `/`
+
+**Fecha:** 2026-06-15
+**Archivos modificados:**
+- src/app/page.tsx (convertido en router puro)
+- src/app/dashboard/page.tsx (nueva ruta, dashboard limpio)
+- src/app/(main)/start/page.tsx (redirect a /dashboard)
+- src/components/layout/BottomRibbon.tsx (link Dashboard → /dashboard)
+- src/components/layout/TopRibbon.tsx (logo → / router inteligente)
+
+**Problema detectado:**
+Lógica de onboarding mezclada en `/` (root page) generaba redirects innecesarios. Logo AISync iba a `/start` (fix ff56050), pero para usuarios con onboarding completado causaba redirect `/start` → `/` (innecesario). Links sin destinos fijos.
+
+**Decisión técnica:**
+Separar dashboard en ruta dedicada `/dashboard` y convertir `/` en router inteligente puro que solo decide redirección según `onboarding_completed`. Cada link va a un destino fijo sin lógica condicional embebida.
+
+**Cambios implementados:**
+
+1. **src/app/page.tsx — Router inteligente puro:**
+   - Solo SELECT `onboarding_completed`
+   - Si `false` → `redirect('/start')`
+   - Si `true` → `redirect('/dashboard')`
+   - No renderiza UI, solo routing logic
+
+2. **src/app/dashboard/page.tsx — Dashboard limpio (nuevo archivo):**
+   - Todo el contenido del dashboard movido aquí
+   - SELECT sin `onboarding_completed` (no necesario)
+   - Sin lógica de redirect a onboarding
+   - Ruta fija para usuarios existentes
+
+3. **src/app/(main)/start/page.tsx:**
+   - Redirect cambió de `/` → `/dashboard`
+   - Coherente con nueva arquitectura
+
+4. **BottomRibbon.tsx línea 9:**
+   - Link "Dashboard" cambió de `href: '/'` → `href: '/dashboard'`
+   - Destino fijo sin redirects
+
+5. **TopRibbon.tsx línea 37:**
+   - Logo cambió de `href: '/start'` → `href: '/'`
+   - Va al router inteligente que decide según estado del usuario
+
+**Arquitectura resultante:**
+```
+/ (root)          → Router inteligente → /start o /dashboard
+/dashboard        → Dashboard limpio (usuarios existentes)
+/start            → Chat-First Onboarding (usuarios nuevos)
+Logo AISync       → / (router decide)
+Link "Dashboard"  → /dashboard (destino fijo)
+```
+
+**Alternativas descartadas:**
+- Mantener lógica mixta en `/` — descartado, genera redirects innecesarios
+- Logo directo a `/dashboard` — descartado, rompe flujo para usuarios nuevos
+- Logo directo a `/start` — descartado, redirect innecesario para usuarios existentes
+
+**Riesgos conocidos:**
+Ninguno. Arquitectura más limpia y performante (un redirect menos en caso promedio).
+
+**Deuda técnica eliminada:**
+- Lógica de onboarding mezclada con dashboard
+- Redirect innecesario `/start` → `/` para usuarios existentes
+- Links sin destinos claros
+
+**Lección clave:**
+Separar routing logic de UI logic. Un router inteligente en `/` + rutas especializadas (`/dashboard`, `/start`) es más mantenible que lógica condicional mezclada en la root page. Cada link debe tener un destino claro y predecible.
+
+**Estado:** CERRADA. Commit 983bdc1. Build exitoso. Push exitoso. Nueva ruta `/dashboard` funcional.

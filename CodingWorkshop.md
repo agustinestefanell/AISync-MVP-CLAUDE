@@ -455,7 +455,40 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
 ---
 
-### 15. Color sigue lavado — body section tiene background blanco por defecto
+### 15. Lógica de onboarding mezclada con dashboard genera redirects innecesarios
+
+- **Problema:** Dashboard en `/` tenía lógica condicional de onboarding. Logo AISync iba a `/start`, pero para usuarios con onboarding completado causaba redirect `/start` → `/` innecesario. Links sin destinos fijos claros.
+
+- **Causa raíz:** Routing logic mezclado con UI logic en la root page. La página `/` intentaba ser dos cosas: router de onboarding Y dashboard de usuario existente. Logo apuntaba a `/start` (fix previo ff56050) pero eso generaba un bounce redirect para usuarios existentes.
+
+- **Consecuencia:** Redirect innecesario (costo de performance menor pero arquitectura confusa). Links sin semántica clara — el usuario no sabía si iba al dashboard o al onboarding según su estado. Código difícil de mantener con lógica condicional embebida.
+
+- **Proceso de solución:** Separar responsabilidades. Crear `/dashboard` como ruta dedicada sin lógica de onboarding. Convertir `/` en router inteligente puro que solo decide redirección. Logo → `/` (router decide). Link "Dashboard" → `/dashboard` (destino fijo).
+
+- **Solución final:**
+  1. Crear `src/app/dashboard/page.tsx` con contenido limpio del dashboard (sin lógica de onboarding)
+  2. Convertir `src/app/page.tsx` en router puro:
+     ```typescript
+     const { data: account } = await supabase.from('accounts').select('onboarding_completed')...
+     if (!account?.onboarding_completed) redirect('/start')
+     redirect('/dashboard')
+     ```
+  3. Actualizar BottomRibbon: `href: '/dashboard'` (destino fijo)
+  4. Actualizar TopRibbon logo: `href: '/'` (router inteligente)
+  5. Actualizar `/start` redirect: `/dashboard` en vez de `/`
+
+  **Arquitectura resultante:**
+  - `/` → Router inteligente → `/start` o `/dashboard`
+  - `/dashboard` → Dashboard limpio (usuarios existentes)
+  - `/start` → Chat-First Onboarding (usuarios nuevos)
+
+- **Commit:** `983bdc1` — refactor: separate dashboard route and intelligent root router
+
+- **Lección:** Separar routing logic de UI logic. Un router inteligente en root + rutas especializadas es más mantenible que lógica condicional mezclada. Cada link debe tener un destino claro y predecible. Si una página intenta ser dos cosas, probablemente necesita ser dos páginas. La performance importa: eliminar redirects innecesarios aunque sean "rápidos" — la arquitectura limpia paga dividendos en mantenibilidad.
+
+---
+
+### 16. Color sigue lavado — body section tiene background blanco por defecto
 
 **Contexto:**
 - Debug logs confirmaron: color llega correcto (#15803d verde)
