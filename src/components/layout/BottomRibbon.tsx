@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import PromptLibrary from '@/components/workspace/PromptLibrary'
 
 const STATIC_NAV_ITEMS = [
-  { label: 'Dashboard',          href: '/dashboard',     match: 'exact',     future: false },
+  { label: 'Dashboard',          href: '/',              match: 'exact',     future: false },
   { label: 'Teams Map',          href: '/teams',         match: 'prefix',    future: false },
   { label: 'Audit Log',          href: '/audit',         match: 'prefix',    future: false },
   { label: 'Cross Verification', href: '#',              match: 'prefix',    future: true  },

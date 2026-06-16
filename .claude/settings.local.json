@@ -71,7 +71,10 @@
       "Bash(sed -i \"s/error: 'provider y key son requeridos'/error: 'provider and key are required.'/g; s/error: 'provider requerido'/error: 'provider is required.'/g\" src/app/api/settings/keys/route.ts)",
       "Bash(sed -i \"s/error: 'Todos los campos son obligatorios.'/error: 'All fields are required.'/g; s/error: 'name requerido'/error: 'name is required.'/g\" src/app/api/settings/providers/route.ts)",
       "Bash(echo \"exit_grep=$?\")",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "PowerShell(\\(Get-Content C:\\\\proyectos\\\\AISync\\\\aisync-mvp-claude\\\\handoff.md | Measure-Object -Line\\).Lines)",
+      "Bash(cat src/app/\\\\\\(main\\\\\\)/dashboard/page.tsx)",
+      "Bash(cat src/app/\\\\\\(main\\\\\\)/page.tsx)"
     ]
   }
 }
