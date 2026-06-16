@@ -81,13 +81,11 @@ export default function ChatFirstClient() {
 
   const skipOnboarding = async () => {
     try {
-      const res = await fetch('/api/onboarding/skip', { method: 'PATCH' })
-      if (res.ok) {
-        router.push('/')
-      }
+      await fetch('/api/onboarding/skip', { method: 'PATCH' })
     } catch {
-      // Silently fail
+      // Continue to dashboard even if skip API fails
     }
+    router.push('/')
   }
 
   return (
