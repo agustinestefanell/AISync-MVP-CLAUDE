@@ -104,3 +104,24 @@ Ver DOCTRINE.md en la raíz del proyecto para definiciones
 normativas de objetos canónicos, eventos, capas de log y
 reglas de prevalencia. Ese documento tiene autoridad sobre
 cualquier decisión de arquitectura del sistema documental.
+
+## Prompt de Cierre
+
+PROMPT DE CIERRE DURO OBLIGATORIO
+
+Al finalizar cada OE, mini-OE o fix directo, ejecutar en orden:
+
+1. Diagnóstico: pwd, git branch, git status, git diff --stat
+2. Actualizar handoff.md — SIEMPRE
+3. Actualizar PRODUCT_STATUS.md — SIEMPRE
+4. Actualizar AISyncPlans.md — si hubo cambio de arquitectura/DB/API/patrón
+5. Actualizar DECISIONS.md — si hubo decisión técnica nueva
+6. Actualizar CodingWorkshop.md — si hubo bug o lección técnica
+7. Actualizar AUDIT_REPORT.md — si hubo hallazgo de seguridad
+8. npm run lint && npm run build
+9. git diff --stat && git status --short
+10. git add [archivos autorizados] && git commit -m "[mensaje]" && git push
+11. Reporte final con todos los campos del formato estándar
+
+Una OE no está cerrada hasta que handoff.md y PRODUCT_STATUS.md están actualizados.
+Sin excepción. Sin shortcuts.
