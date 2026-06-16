@@ -6440,3 +6440,50 @@ Ninguna.
 Backward compatibility mediante defaults opcionales permite agregar campos sin romper integraciones previas. Pre-llenar con valores sensatos reduce friction del usuario nuevo.
 
 **Estado:** CERRADA. Commit 373853c. Build exitoso. Push exitoso.
+
+---
+
+## Sesión 2026-06-15 — Fix: 3 correcciones críticas (Groq modelo + ribbon + user email)
+
+**Fecha:** 2026-06-15
+**Archivos modificados:**
+- src/app/api/onboarding/start/route.ts
+- src/components/layout/TopRibbon.tsx
+- src/app/workspace/[id]/page.tsx
+- src/components/workspace/WorkspaceClient.tsx
+
+**Problema 1 — Groq modelo decommissionado:**
+El modelo `llama-3.1-70b-versatile` ya no existe en Groq. Onboarding fallaba para usuarios nuevos con Groq API key.
+
+**Problema 2 — Logo AISync iba a dashboard en vez de /start:**
+El logo en TopRibbon tenía `href="/"` en vez de `href="/start"`. Inconsistente con el flujo de onboarding.
+
+**Problema 3 — Sin identificación de usuario en workspace:**
+El workspace no mostraba el email del usuario activo. Útil para identificar sesión en screenshots y debugging.
+
+**Decisión técnica:**
+Fix 1: Actualizar modelo Groq de `llama-3.1-70b-versatile` → `llama-3.3-70b-versatile` (modelo disponible, ya existía en MODEL_MAP de groq.ts).
+Fix 2: Cambiar logo href de `/` → `/start` en TopRibbon.
+Fix 3: Pasar `user.email` desde workspace page → WorkspaceClient → TopRibbon como `userName` prop.
+
+**Cambios implementados:**
+1. `/api/onboarding/start` línea 66: `llama-3.3-70b-versatile`
+2. `TopRibbon.tsx` línea 37: logo href `/start`
+3. `workspace/[id]/page.tsx`: pasar `userEmail={user.email ?? undefined}` a WorkspaceClient
+4. `WorkspaceClient`: Props extendido con `userEmail?: string`, pasado a TopRibbon como `userName`
+
+**Alternativas descartadas:**
+- Fix 1: Mantener modelo viejo con try/catch — descartado, mejor usar modelo correcto desde el inicio
+- Fix 2: Logo a dashboard — descartado, /start es entry point coherente con onboarding
+- Fix 3: Mostrar solo en debug mode — descartado, útil siempre para identificar sesión
+
+**Riesgos conocidos:**
+- Fix 2: Logo a /start puede confundir usuario que espera ir a dashboard. Reevaluar en feedback de usuarios.
+
+**Deuda técnica:**
+Ninguna.
+
+**Lección clave:**
+Modelos de providers cambian sin aviso. Mantener MODEL_MAP actualizado y sincronizado con defaults de onboarding. El email del usuario es dato útil de contexto — mostrarlo no es overhead, es transparencia.
+
+**Estado:** CERRADA. Commit ff56050. Build exitoso. Push exitoso.
