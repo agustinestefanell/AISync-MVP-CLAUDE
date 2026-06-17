@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { TeamWithWorkspaces, AgentSession } from '@/lib/db/types'
 
-const CLOUD_PROVIDERS = ['Anthropic', 'OpenAI', 'Google'] as const
+const CLOUD_PROVIDERS = ['Anthropic', 'OpenAI', 'Google', 'Groq'] as const
 type CloudProvider = typeof CLOUD_PROVIDERS[number]
 
 const MODELS: Record<CloudProvider, string[]> = {
   Anthropic: ['Claude 3.5 Sonnet', 'Claude 3 Opus'],
   OpenAI:    ['GPT-4o', 'GPT-4 Turbo'],
   Google:    ['Gemini 2.0', 'Gemini 2.5 Flash', 'Gemini 1.5 Flash', 'Gemini 1.5 Pro'],
+  Groq:      ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768'],
 }
 
 const AGENT_LABEL: Record<string, string> = {
@@ -231,9 +232,9 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                         <optgroup label="Local">
                           <option value="IA Local">IA Local</option>
                         </optgroup>
-                        {customProviders.length > 0 && (
+                        {customProviders.filter(p => !CLOUD_PROVIDERS.includes(p.name as CloudProvider)).length > 0 && (
                           <optgroup label="Custom">
-                            {customProviders.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                            {customProviders.filter(p => !CLOUD_PROVIDERS.includes(p.name as CloudProvider)).map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
                           </optgroup>
                         )}
                       </select>
