@@ -90,7 +90,7 @@ export default function ChatFirstClient() {
 
   return (
     <>
-      <div className="min-h-screen bg-[#F3F4F6] px-10 py-24">
+      <div className="min-h-screen bg-[#F3F4F6] px-10 py-24 font-[family-name:var(--font-ibm-plex-sans)]">
         <div className="mx-auto grid max-w-[1712px] grid-cols-1 gap-6 lg:grid-cols-[365px_918px_365px]">
 
           {/* LEFT SIDEBAR - Work structure */}
@@ -160,34 +160,14 @@ export default function ChatFirstClient() {
           <main className="rounded-[24px] border border-[#E5E7EB] bg-white px-12 py-10 shadow-sm">
             <div className="mx-auto w-full space-y-8">
 
-              {/* Hero + Illustration */}
-              <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-8 items-start">
-                <div>
-                  <h1 className="text-[44px] font-extrabold leading-[50px] tracking-[-0.035em] text-[#1F2937]">
-                    Start your AI work in a structured, traceable way
-                  </h1>
-                  <p className="mt-6 text-[17px] leading-7 text-[#6B7280]">
-                    Describe the work you want to structure. AISync helps you organize AI sessions, preserve context, and keep work traceable from the start.
-                  </p>
-                </div>
-
-                {/* Robot illustration - simplified monochrome */}
-                <div className="hidden md:block">
-                  <svg width="380" height="260" viewBox="650 150 380 260" fill="none">
-                    <circle cx="1160" cy="220" r="76" fill="#F3F4F6"/>
-                    <rect x="1100" y="208" width="100" height="96" rx="12" fill="white" stroke="#D1D5DB" strokeWidth="1.5"/>
-                    <line x1="1130" y1="235" x2="1175" y2="235" stroke="#D1D5DB" strokeWidth="4" strokeLinecap="round"/>
-                    <line x1="1130" y1="260" x2="1170" y2="260" stroke="#D1D5DB" strokeWidth="4" strokeLinecap="round"/>
-                    <circle cx="1117" cy="234" r="7" fill="#6B7280"/>
-                    <path d="M1114 234l2 2 4-5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                    <rect x="1034" y="205" width="62" height="48" rx="18" fill="#374151"/>
-                    <circle cx="1055" cy="229" r="5" fill="#9CA3AF"/>
-                    <circle cx="1076" cy="229" r="5" fill="#9CA3AF"/>
-                    <path d="M1018 304c6-45 18-70 47-70s41 25 47 70" stroke="#9CA3AF" strokeWidth="2.5" fill="none"/>
-                    <circle cx="1215" cy="185" r="18" fill="#E5E7EB"/>
-                    <path d="M1207 184l6 6 12-14" stroke="#6B7280" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
+              {/* Hero */}
+              <div>
+                <h1 className="text-[44px] font-extrabold leading-[50px] tracking-[-0.035em] text-[#1F2937]">
+                  Start your AI work in a structured, traceable way
+                </h1>
+                <p className="mt-6 text-[17px] leading-7 text-[#6B7280]">
+                  Describe the work you want to structure. AISync helps you organize AI sessions, preserve context, and keep work traceable from the start.
+                </p>
               </div>
 
               {/* Inputs */}
@@ -239,7 +219,7 @@ export default function ChatFirstClient() {
                   }}
                   placeholder="Describe the task, decision, document, or workflow you want AISync to structure and track..."
                   disabled={isStarting}
-                  className="min-h-[190px] w-full resize-none rounded-[16px] border-[1.5px] border-[#4B5563] bg-white p-6 text-[18px] leading-8 text-[#1F2937] placeholder:text-[#6B7280] focus:border-[#374151] focus:outline-none focus:ring-1 focus:ring-[#374151]"
+                  className="min-h-[260px] w-full resize-none rounded-[16px] border-[1.5px] border-[#4B5563] bg-white p-6 text-[18px] leading-8 text-[#1F2937] placeholder:text-[#6B7280] focus:border-[#374151] focus:outline-none focus:ring-1 focus:ring-[#374151]"
                 />
               </div>
 
@@ -252,7 +232,7 @@ export default function ChatFirstClient() {
                       key={i}
                       onClick={() => setMessage(prompt)}
                       disabled={isStarting}
-                      className="h-[60px] rounded-[12px] border border-[#D1D5DB] bg-white px-4 text-left text-[16px] font-bold text-[#374151] transition-all hover:border-[#6B7280] hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-[60px] rounded-[12px] border border-[#D1D5DB] bg-white px-4 text-center text-[16px] font-bold text-[#374151] transition-all hover:border-[#6B7280] hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {prompt}
                     </button>
