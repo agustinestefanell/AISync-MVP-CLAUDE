@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-16 (CIERRE SESIÓN SEMANA 8 — 4 fixes completados, Knowledge Map backlog documentado)
+Last updated: 2026-06-17 (OE-S8-002 — Start Page sober visual translation completada)
 
 ---
 
@@ -79,6 +79,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Connected Teams — How it works modal (v2) | ✅ Closed | commit docs: update how connected teams work modal with approved content | 6 secciones aprobadas + tabla quick reference (5 filas: send/accept/view/map/disconnect). Modal ampliado a `max-w-2xl`. |
 | Connected Teams — Realtime updates | Partial | commit b9d4b72 | Dashboard connections: realtime ✅. Pending badge: realtime ✅. Disconnect en cuenta pasiva: pendiente OE B completo. |
 | **Chat-First Onboarding** | ✅ Closed | Commits 5721d17, 5ee3b70, 01aca2c, 464a661, e22ec23, 373853c, ff56050 | Usuario nuevo redirigido a /start. Layout 3 columnas portado de PageJ.tsx demo. Modal provider (Groq, Gemini, Anthropic, OpenAI). Validación pre-flight API key. **Campos Project name y Team name editables** (defaults: My First Project / My First Team, feat 373853c). Auto-creación: Project + Team SAT + Workspace + 3 sessions. **Groq default model actualizado** a llama-3.3-70b-versatile (fix ff56050). initialIntent como **prefill del input** (no autostart) — Usuario ve su texto pre-llenado en el Manager y presiona Send cuando quiera. Autostart eliminado (fix e22ec23: -50 líneas netas, mejor UX, sin timing issues). Skip setup disponible. Dashboard redirect si onboarding_completed=false. Manual migration 032 pending in Supabase. |
+| **Start Page — Sober Visual Translation** | ✅ Closed | OE-S8-002, 2026-06-17 | Rediseño visual de /start de colorido a sobrio monocromático institucional. Paleta reducida a grises + blanco + azul solo en CTA. Contenido y nomenclatura preservados 100% (Main AI Session, Research/Review, badge AI, 4 nodos jerárquicos). Sombras mínimas, bordes finos uniformes, ilustraciones simplificadas. Lógica funcional intacta (handlers, validación, API key flow, routing). Ver handoff.md 2026-06-17. |
 
 ---
 

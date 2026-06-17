@@ -7122,3 +7122,89 @@ Ninguna. Todos los fixes son soluciones directas sin workarounds pendientes.
 
 **Próxima sesión:**
 Continuar con bloques pendientes de PRODUCT_STATUS.md o nuevas OEs según prioridad del usuario.
+
+---
+
+## 2026-06-17 — OE-S8-002: Start Page sober translation
+
+**Fecha:** 2026-06-17
+**Tipo:** OE Visual / UI Redesign / `/start`
+
+**Archivos modificados:**
+- src/components/onboarding/ChatFirstClient.tsx
+- design-refs/Referencia first chat.png (añadida como referencia visual)
+
+**Cambio realizado:**
+Se tradujo la Start Page desde el diseño colorido original a un formato sobrio monocromático, preservando el 100% del contenido y la estructura informativa. El cambio fue exclusivamente visual: paleta de color, saturación, sombras, bordes, y tono de ilustraciones.
+
+**Alcance del cambio:**
+- **Paleta reducida a monocromático:** Grises (#F3F4F6, #E5E7EB, #D1D5DB, #9CA3AF, #6B7280, #4B5563, #374151, #1F2937), blanco, y azul institucional (#1E40AF) SOLO en CTA principal
+- **Fondo de página:** Eliminado gradiente (from-[#EEF6FF] via-[#F6F9FD] to-[#F8FAFC]) → fondo plano (#F3F4F6)
+- **Paneles:** Sombras reducidas de `shadow-[0_18px_45px_rgba(15,23,42,0.08)]` → `shadow-sm`
+- **Panel izquierdo (Work structure):**
+  - Project node: borde gris neutro, ícono gris, sin color de acento
+  - Main AI Session: borde gris oscuro (#4B5563) para distinguir, badge "AI" gris oscuro (#374151) en vez de púrpura
+  - Research Session: borde gris neutro, ícono gris, punto verde muy pequeño (5px) como único indicador
+  - Review Session: borde gris neutro, ícono gris, punto naranja muy pequeño (5px) como único indicador
+  - Eliminados fondos tintados (#F9F6FF, #ECFDF3, #FFF7E6)
+- **Panel central:**
+  - Headline y textos: colores actualizados a escala de grises (#1F2937, #6B7280)
+  - Ilustración robot simplificada: colores reducidos a grises y negro
+  - Inputs: bordes grises (#D1D5DB), focus gris oscuro (#6B7280), sin azul brillante
+  - Textarea: borde gris oscuro (#4B5563), sin borde azul vibrante
+  - Chips de ejemplo: bordes grises, hover gris oscuro
+  - CTA principal: azul institucional oscuro (#1E40AF), hover más oscuro (#1E3A8A)
+- **Panel derecho (How it works):**
+  - Círculos numerados: gris oscuro (#4B5563) en vez de azul vibrante
+  - Mini ilustraciones: convertidas a escala de grises
+  - Flechas: gris medio (#9CA3AF)
+
+**Contenido preservado exactamente:**
+- Copy del JSON spec completo (headline, subtítulo, labels, placeholders, steps)
+- Nomenclatura actual: "Main AI Session" (NO "General Manager"), "Research Session", "Review Session"
+- Badge "AI" en Main AI Session
+- Estructura de 3 columnas
+- Diagrama jerárquico de 4 nodos (Project → Main AI Session → Research/Review)
+- Puntos de color verde/naranja en Research/Review (reducidos a 5px discretos)
+- Footers en paneles laterales
+- 3 pasos numerados en panel derecho
+- Paso 2 exacto: "AISync structures your first work path."
+
+**Lógica preservada (sin cambios):**
+- `startWithGeneralManager()` handler
+- `skipOnboarding()` handler
+- Validación de campos (projectName, teamName, message)
+- Flujo de API key modal (`showApiKeyModal`, `ApiKeyRequiredModal`)
+- Estados (`isStarting`, `validationMessage`)
+- Fetch a `/api/onboarding/start`, `/api/onboarding/skip`, `/api/settings/keys`
+- Routing a `/workspace/${workspaceId}`
+- Comportamiento de inputs (onChange, disabled, placeholders)
+
+**Alternativas descartadas:**
+- Usar colores tenues diluidos (purple/green/orange apagados): Se descartó en favor de monocromático estricto con grises
+- Mantener fondos tintados en nodos: Se descartó, todos los nodos usan fondo blanco/gris neutro
+- Badge "AI" púrpura: Se cambió a gris oscuro/negro para sobriedad institucional
+
+**Restricciones respetadas:**
+- No se tocó lógica de negocio
+- No se tocaron handlers, API calls, routing
+- No se modificó `src/app/(main)/start/page.tsx` (solo wrapper, sin layout propio)
+- No se tocaron API routes (`/api/onboarding/*`, `/api/chat/*`)
+- No se tocaron componentes globales, providers, WorkspaceShell
+- No se tocaron migrations ni schema
+
+**Validaciones:**
+- `npm run lint`: ✅ Pasó (warnings preexistentes en CanvasViewport.tsx, no relacionados)
+- `npm run build`: ✅ Pasó exitosamente (bundle optimizado sin errores)
+
+**Riesgos conocidos:**
+Ninguno. El cambio es puramente visual y no afecta funcionalidad existente.
+
+**Deuda técnica generada:**
+Ninguna. La traducción visual es completa y no requiere seguimiento posterior.
+
+**Estado:** CERRADA
+
+**Decisión de diseño reusable:**
+Para páginas de onboarding institucional, usar paleta monocromática (grises + blanco + un solo acento de color en CTA principal), sombras mínimas (shadow-sm), bordes finos uniformes, y puntos de color solo como indicadores discretos de estado (≤5px). Evitar fondos tintados, gradientes, y saturación de color.
+
