@@ -8,7 +8,8 @@ const PROVIDER_MODELS: Record<string, string[]> = {
   'IA Local':  [],
   'Anthropic': ['Claude Sonnet', 'Claude 3 Haiku', 'Claude 3 Opus'],
   'OpenAI':    ['GPT-4o', 'GPT-4 Turbo', 'GPT-3.5 Turbo'],
-  'Google':    ['Gemini 2.5 Flash', 'Gemini 1.5 Pro'],
+  'Google':    ['Gemini 2.0 Flash'],
+  'Groq':      ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768'],
 }
 
 const LOCAL_PROVIDERS = new Set(['IA Local'])

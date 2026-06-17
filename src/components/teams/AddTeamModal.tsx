@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 
-const CLOUD_PROVIDERS = ['Anthropic', 'OpenAI', 'Google'] as const
+const CLOUD_PROVIDERS = ['Anthropic', 'OpenAI', 'Google', 'Groq'] as const
 type CloudProvider = typeof CLOUD_PROVIDERS[number]
 
 const DEFAULT_MODELS: Record<CloudProvider, string> = {
   Anthropic: 'Claude 3.5 Sonnet',
   OpenAI:    'GPT-4o',
-  Google:    'Gemini 2.0',
+  Google:    'Gemini 2.0 Flash',
+  Groq:      'llama-3.3-70b-versatile',
 }
 
 interface CustomProviderInfo { name: string; model: string }
