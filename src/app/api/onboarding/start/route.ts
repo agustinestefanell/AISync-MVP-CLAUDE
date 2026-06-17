@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       : defaultProvider === 'OpenAI'
       ? 'gpt-4o'
       : defaultProvider === 'Google'
-      ? 'gemini-2.0-flash'
+      ? 'Gemini 3.5 Flash'
       : defaultProvider === 'Groq'
       ? 'llama-3.3-70b-versatile'
       : 'claude-3-5-sonnet-20241022'

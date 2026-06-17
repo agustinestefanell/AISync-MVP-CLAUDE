@@ -5,12 +5,13 @@ import type { ToolCall, ToolDefinition } from '@/lib/tools'
 import type { TokenUsage, StreamOptions } from '@/lib/tools/types'
 
 const MODEL_MAP: Record<string, string> = {
-  'Gemini 2.0 Flash':  'gemini-2.0-flash',
-  // Legacy mappings for backwards compatibility
-  'Gemini 2.0':        'gemini-2.0-flash',
-  'Gemini 2.5 Flash':  'gemini-2.0-flash',
-  'Gemini 1.5 Pro':    'gemini-2.0-flash',
-  'Gemini 1.5 Flash':  'gemini-2.0-flash',
+  'Gemini 3.5 Flash':  'gemini-3.5-flash',
+  'Gemini 2.5 Flash':  'gemini-2.5-flash',
+  // Legacy mappings (deprecated models redirect to 3.5)
+  'Gemini 2.0 Flash':  'gemini-3.5-flash',
+  'Gemini 2.0':        'gemini-3.5-flash',
+  'Gemini 1.5 Pro':    'gemini-3.5-flash',
+  'Gemini 1.5 Flash':  'gemini-3.5-flash',
 }
 
 export class GoogleProvider implements ChatProvider {

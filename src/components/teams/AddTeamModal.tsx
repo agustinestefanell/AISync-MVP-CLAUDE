@@ -10,7 +10,7 @@ type CloudProvider = typeof CLOUD_PROVIDERS[number]
 const DEFAULT_MODELS: Record<CloudProvider, string> = {
   Anthropic: 'Claude 3.5 Sonnet',
   OpenAI:    'GPT-4o',
-  Google:    'Gemini 2.0 Flash',
+  Google:    'Gemini 3.5 Flash',
   Groq:      'llama-3.3-70b-versatile',
 }
 
