@@ -42,9 +42,10 @@ interface EditTeamModalProps {
   onClose: () => void
   onUpdated: (team: TeamWithWorkspaces) => void
   onDeleted: (teamId: string) => void
+  onTeamCreated?: (team: TeamWithWorkspaces) => void
 }
 
-export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDeleted }: EditTeamModalProps) {
+export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDeleted, onTeamCreated }: EditTeamModalProps) {
   const router    = useRouter()
   const workspace = team.workspaces[0] ?? null
   const rawAgents: AgentSession[] = workspace?.agent_sessions ?? []
@@ -361,8 +362,9 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
           teams={allTeams}
           parentTeamId={team.id}
           onClose={() => setShowAddSubTeam(false)}
-          onCreated={() => {
+          onCreated={(newTeam) => {
             setShowAddSubTeam(false)
+            onTeamCreated?.(newTeam)
             router.refresh()
           }}
         />

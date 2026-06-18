@@ -517,6 +517,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           onClose={() => setEditingTeam(null)}
           onUpdated={handleUpdated}
           onDeleted={handleDeleted}
+          onTeamCreated={handleCreated}
         />
       )}
 

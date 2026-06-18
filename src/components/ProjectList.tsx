@@ -523,6 +523,10 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
             setEditingTeam(null)
             router.refresh()
           }}
+          onTeamCreated={() => {
+            setEditingTeam(null)
+            router.refresh()
+          }}
         />
       )}
     </>
