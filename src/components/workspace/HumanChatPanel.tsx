@@ -45,8 +45,14 @@ export default function HumanChatPanel({
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
+  const [isMounted, setIsMounted] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Detect client-side mount to avoid hydration errors with date formatting
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Realtime subscription
   useEffect(() => {
@@ -62,14 +68,18 @@ export default function HumanChatPanel({
           filter: `connection_id=eq.${connectionId}`,
         },
         (payload) => {
+          console.log('[HumanChat] Realtime INSERT received:', payload.new)
           const newMessage = payload.new as HumanMessage
           setMessages((prev) => [...prev, newMessage])
           setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[HumanChat] Subscription status:', status)
+      })
 
     return () => {
+      console.log('[HumanChat] Unsubscribing from channel')
       supabase.removeChannel(channel)
     }
   }, [connectionId])
@@ -87,10 +97,15 @@ export default function HumanChatPanel({
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSend() {
-    if (!input.trim() || sending) return
+    console.log('[HumanChat] handleSend called, input:', input.trim())
+    if (!input.trim() || sending) {
+      console.log('[HumanChat] handleSend aborted - empty input or already sending')
+      return
+    }
 
     setSending(true)
     setError(null)
+    console.log('[HumanChat] Starting POST to /api/human-chat')
 
     try {
       const res = await fetch('/api/human-chat', {
@@ -99,21 +114,40 @@ export default function HumanChatPanel({
         body: JSON.stringify({ connectionId, content: input.trim() }),
       })
 
+      console.log('[HumanChat] POST response status:', res.status, res.ok)
+
       if (!res.ok) {
         const data = await res.json()
+        console.error('[HumanChat] POST failed:', data)
         setError(data.error ?? 'Failed to send message')
         return
       }
+
+      // Optimistic update: add sent message to local state immediately
+      console.log('[HumanChat] Parsing response JSON...')
+      const sentMessage = await res.json() as HumanMessage
+      console.log('[HumanChat] Received sentMessage:', sentMessage)
+
+      console.log('[HumanChat] Current messages state before update:', messages.length)
+      setMessages(prev => {
+        const updated = [...prev, sentMessage]
+        console.log('[HumanChat] Updated messages state:', updated.length, updated)
+        return updated
+      })
 
       setInput('')
       // Auto-resize textarea back to default
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto'
       }
+
+      // Scroll to bottom to show new message
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err) {
       setError('Network error')
-      console.error('Failed to send human message:', err)
+      console.error('[HumanChat] Exception in handleSend:', err)
     } finally {
+      console.log('[HumanChat] handleSend finally block - setting sending to false')
       setSending(false)
     }
   }
@@ -144,19 +178,23 @@ export default function HumanChatPanel({
     e.target.style.height = `${e.target.scrollHeight}px`
   }
 
-  // Group messages by day
+  // Group messages by day (only on client to avoid hydration errors)
+  console.log('[HumanChat] Rendering with messages:', messages.length, messages)
   const messagesByDay: { day: string; messages: Array<{ message: HumanMessage; index: number }> }[] = []
-  let lastDay = ''
 
-  messages.forEach((msg, index) => {
-    const day = formatDayMarker(new Date(msg.created_at))
-    if (day !== lastDay) {
-      messagesByDay.push({ day, messages: [] })
-      lastDay = day
-    }
-    messagesByDay[messagesByDay.length - 1].messages.push({ message: msg, index })
-  })
+  if (isMounted) {
+    let lastDay = ''
+    messages.forEach((msg, index) => {
+      const day = formatDayMarker(new Date(msg.created_at))
+      if (day !== lastDay) {
+        messagesByDay.push({ day, messages: [] })
+        lastDay = day
+      }
+      messagesByDay[messagesByDay.length - 1].messages.push({ message: msg, index })
+    })
+  }
 
+  console.log('[HumanChat] messagesByDay:', messagesByDay)
   const displayName = otherUserName || otherUserEmail
 
   return (
@@ -171,55 +209,62 @@ export default function HumanChatPanel({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {messagesByDay.map((group) => (
-          <div key={group.day}>
-            {/* Day marker */}
-            <div className="flex items-center justify-center my-4">
-              <div className="text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
-                {group.day}
-              </div>
-            </div>
-
-            {/* Messages for this day */}
-            {group.messages.map(({ message, index }) => {
-              const isMe = message.from_account_id === currentUserId
-              const isSelected = selectedIndices.has(index)
-
-              return (
-                <div key={message.id} className="flex items-start gap-2 group">
-                  {/* Selection checkbox */}
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleSelection(index)}
-                    className="mt-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                  />
-
-                  {/* Message bubble */}
-                  <div
-                    className={`flex-1 rounded-lg px-3 py-2 ${
-                      isMe
-                        ? 'bg-blue-50 border border-blue-200'
-                        : 'bg-gray-50 border border-gray-200'
-                    } ${isSelected ? 'ring-2 ring-blue-400' : ''}`}
-                  >
-                    <div className="flex items-baseline justify-between gap-2 mb-1">
-                      <span className="text-xs font-medium text-gray-700">
-                        {isMe ? 'You' : displayName}
-                      </span>
-                      <span className="text-[10px] text-gray-400">
-                        {formatMessageTime(message.created_at)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-900 whitespace-pre-wrap break-words">
-                      {message.content}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
+        {!isMounted ? (
+          // SSR placeholder to avoid hydration errors
+          <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+            Loading messages...
           </div>
-        ))}
+        ) : (
+          messagesByDay.map((group) => (
+            <div key={group.day}>
+              {/* Day marker */}
+              <div className="flex items-center justify-center my-4">
+                <div className="text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
+                  {group.day}
+                </div>
+              </div>
+
+              {/* Messages for this day */}
+              {group.messages.map(({ message, index }) => {
+                const isMe = message.from_account_id === currentUserId
+                const isSelected = selectedIndices.has(index)
+
+                return (
+                  <div key={message.id} className="flex items-start gap-2 group">
+                    {/* Selection checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelection(index)}
+                      className="mt-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    />
+
+                    {/* Message bubble */}
+                    <div
+                      className={`flex-1 rounded-lg px-3 py-2 ${
+                        isMe
+                          ? 'bg-blue-50 border border-blue-200'
+                          : 'bg-gray-50 border border-gray-200'
+                      } ${isSelected ? 'ring-2 ring-blue-400' : ''}`}
+                    >
+                      <div className="flex items-baseline justify-between gap-2 mb-1">
+                        <span className="text-xs font-medium text-gray-700">
+                          {isMe ? 'You' : displayName}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {formatMessageTime(message.created_at)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap break-words">
+                        {message.content}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ))
+        )}
         <div ref={bottomRef} />
       </div>
 
