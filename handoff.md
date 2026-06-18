@@ -7426,3 +7426,56 @@ Los mensajes del chat humano no aparecían en la UI sin hacer F5 (refresh manual
 
 **Lección clave:**
 Errores de hidratación React pueden romper completamente el árbol de componentes, dejando la UI en estado "zombie" donde setState se ejecuta pero no renderiza. Cualquier función que genere contenido distinto entre servidor y cliente (Date.now(), Math.random(), window/localStorage checks, formateo de timestamps sin timezone fijo) debe ejecutarse SOLO en cliente usando useEffect + estado isMounted. El diagnóstico correcto requiere evidencia (logs de consola, verificación directa en DB) antes de aplicar fixes — asumir la causa sin verificar genera rework y costo de tokens innecesario. Pattern isMounted + placeholder es reutilizable en cualquier componente SSR que formatee datos sensibles a contexto de ejecución.
+
+---
+
+## Sesión 2026-06-18 — OE B.4 Completion: Trazabilidad para chat humano
+
+**Fecha:** 2026-06-18
+**Archivos modificados:**
+- src/components/workspace/HumanChatPanel.tsx
+- src/components/workspace/WorkspaceShell.tsx
+- src/app/api/checkpoint/route.ts
+
+**Decisión técnica:**
+Implementar Save Version y Save Selection para mensajes humanos en Connected Teams workspaces, completando el requisito de trazabilidad de OE B.4. Los mensajes humanos se persisten en `checkpoint_messages` con `message_type: 'human'` y `connection_id` (en vez de `session_id`), utilizando el schema ya preparado en migración 038.
+
+**Cambios implementados:**
+1. **HumanChatPanel — Interface pública:**
+   - Exportar `HumanChatPanelHandle` con métodos: `getAllMessages()`, `getSelectedMessages()`, `clearSelection()`
+   - Usar `forwardRef` + `useImperativeHandle` para exponer métodos (mismo patrón que AgentPanel)
+   - `getSelectedMessages()` filtra mensajes por índices seleccionados y retorna `HumanMessage[]`
+
+2. **WorkspaceShell — Integración de humanChatRef:**
+   - Agregar `humanChatRef = useRef<HumanChatPanelHandle | null>(null)` alongside `panelRefs`
+   - Modificar `confirmSave()`: recolectar `humanMessages` vía `humanChatRef.current?.getAllMessages()`, incluir en payload con `connectionId`
+   - Modificar `openSaveSelectionModal()`: recolectar mensajes seleccionados vía `humanChatRef.current?.getSelectedMessages()`, convertir `HumanMessage` a `ChatMessage` con metadata custom (`_isHumanMessage`, `_humanMessageId`, `_fromAccountId`, etc.)
+   - Pasar `ref={humanChatRef}` al componente `HumanChatPanel` en el render
+
+3. **API `/api/checkpoint` — Soporte para humanMessages:**
+   - Aceptar `humanMessages?: HumanMessage[]` y `connectionId?: string` en POST body
+   - Tipo explícito para `rows` array soportando ambos message_type ('agent' | 'human')
+   - Insertar agent messages con `message_type: 'agent'`, `session_id` (lógica existente)
+   - Insertar human messages con `message_type: 'human'`, `connection_id`
+   - Role determinado por ownership: si `from_account_id === user.id` → 'user', sino → 'assistant'
+
+**Alternativas descartadas:**
+- Tabla separada `checkpoint_human_messages`: duplicaría estructura, migración 038 ya preparó checkpoint_messages para ambos tipos
+- No implementar trazabilidad para chat humano: viola principio central de AISync de trazabilidad completa
+
+**Riesgos conocidos / deuda técnica generada:**
+- Migración 038 NO aplicada en Supabase — funcionalidad completa requiere ejecución manual de SQL
+- Save Selection de mensajes humanos persiste metadata custom en ChatMessage (cast), podría requerir tipo formal extendido en futuro
+- Resume Work desde checkpoint con human messages: NO implementado aún (scope de OE futura)
+- Audit Log event metadata no incluye count de human messages (solo agent messages) — posible mejora futura
+
+**Validación:**
+- Build exitoso
+- TypeScript errors resueltos (explicit type annotation para rows array)
+- Interface HumanChatPanelHandle exportada y consumida por WorkspaceShell
+- Patrón forwardRef reutilizado consistentemente con AgentPanel
+
+**Estado:** CERRADA. Migración 038 pendiente aplicación manual. Build exitoso. Commit 8bcb9b6 pushed.
+
+**Lección clave:**
+La trazabilidad es un principio no negociable de AISync. Una OE de chat humano NO está completa sin Save Version y Save Selection funcionales. El patrón de interface pública exportada vía forwardRef es reutilizable para cualquier componente que necesite exponer métodos a su padre (AgentPanel, HumanChatPanel, futuros panels de otros tipos de contenido). La extensión de checkpoint_messages con message_type discriminado permite persistir múltiples tipos de mensajes sin duplicar tablas — pattern escalable para futuros tipos de contenido (file annotations, external integrations, etc).
