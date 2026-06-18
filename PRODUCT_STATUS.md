@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-18 (OE: 4 ajustes UX — API Keys links, ribbon rename, Edit Team dashboard, Add Sub Team)
+Last updated: 2026-06-18 (OE B.3: Welcome screen for Connected Teams invitees)
 
 ---
 
@@ -176,6 +176,9 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | 026_vault_api_keys.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor inmediatamente después del deploy (SEC-005); luego backfill manual (SQL en handoff.md 2026-06-12) |
 | 027_active_project.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (ARC-004 Switch Project); su prueba post-aplicación verifica además SEC-002 |
 | 028_scope_isolated_team.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE A Scope Isolated Team); extiende constraint teams_type_check + agrega scope_isolated_team_id + RLS policies para invitee |
+| 029_isolated_workspace_id.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE A extended); agrega team_connections.scope_isolated_workspace_id |
+| 030_connection_description_color.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (Mini OE 2026-06-13); agrega description/color a team_connections |
+| 035_connection_welcome_flag.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE B.3); agrega welcome_viewed_by_invitee a team_connections |
 
 ---
 
@@ -193,7 +196,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Duplicate protection | ✅ Closed | Checks `scope_isolated_team_id` before creating new isolated team |
 | Supabase Realtime sync | Pending | OE B — cross-browser synchronization |
 | Panel 3 functional (U1↔U2 chat) | Pending | OE B — human-to-human channel |
-| Welcome screen for shared workspace | Pending | OE B — onboarding UX |
+| Welcome screen for shared workspace | ✅ Closed | OE B.3 — Modal on first invitee visit (commit df105c8, migration 035 pending) |
 | Metadata package (host → invitee) | Pending | OE B — optional governance sharing |
 
 ---

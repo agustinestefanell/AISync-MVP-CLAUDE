@@ -7267,3 +7267,55 @@ Ninguna.
 **Decisión de UX reusable:**
 Los modales de configuración críticos (API keys, providers) deben incluir links de navegación cruzada para facilitar la gestión sin salir del flujo. Los botones de acción secundarios en dashboards y modales deben usar estilo consistente (border, hover transition, no bg fuerte) para diferenciarlos de CTAs primarios.
 
+
+---
+
+## Sesión 2026-06-18 — OE B.3: Pantalla de bienvenida para invitado en Connected Teams
+
+**Fecha:** 2026-06-18
+**Archivos modificados:**
+- supabase/migrations/035_connection_welcome_flag.sql (nueva migración)
+- src/components/workspace/WelcomeScreen.tsx (nuevo componente)
+- src/app/api/connections/mark-welcome-viewed/route.ts (nuevo endpoint)
+- src/app/workspace/[id]/page.tsx
+- src/components/workspace/WorkspaceClient.tsx
+- src/lib/db/types.ts
+- src/lib/db/workspaces.ts
+
+**Decisión técnica:**
+Cuando un invitado acepta una conexión de Connected Team y entra al workspace aislado por primera vez, debe ver una pantalla de bienvenida que explique el contexto antes de empezar a trabajar. El flag de "ya vio la bienvenida" se persiste en `team_connections.welcome_viewed_by_invitee` para no volver a mostrarlo en visitas posteriores.
+
+**Cambios implementados:**
+1. Migración 035: `ALTER TABLE team_connections ADD COLUMN welcome_viewed_by_invitee boolean DEFAULT false`
+2. WelcomeScreen component: modal sobrio con 4 secciones:
+   - Who invited you: muestra requester team name + email
+   - About this connection: muestra description + color badge si existen
+   - What you can do here: lista chat con IA (activo) + chat humano (coming soon)
+   - Scope reminder: nota sobre aislamiento del workspace
+3. POST /api/connections/mark-welcome-viewed: endpoint protegido que actualiza el flag a true, con ownership check (solo receiver puede marcar su propia bienvenida)
+4. workspace/[id]/page.tsx: server-side check que detecta si el workspace pertenece a un isolated team, si el usuario es el receiver, y si welcome_viewed_by_invitee === false. Si cumple las 3 condiciones, pasa welcomeMetadata a WorkspaceClient.
+5. WorkspaceClient: renderiza WelcomeScreen condicionalmente si welcomeMetadata existe. Al cerrar el modal llama al endpoint para marcar como vista.
+6. types.ts: agregado campo `type: TeamType` al inline type de `teams` en `WorkspaceWithAgents`
+7. workspaces.ts: agregado campo `type` al select de teams en `getWorkspaceWithAgents`
+
+**Alternativas descartadas:**
+- Flag en localStorage: no persiste cross-dispositivo, se pierde al borrar caché
+- Nueva tabla user_preferences: overengineering para un solo flag, team_connections ya tiene toda la metadata necesaria
+- Flag en accounts: contamina la tabla de cuentas con features específicos, no escala para múltiples conexiones
+
+**Riesgos conocidos / deuda técnica generada:**
+- Migration 035 NO aplicada en Supabase — funcionalidad requiere ejecución manual del SQL
+- Si la migración no está aplicada, la feature falla gracefully (no muestra modal)
+- Usuario anfitrión (requester) que entra a su propio isolated workspace no ve bienvenida (check: receiver_account_id === user.id)
+
+**Próximo paso:**
+OE B completo requiere 4 partes:
+1. Supabase Realtime en WorkspaceShell (pendiente)
+2. buildOtherPanelsSnapshot incluir Connected Teams (pendiente)
+3. OE B.3 Welcome Screen ✅ CERRADA
+4. Panel 3 funcional U1↔U2 (pendiente)
+
+**Estado:** CERRADA. Migración 035 aplicación manual pendiente. Build exitoso. Commit df105c8 pushed.
+
+**Lección clave:**
+Para features que dependen de estado user-specific en relaciones cross-account, team_connections es el lugar natural para flags de UX (welcome_viewed, last_accessed, etc). El pattern server-side check + conditional client render + API flag update es reutilizable para otros onboardings contextuales (primera vez en admin panel, primer checkpoint creado, etc).
