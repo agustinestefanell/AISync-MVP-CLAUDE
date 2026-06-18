@@ -5,6 +5,7 @@ import TopRibbon from '@/components/layout/TopRibbon'
 import BottomRibbon from '@/components/layout/BottomRibbon'
 import WorkspaceShell from './WorkspaceShell'
 import TokenUsageBadge from './TokenUsageBadge'
+import WelcomeScreen from './WelcomeScreen'
 import type { WorkspaceWithAgents, Message } from '@/lib/db/types'
 
 const WORKSPACE_GUIDE = `First of all, Workspace is where you chat with AI. It is one of the two core sides of AISync: operational work. This is the place where you talk to an AI the way you normally do, but inside a more organized system.
@@ -29,6 +30,14 @@ Top ribbon
 
 In simple terms: use the Manager to think and coordinate, use the Workers to execute, and use the save tools whenever something becomes important enough to preserve, transfer, or revisit later.`
 
+interface WelcomeMetadata {
+  connectionId:       string
+  requesterEmail:     string
+  requesterTeamName:  string
+  description?:       string
+  color?:             string
+}
+
 interface Props {
   pageName:            string
   accentColor?:        string
@@ -38,10 +47,12 @@ interface Props {
   initialCheckpointId?: string
   prefillMessage?:     string
   userEmail?:          string
+  welcomeMetadata?:    WelcomeMetadata
 }
 
-export default function WorkspaceClient({ pageName, accentColor, badge, workspace, initialMessages, initialCheckpointId, prefillMessage, userEmail }: Props) {
+export default function WorkspaceClient({ pageName, accentColor, badge, workspace, initialMessages, initialCheckpointId, prefillMessage, userEmail, welcomeMetadata }: Props) {
   const [showMainGuide, setShowMainGuide] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(!!welcomeMetadata)
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
@@ -94,6 +105,18 @@ export default function WorkspaceClient({ pageName, accentColor, badge, workspac
             </div>
           </div>
         </div>
+      )}
+
+      {/* Welcome screen for Connected Teams invitee */}
+      {showWelcome && welcomeMetadata && (
+        <WelcomeScreen
+          connectionId={welcomeMetadata.connectionId}
+          requesterEmail={welcomeMetadata.requesterEmail}
+          requesterTeamName={welcomeMetadata.requesterTeamName}
+          description={welcomeMetadata.description}
+          color={welcomeMetadata.color}
+          onClose={() => setShowWelcome(false)}
+        />
       )}
     </div>
   )

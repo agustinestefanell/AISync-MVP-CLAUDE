@@ -65,6 +65,35 @@ export default async function WorkspacePage({
     }
   }
 
+  // Check if this is an isolated team workspace and if invitee needs to see welcome screen
+  let welcomeMetadata: {
+    connectionId: string
+    requesterEmail: string
+    requesterTeamName: string
+    description?: string
+    color?: string
+  } | undefined
+
+  if (team?.type === 'isolated') {
+    const { data: connection } = await supabase
+      .from('team_connections')
+      .select('id, requester_email, requester_team_name, description, color, welcome_viewed_by_invitee, receiver_account_id')
+      .eq('scope_isolated_team_id', team.id)
+      .eq('receiver_account_id', user.id)
+      .eq('status', 'active')
+      .single()
+
+    if (connection && !connection.welcome_viewed_by_invitee) {
+      welcomeMetadata = {
+        connectionId: connection.id,
+        requesterEmail: connection.requester_email,
+        requesterTeamName: connection.requester_team_name,
+        description: connection.description ?? undefined,
+        color: connection.color ?? undefined,
+      }
+    }
+  }
+
   return (
     <WorkspaceClient
       pageName={pageName}
@@ -75,6 +104,7 @@ export default async function WorkspacePage({
       initialCheckpointId={searchParams.checkpoint}
       prefillMessage={searchParams.prefill}
       userEmail={user.email ?? undefined}
+      welcomeMetadata={welcomeMetadata}
     />
   )
 }
