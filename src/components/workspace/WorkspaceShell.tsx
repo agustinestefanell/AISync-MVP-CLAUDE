@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AgentPanel, { type AgentPanelHandle } from './AgentPanel'
 import HandoffPackageModal from './HandoffPackageModal'
-import HumanChatPanel from './HumanChatPanel'
+import HumanChatPanel, { type HumanChatPanelHandle } from './HumanChatPanel'
 import type { AgentSession, Checkpoint, WorkspaceWithAgents, Message, HumanMessage } from '@/lib/db/types'
 import type { ChatMessage } from '@/lib/providers/types'
 
@@ -67,6 +67,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const [savingSelection, setSavingSelection]                   = useState(false)
 
   const panelRefs       = useRef<Record<string, AgentPanelHandle | null>>({})
+  const humanChatRef    = useRef<HumanChatPanelHandle | null>(null)
   const selectionCounts = useRef<Record<string, number>>({})
 
   // SAT vs MAT: one provider = SAT, many = MAT (same logic as teams/route.ts)
@@ -181,12 +182,35 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   // ── Save Selection ────────────────────────────────────────────────────────
   const openSaveSelectionModal = () => {
     const allMessages: ChatMessage[] = []
+
+    // Collect selected messages from agent panels
     Object.entries(panelRefs.current).forEach(([sessionId, ref]) => {
       const msgs = ref?.getSelectedMessages?.() ?? []
       const session = workspace.agent_sessions?.find(s => s.id === sessionId)
       const agentRole = session?.agent_role ?? undefined
       allMessages.push(...msgs.map(m => ({ ...m, agent_role: agentRole })))
     })
+
+    // Collect selected human messages if this is a Connected Workspace
+    if (isConnectedWorkspace && humanChatRef.current && connectionContext) {
+      const humanSelected = humanChatRef.current.getSelectedMessages()
+      // Convert HumanMessage to ChatMessage format with metadata
+      humanSelected.forEach(hm => {
+        const isFromMe = hm.from_account_id === currentUserId
+        allMessages.push({
+          role: 'user',
+          content: hm.content,
+          created_at: hm.created_at,
+          _isHumanMessage: true,
+          _humanMessageId: hm.id,
+          _fromAccountId: hm.from_account_id,
+          _toAccountId: hm.to_account_id,
+          _connectionId: hm.connection_id,
+          _displayLabel: isFromMe ? 'You' : (connectionContext.otherUserName || connectionContext.otherUserEmail),
+        } as ChatMessage)
+      })
+    }
+
     if (allMessages.length === 0) return
     setPendingSelectionMessages(allMessages)
     setSaveSelectionName('')
@@ -226,7 +250,13 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       sessionId: session.id,
       messages:  panelRefs.current[session.id]?.getAllMessages() ?? [],
     }))
-    const totalMessages = panels.reduce((n, p) => n + p.messages.length, 0)
+
+    // Collect human messages if this is a Connected Workspace
+    const humanMessages: HumanMessage[] = (isConnectedWorkspace && humanChatRef.current)
+      ? humanChatRef.current.getAllMessages()
+      : []
+
+    const totalMessages = panels.reduce((n, p) => n + p.messages.length, 0) + humanMessages.length
     if (totalMessages === 0) {
       setSaveModalError('No messages to save in this checkpoint.')
       return
@@ -244,6 +274,8 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           name:        saveName.trim(),
           purpose:     savePurpose,
           panels,
+          humanMessages,
+          connectionId: connectionContext?.connectionId,
         }),
       })
       const { checkpoint, error } = await res.json()
@@ -356,6 +388,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           <>
             {/* Human Chat Panel */}
             <HumanChatPanel
+              ref={humanChatRef}
               connectionId={connectionContext.connectionId}
               currentUserId={currentUserId}
               otherUserEmail={connectionContext.otherUserEmail}

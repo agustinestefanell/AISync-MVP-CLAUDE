@@ -1,8 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { HumanMessage } from '@/lib/db/types'
+
+// ── Public interface ─────────────────────────────────────────────────────────
+export interface HumanChatPanelHandle {
+  getAllMessages(): HumanMessage[]
+  getSelectedMessages(): HumanMessage[]
+  clearSelection(): void
+}
 
 interface Props {
   connectionId: string
@@ -32,14 +39,14 @@ function formatMessageTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
-export default function HumanChatPanel({
+const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanChatPanel({
   connectionId,
   currentUserId,
   otherUserEmail,
   otherUserName,
   initialMessages,
   onSelectionChange,
-}: Props) {
+}, ref) {
   const [messages, setMessages] = useState<HumanMessage[]>(initialMessages)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -48,6 +55,18 @@ export default function HumanChatPanel({
   const [isMounted, setIsMounted] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Expose public methods via ref
+  useImperativeHandle(ref, () => ({
+    getAllMessages: () => messages,
+    getSelectedMessages: () => {
+      const indices = Array.from(selectedIndices).sort((a, b) => a - b)
+      return indices.map(i => messages[i]).filter(Boolean)
+    },
+    clearSelection: () => {
+      setSelectedIndices(new Set())
+    },
+  }), [messages, selectedIndices])
 
   // Detect client-side mount to avoid hydration errors with date formatting
   useEffect(() => {
@@ -324,4 +343,6 @@ export default function HumanChatPanel({
       </div>
     </div>
   )
-}
+})
+
+export default HumanChatPanel

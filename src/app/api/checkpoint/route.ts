@@ -13,11 +13,20 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 })
 
-  const { workspaceId, name, purpose, panels } = await req.json() as {
+  const { workspaceId, name, purpose, panels, humanMessages, connectionId } = await req.json() as {
     workspaceId: string
     name: string
     purpose: string
     panels: { sessionId: string; messages: { role: 'user' | 'assistant'; content: string }[] }[]
+    humanMessages?: Array<{
+      id: string
+      connection_id: string
+      from_account_id: string
+      to_account_id: string
+      content: string
+      created_at: string
+    }>
+    connectionId?: string
   }
 
   // 1. Crear la cabecera del checkpoint
@@ -32,15 +41,39 @@ export async function POST(req: Request) {
   }
 
   // 2. Insertar mensajes del snapshot (flat, con position por sesión)
-  const rows = panels.flatMap(({ sessionId, messages }) =>
+  const rows: Array<{
+    checkpoint_id: string
+    session_id?: string
+    connection_id?: string
+    message_type: 'agent' | 'human'
+    role: 'user' | 'assistant'
+    content: string
+    position: number
+  }> = panels.flatMap(({ sessionId, messages }) =>
     messages.map((m, i) => ({
       checkpoint_id: checkpoint.id,
       session_id:    sessionId,
+      message_type:  'agent' as const,
       role:          m.role,
       content:       m.content,
       position:      i,
     }))
   )
+
+  // 3. Add human messages if present (message_type: 'human')
+  if (humanMessages && humanMessages.length > 0 && connectionId) {
+    humanMessages.forEach((hm, i) => {
+      const isFromMe = hm.from_account_id === user.id
+      rows.push({
+        checkpoint_id: checkpoint.id,
+        connection_id: connectionId,
+        message_type:  'human' as const,
+        role:          isFromMe ? ('user' as const) : ('assistant' as const),
+        content:       hm.content,
+        position:      i,
+      })
+    })
+  }
 
   if (rows.length > 0) {
     const { error: msgErr } = await supabase.from('checkpoint_messages').insert(rows)
