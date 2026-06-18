@@ -98,6 +98,46 @@ Verificar en src/app/api/connections/[id]/route.ts:
 2. En qué account/project se crea el isolated team
 3. Si requester y receiver están invertidos en el accept flow
 
+---
+
+## Sesión 2026-06-18 — Fix: HumanChatPanel reordenamiento de secciones + CSS port
+
+**Fecha:** 2026-06-18
+**Archivos modificados:**
+- src/components/workspace/HumanChatPanel.tsx
+
+**Decisión técnica:**
+Reordenar secciones de HumanChatPanel para que coincida pixel-perfect con AgentPanel: Input debe ir ANTES de Forward section y Actions grid. Además, portar las clases CSS exactas del input de AgentPanel (`ui-chat-composer`, `ui-chat-composer-input`, `ui-chat-send`) reemplazando las clases Tailwind inline.
+
+**Cambios implementados:**
+1. Movido bloque de Input desde línea 419 → línea 344 (después de Messages, antes de Forward section)
+2. Contenedor de Input actualizado: `className="ui-chat-input-section shrink-0"` (igual que AgentPanel)
+3. Div interno actualizado: `className="ui-chat-composer"` (igual que AgentPanel)
+4. Textarea actualizado: 
+   - `className="ui-chat-composer-input"` (reemplazó Tailwind inline)
+   - `style={{ resize: 'none', minHeight: '36px', maxHeight: '96px', overflowY: 'auto' }}`
+5. Botón Send actualizado: `className="ui-button ui-button-primary ui-chat-send text-xs text-white disabled:opacity-40"`
+6. Texto de botón Send cambiado: `{sending ? '…' : 'Send'}` (igual que AgentPanel usa `{streaming ? '…' : 'Send'}`)
+7. Actions grid reducido de 4 a 3 columnas: eliminado 4to botón "Review & Forward" duplicado (ya existe en Forward section)
+
+**Orden final de secciones:**
+1. Messages (líneas 277-335)
+2. Input (líneas 344-366)
+3. Forward section (líneas 368-397)
+4. Actions grid (líneas 400-431)
+
+**Alternativas descartadas:**
+- Mantener Tailwind inline en Input: descartado para garantizar pixel-perfect match con AgentPanel
+- Mantener grid-cols-4 con 4to botón vacío: descartado, reducir a grid-cols-3 es más limpio
+
+**Riesgos conocidos:**
+- Ninguno. Cambio puramente visual, no afecta funcionalidad.
+
+**Estado:** CERRADA. Build exitoso. Commit 34e94b6 pushed.
+
+**Lección clave:**
+Cuando se busca pixel-perfect match entre componentes, portar las clases CSS exactas (incluyendo custom classes como `ui-chat-composer`) es más efectivo que intentar replicar con Tailwind inline. El orden de secciones en JSX debe coincidir con el orden visual esperado — CSS flexbox no invierte automáticamente si el orden del DOM está mal.
+
 **Próximo paso:** diagnóstico profundo local con Claude Code al retomar.
 
 **Estado:** Pendiente de fix. No hacer commit de este handoff — agregar al commit del fix.
