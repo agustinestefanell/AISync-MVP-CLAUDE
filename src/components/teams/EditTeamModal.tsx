@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { TeamWithWorkspaces, AgentSession } from '@/lib/db/types'
+import AddTeamModal from './AddTeamModal'
 
 const CLOUD_PROVIDERS = ['Anthropic', 'OpenAI', 'Google', 'Groq'] as const
 type CloudProvider = typeof CLOUD_PROVIDERS[number]
@@ -70,6 +71,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
   const [error, setError]             = useState('')
   const [saving, setSaving]           = useState(false)
   const [confirming, setConfirming]   = useState(false)
+  const [showAddSubTeam, setShowAddSubTeam] = useState(false)
 
   useEffect(() => {
     fetch('/api/settings/providers')
@@ -311,6 +313,12 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
               </button>
             )}
             <button
+              onClick={() => setShowAddSubTeam(true)}
+              className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] border border-[var(--color-border-default)] hover:border-[var(--color-accent)] px-3 py-2 rounded-lg transition-colors"
+            >
+              Add Sub Team
+            </button>
+            <button
               onClick={handleDelete}
               disabled={saving}
               className={`text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
@@ -339,6 +347,19 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
           </div>
         </div>
       </div>
+
+      {showAddSubTeam && (
+        <AddTeamModal
+          projectId={team.project_id}
+          teams={allTeams}
+          parentTeamId={team.id}
+          onClose={() => setShowAddSubTeam(false)}
+          onCreated={() => {
+            setShowAddSubTeam(false)
+            router.refresh()
+          }}
+        />
+      )}
     </div>
   )
 }

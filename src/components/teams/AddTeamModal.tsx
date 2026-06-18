@@ -19,6 +19,7 @@ interface CustomProviderInfo { name: string; model: string }
 interface AddTeamModalProps {
   projectId: string
   teams:     TeamWithWorkspaces[]
+  parentTeamId?: string
   onClose:   () => void
   onCreated: (team: TeamWithWorkspaces) => void
 }
@@ -69,11 +70,11 @@ function ProviderButtons({
   )
 }
 
-export default function AddTeamModal({ projectId, teams, onClose, onCreated }: AddTeamModalProps) {
+export default function AddTeamModal({ projectId, teams, parentTeamId, onClose, onCreated }: AddTeamModalProps) {
   const [teamMode, setTeamMode]         = useState<'MAT' | 'SAT'>('MAT')
   const [name, setName]                 = useState('')
   const [description, setDescription]   = useState('')
-  const [parentId, setParentId]         = useState('')
+  const [parentId, setParentId]         = useState(parentTeamId ?? '')
   const [matProviders, setMatProviders] = useState<[string, string, string]>(['Anthropic', 'OpenAI', 'Google'])
   const [satProvider, setSatProvider]   = useState<string>('Anthropic')
   const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([])
