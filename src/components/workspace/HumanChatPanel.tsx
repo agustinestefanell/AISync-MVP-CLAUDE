@@ -340,11 +340,49 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
         </div>
       )}
 
-      {/* Control bar */}
-      <div className="shrink-0 border-t border-gray-200 px-3 py-2 bg-white">
-        {/* Top row: Save Version / Save Selection / Review & Forward */}
-        <div className="grid grid-cols-4 gap-1 mb-2">
-          <div /> {/* Empty cell for Refresh Session position */}
+      {/* ── SECTION 5: Forward section ─────────────────────────────────── */}
+      <div className="ui-chat-forward-section shrink-0 px-3 py-1.5">
+        <div className="ui-forward-stack">
+          <div className="ui-forward-row">
+            <div className="ui-forward-select-wrap">
+              <select
+                className="ui-forward-select"
+                value={forwardTarget}
+                onChange={e => setForwardTarget(e.target.value)}
+                disabled={!forwardTargets?.length || workspaceLocked}
+              >
+                {forwardTargets?.map(t => (
+                  <option key={t.role} value={t.role}>{t.label}</option>
+                ))}
+                {!forwardTargets?.length && (
+                  <option value="">Select destination</option>
+                )}
+              </select>
+              <span className="ui-forward-select-caret">v</span>
+            </div>
+            <button
+              className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
+              onClick={handleForward}
+              disabled={!hasSelection || !onForward || workspaceLocked}
+              title="Review and forward selected messages"
+            >
+              Review & Forward
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── SECTION 6: Actions grid ────────────────────────────────────── */}
+      <div className="ui-chat-actions-section shrink-0 px-3 pb-2 pt-1">
+        <div className="grid grid-cols-4 gap-1">
+          <button
+            className="ui-button px-2 text-[11px] disabled:opacity-40"
+            style={{ color: 'var(--color-text-secondary)' }}
+            disabled={true}
+            title="Refresh session (not applicable to human chat)"
+          >
+            Refresh Session
+          </button>
           <button
             className="ui-button px-2 text-[11px] disabled:opacity-40"
             style={{ color: 'var(--color-text-secondary)' }}
@@ -374,29 +412,6 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
             Review & Forward
           </button>
         </div>
-
-        {/* Bottom row: Forward target selector */}
-        {forwardTargets && forwardTargets.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-gray-500">Forward to:</span>
-            <div className="relative flex-1">
-              <select
-                className="ui-forward-select"
-                value={forwardTarget}
-                onChange={e => setForwardTarget(e.target.value)}
-                disabled={!forwardTargets?.length || workspaceLocked}
-              >
-                {forwardTargets?.map(t => (
-                  <option key={t.role} value={t.role}>{t.label}</option>
-                ))}
-                {!forwardTargets?.length && (
-                  <option value="">Select destination</option>
-                )}
-              </select>
-              <span className="ui-forward-select-caret">v</span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Input */}
