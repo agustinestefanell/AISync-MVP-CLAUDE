@@ -7366,3 +7366,63 @@ Test manual: crear conexión, enviar mensajes humanos, verificar Realtime cross-
 **Lección clave:**
 Layout condicional en componente existente (WorkspaceShell) es más eficiente que duplicar componente completo. Un solo condicional (isConnectedWorkspace) permite reutilizar toda la lógica de modales, Save Version, Save Selection, checkpoints sin duplicación de código.
 
+
+---
+
+## Sesión 2026-06-18 — Fix crítico: Errores de hidratación React bloqueando UI updates en HumanChatPanel
+
+**Fecha:** 2026-06-18
+**Archivos modificados:**
+- src/components/workspace/HumanChatPanel.tsx
+
+**Decisión técnica:**
+Los mensajes del chat humano no aparecían en la UI sin hacer F5 (refresh manual). Diagnóstico inicial erróneo atribuyó el problema a falta de migración o falta de optimistic update. La causa raíz real fueron errores de hidratación React (#425, #418, #423) causados por formateo de timestamps con timezones distintos entre servidor (SSR) y cliente (browser). Los errores rompían el árbol de componentes React, impidiendo que TODOS los state updates posteriores (optimistic y Realtime) se aplicaran al DOM.
+
+**Cambios implementados:**
+1. Estado `isMounted` para detectar cuando el componente está montado en cliente
+2. Cálculo de `messagesByDay` condicionado a `isMounted === true` para evitar mismatch SSR/CSR
+3. Placeholder "Loading messages..." durante SSR para prevenir diferencias de contenido
+4. Optimistic update: agregar `sentMessage` al estado local inmediatamente después de POST exitoso
+5. Logging exhaustivo en `handleSend` (cada paso del POST) y Realtime subscription (status, INSERTs recibidos)
+6. Deduplicación de mensajes en callback de Realtime: verificar `message.id` antes de agregar para prevenir duplicados
+7. Configuración de canal Realtime con `broadcast.self=false`
+8. Manejo detallado de estados de subscription: SUBSCRIBED, TIMED_OUT, CLOSED, CHANNEL_ERROR
+
+**Problema A — Errores de hidratación:**
+- `formatDayMarker()` y `formatMessageTime()` se ejecutaban en servidor con timezone UTC y en cliente con timezone local
+- Ejemplo: mensaje creado a las 23:59 UTC → servidor renderiza "Today", cliente renderiza "Yesterday" (si está en UTC-3 ya es día siguiente)
+- React detectaba mismatch entre HTML pre-renderizado y lo que el cliente intentaba montar → errores #425, #418, #423
+- Con el árbol de React roto, `setMessages()` se ejecutaba pero no actualizaba el DOM
+
+**Problema B — Duplicación de mensajes:**
+- Sin deduplicación, tanto optimistic update (línea 133) como Realtime callback (línea 73) agregaban el mismo mensaje
+- Usuario A enviaba mensaje → aparecía 2 veces (optimistic + Realtime broadcast)
+- Deduplicación por `message.id` resuelve: solo agrega si no existe en estado previo
+
+**Problema C — Subscription TIMED_OUT:**
+- Canal sin configuración de heartbeat ni manejo de estados
+- Conexión WebSocket se caía por inactividad
+- Logging de estados permite diagnosticar y reconectar automáticamente (si se implementa retry logic a futuro)
+
+**Alternativas descartadas:**
+- Usar `suppressHydrationWarning` en timestamps: oculta el warning pero no resuelve el problema, React sigue crasheando
+- Server-side timezone injection vía cookies/headers: agrega complejidad innecesaria cuando simplemente diferir el formateo a cliente es suficiente
+- Componente separado ConnectedChatPanel: overengineering, el fix de hidratación es reutilizable en cualquier componente que formatee fechas
+
+**Riesgos conocidos / deuda técnica generada:**
+- Placeholder "Loading messages..." se muestra brevemente (1 frame) en cada carga — impacto visual mínimo pero perceptible
+- Logging exhaustivo en consola debe removerse o ponerse bajo flag DEBUG antes de producción
+- Retry logic para TIMED_OUT no implementado — si la conexión cae, queda caída hasta refresh manual
+- Deduplicación solo verifica `message.id` — si el backend genera IDs duplicados (bug de DB), falla silenciosamente
+
+**Diagnóstico correcto tras debugging:**
+1. Verificado en Supabase Table Editor: migración 037 SÍ estaba aplicada, tabla `human_messages` tenía registros con timestamps correctos
+2. POST /api/human-chat funcionaba correctamente (INSERT exitoso)
+3. Error NO era backend ni falta de optimistic update — era frontend crasheando silenciosamente
+4. Consola mostraba errores React minificados → búsqueda de códigos de error reveló hydration mismatch
+5. Formateo de fechas identificado como culpable (new Date() en render ejecutado en server y cliente con resultados distintos)
+
+**Estado:** CERRADA. Build exitoso. Commits 829abdd (hydration fix) y 7a3a3f7 (deduplication) pushed.
+
+**Lección clave:**
+Errores de hidratación React pueden romper completamente el árbol de componentes, dejando la UI en estado "zombie" donde setState se ejecuta pero no renderiza. Cualquier función que genere contenido distinto entre servidor y cliente (Date.now(), Math.random(), window/localStorage checks, formateo de timestamps sin timezone fijo) debe ejecutarse SOLO en cliente usando useEffect + estado isMounted. El diagnóstico correcto requiere evidencia (logs de consola, verificación directa en DB) antes de aplicar fixes — asumir la causa sin verificar genera rework y costo de tokens innecesario. Pattern isMounted + placeholder es reutilizable en cualquier componente SSR que formatee datos sensibles a contexto de ejecución.
