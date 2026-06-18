@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-17 (OE-S8-002 — Start Page sober visual translation completada)
+Last updated: 2026-06-18 (OE: 4 ajustes UX — API Keys links, ribbon rename, Edit Team dashboard, Add Sub Team)
 
 ---
 

@@ -7208,3 +7208,62 @@ Ninguna. La traducción visual es completa y no requiere seguimiento posterior.
 **Decisión de diseño reusable:**
 Para páginas de onboarding institucional, usar paleta monocromática (grises + blanco + un solo acento de color en CTA principal), sombras mínimas (shadow-sm), bordes finos uniformes, y puntos de color solo como indicadores discretos de estado (≤5px). Evitar fondos tintados, gradientes, y saturación de color.
 
+
+---
+
+## 2026-06-18 — OE: 4 ajustes de UX en configuración de providers y equipos
+
+**Fecha:** 2026-06-18
+**Tipo:** OE UX / UI Enhancements
+**Área:** Settings, Dashboard, Teams
+
+**Archivos modificados:**
+- src/components/onboarding/ApiKeyRequiredModal.tsx
+- src/components/layout/BottomRibbon.tsx
+- src/components/ProjectList.tsx
+- src/components/teams/EditTeamModal.tsx
+- src/components/teams/AddTeamModal.tsx
+
+**Cambios realizados:**
+
+**TAREA 1 — Links a API Keys:**
+Agregado link "Manage API Keys →" en ApiKeyRequiredModal (modal de onboarding) que navega a /settings. Ubicado debajo de los botones principales Cancel/Start working.
+
+**TAREA 2 — Rename ribbon:**
+Cambiado label del ribbon de navegación inferior de "Settings" a "API-Keys". La ruta /settings no cambió, solo el texto visible. Modificado en BottomRibbon.tsx línea 16.
+
+**TAREA 3 — Botón "Edit Team" en Dashboard:**
+Agregado botón "Edit Team" en el Dashboard (ProjectList.tsx) al lado del nombre de cada team. Abre EditTeamModal igual que en Teams Map. Ubicado con `ml-auto` para alinearse a la derecha del team name. Import de EditTeamModal + estado `editingTeam` + handler para abrir/cerrar modal.
+
+**TAREA 4 — "Add Sub Team" en Edit Team:**
+Agregado botón "Add Sub Team" en el footer de EditTeamModal que abre AddTeamModal con pre-asignación automática del parent (parentTeamId). AddTeamModal actualizado para aceptar prop opcional `parentTeamId` que inicializa el estado `parentId`. El posicionamiento geográfico en Teams Map se hereda automáticamente del sistema existente de creación de subteams.
+
+**Alcance:**
+- Todos los cambios son de UX/UI, sin modificación de lógica de negocio backend
+- No se tocaron API routes, migrations ni schema
+- Reutilización de componentes existentes (EditTeamModal, AddTeamModal)
+
+**Alternativas descartadas:**
+Ninguna. Implementación directa según spec.
+
+**Riesgos conocidos:**
+Ninguno. Los cambios son aditivos y no afectan flujos existentes.
+
+**Deuda técnica generada:**
+Ninguna.
+
+**Validaciones:**
+- `npm run lint`: ✅ Pasó (warnings preexistentes en CanvasViewport, no relacionados)
+- `npm run build`: ✅ Pasó exitosamente (4 builds, uno por tarea)
+
+**Commits:**
+- c9aabee: feat: add 'Manage API Keys' link to ApiKeyRequiredModal
+- 2beb87c: feat: rename ribbon label 'Settings' to 'API-Keys'
+- 09a5508: feat: add Edit Team button to Dashboard
+- 3fd4e13: feat: add 'Add Sub Team' button in EditTeamModal with auto parent assignment
+
+**Estado:** CERRADA
+
+**Decisión de UX reusable:**
+Los modales de configuración críticos (API keys, providers) deben incluir links de navegación cruzada para facilitar la gestión sin salir del flujo. Los botones de acción secundarios en dashboards y modales deben usar estilo consistente (border, hover transition, no bg fuerte) para diferenciarlos de CTAs primarios.
+
