@@ -6,7 +6,7 @@ import BottomRibbon from '@/components/layout/BottomRibbon'
 import WorkspaceShell from './WorkspaceShell'
 import TokenUsageBadge from './TokenUsageBadge'
 import WelcomeScreen from './WelcomeScreen'
-import type { WorkspaceWithAgents, Message } from '@/lib/db/types'
+import type { WorkspaceWithAgents, Message, HumanMessage } from '@/lib/db/types'
 
 const WORKSPACE_GUIDE = `First of all, Workspace is where you chat with AI. It is one of the two core sides of AISync: operational work. This is the place where you talk to an AI the way you normally do, but inside a more organized system.
 
@@ -38,19 +38,29 @@ interface WelcomeMetadata {
   color?:             string
 }
 
-interface Props {
-  pageName:            string
-  accentColor?:        string
-  badge?:              string
-  workspace:           WorkspaceWithAgents
-  initialMessages:     Record<string, Message[]>
-  initialCheckpointId?: string
-  prefillMessage?:     string
-  userEmail?:          string
-  welcomeMetadata?:    WelcomeMetadata
+interface ConnectionContext {
+  connectionId:   string
+  isHost:         boolean
+  otherUserEmail: string
+  otherUserName?: string
 }
 
-export default function WorkspaceClient({ pageName, accentColor, badge, workspace, initialMessages, initialCheckpointId, prefillMessage, userEmail, welcomeMetadata }: Props) {
+interface Props {
+  pageName:             string
+  accentColor?:         string
+  badge?:               string
+  workspace:            WorkspaceWithAgents
+  initialMessages:      Record<string, Message[]>
+  initialCheckpointId?: string
+  prefillMessage?:      string
+  userEmail?:           string
+  welcomeMetadata?:     WelcomeMetadata
+  connectionContext?:   ConnectionContext
+  initialHumanMessages?: HumanMessage[]
+  currentUserId?:       string
+}
+
+export default function WorkspaceClient({ pageName, accentColor, badge, workspace, initialMessages, initialCheckpointId, prefillMessage, userEmail, welcomeMetadata, connectionContext, initialHumanMessages, currentUserId }: Props) {
   const [showMainGuide, setShowMainGuide] = useState(false)
   const [showWelcome, setShowWelcome] = useState(!!welcomeMetadata)
 
@@ -72,6 +82,9 @@ export default function WorkspaceClient({ pageName, accentColor, badge, workspac
           initialMessages={initialMessages}
           initialCheckpointId={initialCheckpointId}
           prefillMessage={prefillMessage}
+          connectionContext={connectionContext}
+          initialHumanMessages={initialHumanMessages ?? []}
+          currentUserId={currentUserId ?? ''}
         />
       </main>
 

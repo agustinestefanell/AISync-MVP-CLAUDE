@@ -76,6 +76,15 @@ export interface Message {
   attachment_metadata?: { name: string; media_type: string; type: 'image' | 'document' }[] | null
 }
 
+export interface HumanMessage {
+  id: string
+  connection_id: string
+  from_account_id: string
+  to_account_id: string
+  content: string
+  created_at: string
+}
+
 // Tipos enriquecidos para el dashboard (con joins)
 export interface WorkspaceWithAgents extends Workspace {
   agent_sessions: AgentSession[]

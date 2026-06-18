@@ -4,7 +4,7 @@ import { getWorkspaceWithAgents } from '@/lib/db/workspaces'
 import { getMessages } from '@/lib/db/messages'
 import WorkspaceClient from '@/components/workspace/WorkspaceClient'
 import { CORPORATE_PALETTES } from '@/lib/teams/getProjectColor'
-import type { Message } from '@/lib/db/types'
+import type { Message, HumanMessage } from '@/lib/db/types'
 
 type MinimalTeam = { id: string; parent_id: string | null; created_at: string }
 
@@ -65,7 +65,7 @@ export default async function WorkspacePage({
     }
   }
 
-  // Check if this is an isolated team workspace and if invitee needs to see welcome screen
+  // Check if this is an isolated team workspace
   let welcomeMetadata: {
     connectionId: string
     requesterEmail: string
@@ -74,22 +74,55 @@ export default async function WorkspacePage({
     color?: string
   } | undefined
 
+  let connectionContext: {
+    connectionId: string
+    isHost: boolean
+    otherUserEmail: string
+    otherUserName?: string
+  } | undefined
+
+  let initialHumanMessages: HumanMessage[] = []
+
   if (team?.type === 'isolated') {
     const { data: connection } = await supabase
       .from('team_connections')
-      .select('id, requester_email, requester_team_name, description, color, welcome_viewed_by_invitee, receiver_account_id')
+      .select('id, requester_account_id, receiver_account_id, requester_email, requester_team_name, receiver_email, description, color, welcome_viewed_by_invitee, status')
       .eq('scope_isolated_team_id', team.id)
-      .eq('receiver_account_id', user.id)
       .eq('status', 'active')
       .single()
 
-    if (connection && !connection.welcome_viewed_by_invitee) {
-      welcomeMetadata = {
-        connectionId: connection.id,
-        requesterEmail: connection.requester_email,
-        requesterTeamName: connection.requester_team_name,
-        description: connection.description ?? undefined,
-        color: connection.color ?? undefined,
+    if (connection) {
+      const isHost = connection.requester_account_id === user.id
+      const isInvitee = connection.receiver_account_id === user.id
+
+      if (isHost || isInvitee) {
+        // Connection context for human chat panel
+        connectionContext = {
+          connectionId: connection.id,
+          isHost,
+          otherUserEmail: isHost ? connection.receiver_email : connection.requester_email,
+          otherUserName: isHost ? undefined : connection.requester_team_name,
+        }
+
+        // Load human messages
+        const { data: humanMsgs } = await supabase
+          .from('human_messages')
+          .select('*')
+          .eq('connection_id', connection.id)
+          .order('created_at', { ascending: true })
+
+        initialHumanMessages = (humanMsgs as HumanMessage[]) ?? []
+
+        // Welcome screen metadata (only for invitee on first visit)
+        if (isInvitee && !connection.welcome_viewed_by_invitee) {
+          welcomeMetadata = {
+            connectionId: connection.id,
+            requesterEmail: connection.requester_email,
+            requesterTeamName: connection.requester_team_name,
+            description: connection.description ?? undefined,
+            color: connection.color ?? undefined,
+          }
+        }
       }
     }
   }
@@ -105,6 +138,9 @@ export default async function WorkspacePage({
       prefillMessage={searchParams.prefill}
       userEmail={user.email ?? undefined}
       welcomeMetadata={welcomeMetadata}
+      connectionContext={connectionContext}
+      initialHumanMessages={initialHumanMessages}
+      currentUserId={user.id}
     />
   )
 }

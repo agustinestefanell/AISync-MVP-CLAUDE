@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AgentPanel, { type AgentPanelHandle } from './AgentPanel'
 import HandoffPackageModal from './HandoffPackageModal'
-import type { AgentSession, Checkpoint, WorkspaceWithAgents, Message } from '@/lib/db/types'
+import HumanChatPanel from './HumanChatPanel'
+import type { AgentSession, Checkpoint, WorkspaceWithAgents, Message, HumanMessage } from '@/lib/db/types'
 import type { ChatMessage } from '@/lib/providers/types'
 
 const AGENT_LABEL: Record<string, string> = {
@@ -23,16 +24,27 @@ const PURPOSES = [
 ] as const
 
 
+interface ConnectionContext {
+  connectionId:   string
+  isHost:         boolean
+  otherUserEmail: string
+  otherUserName?: string
+}
+
 interface Props {
   workspace: WorkspaceWithAgents
   initialMessages: Record<string, Message[]>
   initialCheckpointId?: string
   prefillMessage?: string
+  connectionContext?: ConnectionContext
+  initialHumanMessages?: HumanMessage[]
+  currentUserId?: string
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-export default function WorkspaceShell({ workspace, initialMessages, initialCheckpointId, prefillMessage }: Props) {
+export default function WorkspaceShell({ workspace, initialMessages, initialCheckpointId, prefillMessage, connectionContext, initialHumanMessages = [], currentUserId = '' }: Props) {
+  const isConnectedWorkspace = !!connectionContext
   const [lockState, setLockState]       = useState(workspace.lock_state)
   const [_lockLoading, setLockLoading]  = useState(false)
   const [_checkpoints, setCheckpoints]  = useState<Checkpoint[]>([])
@@ -335,31 +347,71 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       {/* Agent panels */}
       <div
         className="flex-1 grid min-h-0 overflow-hidden gap-4"
-        style={{ gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1fr' }}
+        style={{
+          gridTemplateColumns: isConnectedWorkspace ? '1fr 1fr' : '1fr 1fr 1fr',
+          gridTemplateRows: '1fr'
+        }}
       >
-        {workspace.agent_sessions.map(session => (
-          <AgentPanel
-            key={session.id}
-            ref={el => { panelRefs.current[session.id] = el }}
-            session={session}
-            initialMessages={initialMessages[session.id] ?? []}
-            workspaceLocked={locked}
-            onSelectionChange={count => handleSelectionChange(session.id, count)}
-            forwardTargets={workspace.agent_sessions
-              .filter(s => s.id !== session.id)
-              .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
-            }
-            onForward={(messages, targetRole) => handlePanelForward(session, messages, targetRole)}
-            onCreateHandoff={() => setShowHandoffModal(true)}
-            onSaveVersion={openSaveModal}
-            onOpenSaveSelection={openSaveSelectionModal}
-            teamId={workspace.team_id}
-            projectId={workspace.teams?.project_id ?? undefined}
-            teamType={teamType}
-            getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(session.id)}
-            initialInput={session.agent_role === 'manager' ? prefillMessage : undefined}
-          />
-        ))}
+        {isConnectedWorkspace && connectionContext ? (
+          <>
+            {/* Human Chat Panel */}
+            <HumanChatPanel
+              connectionId={connectionContext.connectionId}
+              currentUserId={currentUserId}
+              otherUserEmail={connectionContext.otherUserEmail}
+              otherUserName={connectionContext.otherUserName}
+              initialMessages={initialHumanMessages}
+              onSelectionChange={count => handleSelectionChange('human-chat', count)}
+            />
+
+            {/* Manager Panel (first agent_session) */}
+            <AgentPanel
+              key={workspace.agent_sessions[0].id}
+              ref={el => { panelRefs.current[workspace.agent_sessions[0].id] = el }}
+              session={workspace.agent_sessions[0]}
+              initialMessages={initialMessages[workspace.agent_sessions[0].id] ?? []}
+              workspaceLocked={locked}
+              onSelectionChange={count => handleSelectionChange(workspace.agent_sessions[0].id, count)}
+              forwardTargets={workspace.agent_sessions
+                .filter(s => s.id !== workspace.agent_sessions[0].id)
+                .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
+              }
+              onForward={(messages, targetRole) => handlePanelForward(workspace.agent_sessions[0], messages, targetRole)}
+              onCreateHandoff={() => setShowHandoffModal(true)}
+              onSaveVersion={openSaveModal}
+              onOpenSaveSelection={openSaveSelectionModal}
+              teamId={workspace.team_id}
+              projectId={workspace.teams?.project_id ?? undefined}
+              teamType={teamType}
+              getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(workspace.agent_sessions[0].id)}
+              initialInput={workspace.agent_sessions[0].agent_role === 'manager' ? prefillMessage : undefined}
+            />
+          </>
+        ) : (
+          workspace.agent_sessions.map(session => (
+            <AgentPanel
+              key={session.id}
+              ref={el => { panelRefs.current[session.id] = el }}
+              session={session}
+              initialMessages={initialMessages[session.id] ?? []}
+              workspaceLocked={locked}
+              onSelectionChange={count => handleSelectionChange(session.id, count)}
+              forwardTargets={workspace.agent_sessions
+                .filter(s => s.id !== session.id)
+                .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
+              }
+              onForward={(messages, targetRole) => handlePanelForward(session, messages, targetRole)}
+              onCreateHandoff={() => setShowHandoffModal(true)}
+              onSaveVersion={openSaveModal}
+              onOpenSaveSelection={openSaveSelectionModal}
+              teamId={workspace.team_id}
+              projectId={workspace.teams?.project_id ?? undefined}
+              teamType={teamType}
+              getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(session.id)}
+              initialInput={session.agent_role === 'manager' ? prefillMessage : undefined}
+            />
+          ))
+        )}
       </div>
 
       {/* ── Save Selection bar ── */}
