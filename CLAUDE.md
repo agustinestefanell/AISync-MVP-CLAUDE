@@ -125,3 +125,23 @@ Al finalizar cada OE, mini-OE o fix directo, ejecutar en orden:
 
 Una OE no está cerrada hasta que handoff.md y PRODUCT_STATUS.md están actualizados.
 Sin excepción. Sin shortcuts.
+
+## Regla de búsqueda exhaustiva pre-cierre
+
+Antes de declarar cualquier fix como completo, ejecutar:
+
+grep -rn "[patrón o constante relevante]" src/
+
+Esto aplica especialmente a:
+- Constantes de configuración (providers, modelos, listas de opciones)
+- Nombres de modelos de IA (verificar que no haya hardcoded en múltiples archivos)
+- Textos/copy que deban ser consistentes
+- Lógica de validación o defaults
+
+Si el grep devuelve más de 1 archivo relevante, TODOS deben ser corregidos 
+antes de hacer build y commit. Un fix que corrige solo el primer archivo 
+encontrado no está completo — es un fix parcial que generará el mismo bug 
+en otro punto de la app.
+
+No declarar "build exitoso, listo para commit" sin haber confirmado que 
+no quedan ocurrencias sin corregir del problema reportado.
