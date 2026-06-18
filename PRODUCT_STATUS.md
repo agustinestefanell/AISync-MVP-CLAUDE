@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-18 (OE B.3: Welcome screen for Connected Teams invitees)
+Last updated: 2026-06-18 (OE B.4: Human-to-human chat + Manager panel for Connected Teams)
 
 ---
 
@@ -179,6 +179,8 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | 029_isolated_workspace_id.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE A extended); agrega team_connections.scope_isolated_workspace_id |
 | 030_connection_description_color.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (Mini OE 2026-06-13); agrega description/color a team_connections |
 | 035_connection_welcome_flag.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE B.3); agrega welcome_viewed_by_invitee a team_connections |
+| 037_human_messages.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE B.4); tabla human_messages + RLS para chat humano |
+| 038_checkpoint_messages_human_support.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE B.4); extend checkpoint_messages con message_type para soportar mensajes humanos |
 
 ---
 
@@ -194,10 +196,11 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Accept creates team/workspace/3 sessions | ✅ Closed | Fail-open implementation — accept succeeds even if isolated team creation fails |
 | Provider/model resolution | ✅ Closed | Resolved from requester team's agent_sessions; defaults to Anthropic/Claude 3.5 Sonnet |
 | Duplicate protection | ✅ Closed | Checks `scope_isolated_team_id` before creating new isolated team |
-| Supabase Realtime sync | Pending | OE B — cross-browser synchronization |
-| Panel 3 functional (U1↔U2 chat) | Pending | OE B — human-to-human channel |
 | Welcome screen for shared workspace | ✅ Closed | OE B.3 — Modal on first invitee visit (commit df105c8, migration 035 pending) |
-| Metadata package (host → invitee) | Pending | OE B — optional governance sharing |
+| **Human-to-human chat (Panel 1)** | ✅ Closed | OE B.4 — HumanChatPanel with Realtime, day markers, selection support (commit 5654c51, migrations 037+038 pending) |
+| **Manager panel (Panel 2)** | ✅ Closed | OE B.4 — Shows first agent_session (manager) with all normal controls |
+| **2-panel Connected Teams layout** | ✅ Closed | OE B.4 — Conditional grid in WorkspaceShell for isolated teams |
+| Metadata package (host → invitee) | Pending | Post-MVP — optional governance sharing |
 
 ---
 

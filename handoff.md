@@ -7319,3 +7319,50 @@ OE B completo requiere 4 partes:
 
 **Lección clave:**
 Para features que dependen de estado user-specific en relaciones cross-account, team_connections es el lugar natural para flags de UX (welcome_viewed, last_accessed, etc). El pattern server-side check + conditional client render + API flag update es reutilizable para otros onboardings contextuales (primera vez en admin panel, primer checkpoint creado, etc).
+
+---
+
+## Sesión 2026-06-18 — OE B.4: Chat Humano + Panel Manager en Connected Teams
+
+**Fecha:** 2026-06-18
+**Archivos modificados:**
+- supabase/migrations/037_human_messages.sql (nueva migración)
+- supabase/migrations/038_checkpoint_messages_human_support.sql (nueva migración)
+- src/app/api/human-chat/route.ts (nuevo endpoint)
+- src/components/workspace/HumanChatPanel.tsx (nuevo componente)
+- src/app/workspace/[id]/page.tsx
+- src/components/workspace/WorkspaceClient.tsx
+- src/components/workspace/WorkspaceShell.tsx
+- src/lib/db/types.ts
+
+**Decisión técnica:**
+Implementar workspace compartido de Connected Teams con 2 paneles: chat humano (usuario-usuario) + panel manager propio. Descartado el diseño de 3 paneles con panel espejo (mirror) por complejidad y riesgo. Layout condicional en WorkspaceShell: isolated teams muestran 2 columnas (human chat + manager), workspaces normales mantienen 3 columnas (manager + worker1 + worker2).
+
+**Cambios implementados:**
+1. Migración 037: tabla `human_messages` con columnas connection_id, from_account_id, to_account_id, content. RLS: solo sender/receiver pueden leer/escribir. Policy INSERT verifica que to_account_id sea el otro participante real de la conexión activa.
+2. Migración 038: extender `checkpoint_messages` con soporte para mensajes humanos. Columnas nuevas: message_type ('agent'|'human'), connection_id (nullable). session_id ahora nullable. Constraint: si message_type='agent' → session_id requerido; si message_type='human' → connection_id requerido.
+3. API `/api/human-chat`: GET carga mensajes históricos por connectionId, POST envía mensaje nuevo. Ownership check: solo participantes de conexión activa pueden enviar/leer. Determina to_account_id automáticamente según quién envía (requester → receiver, receiver → requester).
+4. HumanChatPanel: input + lista de mensajes con day markers y timestamps. Realtime subscription a tabla human_messages filtrado por connectionId. Selección de mensajes para Save Selection (onSelectionChange). Auto-scroll y auto-resize textarea.
+5. workspace/[id]/page.tsx: detecta isolated teams (team?.type === 'isolated'), lookup de team_connections para determinar isHost/isInvitee, carga human_messages inicial. Pasa connectionContext e initialHumanMessages a WorkspaceClient.
+6. WorkspaceShell: condicional `isConnectedWorkspace`. Si true, grid 2 columnas renderiza HumanChatPanel + AgentPanel del primer agent_session (manager). Si false, grid 3 columnas normal. Mantiene toda la lógica de Save Version, Save Selection, checkpoints sin cambios.
+7. types.ts: agregado tipo HumanMessage.
+
+**Alternativas descartadas:**
+- Panel espejo/mirror de solo lectura del otro usuario: complejidad de Realtime bidireccional + RLS cross-account + owner_account_id en agent_sessions. Descartado en DECISIONS.md por scope reducido.
+- Nueva tabla checkpoint_human_messages: descartado, duplica estructura. Se extendió checkpoint_messages con message_type.
+- Componente ConnectedWorkspaceShell separado: descartado, un condicional simple en WorkspaceShell es suficiente y reutiliza toda la lógica de modales.
+
+**Riesgos conocidos / deuda técnica generada:**
+- Migraciones 037 y 038 NO aplicadas en Supabase — funcionalidad completa requiere ejecución manual
+- Save Version/Save Selection de mensajes humanos implementado en schema (migration 038) pero no en UI — WorkspaceShell ya soporta selección, falta adaptar lógica de guardado para incluir message_type='human'
+- HumanChatPanel no incluye attachments (solo texto) — feature futura
+- Isolated team sigue creando 3 agent_sessions pero layout solo muestra 1 — las otras 2 sessions existen en DB pero no se renderizan
+
+**Próximo paso:**
+Test manual: crear conexión, enviar mensajes humanos, verificar Realtime cross-browser. Aplicar migraciones 037 y 038 en Supabase para activar funcionalidad.
+
+**Estado:** CERRADA. Migraciones 037 y 038 pendientes aplicación manual. Build exitoso. Commit 5654c51 pushed.
+
+**Lección clave:**
+Layout condicional en componente existente (WorkspaceShell) es más eficiente que duplicar componente completo. Un solo condicional (isConnectedWorkspace) permite reutilizar toda la lógica de modales, Save Version, Save Selection, checkpoints sin duplicación de código.
+
