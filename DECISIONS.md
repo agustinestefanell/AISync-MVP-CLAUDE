@@ -385,3 +385,49 @@ accede con scope aislado, sincronizado via Supabase Realtime.
 - **Lección clave:** Los flags de estado de UX deben vivir cerca de su contexto relacional. Si el flag es específico de una relación (conexión, workspace, team), debe vivir en la tabla de esa relación. `accounts` es para estado global del usuario, no para estado contextual de features.
 - **Estado:** Implemented en OE B.3 (commit df105c8), documentado en handoff.md 2026-06-18
 
+
+---
+
+## 2026-06-18 — Modelo de Workspace para Connected Teams: 3 paneles con espejo de solo lectura
+
+**Contexto:**
+Se evaluó cómo debe funcionar el workspace compartido cuando dos cuentas (Host e Invitado) están conectadas vía Connected Teams. El objetivo era decidir si los tokens/costos de IA se comparten o se mantienen separados por cuenta, y cómo se visualiza la colaboración.
+
+**Alternativas evaluadas:**
+
+1. **Espejo de lectura bidireccional** (elegida): cada usuario mantiene su propio panel de IA con sus propias keys/tokens. Además, cada usuario ve un panel "espejo" de solo lectura mostrando en tiempo real lo que el otro usuario está haciendo con su propio agente. Un tercer panel central permite chat humano directo entre ambos.
+
+2. **Panel de IA único compartido** (descartada): un solo agente de IA compartido entre ambos usuarios, donde cualquiera puede escribir y ambos ven la misma conversación. Descartada porque no permite separar el costo de tokens por cuenta — el Host terminaría pagando por el uso del Invitado.
+
+3. **Control remoto real** (descartada en fase de definición): que un usuario pueda operar directamente el panel de IA del otro. Descartada por implicancias de seguridad y de costos (¿quién paga esa interacción?).
+
+**Decisión final:**
+Modelo de 3 paneles para workspace tipo Connected Team:
+1. **Panel propio + IA** (interactivo, tokens propios)
+2. **Panel Usuario-Usuario / chat humano** (centro, interactivo para ambos)
+3. **Panel del otro usuario + su IA** (solo lectura, espejo en tiempo real vía Realtime, sin inputs ni controles)
+
+La analogía de referencia es "ver el escritorio remoto de alguien mientras trabaja" — se observa pero no se opera.
+
+**Por qué:**
+- Mantiene separación clara de costos: cada cuenta paga sus propios tokens
+- Refuerza la doctrina de trazabilidad de AISync: cada acción de IA queda atribuida inequívocamente a quien la generó
+- Reutiliza un patrón de UI ya familiar (3 columnas), reduciendo carga cognitiva nueva para el usuario
+- Evita los problemas de un agente compartido (atribución de costo ambigua)
+
+**Implicancias arquitectónicas:**
+- Requiere columna `owner_account_id` en `agent_sessions` para distinguir "session del host" vs "session del invitee"
+- Cambio en creación de isolated team: de 3 sessions genéricas (manager/worker1/worker2) a 2 sessions con owner explícito
+- RLS de `messages` debe permitir lectura cross-account bidireccional (ambos lados de la conexión pueden leer todos los mensajes del workspace compartido)
+- Nueva tabla `human_messages` para chat humano directo (no reutilizar `messages` porque su FK a `agent_sessions` no aplica)
+- Componente nuevo `ConnectedWorkspaceShell` separado de `WorkspaceShell` (layout y lógica distintos)
+- AgentPanel extendido con prop `readOnly: boolean` para renderizar panel espejo sin controles interactivos
+- Supabase Realtime bidireccional: cada lado suscribe a mensajes del otro + canal compartido para chat humano
+
+**Riesgos / pendientes:**
+- Requiere Realtime bidireccional (más complejo que un canal único)
+- RLS debe permitir lectura cross-account — sin esto, panel espejo estará vacío
+- Conexiones existentes con 3 sessions deben migrarse o recrearse (estrategia de migración pendiente)
+- Modelo de `owner_account_id` en agent_sessions es breaking change para isolated teams existentes
+
+**Estado:** Decisión de producto cerrada 2026-06-18. Implementación pendiente (OE B completo).
