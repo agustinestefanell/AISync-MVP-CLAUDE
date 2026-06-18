@@ -13,7 +13,7 @@ const STATIC_NAV_ITEMS = [
   { label: 'Documentation Mode', href: '/documentation', match: 'prefix',    future: false },
   { label: 'Prompts Library',    href: '#',              match: 'prefix',    future: false },
   { label: 'Context Files',      href: '/context',       match: 'prefix',    future: false },
-  { label: 'Settings',           href: '/settings',      match: 'prefix',    future: false },
+  { label: 'API-Keys',           href: '/settings',      match: 'prefix',    future: false },
   { label: 'Advanced',           href: '#',              match: 'prefix',    future: true  },
 ] as const
 
