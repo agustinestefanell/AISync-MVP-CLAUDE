@@ -18,6 +18,8 @@ interface Props {
   otherUserName?: string
   initialMessages: HumanMessage[]
   onSelectionChange?: (count: number) => void
+  onSaveVersion?: () => void
+  onOpenSaveSelection?: () => void
 }
 
 // Day marker helper
@@ -46,6 +48,8 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   otherUserName,
   initialMessages,
   onSelectionChange,
+  onSaveVersion,
+  onOpenSaveSelection,
 }, ref) {
   const [messages, setMessages] = useState<HumanMessage[]>(initialMessages)
   const [input, setInput] = useState('')
@@ -318,6 +322,32 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           <p className="text-xs text-red-600">{error}</p>
         </div>
       )}
+
+      {/* Control bar */}
+      <div className="shrink-0 border-t border-gray-200 px-3 py-2 bg-white">
+        <div className="flex items-center gap-2">
+          <button
+            className="ui-button px-2 text-[11px] disabled:opacity-40"
+            style={{ color: 'var(--color-text-secondary)' }}
+            onClick={onSaveVersion}
+            disabled={!onSaveVersion || messages.length === 0}
+            title="Save a checkpoint of this human chat"
+          >
+            Save Version
+          </button>
+          <button
+            className="ui-button px-2 text-[11px] disabled:opacity-40"
+            style={{ color: selectedIndices.size > 0 ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)' }}
+            disabled={selectedIndices.size === 0}
+            onClick={onOpenSaveSelection}
+            title="Save selected messages"
+          >
+            {selectedIndices.size > 0
+              ? (selectedIndices.size === 1 ? 'Save Selection (1)' : `Save Selections (${selectedIndices.size})`)
+              : 'Save Selection'}
+          </button>
+        </div>
+      </div>
 
       {/* Input */}
       <div className="shrink-0 border-t border-gray-200 p-3 bg-white">

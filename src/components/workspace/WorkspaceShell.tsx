@@ -395,6 +395,8 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
               otherUserName={connectionContext.otherUserName}
               initialMessages={initialHumanMessages}
               onSelectionChange={count => handleSelectionChange('human-chat', count)}
+              onSaveVersion={openSaveModal}
+              onOpenSaveSelection={openSaveSelectionModal}
             />
 
             {/* Manager Panel (first agent_session) */}
