@@ -340,6 +340,30 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
         </div>
       )}
 
+      {/* Input */}
+      <div className="ui-chat-input-section shrink-0">
+        <div className="ui-chat-composer">
+          <textarea
+            ref={textareaRef}
+            className="ui-chat-composer-input"
+            placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+            value={input}
+            disabled={sending}
+            rows={1}
+            style={{ resize: 'none', minHeight: '36px', maxHeight: '96px', overflowY: 'auto' }}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+          />
+          <button
+            className="ui-button ui-button-primary ui-chat-send text-xs text-white disabled:opacity-40"
+            onClick={handleSend}
+            disabled={!input.trim() || sending}
+          >
+            {sending ? '…' : 'Send'}
+          </button>
+        </div>
+      </div>
+
       {/* ── SECTION 5: Forward section ─────────────────────────────────── */}
       <div className="ui-chat-forward-section shrink-0 px-3 py-1.5">
         <div className="ui-forward-stack">
@@ -374,7 +398,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
 
       {/* ── SECTION 6: Actions grid ────────────────────────────────────── */}
       <div className="ui-chat-actions-section shrink-0 px-3 pb-2 pt-1">
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-3 gap-1">
           <button
             className="ui-button px-2 text-[11px] disabled:opacity-40"
             style={{ color: 'var(--color-text-secondary)' }}
@@ -402,37 +426,6 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
             {hasSelection
               ? (selectedIndices.size === 1 ? 'Save Selection (1)' : `Save Selections (${selectedIndices.size})`)
               : 'Save Selection'}
-          </button>
-          <button
-            className="ui-button ui-button-primary px-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-white disabled:opacity-40"
-            onClick={handleForward}
-            disabled={workspaceLocked || !hasSelection}
-            title="Review and forward to agent"
-          >
-            Review & Forward
-          </button>
-        </div>
-      </div>
-
-      {/* Input */}
-      <div className="shrink-0 border-t border-gray-200 p-3 bg-white">
-        <div className="flex gap-2">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-            disabled={sending}
-            className="flex-1 resize-none bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400 transition-colors disabled:opacity-50 min-h-[40px] max-h-[120px]"
-            rows={1}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || sending}
-            className="shrink-0 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            {sending ? 'Sending...' : 'Send'}
           </button>
         </div>
       </div>

@@ -83,7 +83,13 @@
       "PowerShell(Start-Sleep 12; npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3000/documentation C:\\\\tmp\\\\sm-panel-height-fix.png)",
       "PowerShell(Start-Sleep 15; npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3000/documentation C:\\\\tmp\\\\sm-panel-height-fix.png)",
       "PowerShell(npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3001/documentation C:\\\\tmp\\\\sm-panel-height-fix.png)",
-      "Bash(grep -E \"^\\\\./src/app/\\\\\\(main\\\\\\)/page.tsx$|^\\\\./src/app/page.tsx$\")"
+      "Bash(grep -E \"^\\\\./src/app/\\\\\\(main\\\\\\)/page.tsx$|^\\\\./src/app/page.tsx$\")",
+      "Bash(xargs grep -l \"workspace\\\\|team\")",
+      "Bash(xargs grep -l \"user.*preference\\\\|user.*setting\\\\|accounts\\\\.\")",
+      "PowerShell(git commit -m $msg)",
+      "Bash(grep -n \"initialInput.*manager\\\\|^\\\\s*/>$\" /c/proyectos/AISync/aisync-mvp-claude/src/components/workspace/WorkspaceShell.tsx)",
+      "PowerShell(npx supabase db execute --query \"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'human_messages';\")",
+      "Bash(grep -n \"ui-chat-forward-section\\\\|ui-chat-actions-section\\\\|{/\\\\* Input\" src/components/workspace/AgentPanel.tsx)"
     ]
   }
 }
