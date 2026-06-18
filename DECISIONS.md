@@ -369,3 +369,19 @@ accede con scope aislado, sincronizado via Supabase Realtime.
 - **Detalles técnicos:** `AgentPanel` recibe `initialInput?: string` prop y usa `useEffect` simple para pre-llenar el input. No hay trigger automático, no hay refs, no hay delay. El query param `?prefill` se consume al cargar — el texto aparece en el input inmediatamente sin persistir en DB.
 - **Lección clave:** El usuario debe tener control sobre lo que envía. Autostart automático sacrificaba UX por "magia". Prefill da transparencia sin perder flujo. Una solución más simple casi siempre es mejor que una solución "inteligente" con timing issues.
 - **Estado:** Implemented — commit e22ec23 (fix: use prefill input instead of autostart for onboarding initial message). Build exitoso, push exitoso, autostart completamente eliminado.
+
+---
+
+## 2026-06-18 — Flags de UX user-specific en team_connections (no en accounts ni localStorage)
+
+- **Decisión:** Los flags de UX específicos de usuario relacionados con conexiones cross-account (ej: `welcome_viewed_by_invitee`) deben vivir en `team_connections`, no en `accounts` ni en `localStorage`.
+- **Razón:** (1) Un usuario puede ser invitado a múltiples conexiones — el flag es específico de cada conexión, no del usuario globalmente. (2) Persistencia cross-dispositivo: `localStorage` se pierde al borrar caché y no sincroniza entre dispositivos. (3) `team_connections` ya tiene toda la metadata necesaria (requester, receiver, description, color) y está diseñada para estado relacional cross-account. (4) Evita contaminar `accounts` con flags específicos de features que no escalan — `accounts` es control-layer puro (role, active_project_id, onboarding_completed).
+- **Alternativas descartadas:**
+  - `localStorage`: no persiste cross-dispositivo, se pierde al borrar caché, no hay control desde backend
+  - Nueva tabla `user_preferences`: overengineering para un solo flag, requiere joins adicionales, `team_connections` ya tiene el contexto relacional
+  - Columna en `accounts`: contamina tabla core con flags feature-specific, no escala cuando hay múltiples conexiones (un usuario puede estar en N connections)
+- **Caso de uso concreto:** `welcome_viewed_by_invitee` en OE B.3 — cuando un invitado acepta conexión y entra al isolated workspace, ve bienvenida solo la primera vez. El flag persiste por conexión (no globalmente) y cross-dispositivo automáticamente.
+- **Patrón reutilizable:** Server-side check en page.tsx (detecta contexto + flag) → pasar metadata a client component → renderizar modal condicionalmente → API endpoint marca flag como visto. Extensible a otros onboardings contextuales: `first_checkpoint_created`, `admin_panel_first_visit`, `prompt_library_first_use`.
+- **Lección clave:** Los flags de estado de UX deben vivir cerca de su contexto relacional. Si el flag es específico de una relación (conexión, workspace, team), debe vivir en la tabla de esa relación. `accounts` es para estado global del usuario, no para estado contextual de features.
+- **Estado:** Implemented en OE B.3 (commit df105c8), documentado en handoff.md 2026-06-18
+
