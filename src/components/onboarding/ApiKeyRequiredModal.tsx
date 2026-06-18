@@ -154,21 +154,29 @@ export default function ApiKeyRequiredModal({ onClose, onSuccess }: Props) {
           <p className="text-xs text-red-600 mb-4">{error}</p>
         )}
 
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            disabled={isSaving}
-            className="flex-1 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={isSaving}
+              className="flex-1 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving || !selectedProvider || !apiKey.trim()}
+              className="flex-1 px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSaving ? 'Saving...' : 'Start working'}
+            </button>
+          </div>
+          <a
+            href="/settings"
+            className="block text-center text-sm text-blue-600 hover:text-blue-700 underline"
           >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving || !selectedProvider || !apiKey.trim()}
-            className="flex-1 px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSaving ? 'Saving...' : 'Start working'}
-          </button>
+            Manage API Keys →
+          </a>
         </div>
       </div>
     </div>
