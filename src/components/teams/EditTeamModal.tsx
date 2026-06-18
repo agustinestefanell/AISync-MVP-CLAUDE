@@ -282,6 +282,13 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                 })}
               </div>
 
+              <a
+                href="/settings"
+                className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-strong)] underline"
+              >
+                Edit API-Keys →
+              </a>
+
               {/* ── Action buttons row ── */}
               <div className="grid grid-cols-4 gap-2">
                 {(['Add Agent', 'Promote', 'Erase Agent', 'Refresh'] as const).map(label => (

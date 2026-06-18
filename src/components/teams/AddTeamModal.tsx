@@ -267,6 +267,13 @@ export default function AddTeamModal({ projectId, teams, parentTeamId, onClose, 
 
             </div>
 
+            <a
+              href="/settings"
+              className="text-xs text-neutral-700 hover:text-neutral-950 underline"
+            >
+              Edit API-Keys →
+            </a>
+
             {error && <p className="text-xs text-red-500">{error}</p>}
           </div>
         </div>

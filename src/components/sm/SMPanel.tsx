@@ -379,6 +379,12 @@ export default function SMPanel({
                       ⚠ External — data is sent to {selProvider}
                     </span>
                   )}
+                  <a
+                    href="/settings"
+                    className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-strong)] underline"
+                  >
+                    Edit API-Keys →
+                  </a>
                 </div>
 
                 <div className="space-y-1.5">
