@@ -58,7 +58,12 @@ export default function HumanChatPanel({
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
-      .channel(`human-chat-${connectionId}`)
+      .channel(`human-chat-${connectionId}`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: '' },
+        },
+      })
       .on(
         'postgres_changes',
         {
@@ -70,12 +75,32 @@ export default function HumanChatPanel({
         (payload) => {
           console.log('[HumanChat] Realtime INSERT received:', payload.new)
           const newMessage = payload.new as HumanMessage
-          setMessages((prev) => [...prev, newMessage])
+
+          // Deduplicate: only add if message ID doesn't exist
+          setMessages((prev) => {
+            const exists = prev.some(m => m.id === newMessage.id)
+            if (exists) {
+              console.log('[HumanChat] Message already exists, skipping:', newMessage.id)
+              return prev
+            }
+            console.log('[HumanChat] Adding new message from Realtime:', newMessage.id)
+            return [...prev, newMessage]
+          })
+
           setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
         }
       )
-      .subscribe((status) => {
-        console.log('[HumanChat] Subscription status:', status)
+      .subscribe((status, err) => {
+        console.log('[HumanChat] Subscription status:', status, err)
+        if (status === 'SUBSCRIBED') {
+          console.log('[HumanChat] Successfully subscribed to human_messages')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[HumanChat] Channel error:', err)
+        } else if (status === 'TIMED_OUT') {
+          console.warn('[HumanChat] Subscription timed out, will retry...')
+        } else if (status === 'CLOSED') {
+          console.warn('[HumanChat] Channel closed')
+        }
       })
 
     return () => {
