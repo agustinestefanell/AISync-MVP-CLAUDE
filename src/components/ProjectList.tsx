@@ -9,6 +9,8 @@ import type { ProjectWithTeams } from '@/lib/db/types'
 import ConnectTeamModal, { type Connection } from '@/components/teams/ConnectTeamModal'
 import IncomingRequestsPanel from '@/components/teams/IncomingRequestsPanel'
 import HowConnectedTeamsModal from '@/components/teams/HowConnectedTeamsModal'
+import EditTeamModal from '@/components/teams/EditTeamModal'
+import type { TeamWithWorkspaces } from '@/lib/db/types'
 
 const AGENT_META: Record<string, { label: string; color: string }> = {
   manager: { label: 'Manager', color: 'text-gray-600' },
@@ -35,6 +37,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const [deletingProject,   setDeletingProject]   = useState<string | null>(null)
   const [confirmDelete,     setConfirmDelete]     = useState<string | null>(null)
   const [projectError,      setProjectError]      = useState('')
+  const [editingTeam,       setEditingTeam]       = useState<TeamWithWorkspaces | null>(null)
 
   const fetchConnections = useCallback(() => {
     fetch('/api/connections')
@@ -312,6 +315,12 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                     <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">
                       {team.type}
                     </span>
+                    <button
+                      onClick={() => setEditingTeam(team)}
+                      className="ml-auto text-xs text-gray-600 hover:text-[var(--color-accent)] border border-gray-200 hover:border-[var(--color-accent)] px-2 py-0.5 rounded transition-colors"
+                    >
+                      Edit Team
+                    </button>
                   </div>
 
                   {team.workspaces.map(ws => (
@@ -499,6 +508,22 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
 
       {showHowModal && (
         <HowConnectedTeamsModal onClose={() => setShowHowModal(false)} />
+      )}
+
+      {editingTeam && (
+        <EditTeamModal
+          team={editingTeam}
+          allTeams={allTeams}
+          onClose={() => setEditingTeam(null)}
+          onUpdated={() => {
+            setEditingTeam(null)
+            router.refresh()
+          }}
+          onDeleted={() => {
+            setEditingTeam(null)
+            router.refresh()
+          }}
+        />
       )}
     </>
   )

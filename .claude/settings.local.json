@@ -82,7 +82,8 @@
       "PowerShell(npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3000/start C:\\\\tmp\\\\start-exact-svg.png)",
       "PowerShell(Start-Sleep 12; npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3000/documentation C:\\\\tmp\\\\sm-panel-height-fix.png)",
       "PowerShell(Start-Sleep 15; npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3000/documentation C:\\\\tmp\\\\sm-panel-height-fix.png)",
-      "PowerShell(npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3001/documentation C:\\\\tmp\\\\sm-panel-height-fix.png)"
+      "PowerShell(npx playwright screenshot --device=\"Desktop Chrome\" http://localhost:3001/documentation C:\\\\tmp\\\\sm-panel-height-fix.png)",
+      "Bash(grep -E \"^\\\\./src/app/\\\\\\(main\\\\\\)/page.tsx$|^\\\\./src/app/page.tsx$\")"
     ]
   }
 }
