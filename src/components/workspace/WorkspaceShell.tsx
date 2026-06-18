@@ -124,7 +124,10 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   // ── Contador reactivo de selección ──────────────────────────────────────
   function handleSelectionChange(sessionId: string, count: number) {
     selectionCounts.current[sessionId] = count
-    const total = Object.values(selectionCounts.current).reduce((a, b) => a + b, 0)
+    // Exclude 'human-chat' from total for global bar (human chat has its own controls)
+    const total = Object.entries(selectionCounts.current)
+      .filter(([id]) => id !== 'human-chat')
+      .reduce((sum, [, count]) => sum + count, 0)
     setTotalSelected(total)
   }
 
@@ -132,6 +135,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     for (const session of workspace.agent_sessions) {
       panelRefs.current[session.id]?.clearSelection()
     }
+    // Note: human chat has its own clear selection, not included here
   }
 
   // ── Panel-level Review & Forward ─────────────────────────────────────────
@@ -153,15 +157,44 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        workspaceId: workspace.id,
+        workspace_id: workspace.id,
+        event_type:   'review_forward',
+        metadata:     { from: fromSession.agent_role, to: targetRole },
+      }),
+    }).catch(console.error)
+  }
+
+  // ── Human chat Review & Forward ──────────────────────────────────────────
+  function handleHumanForward(messages: HumanMessage[], targetRole: string) {
+    const targetSession = workspace.agent_sessions.find(s => s.agent_role === targetRole)
+    if (!targetSession) return
+    const targetRef = panelRefs.current[targetSession.id]
+    if (!targetRef) return
+
+    const forwarded = messages
+      .map(m => {
+        const isFromMe = m.from_account_id === currentUserId
+        const sender = isFromMe ? 'You' : (connectionContext?.otherUserName || connectionContext?.otherUserEmail || 'Other user')
+        return `${sender}: ${m.content}`
+      })
+      .join('\n\n')
+
+    targetRef.appendUserMessage(`[Forwarded from Human Chat]\n\n${forwarded}`)
+    humanChatRef.current?.clearSelection()
+
+    fetch('/api/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workspace_id: workspace.id,
         event_type:  'review_forward',
         metadata:    {
-          from_agent:    fromSession.agent_role,
-          to_agent:      targetRole,
+          from:          'human_chat',
+          to:            targetRole,
           message_count: messages.length,
         },
       }),
-    }).catch(() => {})
+    }).catch(console.error)
   }
 
   // ── Save Version → abre modal con nombre y propósito ─────────────────────
@@ -183,7 +216,8 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const openSaveSelectionModal = () => {
     const allMessages: ChatMessage[] = []
 
-    // Collect selected messages from agent panels
+    // Collect selected messages from agent panels only
+    // (human chat has its own Save Selection button and doesn't use global modal)
     Object.entries(panelRefs.current).forEach(([sessionId, ref]) => {
       const msgs = ref?.getSelectedMessages?.() ?? []
       const session = workspace.agent_sessions?.find(s => s.id === sessionId)
@@ -191,8 +225,11 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       allMessages.push(...msgs.map(m => ({ ...m, agent_role: agentRole })))
     })
 
-    // Collect selected human messages if this is a Connected Workspace
-    if (isConnectedWorkspace && humanChatRef.current && connectionContext) {
+    // Note: We intentionally DO NOT collect human messages here when called from global bar
+    // Human chat Save Selection is handled by its own button inside HumanChatPanel
+    // Only collect human messages if explicitly called from HumanChatPanel's own button
+    const calledFromHumanChat = isConnectedWorkspace && (humanChatRef.current?.getSelectedMessages().length ?? 0) > 0
+    if (calledFromHumanChat && connectionContext && humanChatRef.current) {
       const humanSelected = humanChatRef.current.getSelectedMessages()
       // Convert HumanMessage to ChatMessage format with metadata
       humanSelected.forEach(hm => {
@@ -397,6 +434,9 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
               onSelectionChange={count => handleSelectionChange('human-chat', count)}
               onSaveVersion={openSaveModal}
               onOpenSaveSelection={openSaveSelectionModal}
+              forwardTargets={[{ role: 'manager', label: 'Manager' }]}
+              onForward={handleHumanForward}
+              workspaceLocked={locked}
             />
 
             {/* Manager Panel (first agent_session) */}

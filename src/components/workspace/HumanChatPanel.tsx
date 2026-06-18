@@ -20,6 +20,9 @@ interface Props {
   onSelectionChange?: (count: number) => void
   onSaveVersion?: () => void
   onOpenSaveSelection?: () => void
+  forwardTargets?: { role: string; label: string }[]
+  onForward?: (messages: HumanMessage[], targetRole: string) => void
+  workspaceLocked?: boolean
 }
 
 // Day marker helper
@@ -50,6 +53,9 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   onSelectionChange,
   onSaveVersion,
   onOpenSaveSelection,
+  forwardTargets,
+  onForward,
+  workspaceLocked = false,
 }, ref) {
   const [messages, setMessages] = useState<HumanMessage[]>(initialMessages)
   const [input, setInput] = useState('')
@@ -57,8 +63,11 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   const [error, setError] = useState<string | null>(null)
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
   const [isMounted, setIsMounted] = useState(false)
+  const [forwardTarget, setForwardTarget] = useState(forwardTargets?.[0]?.role ?? '')
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const hasSelection = selectedIndices.size > 0
 
   // Expose public methods via ref
   useImperativeHandle(ref, () => ({
@@ -212,6 +221,14 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
     })
   }
 
+  function handleForward() {
+    if (!onForward || !hasSelection) return
+    const indices = Array.from(selectedIndices).sort((a, b) => a - b)
+    const selected = indices.map(i => messages[i]).filter(Boolean)
+    onForward(selected, forwardTarget)
+    setSelectedIndices(new Set())
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -325,7 +342,9 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
 
       {/* Control bar */}
       <div className="shrink-0 border-t border-gray-200 px-3 py-2 bg-white">
-        <div className="flex items-center gap-2">
+        {/* Top row: Save Version / Save Selection / Review & Forward */}
+        <div className="grid grid-cols-4 gap-1 mb-2">
+          <div /> {/* Empty cell for Refresh Session position */}
           <button
             className="ui-button px-2 text-[11px] disabled:opacity-40"
             style={{ color: 'var(--color-text-secondary)' }}
@@ -337,16 +356,47 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           </button>
           <button
             className="ui-button px-2 text-[11px] disabled:opacity-40"
-            style={{ color: selectedIndices.size > 0 ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)' }}
-            disabled={selectedIndices.size === 0}
+            style={{ color: hasSelection ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)' }}
+            disabled={!hasSelection}
             onClick={onOpenSaveSelection}
             title="Save selected messages"
           >
-            {selectedIndices.size > 0
+            {hasSelection
               ? (selectedIndices.size === 1 ? 'Save Selection (1)' : `Save Selections (${selectedIndices.size})`)
               : 'Save Selection'}
           </button>
+          <button
+            className="ui-button ui-button-primary px-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-white disabled:opacity-40"
+            onClick={handleForward}
+            disabled={workspaceLocked || !hasSelection}
+            title="Review and forward to agent"
+          >
+            Review & Forward
+          </button>
         </div>
+
+        {/* Bottom row: Forward target selector */}
+        {forwardTargets && forwardTargets.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-gray-500">Forward to:</span>
+            <div className="relative flex-1">
+              <select
+                className="ui-forward-select"
+                value={forwardTarget}
+                onChange={e => setForwardTarget(e.target.value)}
+                disabled={!forwardTargets?.length || workspaceLocked}
+              >
+                {forwardTargets?.map(t => (
+                  <option key={t.role} value={t.role}>{t.label}</option>
+                ))}
+                {!forwardTargets?.length && (
+                  <option value="">Select destination</option>
+                )}
+              </select>
+              <span className="ui-forward-select-caret">v</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Input */}
