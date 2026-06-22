@@ -965,3 +965,33 @@ Si el checkpoint NO es enviado, aplica la misma regla de Nota 3:
 - Rate limiting por route: ya aplicado
 - resolveApiKey centralizado: funcional
 - SAT snapshot mechanism: reutilizable con extensión para DB
+
+---
+
+## Ideas futuras — Backlog largo plazo
+
+### Integración de agentes de ejecución de código como Worker
+
+**Registrado:** 2026-06-22  
+**Estado:** Idea para evaluación futura, no forma parte del roadmap actual del MVP
+
+#### Contexto
+GPT OE Maker → Claude Chat (Manager) ya es viable hoy en AISync: ambos son chat completions estándar, se pueden conectar como providers/agentes normales con Review & Forward entre ellos.
+
+Lo que falta es el tercer eslabón: un Worker que sea un agente de ejecución de código real (Claude Code, GPT Code, o similar), con capacidad de leer/escribir archivos y ejecutar comandos — no solo generar texto.
+
+#### Por qué es distinto a un Worker normal
+Los Workers actuales (Anthropic, OpenAI, Google, Groq) son chat completions puros: reciben texto, devuelven texto, sin acceso a filesystem.
+
+Claude Code (y herramientas similares) operan distinto: ejecutan un bucle de herramientas (leer archivo, escribir archivo, correr comando, repetir) sobre un repositorio real. No tienen una API de "chat completion" tradicional — requieren modo headless/SDK y un entorno de ejecución con acceso al repo.
+
+#### Preguntas abiertas para evaluar más adelante
+1. ¿Dónde correría ese agente? (máquina del usuario, sandbox en servidor de AISync, contenedor efímero)
+2. ¿Cómo se captura su output (que incluye acciones sobre archivos, no solo texto) y se muestra en un panel de chat estándar?
+3. ¿Qué modelo de seguridad aplica si AISync necesita acceso a un repo de código del cliente?
+4. ¿Existe SDK headless de Claude Code u otra herramienta que facilite esto sin construir infraestructura de sandboxing desde cero?
+
+#### Nota arquitectural
+Si un agente de este tipo se integrara, debería poder ser tratado como un Worker más en la arquitectura de AISync: visible en Teams Map, asignable en Workspaces, capaz de Review & Forward con otros agentes, visible en Documentation Mode y Audit Log. Su naturaleza de "ejecución sobre filesystem" quedaría encapsulada en su implementación — para el resto de AISync sería un provider más con su propia API contract.
+
+**Revisar cuando Connected Teams y Bloque 3 estén estables.**
