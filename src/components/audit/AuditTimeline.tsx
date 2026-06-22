@@ -111,7 +111,9 @@ function eventTitle(e: AuditEventRow): string {
   if (e.event_type === 'attachment_uploaded') return (m.filename as string) ?? 'File attached'
   if (e.event_type === 'tool_call_executed')  return (m.query as string) ?? 'Web search executed'
   if (e.event_type === 'connection_accepted') {
-    const email = (m.requester_email as string) ?? (m.partner_email as string) ?? 'partner'
+    const email = m.viewer_role === 'host'
+      ? ((m.receiver_email as string) ?? 'invitee')
+      : ((m.requester_email as string) ?? (m.partner_email as string) ?? 'partner')
     const role = m.viewer_role === 'invitee' ? 'As Invitee' : 'As Host'
     return `Connected with ${email} — ${role}`
   }
@@ -135,7 +137,9 @@ function eventDetail(e: AuditEventRow): string | null {
   if (e.event_type === 'attachment_uploaded') return (m.mime_type as string) ?? (m.attachment_type as string) ?? null
   if (e.event_type === 'tool_call_executed')  return `${(m.tool_name as string) ?? 'web_search'} · ${(m.provider as string) ?? ''}`
   if (e.event_type === 'connection_accepted' || e.event_type === 'connection_disconnected') {
-    const team = (m.requester_team_name as string) ?? (m.partner_team_name as string) ?? null
+    const team = (m.viewer_role === 'host')
+      ? ((m.receiver_team_name as string) ?? (m.partner_team_name as string) ?? null)
+      : ((m.requester_team_name as string) ?? (m.partner_team_name as string) ?? null)
     const desc = (m.description as string) ?? null
     const by = (m.disconnected_by as string) ?? null
     return [team, desc, by ? `by ${by}` : null].filter(Boolean).join(' · ') || null

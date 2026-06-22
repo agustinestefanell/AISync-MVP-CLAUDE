@@ -194,7 +194,9 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
                 ?? (e.event_type === 'tool_call_executed'  ? ((e.metadata?.query as string)    ?? 'Web search')    : undefined)
                 ?? (e.event_type === 'session_backup' ? 'Session Backup' : undefined)
                 ?? (e.event_type === 'connection_accepted' ? (() => {
-                  const email = (e.metadata?.requester_email as string) ?? (e.metadata?.partner_email as string) ?? 'partner'
+                  const email = e.metadata?.viewer_role === 'host'
+                    ? ((e.metadata?.receiver_email as string) ?? 'invitee')
+                    : ((e.metadata?.requester_email as string) ?? (e.metadata?.partner_email as string) ?? 'partner')
                   const role = e.metadata?.viewer_role === 'invitee' ? 'As Invitee' : 'As Host'
                   return `Connected with ${email} — ${role}`
                 })() : undefined)

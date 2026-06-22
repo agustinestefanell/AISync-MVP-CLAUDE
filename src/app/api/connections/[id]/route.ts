@@ -59,7 +59,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    // OE C (Pieza 1): Register connection acceptance in invitee's audit_log
+    // OE C (Pieza 1): Register connection acceptance in BOTH accounts' audit_log
+    // Insert for invitee (current user who accepted)
     try {
       await supabase.from('audit_log').insert({
         account_id:   user.id,
@@ -77,7 +78,28 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       })
     } catch (auditError) {
       // Fail-open: audit log failure must not block connection acceptance
-      console.error('[accept] Failed to insert audit_log event:', auditError)
+      console.error('[accept] Failed to insert audit_log event for invitee:', auditError)
+    }
+
+    // Insert for requester (host who initiated the connection)
+    if (data.requester_account_id) {
+      try {
+        await createAdminClient().from('audit_log').insert({
+          account_id:   data.requester_account_id,
+          workspace_id: null,
+          event_type:   'connection_accepted',
+          metadata: {
+            connection_id:       params.id,
+            receiver_email:      data.receiver_email ?? user.email,
+            receiver_team_name:  data.receiver_team_name,
+            description:         data.description,
+            viewer_role:         'host',
+            traceability_note:   `Connection accepted by ${data.receiver_email ?? user.email}. Shared workspace is now active.`,
+          },
+        })
+      } catch (auditError) {
+        console.error('[accept] Failed to insert audit_log event for requester:', auditError)
+      }
     }
 
     // OE A: Create Scope Isolated Team (fail-open — accept must succeed even if this fails)
