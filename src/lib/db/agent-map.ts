@@ -39,7 +39,13 @@ export function deriveAgentNodesFromTeams(
       ? connectionMap[team.id]
       : null
 
-    for (const agent of workspace.agent_sessions) {
+    // For isolated teams (Connected Teams), show only 1 node in Map/Tree View
+    // (the first agent_session, typically manager). Normal teams (SAT/MAT) show all sessions.
+    const agentsToShow = team.type === 'isolated'
+      ? workspace.agent_sessions.slice(0, 1)
+      : workspace.agent_sessions
+
+    for (const agent of agentsToShow) {
       nodes.push({
         agentId:          agent.id,
         role:             agent.agent_role as 'manager' | 'worker1' | 'worker2',
