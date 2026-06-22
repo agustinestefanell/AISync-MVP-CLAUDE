@@ -995,3 +995,33 @@ Claude Code (y herramientas similares) operan distinto: ejecutan un bucle de her
 Si un agente de este tipo se integrara, debería poder ser tratado como un Worker más en la arquitectura de AISync: visible en Teams Map, asignable en Workspaces, capaz de Review & Forward con otros agentes, visible en Documentation Mode y Audit Log. Su naturaleza de "ejecución sobre filesystem" quedaría encapsulada en su implementación — para el resto de AISync sería un provider más con su propia API contract.
 
 **Revisar cuando Connected Teams y Bloque 3 estén estables.**
+
+---
+
+### Exportación de metadata/checkpoints a Google Drive
+
+**Registrado:** 2026-06-22  
+**Estado:** Idea para evaluación futura, no forma parte del roadmap actual
+
+#### Contexto
+AISync ya usa Google OAuth para login. Existe la posibilidad de aprovechar ese mismo flujo de autenticación para permitir exportar metadata, checkpoints, documentos y otros artefactos de AISync directamente a Google Drive del usuario.
+
+#### Por qué es relevante
+- El login con Google ya está implementado — la fricción de agregar esta feature sería principalmente de scopes de OAuth (Drive API requiere permisos adicionales a los de login)
+- Encaja con la doctrina de AISync de "recoverability" — los datos no quedan encerrados solo en AISync
+- Posible diferenciador competitivo: exportación nativa sin pasos manuales
+
+#### Preguntas abiertas para evaluar más adelante
+1. ¿Qué se exporta exactamente? (checkpoints individuales, todo el Documentation Mode, reportes de Audit Log, handoff packages)
+2. ¿Qué formato? (Google Docs nativo, PDF, JSON estructurado)
+3. ¿Requiere scope adicional de OAuth (`drive.file` vs `drive.readonly` vs `drive` completo) — implica re-consentimiento del usuario?
+4. ¿Es exportación manual (botón "Export to Drive") o sincronización continua?
+5. Seguridad: verificar que el scope de Drive solicitado sea el mínimo necesario (`drive.file` es el más restrictivo y seguro — solo archivos creados por la app, no acceso a todo el Drive del usuario)
+
+#### Nota técnica
+Google OAuth ya configurado en Supabase Auth. Drive API requiere agregar scope `https://www.googleapis.com/auth/drive.file` al flow de login. La exportación podría implementarse como:
+- Server-side: Next.js API route que usa Google Drive SDK con access token del usuario
+- Client-side: Botón en Documentation Mode → POST `/api/export/drive` → crea archivo en Drive del usuario
+- Formato sugerido inicial: JSON estructurado para checkpoints, PDF para reportes de Audit Log
+
+**Revisar cuando Connected Teams y Documentation Mode estén más maduros.**
