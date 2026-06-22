@@ -46,6 +46,7 @@ export function deriveAgentNodesFromTeams(
       : workspace.agent_sessions
 
     for (const agent of agentsToShow) {
+      // Nodo normal (para todos los teams)
       nodes.push({
         agentId:          agent.id,
         role:             agent.agent_role as 'manager' | 'worker1' | 'worker2',
@@ -63,6 +64,28 @@ export function deriveAgentNodesFromTeams(
         connectionDescription: team.type === 'isolated' ? (team.description ?? connectionData?.description ?? null) : null,
         connectionColor:       team.type === 'isolated' ? (team.color ?? connectionData?.color ?? null) : null,
       })
+
+      // NUEVO: Para isolated teams, generar nodo worker sintético adicional
+      // El manager genera el nodo GM superior, este nodo sintético genera la caja debajo
+      if (team.type === 'isolated' && agent.agent_role === 'manager') {
+        nodes.push({
+          agentId:          `${agent.id}-synthetic-worker`,
+          role:             'worker1' as 'manager' | 'worker1' | 'worker2',
+          provider:         agent.provider,
+          model:            agent.model,
+          agentDescription: agent.description,
+          workspaceId:      workspace.id,
+          workspaceName:    workspace.name,
+          teamId:           team.id,
+          teamName:         team.name,
+          teamParentId:     team.parent_id,
+          teamType:         team.type,
+          teamDescription:  team.description,
+          projectId:        team.project_id,
+          connectionDescription: team.description ?? connectionData?.description ?? null,
+          connectionColor:       team.color ?? connectionData?.color ?? null,
+        })
+      }
     }
   }
   return nodes

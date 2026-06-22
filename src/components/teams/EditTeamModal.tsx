@@ -67,7 +67,11 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
   const [description, setDescription] = useState(team.description ?? '')
   const [leadRole]                    = useState<'manager' | 'submanager' | 'worker'>(team.lead_role ?? 'worker')
   const [parentId, setParentId]       = useState(team.parent_id ?? '')
-  const [agents, setAgents]           = useState<AgentEdit[]>(rawAgents.map(toAgentEdit))
+  const [agents, setAgents]           = useState<AgentEdit[]>(
+    team.type === 'isolated'
+      ? rawAgents.slice(0, 1).map(toAgentEdit)  // Isolated teams: solo manager editable
+      : rawAgents.map(toAgentEdit)              // Teams normales: todos los agentes
+  )
   const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([])
   const [error, setError]             = useState('')
   const [saving, setSaving]           = useState(false)
@@ -214,10 +218,10 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
             )}
           </div>
 
-          {/* ── Agents — 3-column grid ── */}
+          {/* ── Agents — grid adaptado para isolated teams (1 columna) vs normal (3 columnas) ── */}
           {agents.length > 0 && (
             <>
-              <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className={`grid gap-3 mb-3 ${team.type === 'isolated' ? 'grid-cols-1' : 'grid-cols-3'}`}>
                 {agents.map((a, i) => {
                   const local = isLocal(a.provider)
                   const cloud = isCloud(a.provider)
