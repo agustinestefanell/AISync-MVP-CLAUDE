@@ -67,9 +67,12 @@ export default async function WorkspacePage({
 
   // Check if this is an isolated team workspace
   let welcomeMetadata: {
+    isHost: boolean
     connectionId: string
     requesterEmail: string
     requesterTeamName: string
+    receiverEmail?: string
+    receiverTeamName?: string
     description?: string
     color?: string
   } | undefined
@@ -86,7 +89,7 @@ export default async function WorkspacePage({
   if (team?.type === 'isolated') {
     const { data: connection } = await supabase
       .from('team_connections')
-      .select('id, requester_account_id, receiver_account_id, requester_email, requester_team_name, receiver_email, description, color, welcome_viewed_by_invitee, status')
+      .select('id, requester_account_id, receiver_account_id, requester_email, requester_team_name, receiver_email, receiver_team_name, description, color, welcome_viewed_by_invitee, welcome_viewed_by_requester, status')
       .eq('scope_isolated_team_id', team.id)
       .eq('status', 'active')
       .single()
@@ -113,12 +116,27 @@ export default async function WorkspacePage({
 
         initialHumanMessages = (humanMsgs as HumanMessage[]) ?? []
 
-        // Welcome screen metadata (only for invitee on first visit)
+        // Welcome screen metadata (for invitee on first visit)
         if (isInvitee && !connection.welcome_viewed_by_invitee) {
           welcomeMetadata = {
+            isHost: false,
             connectionId: connection.id,
             requesterEmail: connection.requester_email,
             requesterTeamName: connection.requester_team_name,
+            description: connection.description ?? undefined,
+            color: connection.color ?? undefined,
+          }
+        }
+
+        // Welcome screen metadata (for host on first visit after invitee accepts)
+        if (isHost && !connection.welcome_viewed_by_requester) {
+          welcomeMetadata = {
+            isHost: true,
+            connectionId: connection.id,
+            requesterEmail: connection.requester_email,
+            requesterTeamName: connection.requester_team_name,
+            receiverEmail: connection.receiver_email,
+            receiverTeamName: connection.receiver_team_name ?? undefined,
             description: connection.description ?? undefined,
             color: connection.color ?? undefined,
           }

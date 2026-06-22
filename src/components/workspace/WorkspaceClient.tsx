@@ -31,9 +31,12 @@ Top ribbon
 In simple terms: use the Manager to think and coordinate, use the Workers to execute, and use the save tools whenever something becomes important enough to preserve, transfer, or revisit later.`
 
 interface WelcomeMetadata {
+  isHost:             boolean
   connectionId:       string
   requesterEmail:     string
   requesterTeamName:  string
+  receiverEmail?:     string
+  receiverTeamName?:  string
   description?:       string
   color?:             string
 }
@@ -120,12 +123,15 @@ export default function WorkspaceClient({ pageName, accentColor, badge, workspac
         </div>
       )}
 
-      {/* Welcome screen for Connected Teams invitee */}
+      {/* Welcome screen for Connected Teams (host or invitee) */}
       {showWelcome && welcomeMetadata && (
         <WelcomeScreen
+          isHost={welcomeMetadata.isHost}
           connectionId={welcomeMetadata.connectionId}
           requesterEmail={welcomeMetadata.requesterEmail}
           requesterTeamName={welcomeMetadata.requesterTeamName}
+          receiverEmail={welcomeMetadata.receiverEmail}
+          receiverTeamName={welcomeMetadata.receiverTeamName}
           description={welcomeMetadata.description}
           color={welcomeMetadata.color}
           onClose={() => setShowWelcome(false)}

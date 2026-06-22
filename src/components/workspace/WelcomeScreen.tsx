@@ -3,8 +3,11 @@
 import { useState } from 'react'
 
 interface WelcomeScreenProps {
+  isHost: boolean
   requesterEmail: string
   requesterTeamName: string
+  receiverEmail?: string
+  receiverTeamName?: string
   description?: string
   color?: string
   connectionId: string
@@ -12,8 +15,11 @@ interface WelcomeScreenProps {
 }
 
 export default function WelcomeScreen({
+  isHost,
   requesterEmail,
   requesterTeamName,
+  receiverEmail,
+  receiverTeamName,
   description,
   color,
   connectionId,
@@ -27,7 +33,10 @@ export default function WelcomeScreen({
       await fetch('/api/connections/mark-welcome-viewed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connectionId }),
+        body: JSON.stringify({
+          connectionId,
+          role: isHost ? 'host' : 'invitee',
+        }),
       })
     } catch (err) {
       console.error('Failed to mark welcome as viewed:', err)
@@ -41,18 +50,35 @@ export default function WelcomeScreen({
       <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-2xl mx-4 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="px-6 py-5 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Welcome to this Shared Workspace</h2>
-          <p className="text-sm text-gray-500 mt-1">You have been invited to collaborate</p>
+          <h2 className="text-lg font-semibold text-gray-900">
+            {isHost
+              ? 'Your invitee has joined this shared workspace'
+              : 'Welcome to this Shared Workspace'}
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {isHost ? 'You can now collaborate together' : 'You have been invited to collaborate'}
+          </p>
         </div>
 
         {/* Content */}
         <div className="px-6 py-6 space-y-6 overflow-y-auto max-h-[60vh]">
-          {/* Who invited you */}
+          {/* Who invited you / Who joined */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Who invited you</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">
+              {isHost ? 'Who joined' : 'Who invited you'}
+            </h3>
             <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 space-y-1">
-              <p className="text-sm font-medium text-gray-900">{requesterTeamName}</p>
-              <p className="text-xs text-gray-500">{requesterEmail}</p>
+              {isHost ? (
+                <>
+                  <p className="text-sm font-medium text-gray-900">{receiverTeamName || 'Invitee'}</p>
+                  <p className="text-xs text-gray-500">{receiverEmail}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-gray-900">{requesterTeamName}</p>
+                  <p className="text-xs text-gray-500">{requesterEmail}</p>
+                </>
+              )}
             </div>
           </div>
 
@@ -84,9 +110,13 @@ export default function WelcomeScreen({
                   1
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Chat with the AI agent</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {isHost ? 'Monitor the AI agent chat' : 'Chat with the AI agent'}
+                  </p>
                   <p className="text-xs text-gray-600 mt-0.5">
-                    Interact with the AI agent from the host team. Your messages and the agent&apos;s responses are visible to both you and the host.
+                    {isHost
+                      ? 'See both your messages and your invitee\'s messages to the shared AI agent.'
+                      : 'Interact with the AI agent from the host team. Your messages and the agent\'s responses are visible to both you and the host.'}
                   </p>
                 </div>
               </div>
@@ -96,7 +126,9 @@ export default function WelcomeScreen({
                   2
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Direct chat with the host</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {isHost ? 'Direct chat with your invitee' : 'Direct chat with the host'}
+                  </p>
                   <p className="text-xs text-gray-600 mt-0.5">
                     <span className="inline-block px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-semibold mr-1">
                       COMING SOON
@@ -108,14 +140,16 @@ export default function WelcomeScreen({
             </div>
           </div>
 
-          {/* Scope reminder */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-            <p className="text-xs text-blue-900">
-              <strong className="font-semibold">Note:</strong> This is a{' '}
-              <span className="font-mono text-[11px] bg-blue-100 px-1 py-0.5 rounded">scope-isolated</span>{' '}
-              workspace. You can only access this specific workspace, not the host&apos;s entire account or other teams.
-            </p>
-          </div>
+          {/* Scope reminder (only for invitee) */}
+          {!isHost && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+              <p className="text-xs text-blue-900">
+                <strong className="font-semibold">Note:</strong> This is a{' '}
+                <span className="font-mono text-[11px] bg-blue-100 px-1 py-0.5 rounded">scope-isolated</span>{' '}
+                workspace. You can only access this specific workspace, not the host&apos;s entire account or other teams.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
