@@ -431,3 +431,61 @@ La analogía de referencia es "ver el escritorio remoto de alguien mientras trab
 - Modelo de `owner_account_id` en agent_sessions es breaking change para isolated teams existentes
 
 **Estado:** Decisión de producto cerrada 2026-06-18. Implementación pendiente (OE B completo).
+
+---
+
+## 2026-06-22 — OE C: Implementación parcial (Piezas 1 y 2), Piezas 3 y 4 diferidas
+
+**Contexto:**
+OE C (Gobernanza Connected Teams) tiene 4 piezas según el diseño original en AISyncPlans.md:
+1. Registro de conexión en Doc Mode del invitado
+2. Fallback "Datos de trazabilidad ausentes"
+3. Metadata package opcional del anfitrión al invitado
+4. Send Checkpoint al invitado desde Doc Mode del anfitrión
+
+El diagnóstico completo (2026-06-22) mostró que Piezas 3 y 4 requieren:
+- Tabla nueva (`shared_checkpoints`)
+- RLS cross-account modificada en `checkpoints` y `checkpoint_messages`
+- Complejidad ALTA — mismo perfil de riesgo que el "panel espejo" ya diferido en la decisión del 2026-06-18
+
+**Decisión:**
+Implementar hoy solo:
+- **Pieza 1:** Registro de conexión en `audit_log` del invitado al aceptar (complejidad BAJA, riesgo BAJO)
+- **Pieza 2:** Fallback "Datos de trazabilidad ausentes" — Opción A: registro local en `audit_log` del invitado con mensaje informativo, SIN modificar RLS de checkpoints (complejidad MEDIA, riesgo BAJO)
+
+Diferir para sesión dedicada futura:
+- **Pieza 3:** Metadata package opcional (complejidad ALTA, requiere UI completa + RLS cross-account + tabla nueva)
+- **Pieza 4:** Send Checkpoint individual (complejidad ALTA, requiere tabla `shared_checkpoints` + RLS nueva + UI en Doc Mode del host)
+
+**Razón:**
+Piezas 1 y 2 son quick wins con bajo riesgo que completan la visibilidad básica de trazabilidad para el invitado sin tocar RLS cross-account. Piezas 3 y 4 requieren diseño cuidadoso de RLS y tiempo para evaluar implicancias de seguridad — mismo patrón de decisión que llevó a diferir el panel espejo.
+
+**Decisión arquitectural para cuando se implementen Piezas 3 y 4:**
+**Opción B confirmada:** RLS cerrada + Send explícito (opt-in del host). El invitado NUNCA debe ver checkpoints del host sin que el host los comparta explícitamente. Esto preserva la soberanía del host y evita exposición accidental de datos cross-account.
+
+**Alternativas descartadas:**
+- **Opción A (RLS abierta):** El invitado ve todos los checkpoints del workspace compartido automáticamente — descartado porque viola el principio "opt-in" de gobernanza y puede exponer datos sensibles del host sin su consentimiento.
+- Implementar las 4 piezas en una sola OE — descartado por alto riesgo de introducir bugs de seguridad (RLS cross-account mal configurada) bajo presión de tiempo.
+
+**Implicancias técnicas de Piezas 1 y 2:**
+- **Pieza 1:** INSERT en `audit_log` dentro del bloque `if (body.action === 'accept')` en `/api/connections/[id]/route.ts`. Evento: `connection_accepted`. Metadata: `connection_id`, `requester_email`, `requester_team_name`, `scope_isolated_team_id`.
+- **Pieza 2:** Metadata del evento incluye mensaje: `"Detailed traceability data lives in [requester_email]'s account. This workspace shows only what's shared with you."` — visible en Audit View del invitado como recordatorio de que la trazabilidad completa está en la cuenta del host.
+
+**Implicancias técnicas de Piezas 3 y 4 (diferidas):**
+- Nueva tabla `shared_checkpoints` con FK a `checkpoint_id` + `connection_id`
+- Policy nueva en `checkpoints`: permitir SELECT si el checkpoint está en `shared_checkpoints` con `shared_to = auth.uid()`
+- UI en Doc Mode del host: botón "Send Checkpoint to [invitee]" en cada checkpoint de workspace compartido
+- API route nueva: `/api/checkpoints/share` con ownership check estricto
+- Audit log bidireccional: evento `checkpoint_shared` para host, evento `checkpoint_received` para invitee
+
+**Riesgos conocidos:**
+- Piezas 1 y 2 NO permiten al invitado ver checkpoints del host — solo le informan que existen datos en la cuenta del host
+- Sin Piezas 3 y 4, el invitado depende 100% del host para recibir contexto documental del trabajo compartido
+- Implementar Piezas 3 y 4 más adelante requerirá migración cuidadosa + test exhaustivo de RLS cross-account
+
+**Estado:**
+- Piezas 1 y 2: en implementación 2026-06-22
+- Piezas 3 y 4: en backlog, requieren sesión dedicada con tiempo para diseño de RLS cuidadoso y testing de seguridad cross-account
+
+**Patrón reutilizable:**
+Este es el segundo diferimiento de features de Connected Teams por complejidad de RLS cross-account (primero fue panel espejo, ahora Piezas 3 y 4). El patrón emergente es: features cross-account con RLS modificada requieren sesión dedicada, no pueden implementarse como "un fix más" dentro de una OE amplia.

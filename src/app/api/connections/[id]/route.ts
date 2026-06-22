@@ -59,6 +59,26 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+    // OE C (Pieza 1): Register connection acceptance in invitee's audit_log
+    try {
+      await supabase.from('audit_log').insert({
+        account_id:   user.id,
+        workspace_id: null,
+        event_type:   'connection_accepted',
+        metadata: {
+          connection_id:       params.id,
+          requester_email:     data.requester_email,
+          requester_team_name: data.requester_team_name,
+          description:         data.description,
+          // OE C (Pieza 2): Fallback message for missing traceability data
+          traceability_note:   `Detailed traceability data lives in ${data.requester_email}'s account. This workspace shows only what's shared with you.`,
+        },
+      })
+    } catch (auditError) {
+      // Fail-open: audit log failure must not block connection acceptance
+      console.error('[accept] Failed to insert audit_log event:', auditError)
+    }
+
     // OE A: Create Scope Isolated Team (fail-open — accept must succeed even if this fails)
     try {
       // Check if isolated team already exists (prevent duplicates on retry)
