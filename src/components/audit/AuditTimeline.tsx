@@ -81,6 +81,7 @@ const EVENT_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   save_selection:      { label: 'Save Selection', badgeClass: 'text-amber-400 bg-amber-950 border-amber-900' },
   attachment_uploaded: { label: 'File Attached',  badgeClass: 'bg-blue-100 text-blue-700 border-blue-200' },
   tool_call_executed:  { label: 'Web Search',     badgeClass: 'bg-purple-100 text-purple-700 border-purple-200' },
+  connection_accepted: { label: 'Connection Accepted', badgeClass: 'text-green-400 bg-green-950 border-green-900' },
 }
 const AGENT_LABEL: Record<string, string> = { manager: 'Manager', worker1: 'Worker 1', worker2: 'Worker 2' }
 
@@ -107,6 +108,7 @@ function eventTitle(e: AuditEventRow): string {
   if (e.event_type === 'review_forward')     return `Forwarded to ${(m.to_agent as string) ?? 'agent'}`
   if (e.event_type === 'attachment_uploaded') return (m.filename as string) ?? 'File attached'
   if (e.event_type === 'tool_call_executed')  return (m.query as string) ?? 'Web search executed'
+  if (e.event_type === 'connection_accepted') return `Connected with ${(m.requester_email as string) ?? 'host'}`
   return e.event_type
 }
 
@@ -117,6 +119,11 @@ function eventDetail(e: AuditEventRow): string | null {
   if (e.event_type === 'review_forward')     return `${m.message_count ?? ''} message(s)`
   if (e.event_type === 'attachment_uploaded') return (m.mime_type as string) ?? (m.attachment_type as string) ?? null
   if (e.event_type === 'tool_call_executed')  return `${(m.tool_name as string) ?? 'web_search'} · ${(m.provider as string) ?? ''}`
+  if (e.event_type === 'connection_accepted') {
+    const team = (m.requester_team_name as string) ?? null
+    const desc = (m.description as string) ?? null
+    return [team, desc].filter(Boolean).join(' · ') || null
+  }
   return null
 }
 
@@ -620,6 +627,9 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                     <Row label="To Agent">
                       {AGENT_LABEL[String(selectedEvent.metadata.to_agent)] ?? String(selectedEvent.metadata.to_agent)}
                     </Row>
+                  )}
+                  {!!selectedEvent.metadata?.traceability_note && (
+                    <Row label="Note">{String(selectedEvent.metadata.traceability_note)}</Row>
                   )}
                 </div>
 

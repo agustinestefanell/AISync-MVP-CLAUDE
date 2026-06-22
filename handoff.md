@@ -7469,6 +7469,61 @@ Errores de hidratación React pueden romper completamente el árbol de component
 
 ---
 
+## Sesión 2026-06-22 — OE C (Pieza 3): Fix renderizado de connection_accepted en Audit Views
+
+**Fecha:** 2026-06-22  
+**Archivos modificados:**
+- src/components/audit/AuditTimeline.tsx
+- src/lib/db/documentation.ts (función getDocAuditEvents)
+- src/components/documentation/AuditView.tsx
+
+**Problema reportado:**
+Evento `connection_accepted` se insertaba correctamente en `audit_log` del invitado (confirmado en Supabase — 2 registros existentes con metadata completo), pero NO aparecía en ninguna de las dos vistas de audit: `/audit` (AuditTimeline calendario) ni `/documentation` Audit View (lista de registros).
+
+**Diagnóstico:**
+1. Backend INSERT funcionaba — código presente y correcto en `/api/connections/[id]/route.ts` líneas 64-76
+2. RLS policy correcta — `audit_log_insert` permite `account_id = auth.uid()`
+3. **Bug 1 (AuditTimeline):** Evento no configurado — faltaba agregar `connection_accepted` a `EVENT_CONFIG`, `eventTitle()` y `eventDetail()`
+4. **Bug 2 (getDocAuditEvents):** Query con JOIN sobre `workspaces(teams)` retornaba `team_id=null` y `team_name=null` para eventos con `workspace_id=null` (como `connection_accepted`). El team_name correcto estaba en `metadata.requester_team_name` pero no se extraía.
+5. **Bug 3 (AuditView):** Evento no configurado — faltaba agregar `connection_accepted` a `EVENT_CONFIG`. Además, línea 186 no manejaba `team_name=null` correctamente (ponía literal `null` en UI en vez de fallback "—").
+
+**Decisión técnica:**
+Renderizado de eventos cross-account sin workspace: cuando `workspace_id=null` (eventos de conexión), extraer metadata de contexto (`requester_email`, `requester_team_name`, `description`, `traceability_note`) en lugar de hacer JOIN con `workspaces.teams`. Esto permite que eventos de conexión se muestren correctamente en ambas vistas de audit sin requerir un workspace asociado.
+
+**Cambios implementados:**
+
+**1. AuditTimeline.tsx (4 fixes):**
+- Agregado `connection_accepted` a `EVENT_CONFIG` con badge verde (línea 84)
+- Agregado case en `eventTitle()`: retorna `"Connected with ${requester_email}"`
+- Agregado case en `eventDetail()`: retorna `"${requester_team_name} · ${description}"` (ambos opcionales)
+- Agregado fila `traceability_note` en side panel (línea 626): muestra la nota de trazabilidad cuando se hace click en el evento
+
+**2. documentation.ts `getDocAuditEvents()` (backend query fix):**
+- Agregado fallback en el map: `teamName = r.workspaces?.teams?.name ?? r.metadata?.requester_team_name ?? null`
+- Esto extrae `team_name` del metadata cuando el JOIN con `workspaces.teams` retorna null
+- Mantiene compatibilidad con eventos normales que sí tienen workspace
+
+**3. AuditView.tsx (3 fixes):**
+- Agregado `connection_accepted` a `EVENT_CONFIG` con badge verde (línea 14)
+- Agregado case en generación de `cpName` (línea 184): `"Connected with ${requester_email}"`
+- Fixed `teamLabel` (línea 186): agregado fallback a "—" cuando `team_name` es null
+
+**Alternativas descartadas:**
+- Insertar `team_id` del invitado en el evento: conexión no está ligada a un team específico del invitado (puede no tener teams aún). El evento registra la acción de aceptar, no pertenencia a un team.
+- Crear workspace dummy para eventos de conexión: agrega complejidad innecesaria. Los eventos cross-account son válidos sin workspace asociado.
+- Modificar JOIN para hacer LEFT JOIN explícito: Supabase ya hace LEFT JOIN implícito al usar `workspaces(...)` en el select. El problema era que no se extraía metadata como fallback.
+
+**Riesgos conocidos / deuda técnica:**
+- Eventos con `workspace_id=null` no tienen `team_id` — el filtro por team en Audit View no incluirá estos eventos. Aceptable: eventos de conexión son cross-account y no pertenecen a un team específico.
+- El `.select()` en línea 57 de `/api/connections/[id]/route.ts` no trae todos los campos (solo los actualizados). Esto es un bug secundario que no afecta el INSERT de audit_log (metadata se construye correctamente), pero `data.requester_email` etc podrían ser undefined al retornar la respuesta. Pendiente de fix en sesión futura si se necesita.
+
+**Estado:** CERRADA. Build exitoso. Listo para commit y test en producción.
+
+**Lección clave:**
+Eventos de audit sin workspace requieren diseño específico: metadata debe incluir toda la info necesaria para renderizado (no depender de JOINs), y frontend debe manejar nulls con fallbacks. El diagnóstico correcto requirió verificar AMBOS lados (backend query + frontend render) — el problema era dual, no single-point. Query con JOIN sobre relaciones opcionales (workspace nullable) debe extraer metadata como fallback cuando el JOIN retorna null.
+
+---
+
 ## Sesión 2026-06-18 — OE B.4 Completion: Trazabilidad para chat humano
 
 **Fecha:** 2026-06-18

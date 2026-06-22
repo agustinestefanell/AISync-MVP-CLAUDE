@@ -273,14 +273,20 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
     metadata: Record<string, unknown> | null
     created_at: string
     workspaces: { name: string; teams: { id: string; name: string } | null } | null
-  }>).map(r => ({
-    id:             r.id,
-    event_type:     r.event_type,
-    workspace_id:   r.workspace_id,
-    workspace_name: r.workspaces?.name ?? null,
-    team_id:        r.workspaces?.teams?.id ?? null,
-    team_name:      r.workspaces?.teams?.name ?? null,
-    metadata:       r.metadata,
-    created_at:     r.created_at,
-  }))
+  }>).map(r => {
+    // For events without workspace (e.g. connection_accepted), extract team info from metadata if available
+    const teamId = r.workspaces?.teams?.id ?? null
+    const teamName = r.workspaces?.teams?.name ?? (r.metadata?.requester_team_name as string | null | undefined) ?? null
+
+    return {
+      id:             r.id,
+      event_type:     r.event_type,
+      workspace_id:   r.workspace_id,
+      workspace_name: r.workspaces?.name ?? null,
+      team_id:        teamId,
+      team_name:      teamName,
+      metadata:       r.metadata,
+      created_at:     r.created_at,
+    }
+  })
 }

@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-18 (OE B.4 CERRADA: Trazabilidad chat humano implementada)
+Last updated: 2026-06-22 (OE C Pieza 3 CERRADA: connection_accepted visible en Audit Views)
 
 ---
 
@@ -200,6 +200,8 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | **Human-to-human chat (Panel 1)** | ✅ Closed | OE B.4 — HumanChatPanel with Realtime, day markers, selection support (commit 5654c51, migrations 037+038 pending). Fix crítico 2026-06-18: React hydration errors resueltos (commits 829abdd + 7a3a3f7) — mensajes ahora aparecen sin necesidad de F5. Trazabilidad implementada (commit 8bcb9b6) — Save Version y Save Selection funcionales para mensajes humanos. UX fix (commit 34e94b6) — reordenamiento de secciones (Input → Forward → Actions) y CSS portado de AgentPanel para pixel-perfect match. |
 | **Manager panel (Panel 2)** | ✅ Closed | OE B.4 — Shows first agent_session (manager) with all normal controls |
 | **2-panel Connected Teams layout** | ✅ Closed | OE B.4 — Conditional grid in WorkspaceShell for isolated teams |
+| **Audit log event for connection_accepted** | ✅ Closed | OE C Pieza 1+2 — INSERT en audit_log del invitado con metadata completo (requester_email, requester_team_name, description, traceability_note). Migration 039 (welcome_viewed_by_requester) en paralelo. |
+| **Render connection_accepted in Audit Views** | ✅ Closed | OE C Pieza 3 — Fix renderizado en /audit (AuditTimeline) y /documentation Audit View. Backend extraía team_name de metadata cuando workspace_id=null. Frontend agregó EVENT_CONFIG + eventTitle/eventDetail + manejo de nulls. Build exitoso 2026-06-22. |
 | Metadata package (host → invitee) | Pending | Post-MVP — optional governance sharing |
 
 ---
