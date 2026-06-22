@@ -70,6 +70,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           requester_email:     data.requester_email,
           requester_team_name: data.requester_team_name,
           description:         data.description,
+          viewer_role:         'invitee',
           // OE C (Pieza 2): Fallback message for missing traceability data
           traceability_note:   `Detailed traceability data lives in ${data.requester_email}'s account. This workspace shows only what's shared with you.`,
         },
@@ -207,6 +208,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // Register disconnection in audit_log for BOTH parties
     const isRequester = connection.requester_account_id === user.id
     const disconnectedBy = isRequester ? 'requester' : 'receiver'
+    const viewerRole = isRequester ? 'host' : 'invitee'
 
     // Insert for current user (who initiated disconnect)
     try {
@@ -220,6 +222,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           partner_team_name:   isRequester ? (connection.receiver_team_name ?? null) : connection.requester_team_name,
           description:         connection.description,
           disconnected_by:     disconnectedBy,
+          viewer_role:         viewerRole,
           traceability_note:   `Connection disconnected by ${disconnectedBy}. Detailed traceability data lives in ${isRequester ? connection.receiver_email : connection.requester_email}'s account.`,
         },
       })
@@ -229,6 +232,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     // Insert for the other party (passive receiver of disconnect)
     const otherAccountId = isRequester ? connection.receiver_account_id : connection.requester_account_id
+    const otherViewerRole = isRequester ? 'invitee' : 'host'
     if (otherAccountId) {
       try {
         await createAdminClient().from('audit_log').insert({
@@ -241,6 +245,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             partner_team_name:   isRequester ? connection.requester_team_name : (connection.receiver_team_name ?? null),
             description:         connection.description,
             disconnected_by:     disconnectedBy,
+            viewer_role:         otherViewerRole,
             traceability_note:   `Connection disconnected by ${disconnectedBy}. You were notified of this action.`,
           },
         })
@@ -295,6 +300,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
         receiver_email:      toDelete.receiver_email,
         requester_team_name: toDelete.requester_team_name,
         description:         toDelete.description,
+        viewer_role:         'host',
         traceability_note:   'Pending connection request cancelled before acceptance.',
       },
     })

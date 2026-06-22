@@ -69,25 +69,34 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
   // Build checkpoint lookup map
   const cpMap = useMemo(() => new Map(checkpoints.map(c => [c.id, c])), [checkpoints])
 
-  const uniqueTeams = useMemo(() =>
-    Array.from(
-      new Map(
-        auditEvents
-          .filter(e => e.team_name && e.team_id)
-          .map(e => [e.team_id, { id: e.team_id as string, name: e.team_name! }])
-      ).values()
-    ).sort((a, b) => {
+  const uniqueTeams = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const e of auditEvents) {
+      // Normal teams (con team_id)
+      if (e.team_id && e.team_name) {
+        seen.set(e.team_id, e.team_name)
+      }
+      // Metadata-only teams (shared/isolated teams sin team_id visible)
+      else if (!e.team_id && e.team_name) {
+        const syntheticId = `metadata:${e.team_name}`
+        seen.set(syntheticId, e.team_name)
+      }
+    }
+    const result: { id: string; name: string }[] = []
+    seen.forEach((name, id) => result.push({ id, name }))
+    return result.sort((a, b) => {
       const codeA = teamCodes?.[a.id] ?? a.name
       const codeB = teamCodes?.[b.id] ?? b.name
       return codeA.localeCompare(codeB)
-    }),
-  [auditEvents, teamCodes])
+    })
+  }, [auditEvents, teamCodes])
 
   const filtered = useMemo(() => auditEvents.filter(e => {
     const cpId = e.metadata?.checkpoint_id as string | undefined
     const cp   = cpId ? cpMap.get(cpId) : null
     if (filterState && cp?.doc_state !== filterState)   return false
     if (filterEvent && e.event_type !== filterEvent)     return false
+    // Team filter (match team_name directamente — el select usa value={t.name})
     if (filterTeam  && e.team_name  !== filterTeam)     return false
     if (filterDate  && !e.created_at.startsWith(filterDate)) return false
     return true
@@ -184,9 +193,17 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
                 ?? (e.event_type === 'attachment_uploaded' ? ((e.metadata?.filename as string) ?? 'File attached') : undefined)
                 ?? (e.event_type === 'tool_call_executed'  ? ((e.metadata?.query as string)    ?? 'Web search')    : undefined)
                 ?? (e.event_type === 'session_backup' ? 'Session Backup' : undefined)
-                ?? (e.event_type === 'connection_accepted'     ? `Connected with ${(e.metadata?.requester_email as string) ?? (e.metadata?.partner_email as string) ?? 'partner'}` : undefined)
-                ?? (e.event_type === 'connection_disconnected' ? `Disconnected from ${(e.metadata?.partner_email as string) ?? 'partner'}` : undefined)
-                ?? (e.event_type === 'connection_cancelled'    ? `Cancelled request to ${(e.metadata?.receiver_email as string) ?? 'receiver'}` : undefined)
+                ?? (e.event_type === 'connection_accepted' ? (() => {
+                  const email = (e.metadata?.requester_email as string) ?? (e.metadata?.partner_email as string) ?? 'partner'
+                  const role = e.metadata?.viewer_role === 'invitee' ? 'As Invitee' : 'As Host'
+                  return `Connected with ${email} — ${role}`
+                })() : undefined)
+                ?? (e.event_type === 'connection_disconnected' ? (() => {
+                  const email = (e.metadata?.partner_email as string) ?? 'partner'
+                  const role = e.metadata?.viewer_role === 'invitee' ? 'As Invitee' : 'As Host'
+                  return `Disconnected from ${email} — ${role}`
+                })() : undefined)
+                ?? (e.event_type === 'connection_cancelled' ? `Cancelled request to ${(e.metadata?.receiver_email as string) ?? 'receiver'} — As Host` : undefined)
                 ?? 'Session event'
               const actor     = (e.metadata?.from_agent ?? e.metadata?.agent_role) as string | undefined
               const teamCode  = e.team_id ? teamCodes?.[e.team_id] : undefined

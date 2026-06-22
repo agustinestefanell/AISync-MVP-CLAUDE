@@ -110,9 +110,20 @@ function eventTitle(e: AuditEventRow): string {
   if (e.event_type === 'review_forward')     return `Forwarded to ${(m.to_agent as string) ?? 'agent'}`
   if (e.event_type === 'attachment_uploaded') return (m.filename as string) ?? 'File attached'
   if (e.event_type === 'tool_call_executed')  return (m.query as string) ?? 'Web search executed'
-  if (e.event_type === 'connection_accepted')     return `Connected with ${(m.requester_email as string) ?? (m.partner_email as string) ?? 'partner'}`
-  if (e.event_type === 'connection_disconnected') return `Disconnected from ${(m.partner_email as string) ?? 'partner'}`
-  if (e.event_type === 'connection_cancelled')    return `Cancelled request to ${(m.receiver_email as string) ?? 'receiver'}`
+  if (e.event_type === 'connection_accepted') {
+    const email = (m.requester_email as string) ?? (m.partner_email as string) ?? 'partner'
+    const role = m.viewer_role === 'invitee' ? 'As Invitee' : 'As Host'
+    return `Connected with ${email} — ${role}`
+  }
+  if (e.event_type === 'connection_disconnected') {
+    const email = (m.partner_email as string) ?? 'partner'
+    const role = m.viewer_role === 'invitee' ? 'As Invitee' : 'As Host'
+    return `Disconnected from ${email} — ${role}`
+  }
+  if (e.event_type === 'connection_cancelled') {
+    const email = (m.receiver_email as string) ?? 'receiver'
+    return `Cancelled request to ${email} — As Host`
+  }
   return e.event_type
 }
 
@@ -160,6 +171,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
   const [filterProjectId, setFilterProjectId] = useState('')
   const [filterTeamId,    setFilterTeamId]    = useState('')
   const [filterDate,      setFilterDate]      = useState('')
+  const [filterType,      setFilterType]      = useState('')
   const [sortOrder,       setSortOrder]       = useState<'newest' | 'oldest'>('newest')
 
   // Side panel state
@@ -188,25 +200,51 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
     return map
   }, [projects])
 
-  // Unique teams for filter dropdown
+  // Unique teams for filter dropdown (includes metadata-only teams like shared/isolated teams)
   const uniqueTeams = useMemo(() => {
     const seen = new Map<string, string>()
-    for (const e of normalized) if (e.team_id && e.team_name) seen.set(e.team_id, e.team_name)
+    for (const e of normalized) {
+      // Normal teams (con team_id)
+      if (e.team_id && e.team_name) {
+        seen.set(e.team_id, e.team_name)
+      }
+      // Metadata-only teams (shared/isolated teams sin team_id visible para el usuario)
+      else if (!e.team_id && e.team_name) {
+        const syntheticId = `metadata:${e.team_name}`
+        seen.set(syntheticId, e.team_name)
+      }
+    }
     const result: { id: string; name: string }[] = []
     seen.forEach((name, id) => result.push({ id, name }))
     return result.sort((a, b) => (teamCodes?.[a.id] ?? a.name).localeCompare(teamCodes?.[b.id] ?? b.name))
   }, [normalized, teamCodes])
 
-  // Apply filters (nuevo diseño: search + project + team + date)
+  // Apply filters (nuevo diseño: search + project + team + date + type)
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     let result = normalized.filter(e => {
       // Project filter
       if (filterProjectId && e.team_id && teamProjectMap.get(e.team_id) !== filterProjectId) return false
-      // Team filter
-      if (filterTeamId && e.team_id !== filterTeamId) return false
+      // Team filter (match team_id OR synthetic metadata:team_name)
+      if (filterTeamId) {
+        const isSyntheticId = filterTeamId.startsWith('metadata:')
+        if (isSyntheticId) {
+          const teamName = filterTeamId.slice('metadata:'.length)
+          if (e.team_name !== teamName) return false
+        } else {
+          if (e.team_id !== filterTeamId) return false
+        }
+      }
       // Date filter
       if (filterDate && !e.created_at.startsWith(filterDate)) return false
+      // Type filter (categorías agrupadas)
+      if (filterType) {
+        if (filterType === 'connections') {
+          if (!['connection_accepted', 'connection_disconnected', 'connection_cancelled'].includes(e.event_type)) return false
+        } else {
+          if (e.event_type !== filterType) return false
+        }
+      }
       // Search filter (busca en event_type label, team_name, metadata)
       if (q) {
         const cfg = EVENT_CONFIG[e.event_type]
@@ -224,7 +262,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
       result = [...result].reverse()
     }
     return result
-  }, [normalized, searchQuery, filterProjectId, filterTeamId, filterDate, sortOrder, teamProjectMap])
+  }, [normalized, searchQuery, filterProjectId, filterTeamId, filterDate, filterType, sortOrder, teamProjectMap])
 
   // Report filtered list to parent for SM panel context
   useEffect(() => { onFilterChange?.(filtered) }, [filtered]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -487,6 +525,24 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
             placeholder="Search events..."
             className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500 min-w-[200px]"
           />
+          {/* Type filter */}
+          <select
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="">All types</option>
+            <option value="save_version">Checkpoint Saved</option>
+            <option value="resume_work">Resume Work</option>
+            <option value="tool_call_executed">Web Search</option>
+            <option value="connections">Connections</option>
+            <option value="save_selection">Save Selection</option>
+            <option value="review_forward">Review &amp; Forward</option>
+            <option value="lock">Lock</option>
+            <option value="unlock">Unlock</option>
+            <option value="session_backup">Session Backup</option>
+            <option value="attachment_uploaded">File Attached</option>
+          </select>
           {/* Project filter (solo visible si hay más de 1 proyecto) */}
           {projects && projects.length > 1 && (
             <select
@@ -530,9 +586,9 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
             <option value="oldest">Oldest first</option>
           </select>
           {/* Reset button (condicional a filtros activos) */}
-          {(searchQuery || filterProjectId || filterTeamId || filterDate || sortOrder !== 'newest') && (
+          {(searchQuery || filterProjectId || filterTeamId || filterDate || filterType || sortOrder !== 'newest') && (
             <button
-              onClick={() => { setSearchQuery(''); setFilterProjectId(''); setFilterTeamId(''); setFilterDate(''); setSortOrder('newest') }}
+              onClick={() => { setSearchQuery(''); setFilterProjectId(''); setFilterTeamId(''); setFilterDate(''); setFilterType(''); setSortOrder('newest') }}
               className="text-xs text-gray-500 hover:text-gray-600 px-2"
             >
               Reset
