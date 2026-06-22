@@ -489,3 +489,99 @@ Piezas 1 y 2 son quick wins con bajo riesgo que completan la visibilidad básica
 
 **Patrón reutilizable:**
 Este es el segundo diferimiento de features de Connected Teams por complejidad de RLS cross-account (primero fue panel espejo, ahora Piezas 3 y 4). El patrón emergente es: features cross-account con RLS modificada requieren sesión dedicada, no pueden implementarse como "un fix más" dentro de una OE amplia.
+
+---
+
+## 2026-06-22 — Welcome bilateral (host + invitee) con contenido diferenciado por rol
+
+**Contexto:**
+Welcome screen originalmente solo se mostraba al invitado (receiver) en su primera visita al workspace compartido. El host (requester) nunca veía una bienvenida contextual sobre el workspace que él mismo había creado al invitar al colaborador.
+
+**Decisión:**
+Implementar bienvenida bilateral con contenido diferenciado según el rol del viewer. Cada usuario (host o invitee) recibe su propia bienvenida explicando el workspace compartido desde su perspectiva.
+
+**Por qué:**
+- El host necesita su propia bienvenida que explique el modelo de workspace compartido desde su perspectiva: él invitó a alguien, controla la gobernanza del workspace, puede compartir checkpoints opcionalmente (Piezas 3 y 4 de OE C diferidas).
+- El invitado mantiene su bienvenida existente con scope reminder sobre trazabilidad limitada.
+- UX asimétrica confundía al host sobre qué era el workspace compartido — el host veía el workspace sin contexto explicativo.
+- Cada rol tiene necesidades de información distintas: host → gobernanza y control; invitee → scope limitado y opt-in del host.
+
+**Detalles técnicos:**
+- Migration 039: nueva columna `team_connections.welcome_viewed_by_requester BOOLEAN DEFAULT false`
+- Flags independientes: `welcome_viewed` (receiver, legacy) + `welcome_viewed_by_requester` (host, nuevo)
+- API `/api/connections/mark-welcome-viewed` acepta `role: 'host' | 'invitee'` y actualiza el flag correspondiente
+- `WelcomeScreen.tsx` acepta prop `isHost: boolean` y renderiza contenido diferenciado
+- workspace/[id]/page.tsx detecta `isHost = connection.requester_account_id === user.id` y decide qué flag verificar
+
+**Contenido diferenciado:**
+- **Host:** Título "Welcome to your Shared Workspace", explicación de collaboration space, NO incluye scope reminder (el host ve toda su trazabilidad)
+- **Invitee:** Título "Welcome to Shared Workspace", scope reminder sobre trazabilidad limitada (mantiene contenido existente de OE B.3)
+
+**Alternativas descartadas:**
+- Welcome screen única con contenido genérico — descartado porque cada rol necesita explicación contextual distinta
+- Reutilizar `welcome_viewed` con lógica de "quien lo marca primero" — descartado porque genera race condition y no permite que ambos vean su bienvenida
+- Skip welcome para host — descartado porque UX asimétrica confunde al host sobre qué es el workspace compartido
+
+**Riesgos conocidos:**
+- `welcome_viewed` (sin sufijo) ahora semánticamente es "welcome_viewed_by_receiver" pero el nombre de columna no cambió (breaking change de schema evitado)
+- Si el host nunca acepta la modal, el flag queda en `false` indefinidamente (comportamiento intencional, respeta autonomía del usuario)
+
+**Estado:** Implemented 2026-06-22 (commit e5177df), migration 039 pending manual application
+
+**Lección clave:**
+Bienvenidas contextuales en features cross-account deben ser bilaterales con contenido diferenciado por rol. Flags booleanos separados evitan race conditions y permiten UX independiente para cada parte. Nombres de columna legacy se mantienen para evitar breaking changes — documentar semántica implícita en comentarios SQL.
+
+---
+
+## 2026-06-22 — Audit log bilateral para eventos de desconexión (disconnect/cancel)
+
+**Contexto:**
+OE C identificó gaps de trazabilidad en Connected Teams: solo `connection_accepted` tenía registro en audit_log (y solo para el invitado). Los eventos de desconexión (`disconnect` de conexión activa y `cancel` de conexión pendiente) NO generaban eventos de audit.
+
+**Decisión:**
+Registrar eventos `connection_disconnected` y `connection_cancelled` en audit_log con criterio de bilateralidad determinado por el tipo de evento:
+- **connection_disconnected:** bilateral (host + invitee ven el evento en sus propios audit logs)
+- **connection_cancelled:** unilateral (solo host/requester ve el evento)
+
+**Por qué bilateral para disconnect:**
+- Ambas partes están afectadas por la desconexión — el workspace compartido que estaba activo se termina para ambos
+- Accountability: ambos usuarios necesitan saber quién originó la desconexión (metadata `disconnected_by: 'requester' | 'receiver'`)
+- Simetría con eventos bidireccionales existentes (ej: ambas partes ven cuando se crea el workspace compartido, deben ver cuando se termina)
+
+**Por qué unilateral para cancel:**
+- El receiver nunca aceptó la conexión — no tiene contexto del workspace compartido
+- La solicitud pendiente solo es visible para el requester (quien la creó)
+- No hay workspace activo que se termine — es simplemente el requester retractando una solicitud pendiente
+
+**Detalles técnicos:**
+
+**connection_disconnected (bilateral):**
+- INSERT 1 (initiator): audit_log para `user.id` (quien ejecutó disconnect) con metadata:
+  - `partner_email`, `partner_team_name`, `description`
+  - `disconnected_by: 'requester' | 'receiver'` (indica quién originó)
+  - `viewer_role: 'host' | 'invitee'` (indica el rol del viewer de este evento)
+- INSERT 2 (other party): audit_log para la otra cuenta usando `createAdminClient()`
+  - Metadata simétrico pero invertido (partner_email es el otro lado)
+  - `disconnected_by`: mismo valor (ambos saben quién desconectó)
+  - `viewer_role`: invertido del initiator
+- Ambos INSERTs fail-open (try/catch independientes)
+
+**connection_cancelled (unilateral):**
+- Solo INSERT para requester (`user.id`)
+- Metadata: `receiver_email`, `requester_team_name`, `description`
+- `viewer_role: 'host'` (siempre requester)
+- `traceability_note`: "Pending connection request cancelled before acceptance."
+
+**Alternativas descartadas:**
+- Audit log solo para initiator en disconnect — descartado porque la otra parte necesita saber quién desconectó (accountability)
+- Registrar cancel también para receiver — descartado porque el receiver nunca aceptó (no tiene contexto del workspace compartido)
+- Usar status `'disconnected'` nuevo — descartado porque requiere migration del CHECK constraint; `'cancelled'` semánticamente correcto y ya permitido
+
+**Riesgos conocidos:**
+- `status = 'cancelled'` usado tanto para disconnect (activo→cancelled) como para cancel (pending→deleted) — semántica overloaded pero aceptable
+- Eventos `connection_cancelled` acumulan en DB — si crece la tabla, considerar filtro en GET `/api/connections` o cleanup job
+
+**Estado:** Implemented 2026-06-22 (commit c038fab)
+
+**Lección clave:**
+Eventos de desconexión cross-account requieren audit bilateral con metadata que identifique al initiator — ambas partes necesitan accountability. Eventos de cancelación (pending→deleted) son unilaterales porque la otra parte nunca aceptó (no tiene contexto). Criterio de bilateralidad no es automático — depende del estado previo de la relación (activa vs pendiente).

@@ -7469,6 +7469,279 @@ Errores de hidratación React pueden romper completamente el árbol de component
 
 ---
 
+## Sesión 2026-06-22 — Welcome screen para Host en Connected Teams
+
+**Fecha:** 2026-06-22  
+**Archivos modificados:**
+- supabase/migrations/039_welcome_viewed_by_requester.sql
+- src/app/api/connections/mark-welcome-viewed/route.ts
+- src/app/workspace/[id]/page.tsx
+- src/components/workspace/WelcomeScreen.tsx
+- src/components/workspace/WorkspaceClient.tsx
+
+**Problema reportado:**
+Welcome screen solo se mostraba al invitado (receiver) en su primera visita al workspace compartido. El host (requester) nunca veía una bienvenida contextual al workspace que él mismo había creado al invitar al colaborador.
+
+**Diagnóstico:**
+- Migration 035 agregó `team_connections.welcome_viewed` (flag único) — asumía que solo el invitado necesitaba bienvenida
+- WelcomeScreen.tsx tenía contenido hardcoded para invitee (scope reminder sobre trazabilidad limitada)
+- workspace/[id]/page.tsx solo verificaba `welcome_viewed` (sin distinguir rol del viewer)
+- UX asimétrica: invitado recibía contexto sobre el workspace compartido, host no
+
+**Decisión técnica:**
+Bienvenida bilateral con contenido diferenciado por rol. El host necesita su propia bienvenida que explique el modelo de workspace compartido desde su perspectiva (invitó a alguien, controla la gobernanza, puede compartir checkpoints opcionalmente). El invitado mantiene su bienvenida existente (scope reminder sobre trazabilidad).
+
+**Cambios implementados:**
+
+**1. Migration 039 — welcome_viewed_by_requester:**
+- Agregar columna `team_connections.welcome_viewed_by_requester BOOLEAN DEFAULT false`
+- Independiente de `welcome_viewed` (que ahora implícitamente es "welcome_viewed_by_receiver")
+- Ambos flags son opcionales — el usuario puede refreshear sin marcar como visto
+
+**2. mark-welcome-viewed API — role parameter:**
+- Aceptar `{ role: 'host' | 'invitee' }` en POST body
+- Si `role === 'host'`: UPDATE `welcome_viewed_by_requester = true`
+- Si `role === 'invitee'`: UPDATE `welcome_viewed = true`
+- Ownership check: solo el user autenticado puede marcar su propio flag
+
+**3. WelcomeScreen.tsx — dual content:**
+- Aceptar prop `isHost: boolean`
+- Contenido para host:
+  - Título: "Welcome to your Shared Workspace"
+  - Explicación: workspace creado al aceptar conexión, collaboration space
+  - Scope reminder: OMITIDO (el host ve toda su trazabilidad)
+- Contenido para invitee:
+  - Título: "Welcome to Shared Workspace" (sin "your")
+  - Scope reminder: MANTENIDO (trazabilidad limitada)
+- Botón "Got it" llama `onClose()` pasando el role correcto
+
+**4. workspace/[id]/page.tsx — detect role + show welcome:**
+- Fetch `team_connections` incluyendo ambos flags: `welcome_viewed`, `welcome_viewed_by_requester`
+- Detectar `isHost = connection.requester_account_id === user.id`
+- Show welcome si:
+  - `isHost && !connection.welcome_viewed_by_requester` → host primera visita
+  - `!isHost && !connection.welcome_viewed` → invitee primera visita
+- Pasar `isHost` prop a `WorkspaceClient` → `WelcomeScreen`
+
+**Alternativas descartadas:**
+- Welcome screen única con contenido genérico — descartado porque cada rol necesita explicación contextual distinta (host controla gobernanza, invitee tiene scope limitado)
+- Reutilizar `welcome_viewed` con lógica de "quien lo marca primero" — descartado porque genera race condition y no permite que ambos vean su bienvenida
+- Skip welcome para host — descartado porque UX asimétrica confunde al host sobre qué es el workspace compartido
+
+**Riesgos conocidos / deuda técnica:**
+- Migration 039 pendiente aplicación manual en Supabase — funcionalidad completa requiere ejecución del SQL
+- `welcome_viewed` (sin sufijo) ahora semánticamente es "welcome_viewed_by_receiver" pero el nombre de columna no cambió (breaking change de schema evitado)
+- Si el host nunca acepta la modal, el flag queda en `false` indefinidamente (no hay auto-mark después de N visitas) — comportamiento intencional, respeta autonomía del usuario
+
+**Estado:** CERRADA. Build exitoso. Commit e5177df pushed. Migration 039 pending.
+
+**Lección clave:**
+Bienvenidas contextuales en features cross-account deben ser bilaterales con contenido diferenciado por rol. Cada usuario necesita entender el workspace desde su perspectiva (host: gobernanza y control; invitee: scope limitado). Flags booleanos separados evitan race conditions y permiten UX independiente para cada parte. Nombres de columna legacy (`welcome_viewed` sin sufijo) se mantienen para evitar breaking changes — documentar semántica implícita en comentarios SQL.
+
+---
+
+## Sesión 2026-06-22 — OE C (Piezas 1 y 2): Registro de conexión en audit_log del invitado
+
+**Fecha:** 2026-06-22  
+**Archivos modificados:**
+- src/app/api/connections/[id]/route.ts (INSERT audit_log en accept)
+
+**Problema reportado:**
+Gaps de trazabilidad en Connected Teams — al aceptar una conexión, NO se registraba ningún evento en audit_log del invitado. El invitado no tenía registro histórico de cuándo aceptó la conexión, con quién, ni descripción del propósito del workspace compartido.
+
+**Diagnóstico:**
+- `/api/connections/[id]/route.ts` PATCH action `accept` solo modificaba `team_connections` (status → active, receiver_account_id)
+- NO había INSERT en `audit_log` después del UPDATE exitoso
+- Isolated team creation era el único evento traceable, pero pertenece al proyecto del host (no visible en audit del invitee)
+- Asimetría con otros eventos de workspace (save_version, lock, resume_work) que SÍ registran en audit_log
+
+**Decisión técnica:**
+Registrar evento `connection_accepted` en audit_log del invitado con metadata completo (`requester_email`, `requester_team_name`, `description`, `connection_id`). Incluir mensaje de trazabilidad explícito que informe al invitado que la trazabilidad detallada vive en la cuenta del host — esto resuelve la confusión futura cuando el invitado busque checkpoints del workspace compartido y no los encuentre (Piezas 3 y 4 diferidas).
+
+**Cambios implementados:**
+
+**1. route.ts líneas 62-80 — INSERT audit_log en accept:**
+- Después de UPDATE exitoso de `team_connections`, agregar try/catch para INSERT
+- `account_id: user.id` (el invitado que acepta)
+- `workspace_id: null` (evento cross-account sin workspace asociado todavía)
+- `event_type: 'connection_accepted'`
+- Metadata:
+  - `connection_id`: para poder vincular con team_connections si se necesita lookup
+  - `requester_email`: quién inició la conexión
+  - `requester_team_name`: equipo del host
+  - `description`: propósito del workspace compartido (texto libre del host)
+  - `traceability_note`: **"Detailed traceability data lives in [requester_email]'s account. This workspace shows only what's shared with you."**
+- Fail-open: si el INSERT falla, NO bloquear el accept (audit log no es crítico para funcionalidad)
+
+**2. Error handling:**
+- `console.error('[accept] Failed to insert audit_log event:', auditError)` para debugging
+- Accept sigue retornando 200 OK incluso si audit log falla
+
+**Alternativas descartadas:**
+- Registrar evento en audit_log del HOST en vez del invitado — descartado porque el host ya tiene visibilidad completa de team_connections via RLS; el invitado es quien necesita el registro histórico
+- Omitir `traceability_note` — descartado porque el invitado DEBE entender que su vista del workspace compartido es limitada (scope reminder también en welcome screen, pero audit log es registro permanente)
+- Fail-hard si audit log falla — descartado porque accept es operación crítica de negocio, audit log es observabilidad; degradar gracefully
+
+**Riesgos conocidos / deuda técnica:**
+- Evento `connection_accepted` NO registrado en audit_log del HOST (asimetría) — corregido en commit posterior 0f76bae
+- `traceability_note` es estático — si el email del requester cambia (edge case), el mensaje queda desactualizado
+- Evento con `workspace_id=null` no tiene JOIN con `workspaces.teams` — requiere fallback a metadata para team_name (implementado en Pieza 3)
+
+**Estado:** CERRADA. Build exitoso. Commit 5b2203f pushed.
+
+**Lección clave:**
+Eventos de conexión cross-account son audit-critical porque cruzan límites de soberanía de cuentas. El invitado necesita registro histórico independiente de la visibilidad que tenga sobre datos del host. `traceability_note` explícito en metadata previene confusión futura cuando el usuario busque datos que no existen en su scope. Fail-open en audit log preserva disponibilidad de la operación crítica (accept) mientras registra el fallo para debugging.
+
+---
+
+## Sesión 2026-06-22 — OE C gaps completos: disconnected, cancelled y nuevo filtro Audit Log
+
+**Fecha:** 2026-06-22  
+**Archivos modificados:**
+- src/app/api/connections/[id]/route.ts (INSERT audit_log en disconnect + DELETE)
+- src/components/audit/AuditTimeline.tsx (EVENT_CONFIG + filtro rediseñado)
+- src/components/documentation/AuditView.tsx (EVENT_CONFIG nuevos eventos)
+
+**Problema reportado:**
+Gaps de trazabilidad en desconexión y cancelación de Connected Teams — solo se registraba `connection_accepted`, pero NOT `disconnect` ni `cancel`. Usuario no podía auditar quién desconectó un workspace compartido ni cuándo. Filtro de Audit Log era básico (solo "All states" / "All event types" sin search ni fecha).
+
+**Diagnóstico:**
+
+**Gap 1 — Disconnect sin audit log:**
+- `/api/connections/[id]/route.ts` PATCH action `disconnect` solo modificaba `team_connections.status = 'cancelled'`
+- NO había INSERT en `audit_log` para ninguna de las dos partes (requester ni receiver)
+- Asimetría crítica: accept registra evento, disconnect no
+
+**Gap 2 — Cancel sin audit log:**
+- DELETE de `team_connections` (pending connection cancelled by requester) solo eliminaba el registro
+- NO había INSERT en `audit_log` para el requester
+- El receiver nunca ve el evento (correcto — nunca aceptó), pero el requester pierde historial de solicitudes canceladas
+
+**Gap 3 — Filtro limitado:**
+- AuditTimeline solo tenía "All states" (active/locked) y "All event types" (dropdown de event_type)
+- NO había search box texto libre
+- NO había filtro por fecha
+- NO había filtro por proyecto (si el usuario tiene múltiples proyectos)
+
+**Decisión técnica:**
+
+**A. Audit log bilateral para disconnect:**
+Registrar evento `connection_disconnected` en AMBAS cuentas (requester + receiver) con metadata que indique quién originó la desconexión (`disconnected_by: 'requester' | 'receiver'`). Ambas partes necesitan ver el evento porque afecta su workspace compartido activo.
+
+**B. Audit log unilateral para cancel:**
+Registrar evento `connection_cancelled` solo en cuenta del requester. El receiver nunca aceptó, por ende no tiene contexto del workspace compartido — no necesita ver solicitudes pendientes canceladas.
+
+**C. Filtro rediseñado basado en Structure View:**
+Reemplazar "All states"/"All event types" con panel de filtros completo: search box texto libre, filtro por proyecto (condicional), filtro por team, filtro por fecha (input date), orden newest/oldest, botón reset.
+
+**Cambios implementados:**
+
+**1. route.ts PATCH action 'disconnect' (líneas 187-252):**
+- Verificar `status === 'active'` (solo se puede desconectar conexión activa)
+- Autorización: requester (`requester_account_id === user.id`) O receiver (via `isReceiver` check)
+- UPDATE `status = 'cancelled'` con verificación de filas afectadas (patrón SEC-007)
+- **INSERT 1 (initiator):** audit_log para user.id con metadata:
+  - `partner_email`: email de la otra parte
+  - `partner_team_name`: team de la otra parte
+  - `disconnected_by: 'requester' | 'receiver'` (según `isRequester`)
+  - `traceability_note`: mensaje contextual
+- **INSERT 2 (other party):** audit_log para la otra cuenta usando `createAdminClient()`
+  - Metadata simétrico pero invertido (partner_email de la otra parte)
+  - `disconnected_by`: mismo valor (indica quién originó)
+  - Fail-open en ambos INSERTs
+
+**2. route.ts DELETE (líneas 258-306):**
+- Verificar ownership: `requester_account_id === user.id`
+- DELETE solo si `status = 'pending'` (pending connections can be cancelled)
+- **INSERT audit_log** (solo requester):
+  - `event_type: 'connection_cancelled'`
+  - Metadata: `receiver_email`, `requester_team_name`, `description`
+  - `traceability_note`: "Pending connection request cancelled before acceptance."
+  - Fail-open
+
+**3. AuditTimeline.tsx — EVENT_CONFIG nuevos eventos (líneas 84-86):**
+- `connection_disconnected`: label "Connection Disconnected", badge rojo
+- `connection_cancelled`: label "Connection Cancelled", badge gris
+- eventTitle: `"Disconnected from ${partner_email}"` / `"Cancelled request to ${receiver_email}"`
+- eventDetail: `"${partner_team_name} · ${description} · by ${disconnected_by}"`
+
+**4. AuditTimeline.tsx — Filtro rediseñado (líneas 481-541):**
+- **Search box:** `searchQuery` state, busca en `event_type.label`, `team_name`, `JSON.stringify(metadata)`
+- **Project filter:** solo visible si `projects.length > 1`, filtra via `teamProjectMap.get(team_id)`
+- **Team filter:** mantenido del diseño anterior
+- **Date filter:** `<input type="date">` filtra por `created_at.startsWith(filterDate)`
+- **Sort order:** "Newest first" (default) / "Oldest first"
+- **Reset button:** condicional a filtros activos, limpia todos los states
+- Lógica de filtrado: AND de todos los filtros activos
+
+**5. AuditView.tsx — EVENT_CONFIG (líneas 15-16):**
+- Mismos eventos agregados para consistencia en Documentation Audit View
+
+**Alternativas descartadas:**
+- Audit log solo para initiator en disconnect — descartado porque la otra parte necesita saber quién desconectó (accountability)
+- Status `'disconnected'` nuevo — descartado porque requiere migration del CHECK constraint; `'cancelled'` semánticamente correcto y ya permitido
+- Filtro incremental sobre diseño anterior — descartado porque "All states" era específico de checkpoints (no aplicable a eventos de conexión), mejor rediseño completo
+
+**Riesgos conocidos / deuda técnica:**
+- `status = 'cancelled'` usado tanto para disconnect (activo→cancelled) como para cancel (pending→deleted) — semántica overloaded pero aceptable
+- Eventos `connection_cancelled` acumulan en DB — si crece la tabla, considerar filtro en GET `/api/connections` o cleanup job
+- Filtro rediseñado solo aplicado a AuditTimeline (ruta `/audit`) — AuditView (`/documentation`) mantiene su filtro anterior (divergencia intencional: diferentes use cases)
+
+**Estado:** CERRADA. Build exitoso. Commit c038fab pushed.
+
+**Lección clave:**
+Eventos de desconexión cross-account requieren audit bilateral con metadata que identifique al initiator — ambas partes necesitan accountability. Eventos de cancelación (pending→deleted) son unilaterales porque la otra parte nunca aceptó (no tiene contexto). Filtros de audit deben evolucionar con la complejidad de los datos — cuando hay eventos cross-account sin workspace, el filtro "All states" (locked/active) deja de tener sentido; search box + fecha son más útiles. Rediseño de filtro basado en patterns probados (Structure View) reduce riesgo de regresión.
+
+---
+
+## Sesión 2026-06-22 — Fix team_name fallback en getAuditEvents (audit.ts)
+
+**Fecha:** 2026-06-22  
+**Archivos modificados:**
+- src/lib/db/audit.ts (función getAuditEvents)
+
+**Problema reportado:**
+Eventos `connection_accepted` con `workspace_id=null` aparecían en query de `getAuditEvents()` pero con `team_name=null` — el JOIN `workspaces(teams)` no retornaba datos porque no hay workspace asociado. El team_name correcto estaba en `metadata.requester_team_name` pero no se extraía.
+
+**Diagnóstico:**
+- Query: `audit_log.select('..., workspaces(name, teams(id, name))')`
+- Para eventos con `workspace_id=null`, el JOIN retorna `workspaces: null`
+- El map asignaba `teamName = r.workspaces?.teams?.name ?? null` — siempre null para eventos de conexión
+- Metadata tenía `requester_team_name` (insertado en OE C Pieza 1), pero NO se usaba como fallback
+
+**Decisión técnica:**
+Agregar fallback en el map: si `workspaces.teams.name` es null, intentar extraer `team_name` de `metadata.requester_team_name`. Esto permite que eventos cross-account sin workspace se muestren correctamente en ambas vistas de audit (AuditTimeline + AuditView).
+
+**Cambios implementados:**
+
+**audit.ts línea 35:**
+```typescript
+const teamName = r.workspaces?.teams?.name 
+  ?? (r.metadata?.requester_team_name as string | null | undefined) 
+  ?? null
+```
+
+Orden de fallback:
+1. `workspaces.teams.name` — eventos normales con workspace
+2. `metadata.requester_team_name` — eventos de conexión (connection_accepted, potencialmente otros futuros)
+3. `null` — eventos sin team asociado (edge case)
+
+**Alternativas descartadas:**
+- Modificar query para hacer LEFT JOIN condicional — descartado porque Supabase client no soporta JOINs condicionales en `.select()`, requeriría raw SQL
+- Crear vista materializada en DB con team_name pre-computed — descartado porque overengineering para un fallback simple
+- Omitir team_name para eventos de conexión — descartado porque el filtro "All teams" quedaría vacío para estos eventos
+
+**Riesgos conocidos / deuda técnica:**
+- Si metadata NO tiene `requester_team_name` (eventos legacy o bug), el fallback retorna `null` silenciosamente — no hay warning
+- Fallback solo implementado en `getAuditEvents()` (usado por AuditTimeline) — `getDocAuditEvents()` (usado por AuditView) tiene su propio map con el mismo patrón (implementado en Pieza 3)
+
+**Estado:** CERRADA. Build exitoso. Commit 7362c57 pushed.
+
+**Lección clave:**
+Eventos cross-account sin workspace requieren fallbacks de metadata para campos que normalmente vienen de JOINs. El map post-query es el lugar correcto para aplicar fallbacks — más mantenible que raw SQL. Orden de fallback debe ser explícito: dato canónico (JOIN) → metadata (snapshot) → null (edge case). Duplicar patrón en múltiples queries (getAuditEvents + getDocAuditEvents) es aceptable cuando la lógica es trivial (< 3 líneas); refactor a helper solo si la complejidad crece.
+
+---
+
 ## Sesión 2026-06-22 — Ajustes a filtros de Audit Log + metadata de eventos de conexión
 
 **Fecha:** 2026-06-22  

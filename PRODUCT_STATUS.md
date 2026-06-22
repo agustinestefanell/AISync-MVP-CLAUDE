@@ -181,6 +181,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | 035_connection_welcome_flag.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE B.3); agrega welcome_viewed_by_invitee a team_connections |
 | 037_human_messages.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE B.4); tabla human_messages + RLS para chat humano |
 | 038_checkpoint_messages_human_support.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE B.4); extend checkpoint_messages con message_type para soportar mensajes humanos |
+| 039_welcome_viewed_by_requester.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (2026-06-22); agrega welcome_viewed_by_requester a team_connections para welcome bilateral |
 
 ---
 
@@ -196,13 +197,14 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Accept creates team/workspace/3 sessions | ✅ Closed | Fail-open implementation — accept succeeds even if isolated team creation fails |
 | Provider/model resolution | ✅ Closed | Resolved from requester team's agent_sessions; defaults to Anthropic/Claude 3.5 Sonnet |
 | Duplicate protection | ✅ Closed | Checks `scope_isolated_team_id` before creating new isolated team |
-| Welcome screen for shared workspace | ✅ Closed | OE B.3 — Modal on first invitee visit (commit df105c8, migration 035 pending) |
+| Welcome screen for shared workspace | ✅ Closed | OE B.3 — Modal on first invitee visit (commit df105c8, migration 035 pending). Extended 2026-06-22: bilateral welcome (host + invitee) with differentiated content by role (commit e5177df, migration 039 pending). |
 | **Human-to-human chat (Panel 1)** | ✅ Closed | OE B.4 — HumanChatPanel with Realtime, day markers, selection support (commit 5654c51, migrations 037+038 pending). Fix crítico 2026-06-18: React hydration errors resueltos (commits 829abdd + 7a3a3f7) — mensajes ahora aparecen sin necesidad de F5. Trazabilidad implementada (commit 8bcb9b6) — Save Version y Save Selection funcionales para mensajes humanos. UX fix (commit 34e94b6) — reordenamiento de secciones (Input → Forward → Actions) y CSS portado de AgentPanel para pixel-perfect match. |
 | **Manager panel (Panel 2)** | ✅ Closed | OE B.4 — Shows first agent_session (manager) with all normal controls |
 | **2-panel Connected Teams layout** | ✅ Closed | OE B.4 — Conditional grid in WorkspaceShell for isolated teams |
-| **Audit log event for connection_accepted** | ✅ Closed | OE C Pieza 1+2 — INSERT en audit_log del invitado con metadata completo (requester_email, requester_team_name, description, traceability_note). Migration 039 (welcome_viewed_by_requester) en paralelo. |
-| **Render connection_accepted in Audit Views** | ✅ Closed | OE C Pieza 3 — Fix renderizado en /audit (AuditTimeline) y /documentation Audit View. Backend extraía team_name de metadata cuando workspace_id=null. Frontend agregó EVENT_CONFIG + eventTitle/eventDetail + manejo de nulls. Build exitoso 2026-06-22. |
-| **Audit Log filter improvements** | ✅ Closed | 2026-06-22 — AJUSTE 1: Shared teams (isolated) ahora aparecen en dropdown "All teams" usando synthetic IDs (metadata:${team_name}). AJUSTE 2: Nuevo filtro "All types" con categorías de eventos (Checkpoint Saved, Resume Work, Web Search, Connections, etc.) — convive con search box (AND logic). AJUSTE 3: Metadata viewer_role agregado a eventos de conexión (host/invitee) → títulos muestran rol explícito ("Connected with [email] — As Invitee"). Commit e5919a4. |
+| **Audit log events: connection lifecycle** | ✅ Closed | OE C completo — 3 eventos registrados: (1) `connection_accepted` bilateral (host + invitee, commits 5b2203f + 0f76bae), (2) `connection_disconnected` bilateral con metadata `disconnected_by` (commit c038fab), (3) `connection_cancelled` unilateral (solo requester, commit c038fab). Metadata completo: partner_email, partner_team_name, description, viewer_role, traceability_note. |
+| **Render connection events in Audit Views** | ✅ Closed | OE C Pieza 3 + gaps — EVENT_CONFIG agregado para los 3 eventos en AuditTimeline + AuditView. Fix team_name fallback para eventos con workspace_id=null (commit 7362c57). eventTitle diferenciado por viewer_role: host ve receiver_email, invitee ve requester_email. Build exitoso 2026-06-22. |
+| **Audit Log redesigned filters** | ✅ Closed | OE C gaps (commit c038fab) — Filtro rediseñado en AuditTimeline basado en Structure View: search box texto libre + filtro proyecto (condicional) + filtro team + filtro fecha (input date) + orden newest/oldest + reset button. Reemplaza filtro anterior "All states"/"All event types". AuditView mantiene su filtro independiente (divergencia intencional). |
+| **Audit Log filter improvements** | ✅ Closed | 2026-06-22 (commit e5919a4) — AJUSTE 1: Shared teams (isolated) ahora aparecen en dropdown "All teams" usando synthetic IDs (metadata:${team_name}). AJUSTE 2: Nuevo filtro "All types" con categorías de eventos (Checkpoint Saved, Resume Work, Web Search, Connections, etc.) — convive con search box (AND logic). AJUSTE 3: Metadata viewer_role agregado a eventos de conexión (host/invitee) → títulos muestran rol explícito ("Connected with [email] — As Invitee"). |
 | Metadata package (host → invitee) | Pending | Post-MVP — optional governance sharing |
 
 ---
