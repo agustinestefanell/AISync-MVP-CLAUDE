@@ -7481,6 +7481,7 @@ Errores de hidratación React pueden romper completamente el árbol de component
 1. Shared teams (equipos isolated de Connected Teams) NO aparecían en dropdown "All teams" del filtro de Audit Log
 2. Faltaba filtro por Type (categorías de eventos) complementario al search box existente
 3. Eventos de conexión NO mostraban ROL del viewer (host vs invitee), dificultando interpretar la dirección de la conexión
+4. **AJUSTE ADICIONAL (post-implementación):** connection_accepted solo se registraba en audit_log del invitado, no del host → asimetría con connection_disconnected (que sí registra en ambas cuentas)
 
 **Diagnóstico:**
 
@@ -7542,10 +7543,27 @@ Errores de hidratación React pueden romper completamente el árbol de component
 
 3. **viewer_role solo se guarda en eventos NUEVOS:** Eventos de conexión existentes en DB NO tienen viewer_role → título se degrada a formato anterior ("Connected with ${email}" sin role). Fix retroactivo requeriría migration UPDATE sobre audit_log.metadata (JSONB) — no crítico, eventos viejos siguen siendo legibles.
 
-**Estado:** CERRADA. Build exitoso. Commit e5919a4 pushed a producción.
+**AJUSTE 4 — connection_accepted bilateral (fix post-implementación):**
+
+Después del primer commit (e5919a4), se identificó asimetría: `connection_accepted` solo se registraba en audit_log del invitado, mientras que `connection_disconnected` ya registraba en AMBAS cuentas (patrón simétrico correcto).
+
+**Fix aplicado (commit 0f76bae):**
+- **route.ts líneas 62-100:** Agregado segundo INSERT para el host (requester) usando admin client
+  - Metadata del host: `receiver_email`, `receiver_team_name`, `viewer_role='host'`
+  - Ambos INSERTs son fail-open (try/catch independientes)
+  - Patrón ahora simétrico con `connection_disconnected`
+- **AuditTimeline eventTitle (línea 106-111):** Lógica condicional basada en viewer_role
+  - Host ve: `"Connected with ${receiver_email} — As Host"`
+  - Invitee ve: `"Connected with ${requester_email} — As Invitee"`
+- **AuditTimeline eventDetail (línea 126-131):** Team name correcto según viewer_role
+  - Host ve: `receiver_team_name`
+  - Invitee ve: `requester_team_name`
+- **AuditView cpName (línea 186-191):** Misma lógica aplicada en Documentation Audit View
+
+**Estado:** CERRADA. Build exitoso. Commits e5919a4 (filtros + metadata) y 0f76bae (bilateral audit) pushed a producción.
 
 **Lección clave:**
-Filtros sobre datos heterogéneos (teams con ID vs metadata-only teams) requieren identificadores sintéticos cuando no hay FK real disponible. Synthetic IDs permiten UX consistente sin cambios de schema, con trade-off aceptable de colisión en edge cases. Metadata explícito (viewer_role) vs derivado (de isRequester) favorece claridad y mantenibilidad — campo redundante es aceptable si elimina ambigüedad y simplifica rendering. Categorización de eventos en UI puede ser hardcoded si el dominio es estable y el costo de autodescubrimiento excede beneficio.
+Filtros sobre datos heterogéneos (teams con ID vs metadata-only teams) requieren identificadores sintéticos cuando no hay FK real disponible. Synthetic IDs permiten UX consistente sin cambios de schema, con trade-off aceptable de colisión en edge cases. Metadata explícito (viewer_role) vs derivado (de isRequester) favorece claridad y mantenibilidad — campo redundante es aceptable si elimina ambigüedad y simplifica rendering. Categorización de eventos en UI puede ser hardcoded si el dominio es estable y el costo de autodescubrimiento excede beneficio. **Eventos de conexión deben ser simétricos (bilateral audit trail) — verificar patrón existente en eventos similares antes de implementar nuevos event_types.**
 
 ---
 
