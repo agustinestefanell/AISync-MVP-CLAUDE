@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-06-22 (OE C Pieza 3 CERRADA: connection_accepted visible en Audit Views)
+Last updated: 2026-06-22 (Ajustes a filtros de Audit Log + metadata viewer_role en eventos de conexión)
 
 ---
 
@@ -202,6 +202,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | **2-panel Connected Teams layout** | ✅ Closed | OE B.4 — Conditional grid in WorkspaceShell for isolated teams |
 | **Audit log event for connection_accepted** | ✅ Closed | OE C Pieza 1+2 — INSERT en audit_log del invitado con metadata completo (requester_email, requester_team_name, description, traceability_note). Migration 039 (welcome_viewed_by_requester) en paralelo. |
 | **Render connection_accepted in Audit Views** | ✅ Closed | OE C Pieza 3 — Fix renderizado en /audit (AuditTimeline) y /documentation Audit View. Backend extraía team_name de metadata cuando workspace_id=null. Frontend agregó EVENT_CONFIG + eventTitle/eventDetail + manejo de nulls. Build exitoso 2026-06-22. |
+| **Audit Log filter improvements** | ✅ Closed | 2026-06-22 — AJUSTE 1: Shared teams (isolated) ahora aparecen en dropdown "All teams" usando synthetic IDs (metadata:${team_name}). AJUSTE 2: Nuevo filtro "All types" con categorías de eventos (Checkpoint Saved, Resume Work, Web Search, Connections, etc.) — convive con search box (AND logic). AJUSTE 3: Metadata viewer_role agregado a eventos de conexión (host/invitee) → títulos muestran rol explícito ("Connected with [email] — As Invitee"). Commit e5919a4. |
 | Metadata package (host → invitee) | Pending | Post-MVP — optional governance sharing |
 
 ---

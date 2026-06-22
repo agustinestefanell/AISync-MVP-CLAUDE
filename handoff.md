@@ -7469,6 +7469,86 @@ Errores de hidratación React pueden romper completamente el árbol de component
 
 ---
 
+## Sesión 2026-06-22 — Ajustes a filtros de Audit Log + metadata de eventos de conexión
+
+**Fecha:** 2026-06-22  
+**Archivos modificados:**
+- src/app/api/connections/[id]/route.ts (metadata viewer_role en 3 eventos de conexión)
+- src/components/audit/AuditTimeline.tsx (filtro por Type + uniqueTeams con metadata + eventTitle con role)
+- src/components/documentation/AuditView.tsx (uniqueTeams con metadata + cpName con role)
+
+**Problema reportado:**
+1. Shared teams (equipos isolated de Connected Teams) NO aparecían en dropdown "All teams" del filtro de Audit Log
+2. Faltaba filtro por Type (categorías de eventos) complementario al search box existente
+3. Eventos de conexión NO mostraban ROL del viewer (host vs invitee), dificultando interpretar la dirección de la conexión
+
+**Diagnóstico:**
+
+**AJUSTE 1 — Shared teams no aparecen en "All teams":**
+- Root cause: `uniqueTeams` solo agregaba teams con `team_id && team_name` (línea 193 AuditTimeline)
+- Eventos `connection_accepted` NO tienen `team_id` (workspace_id=null, evento cross-account)
+- Solo tienen metadata con `requester_team_name`, pero sin ID asociado
+- Equipos isolated pertenecen al proyecto del requester → RLS bloquea acceso al invitado → no hay team_id visible
+
+**AJUSTE 2 — Filtro por Type:**
+- Estado actual: solo search box libre, sin categorización de tipos de eventos
+- Categorías propuestas: Checkpoint Saved, Resume Work, Web Search, Connections (agrupa connection_accepted/disconnected/cancelled), Save Selection, Review & Forward, Lock/Unlock, Session Backup, File Attached
+
+**AJUSTE 3 — Metadata viewer_role:**
+- Metadata actual NO incluye campo `isHost` ni `viewer_role`
+- `connection_accepted`: siempre se registra en el invitado (receiver) → viewer es siempre invitee
+- `connection_disconnected`: metadata tiene `disconnected_by: 'requester' | 'receiver'` pero no viewer_role explícito
+- `connection_cancelled`: solo lo ve el requester (host), porque el invitado nunca aceptó
+
+**Decisión técnica:**
+
+1. **Synthetic team IDs:** Agregar teams de metadata al dropdown usando identificador sintético `metadata:${team_name}`. Esto permite filtrar por shared teams sin requerir team_id real. Trade-off: si dos teams tienen el mismo nombre exacto, el filtro los agrupa (low probability, acceptable risk).
+
+2. **Filtro por Type como select independiente:** Agregar `<select>` con categorías hardcoded que agrupa eventos relacionados (ej. "Connections" matchea 3 event_types). Convive con search box usando lógica AND (no reemplazo). Trade-off: categorías están hardcoded en frontend, no se autodescubren del EVENT_CONFIG — requiere mantenimiento manual si se agregan nuevos event_types.
+
+3. **Metadata viewer_role explícito:** Agregar campo `viewer_role: 'host' | 'invitee'` al metadata de los 3 eventos de conexión. Esto hace explícito el contexto del viewer y elimina ambigüedad. Trade-off: campo redundante (derivable de isRequester logic) pero mejora claridad y evita bugs futuros si cambia lógica de isRequester.
+
+**Alternativas descartadas:**
+
+1. **Hacer JOIN con team_connections para obtener team_id real:** Descartado porque requiere cambio en schema (FK audit_log.connection_id → team_connections.id) y audit_log está diseñado sin FKs formales (decisión pendiente de arquitectura documental). Además, agregaría complejidad al query de getAuditEvents sin beneficio real (synthetic ID cumple el objetivo).
+
+2. **Autodescubrir categorías del EVENT_CONFIG:** Descartado porque EVENT_CONFIG es flat (no tiene campo category) y agregar categorías al config requeriría refactor de toda la estructura. Categorías hardcoded en el select son más simples y mantenibles.
+
+3. **Omitir viewer_role y confiar en disconnected_by:** Descartado porque disconnected_by solo aplica a disconnect, no a accept/cancel. Además, requiere lógica de derivación en frontend cada vez que se muestra el evento, aumentando riesgo de inconsistencias.
+
+**Cambios implementados:**
+
+**1. route.ts — Metadata viewer_role en eventos de conexión:**
+- `connection_accepted` (línea 74): agregado `viewer_role: 'invitee'` (siempre receiver)
+- `connection_disconnected` (líneas 213, 238): agregado `viewer_role` derivado de `isRequester` (host si requester, invitee si receiver) — aplica a AMBOS INSERT (initiator + other party)
+- `connection_cancelled` (línea 299): agregado `viewer_role: 'host'` (siempre requester)
+
+**2. AuditTimeline.tsx — Filtro por Type + uniqueTeams con metadata + eventTitle con role:**
+- **uniqueTeams** (línea 191-205): Modificado para incluir teams de metadata usando synthetic ID `metadata:${team_name}`. Map ahora acepta teams sin team_id.
+- **filtered** (línea 207-232): Agregado lógica de filterType que matchea event_type directamente o categoría "connections" (agrupa 3 eventos). Team filter ahora detecta synthetic IDs y matchea por team_name en vez de team_id.
+- **State** (línea 165): Agregado `filterType` state.
+- **UI filtros** (línea 490-513): Agregado `<select>` con categorías de eventos. Reset button ahora incluye filterType.
+- **eventTitle** (línea 103-124): Agregado construcción de título con viewer_role para los 3 eventos de conexión: `"Connected with ${email} — As Invitee"` / `"As Host"`.
+
+**3. AuditView.tsx — uniqueTeams con metadata + cpName con role:**
+- **uniqueTeams** (línea 72-88): Mismo fix que AuditTimeline — incluye metadata-only teams con synthetic ID.
+- **cpName** (línea 183-197): Agregado construcción de título con viewer_role usando IIFEs para connection_accepted y connection_disconnected. connection_cancelled siempre muestra "— As Host".
+
+**Riesgos conocidos / deuda técnica:**
+
+1. **Synthetic team IDs colisionan si dos teams tienen nombre exacto:** Probabilidad baja (nombres suelen ser únicos por proyecto), pero si ocurre, el filtro agrupa ambos equipos. Fix futuro: usar `metadata:${project_id}:${team_name}` si se vuelve problema.
+
+2. **Categorías hardcoded requieren mantenimiento manual:** Si se agregan nuevos event_types, hay que actualizar el select en AuditTimeline línea 496-507. Considerar extraer categorías a constante compartida si crece complejidad.
+
+3. **viewer_role solo se guarda en eventos NUEVOS:** Eventos de conexión existentes en DB NO tienen viewer_role → título se degrada a formato anterior ("Connected with ${email}" sin role). Fix retroactivo requeriría migration UPDATE sobre audit_log.metadata (JSONB) — no crítico, eventos viejos siguen siendo legibles.
+
+**Estado:** CERRADA. Build exitoso. Commit e5919a4 pushed a producción.
+
+**Lección clave:**
+Filtros sobre datos heterogéneos (teams con ID vs metadata-only teams) requieren identificadores sintéticos cuando no hay FK real disponible. Synthetic IDs permiten UX consistente sin cambios de schema, con trade-off aceptable de colisión en edge cases. Metadata explícito (viewer_role) vs derivado (de isRequester) favorece claridad y mantenibilidad — campo redundante es aceptable si elimina ambigüedad y simplifica rendering. Categorización de eventos en UI puede ser hardcoded si el dominio es estable y el costo de autodescubrimiento excede beneficio.
+
+---
+
 ## Sesión 2026-06-22 — OE C (Pieza 3): Fix renderizado de connection_accepted en Audit Views
 
 **Fecha:** 2026-06-22  
