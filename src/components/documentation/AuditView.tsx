@@ -11,7 +11,9 @@ const EVENT_CONFIG: Record<string, { label: string; dotColor: string; badgeClass
   unlock:         { label: 'Unlock',               dotColor: 'bg-gray-500',   badgeClass: 'text-gray-600 bg-gray-50 border-gray-200' },
   review_forward: { label: 'Review & Forward',     dotColor: 'bg-purple-500', badgeClass: 'text-purple-700 bg-purple-50 border-purple-200' },
   save_selection: { label: 'Save Selection',       dotColor: 'bg-amber-500',  badgeClass: 'text-amber-700 bg-amber-50 border-amber-200' },
-  connection_accepted: { label: 'Connection Accepted', dotColor: 'bg-green-500', badgeClass: 'text-green-700 bg-green-50 border-green-200' },
+  connection_accepted:     { label: 'Connection Accepted',     dotColor: 'bg-green-500', badgeClass: 'text-green-700 bg-green-50 border-green-200' },
+  connection_disconnected: { label: 'Connection Disconnected', dotColor: 'bg-red-500',   badgeClass: 'text-red-700 bg-red-50 border-red-200' },
+  connection_cancelled:    { label: 'Connection Cancelled',    dotColor: 'bg-gray-500',  badgeClass: 'text-gray-600 bg-gray-50 border-gray-200' },
 }
 
 const STATE_BADGE: Record<string, string> = {
@@ -182,7 +184,9 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
                 ?? (e.event_type === 'attachment_uploaded' ? ((e.metadata?.filename as string) ?? 'File attached') : undefined)
                 ?? (e.event_type === 'tool_call_executed'  ? ((e.metadata?.query as string)    ?? 'Web search')    : undefined)
                 ?? (e.event_type === 'session_backup' ? 'Session Backup' : undefined)
-                ?? (e.event_type === 'connection_accepted' ? `Connected with ${(e.metadata?.requester_email as string) ?? 'host'}` : undefined)
+                ?? (e.event_type === 'connection_accepted'     ? `Connected with ${(e.metadata?.requester_email as string) ?? (e.metadata?.partner_email as string) ?? 'partner'}` : undefined)
+                ?? (e.event_type === 'connection_disconnected' ? `Disconnected from ${(e.metadata?.partner_email as string) ?? 'partner'}` : undefined)
+                ?? (e.event_type === 'connection_cancelled'    ? `Cancelled request to ${(e.metadata?.receiver_email as string) ?? 'receiver'}` : undefined)
                 ?? 'Session event'
               const actor     = (e.metadata?.from_agent ?? e.metadata?.agent_role) as string | undefined
               const teamCode  = e.team_id ? teamCodes?.[e.team_id] : undefined

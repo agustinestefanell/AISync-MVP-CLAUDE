@@ -101,6 +101,7 @@ export default function AuditClient({ pageName, events, customProviders, checkpo
                 externalDetailCpId={externalDetailCpId}
                 onFilterChange={handleFilterChange}
                 teamCodes={teamCodes}
+                projects={projects}
               />
             </div>
           </div>

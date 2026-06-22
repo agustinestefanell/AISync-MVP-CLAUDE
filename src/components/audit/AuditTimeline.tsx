@@ -81,7 +81,9 @@ const EVENT_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   save_selection:      { label: 'Save Selection', badgeClass: 'text-amber-400 bg-amber-950 border-amber-900' },
   attachment_uploaded: { label: 'File Attached',  badgeClass: 'bg-blue-100 text-blue-700 border-blue-200' },
   tool_call_executed:  { label: 'Web Search',     badgeClass: 'bg-purple-100 text-purple-700 border-purple-200' },
-  connection_accepted: { label: 'Connection Accepted', badgeClass: 'text-green-400 bg-green-950 border-green-900' },
+  connection_accepted:     { label: 'Connection Accepted',     badgeClass: 'text-green-400 bg-green-950 border-green-900' },
+  connection_disconnected: { label: 'Connection Disconnected', badgeClass: 'text-red-400 bg-red-950 border-red-900' },
+  connection_cancelled:    { label: 'Connection Cancelled',    badgeClass: 'text-gray-400 bg-gray-950 border-gray-900' },
 }
 const AGENT_LABEL: Record<string, string> = { manager: 'Manager', worker1: 'Worker 1', worker2: 'Worker 2' }
 
@@ -108,7 +110,9 @@ function eventTitle(e: AuditEventRow): string {
   if (e.event_type === 'review_forward')     return `Forwarded to ${(m.to_agent as string) ?? 'agent'}`
   if (e.event_type === 'attachment_uploaded') return (m.filename as string) ?? 'File attached'
   if (e.event_type === 'tool_call_executed')  return (m.query as string) ?? 'Web search executed'
-  if (e.event_type === 'connection_accepted') return `Connected with ${(m.requester_email as string) ?? 'host'}`
+  if (e.event_type === 'connection_accepted')     return `Connected with ${(m.requester_email as string) ?? (m.partner_email as string) ?? 'partner'}`
+  if (e.event_type === 'connection_disconnected') return `Disconnected from ${(m.partner_email as string) ?? 'partner'}`
+  if (e.event_type === 'connection_cancelled')    return `Cancelled request to ${(m.receiver_email as string) ?? 'receiver'}`
   return e.event_type
 }
 
@@ -119,7 +123,13 @@ function eventDetail(e: AuditEventRow): string | null {
   if (e.event_type === 'review_forward')     return `${m.message_count ?? ''} message(s)`
   if (e.event_type === 'attachment_uploaded') return (m.mime_type as string) ?? (m.attachment_type as string) ?? null
   if (e.event_type === 'tool_call_executed')  return `${(m.tool_name as string) ?? 'web_search'} · ${(m.provider as string) ?? ''}`
-  if (e.event_type === 'connection_accepted') {
+  if (e.event_type === 'connection_accepted' || e.event_type === 'connection_disconnected') {
+    const team = (m.requester_team_name as string) ?? (m.partner_team_name as string) ?? null
+    const desc = (m.description as string) ?? null
+    const by = (m.disconnected_by as string) ?? null
+    return [team, desc, by ? `by ${by}` : null].filter(Boolean).join(' · ') || null
+  }
+  if (e.event_type === 'connection_cancelled') {
     const team = (m.requester_team_name as string) ?? null
     const desc = (m.description as string) ?? null
     return [team, desc].filter(Boolean).join(' · ') || null
@@ -129,11 +139,12 @@ function eventDetail(e: AuditEventRow): string | null {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function AuditTimeline({ events, externalDetailCpId, onFilterChange, teamCodes }: {
+export default function AuditTimeline({ events, externalDetailCpId, onFilterChange, teamCodes, projects }: {
   events:               AuditEventRow[]
   externalDetailCpId?:  string | null
   onFilterChange?:      (filtered: AuditEventRow[]) => void
   teamCodes?:           Record<string, string>
+  projects?:            { id: string; name: string; teams: { id: string; name: string }[] }[]
 }) {
   // Calendar state — focusDate starts null to avoid server/client hydration mismatch
   const [viewMode,  setViewMode]  = useState<ViewMode>('month')
@@ -144,9 +155,12 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Filter state
-  const [filterType,   setFilterType]   = useState('all')
-  const [filterTeamId, setFilterTeamId] = useState('all')
+  // Filter state (nuevo diseño basado en Structure View)
+  const [searchQuery,     setSearchQuery]     = useState('')
+  const [filterProjectId, setFilterProjectId] = useState('')
+  const [filterTeamId,    setFilterTeamId]    = useState('')
+  const [filterDate,      setFilterDate]      = useState('')
+  const [sortOrder,       setSortOrder]       = useState<'newest' | 'oldest'>('newest')
 
   // Side panel state
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null)
@@ -165,6 +179,15 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
     time: e.created_at.slice(11, 16),
   })), [events])
 
+  // Team → Project lookup map
+  const teamProjectMap = useMemo(() => {
+    const map = new Map<string, string>()
+    if (projects) {
+      projects.forEach(p => p.teams.forEach(t => map.set(t.id, p.id)))
+    }
+    return map
+  }, [projects])
+
   // Unique teams for filter dropdown
   const uniqueTeams = useMemo(() => {
     const seen = new Map<string, string>()
@@ -174,12 +197,34 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
     return result.sort((a, b) => (teamCodes?.[a.id] ?? a.name).localeCompare(teamCodes?.[b.id] ?? b.name))
   }, [normalized, teamCodes])
 
-  // Apply filters
-  const filtered = useMemo(() => normalized.filter(e => {
-    if (filterType   !== 'all' && e.event_type !== filterType)   return false
-    if (filterTeamId !== 'all' && e.team_id    !== filterTeamId) return false
-    return true
-  }), [normalized, filterType, filterTeamId])
+  // Apply filters (nuevo diseño: search + project + team + date)
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    let result = normalized.filter(e => {
+      // Project filter
+      if (filterProjectId && e.team_id && teamProjectMap.get(e.team_id) !== filterProjectId) return false
+      // Team filter
+      if (filterTeamId && e.team_id !== filterTeamId) return false
+      // Date filter
+      if (filterDate && !e.created_at.startsWith(filterDate)) return false
+      // Search filter (busca en event_type label, team_name, metadata)
+      if (q) {
+        const cfg = EVENT_CONFIG[e.event_type]
+        const label = cfg?.label ?? e.event_type
+        const teamName = e.team_name ?? ''
+        const metaStr = JSON.stringify(e.metadata ?? {}).toLowerCase()
+        if (!label.toLowerCase().includes(q) && !teamName.toLowerCase().includes(q) && !metaStr.includes(q)) {
+          return false
+        }
+      }
+      return true
+    })
+    // Sort order
+    if (sortOrder === 'oldest') {
+      result = [...result].reverse()
+    }
+    return result
+  }, [normalized, searchQuery, filterProjectId, filterTeamId, filterDate, sortOrder, teamProjectMap])
 
   // Report filtered list to parent for SM panel context
   useEffect(() => { onFilterChange?.(filtered) }, [filtered]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -432,32 +477,63 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters — nuevo diseño basado en Structure View */}
         <div className="flex flex-wrap gap-2">
-          <select
-            value={filterType}
-            onChange={e => setFilterType(e.target.value)}
-            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500"
-          >
-            <option value="all">All event types</option>
-            {Object.entries(EVENT_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
+          {/* Search box */}
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search events..."
+            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500 min-w-[200px]"
+          />
+          {/* Project filter (solo visible si hay más de 1 proyecto) */}
+          {projects && projects.length > 1 && (
+            <select
+              value={filterProjectId}
+              onChange={e => setFilterProjectId(e.target.value)}
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">All projects</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          )}
+          {/* Team filter */}
           <select
             value={filterTeamId}
             onChange={e => setFilterTeamId(e.target.value)}
             className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500"
           >
-            <option value="all">All teams</option>
+            <option value="">All teams</option>
             {uniqueTeams.map(t => (
               <option key={t.id} value={t.id}>
                 {teamCodes?.[t.id] ? `${teamCodes[t.id]} · ${t.name}` : t.name}
               </option>
             ))}
           </select>
-          {(filterType !== 'all' || filterTeamId !== 'all') && (
+          {/* Date filter */}
+          <input
+            type="date"
+            value={filterDate}
+            onChange={e => setFilterDate(e.target.value)}
+            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500"
+          />
+          {/* Sort order */}
+          <select
+            value={sortOrder}
+            onChange={e => setSortOrder(e.target.value as 'newest' | 'oldest')}
+            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+          {/* Reset button (condicional a filtros activos) */}
+          {(searchQuery || filterProjectId || filterTeamId || filterDate || sortOrder !== 'newest') && (
             <button
-              onClick={() => { setFilterType('all'); setFilterTeamId('all') }}
-              className="text-xs text-gray-500 hover:text-gray-800 px-2 transition-colors"
+              onClick={() => { setSearchQuery(''); setFilterProjectId(''); setFilterTeamId(''); setFilterDate(''); setSortOrder('newest') }}
+              className="text-xs text-gray-500 hover:text-gray-600 px-2"
             >
               Reset
             </button>

@@ -19,7 +19,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   // sobre pendientes (receiver), disconnect solo sobre activas (cualquier punta)
   const { data: connection } = await supabase
     .from('team_connections')
-    .select('id, status, receiver_email, receiver_account_id, requester_account_id')
+    .select('id, status, receiver_email, receiver_account_id, requester_account_id, requester_email, requester_team_name, receiver_team_name, description')
     .eq('id', params.id)
     .single()
 
@@ -203,6 +203,52 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!updated || updated.length === 0) {
       return NextResponse.json({ error: 'Disconnect did not persist.' }, { status: 500 })
     }
+
+    // Register disconnection in audit_log for BOTH parties
+    const isRequester = connection.requester_account_id === user.id
+    const disconnectedBy = isRequester ? 'requester' : 'receiver'
+
+    // Insert for current user (who initiated disconnect)
+    try {
+      await supabase.from('audit_log').insert({
+        account_id:   user.id,
+        workspace_id: null,
+        event_type:   'connection_disconnected',
+        metadata: {
+          connection_id:       params.id,
+          partner_email:       isRequester ? connection.receiver_email : connection.requester_email,
+          partner_team_name:   isRequester ? (connection.receiver_team_name ?? null) : connection.requester_team_name,
+          description:         connection.description,
+          disconnected_by:     disconnectedBy,
+          traceability_note:   `Connection disconnected by ${disconnectedBy}. Detailed traceability data lives in ${isRequester ? connection.receiver_email : connection.requester_email}'s account.`,
+        },
+      })
+    } catch (auditError) {
+      console.error('[disconnect] Failed to insert audit_log event for initiator:', auditError)
+    }
+
+    // Insert for the other party (passive receiver of disconnect)
+    const otherAccountId = isRequester ? connection.receiver_account_id : connection.requester_account_id
+    if (otherAccountId) {
+      try {
+        await createAdminClient().from('audit_log').insert({
+          account_id:   otherAccountId,
+          workspace_id: null,
+          event_type:   'connection_disconnected',
+          metadata: {
+            connection_id:       params.id,
+            partner_email:       isRequester ? connection.requester_email : connection.receiver_email,
+            partner_team_name:   isRequester ? connection.requester_team_name : (connection.receiver_team_name ?? null),
+            description:         connection.description,
+            disconnected_by:     disconnectedBy,
+            traceability_note:   `Connection disconnected by ${disconnectedBy}. You were notified of this action.`,
+          },
+        })
+      } catch (auditError) {
+        console.error('[disconnect] Failed to insert audit_log event for other party:', auditError)
+      }
+    }
+
     return NextResponse.json({ ok: true })
   }
 
@@ -217,7 +263,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   // Solo el solicitante puede cancelar, y solo si está pendiente
   const { data: toDelete } = await supabase
     .from('team_connections')
-    .select('id, requester_account_id')
+    .select('id, requester_account_id, receiver_email, requester_team_name, description')
     .eq('id', params.id)
     .single()
 
@@ -237,5 +283,24 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     .eq('status', 'pending')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Register cancellation in audit_log (only for requester, receiver never accepted)
+  try {
+    await supabase.from('audit_log').insert({
+      account_id:   user.id,
+      workspace_id: null,
+      event_type:   'connection_cancelled',
+      metadata: {
+        connection_id:       params.id,
+        receiver_email:      toDelete.receiver_email,
+        requester_team_name: toDelete.requester_team_name,
+        description:         toDelete.description,
+        traceability_note:   'Pending connection request cancelled before acceptance.',
+      },
+    })
+  } catch (auditError) {
+    console.error('[delete] Failed to insert audit_log event:', auditError)
+  }
+
   return NextResponse.json({ ok: true })
 }
