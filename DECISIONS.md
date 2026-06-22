@@ -585,3 +585,134 @@ Registrar eventos `connection_disconnected` y `connection_cancelled` en audit_lo
 
 **Lección clave:**
 Eventos de desconexión cross-account requieren audit bilateral con metadata que identifique al initiator — ambas partes necesitan accountability. Eventos de cancelación (pending→deleted) son unilaterales porque la otra parte nunca aceptó (no tiene contexto). Criterio de bilateralidad no es automático — depende del estado previo de la relación (activa vs pendiente).
+
+## 2026-06-22 — Nodo worker sintético para isolated teams (Teams Map)
+
+**Contexto:**
+Isolated teams (Connected Teams) en Teams Map/Tree View mostraban solo el nodo GM superior sin cajas worker debajo. El diseño deseado era: 1 nodo GM grande superior + 1 caja worker debajo (igual que host team de 1 agente).
+
+**Diagnóstico:**
+- `agentsToShow = workspace.agent_sessions.slice(0, 1)` limitaba a 1 agente (manager)
+- Manager con `teamParentId === null` se renderiza como `general_manager` (top node), NO como worker (caja)
+- Resultado: 1 nodo GM + 0 cajas (en vez de 1 GM + 1 caja)
+
+**Decisión:**
+Implementar patrón de nodo worker sintético: para isolated teams donde `agent_role === 'manager'`, generar DOS `AgentNode` desde un solo `agent_session`:
+1. Nodo normal (`role: 'manager'`) → renderiza como GM top node
+2. Nodo sintético (`agentId: '${agent.id}-synthetic-worker'`, `role: 'worker1'`) → renderiza como worker box
+
+Ambos nodos comparten mismo `workspaceId`, `teamId`, `provider`, `model` → clicking en cualquiera abre el mismo workspace.
+
+**Por qué:**
+- Sin modificar schema de DB ni semántica de datos (isolated team realmente tiene 1 solo agente)
+- Sin romper lógica de navegación (workspaceId determina destino, no agentId)
+- Solución visual pura — genera 2 nodos de presentación desde 1 agente real
+- Mantiene consistencia visual con host teams de 1 agente (siempre 1 GM + 1 caja)
+
+**Verificación de riesgo:**
+- `grep -rn "agentId" src/` confirmó que `agentId` solo se usa para:
+  1. React key en map (`key={node.agentId}`)
+  2. Lookup en Map (`mapNodes.get(agentId)`)
+  3. NO se usa para navegación (navegación usa `workspaceId`)
+- ID sintético es seguro — no afecta data layer ni navegación
+
+**Detalles técnicos:**
+- `src/lib/db/agent-map.ts` líneas 68-88: bloque condicional que genera nodo sintético
+- Condición: `team.type === 'isolated' && agent.agent_role === 'manager'`
+- agentId sintético: `${agent.id}-synthetic-worker` (garantiza unicidad, no colisiona con IDs reales)
+- role sintético: `'worker1'` (renderiza como caja debajo del GM)
+
+**Alternativas descartadas:**
+- Cambiar `teamParentId` del manager a team.id para forzar renderizado como worker — descartado porque rompe la semántica (manager NO es hijo de su propio team)
+- Agregar worker real en DB para isolated teams — descartado porque isolated teams realmente tienen 1 solo agente (manager)
+- Modificar lógica de `agentNodesToMapNodes()` para casos especiales — descartado porque agrega complejidad a la pipeline de renderizado
+
+**Riesgos conocidos:**
+- `agentId` sintético solo es seguro porque actualmente no se usa para navegación. Si en futuro se agrega navegación directa por agentId (ej: `/agent/[id]`), esta solución requerirá refactor.
+- El nodo sintético no tiene `agent_session` correspondiente en DB — cualquier query que intente cargar el agente por ID sintético fallará. Debe manejarse con guard en caso de agregarse features que requieran cargar el agente por ID.
+
+**Estado:** Implemented 2026-06-22 (commit 5718f32), deployed to production
+
+**Lección clave:**
+Soluciones visuales puras (generar múltiples nodos de presentación desde una entidad de datos) son válidas cuando:
+1. No afectan data layer (DB schema intacto)
+2. No afectan navegación/routing (workspaceId determina destino)
+3. ID sintético solo se usa para rendering (React key, Map lookup)
+Verificación exhaustiva de uso del campo (grep) es crítica antes de aprobar patrón de IDs sintéticos.
+
+---
+
+## 2026-06-22 — EditTeamModal adaptativo para isolated teams
+
+**Contexto:**
+Modal de edición de teams mostraba 3 columnas (Manager + Worker 1 + Worker 2) para isolated teams, cuando isolated teams solo tienen 1 agente (manager).
+
+**Decisión:**
+Adaptar modal según tipo de team:
+- **Isolated teams:** Filtrar agents a solo manager + grid 1 columna
+- **Normal teams (SAT/MAT):** Mostrar todos los agentes + grid 3 columnas
+
+**Por qué:**
+- Isolated teams no tienen workers reales — mostrar 3 columnas con 2 vacías es confuso
+- Consistencia visual con realidad de datos (1 agente → 1 columna)
+- Evita que usuario intente editar workers inexistentes
+- Grid adaptativo preserva layout correcto para normal teams
+
+**Detalles técnicos:**
+- `src/components/teams/EditTeamModal.tsx` línea 70-76: filtrar agents en `useState`
+  ```typescript
+  const [agents, setAgents] = useState<AgentEdit[]>(
+    team.type === 'isolated'
+      ? rawAgents.slice(0, 1).map(toAgentEdit)  // Solo manager
+      : rawAgents.map(toAgentEdit)              // Todos
+  )
+  ```
+- Línea 220: grid adaptativo según tipo
+  ```typescript
+  <div className={`grid gap-3 mb-3 ${team.type === 'isolated' ? 'grid-cols-1' : 'grid-cols-3'}`}>
+  ```
+
+**Alternativas descartadas:**
+- Ocultar workers con `display: none` — descartado porque agrega complejidad CSS innecesaria y mantiene elementos vacíos en DOM
+- Deshabilitar edición de workers en isolated teams — descartado porque es mejor no mostrarlos directamente
+
+**Riesgos conocidos:**
+- Si en futuro se permite agregar workers a isolated teams (cambio de producto), el `.slice(0, 1)` deberá removerse
+- Grid adaptativo asume que isolated teams siempre tienen exactamente 1 agente — si esto cambia, requiere ajuste
+
+**Estado:** Implemented 2026-06-22 (commit 5718f32), deployed to production
+
+**Lección clave:**
+Componentes que renderizan estructuras variables (SAT/MAT/isolated) deben adaptar layout según tipo. Filtrado en state initialization es más limpio que condicionales en JSX. Grid adaptativo preserva UX consistente sin duplicar componentes.
+
+---
+
+## 2026-06-22 — Rutina de cierre duro obligatoria (handoff.md)
+
+**Contexto:**
+Auditoría de cierres detectó que faltaban 4 commits sin entrada en handoff.md (e5177df, 5b2203f, 9ffdffc, 7362c57, c038fab). Gap documental requirió backfill exhaustivo de ~300 líneas de contexto.
+
+**Decisión:**
+Establecer rutina de cierre duro obligatoria: actualizar handoff.md ANTES de declarar OE cerrada, sin excepciones. Una OE no está cerrada hasta que handoff.md está actualizado.
+
+**Por qué:**
+- Gap documental de 4 commits requirió sesión adicional de backfill (costo de tokens y tiempo)
+- Sin trazabilidad de decisiones técnicas y alternativas descartadas, sesiones futuras requieren re-derivar contexto
+- handoff.md es única fuente de verdad para "por qué se hizo así" — sin él, solo tenemos "qué se hizo" (git log)
+- Ritual de cierre debe ser hard requirement, no "nice to have"
+
+**Protocolo:**
+1. Al finalizar OE/mini-OE/fix: actualizar handoff.md PRIMERO
+2. Verificar que entrada incluye: commits, archivos modificados, decisión técnica, alternativas descartadas, riesgos conocidos
+3. Solo después: build, commit, push
+4. Reporte final debe confirmar "handoff.md updated" explícitamente
+
+**Alternativas descartadas:**
+- Actualizar handoff.md "cuando haya tiempo" — descartado porque genera gaps documentales
+- Handoff opcional solo para OEs grandes — descartado porque mini-OEs y fixes también necesitan trazabilidad
+- Usar git commit messages como única fuente de verdad — descartado porque commits no capturan alternativas descartadas ni riesgos conocidos
+
+**Estado:** Establecido como regla obligatoria 2026-06-22
+
+**Lección clave:**
+La documentación es parte del entregable, no un "extra". Una OE sin handoff entry NO está completa. El costo de backfill (tiempo + tokens + re-derivar contexto) siempre supera el costo de documentar en el momento. Ritual de cierre debe ser hard gate, no soft reminder.

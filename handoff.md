@@ -7945,3 +7945,362 @@ Implementar Save Version y Save Selection para mensajes humanos en Connected Tea
 
 **Lección clave:**
 La trazabilidad es un principio no negociable de AISync. Una OE de chat humano NO está completa sin Save Version y Save Selection funcionales. El patrón de interface pública exportada vía forwardRef es reutilizable para cualquier componente que necesite exponer métodos a su padre (AgentPanel, HumanChatPanel, futuros panels de otros tipos de contenido). La extensión de checkpoint_messages con message_type discriminado permite persistir múltiples tipos de mensajes sin duplicar tablas — pattern escalable para futuros tipos de contenido (file annotations, external integrations, etc).
+
+## 2026-06-22 — Cierre de OE C completo + fixes Teams Map para isolated teams
+
+**Commits:**
+- 5718f32 fix: isolated teams now show GM node + 1 worker box (synthetic node pattern)
+- b1be5c2 docs: register future idea - Google Drive export
+- ad54463 docs: register future idea - Google Drive export
+- 5b2203f feat: OE C (Piezas 1 y 2) - registro de conexión en audit_log del invitado
+- 9ffdffc feat: OE C (Pieza 3) - render connection_accepted in Audit Views
+- 7362c57 fix: apply same team_name fallback to getAuditEvents (audit.ts)
+- c038fab feat: OE C - gaps de trazabilidad + nuevo filtro en Audit Log
+
+**Archivos modificados (sesión completa):**
+- src/app/api/connections/[id]/route.ts
+- src/components/audit/AuditTimeline.tsx
+- src/components/documentation/AuditView.tsx
+- src/lib/db/agent-map.ts
+- src/components/teams/EditTeamModal.tsx
+- handoff.md (backfill de 4 sesiones previas)
+- PRODUCT_STATUS.md
+- DECISIONS.md
+- AISyncPlans.md (2 ideas registradas)
+
+---
+
+### FASE 1 — Verificación de cierre y auditoría de documentación
+
+**Contexto:**
+Sesión comenzó con verificación de cierre de ayer (commit c038fab) que implementó OE C gaps de trazabilidad y filtros de Audit Log. Durante verificación, detecté que faltaban 4 cierres previos en handoff.md.
+
+**Acción:**
+- Auditoría exhaustiva de `git log` vs handoff.md
+- Identificados 4 commits sin entrada: e5177df, 5b2203f, 9ffdffc, 7362c57, c038fab (5 en total)
+- Backfill completo: agregadas 4 entradas detalladas con contexto, decisiones técnicas, alternativas descartadas
+
+**Decisión técnica:**
+Establecer rutina de cierre duro obligatoria: actualizar handoff.md ANTES de declarar OE cerrada, sin excepciones. Esta sesión corrigió el gap de documentación.
+
+**Archivos actualizados:**
+- handoff.md: +4 entradas completas con metadata de contexto
+
+---
+
+### FASE 2 — Diagnóstico Gemini 503 (resuelto)
+
+**Problema reportado:**
+Usuario reportó error "503 Service Unavailable" al usar Gemini 2.5 Flash en agente Worker 2.
+
+**Diagnóstico:**
+- Error real de Google AI API — no bug de AISync
+- Confirmado en documentación oficial: 503 indica alta demanda o quota excedida
+- Gemini Free Tier tiene límites: 15 RPM, 1M TPM, 1500 RPD
+- Usuario estaba en sesión activa (3 agentes simultáneos) → probable rate limit
+
+**Solución:**
+- Error transitorio — se resuelve esperando 1-2 minutos
+- AISync ya muestra el error correctamente en UI del chat
+- No requiere cambios de código
+
+**Alternativas descartadas:**
+- Implementar retry automático: puede empeorar rate limits
+- Mostrar mensaje custom de quota: error 503 ya es explícito
+
+**Estado:** RESUELTO. Comportamiento esperado de API externa.
+
+---
+
+### FASE 3 — Verificación Web Search + Tavily
+
+**Contexto:**
+Usuario solicitó verificación de que Web Search funcionaba en producción (Anthropic/OpenAI/Google) y que Tavily estaba activo.
+
+**Verificación realizada:**
+1. **Código fuente confirmado:**
+   - src/lib/ai/tools/web-search.ts: herramienta configurada correctamente
+   - src/lib/ai/providers/anthropic.ts: web-search en tools array
+   - src/lib/ai/providers/openai.ts: web_search en tools array
+   - src/lib/ai/providers/google.ts: googleSearch en tools array
+   - src/lib/ai/session.ts línea 55: Tavily API key cargada desde env vars
+
+2. **Producción confirmada:**
+   - Vercel env vars: `TAVILY_API_KEY` presente en Settings > Environment Variables
+   - Usuario confirmó: "Web Search funciona en los 3 providers"
+   - Tavily activo y funcionando
+
+**Pendiente NO IMPLEMENTADO HOY:**
+Usuario propuso ajuste: "Default ON + alerta visual roja cuando está OFF". Se discutió pero NO se implementó en esta sesión. Quedó registrado como pendiente para mañana.
+
+**Estado:** Web Search VERIFICADO y funcionando. Ajuste de default ON pospuesto.
+
+---
+
+### FASE 4 — Bienvenida del Host (welcome_viewed_by_requester)
+
+**Contexto:**
+Connected Teams ya tenía pantalla de bienvenida para invitado (`welcome_viewed_by_invitee`), pero faltaba para host (requester).
+
+**Decisión técnica:**
+Implementar welcome bilateral con contenido diferenciado por rol:
+- Host (requester): "You can now open their shared workspace..."
+- Invitee: "They can now open your shared workspace..." (ya existía)
+
+**Cambios implementados:**
+1. **src/app/api/connections/[id]/route.ts línea 78:** Agregado evento `welcome_viewed_by_requester` con timestamp en PATCH handler
+2. **src/components/teams/HumanChatPanel.tsx líneas 123-143:** Modal de bienvenida para host con copy específico
+
+**Verificación en producción:**
+- Usuario confirmó: "La bienvenida del Host aparece correctamente"
+- Evento se registra en DB al cerrar modal (PATCH `/api/connections/[id]`)
+
+**Estado:** CERRADA y verificada en producción.
+
+---
+
+### FASE 5 — OE C completa (registro conexión + trazabilidad + eventos + filtros)
+
+**Contexto:**
+OE C = Connected Teams Audit Trail completo con trazabilidad bilateral y filtros funcionales.
+
+#### Pieza 1 y 2 — Registro de conexión en audit_log del invitado (commit 5b2203f)
+
+**Decisión técnica:**
+Evento `connection_accepted` debe registrarse en AMBAS cuentas (host + invitee) con metadata bilateral y `viewer_role` explícito.
+
+**Cambios implementados:**
+- **src/app/api/connections/[id]/route.ts líneas 62-100:** Bilateral INSERT en audit_log:
+  1. INSERT para invitee (`account_id = user.id`, `viewer_role: 'invitee'`)
+  2. INSERT para host usando admin client (`account_id = data.requester_id`, `viewer_role: 'host'`)
+- Metadata incluye: `requester_email`, `requester_team_name`, `invitee_email`, `invitee_team_name`, `description`, `traceability_note`, `viewer_role`
+
+**Resultado:**
+- Evento `connection_accepted` aparece en audit_log de AMBAS cuentas
+- Cada cuenta ve su rol (`viewer_role`) y el contexto completo de la conexión
+
+#### Pieza 3 — Render connection_accepted en Audit Views (commit 9ffdffc)
+
+**Problema:**
+Evento `connection_accepted` se insertaba correctamente pero NO aparecía en ninguna vista de audit (`/audit` ni `/documentation`).
+
+**Diagnóstico:**
+- **Bug 1 (AuditTimeline):** Evento no configurado en `EVENT_CONFIG`, `eventTitle()` ni `eventDetail()`
+- **Bug 2 (getDocAuditEvents):** Query con JOIN sobre `workspaces(teams)` retornaba `team_name=null` para eventos con `workspace_id=null`. team_name correcto estaba en `metadata.requester_team_name`
+- **Bug 3 (AuditView):** Evento no configurado + manejo incorrecto de `team_name=null`
+
+**Cambios implementados:**
+1. **AuditTimeline.tsx:**
+   - Agregado `connection_accepted` a `EVENT_CONFIG` (badge verde)
+   - `eventTitle()`: "Connected with {requester_email}"
+   - `eventDetail()`: "{requester_team_name} · {description}"
+   - Side panel: muestra `traceability_note` cuando disponible
+
+2. **src/lib/db/documentation.ts `getDocAuditEvents()`:**
+   - Fallback para `team_name`: `r.workspaces?.teams?.name ?? r.metadata?.requester_team_name ?? null`
+   - Extrae team_name del metadata cuando JOIN retorna null
+
+3. **AuditView.tsx:**
+   - Agregado `connection_accepted` a `EVENT_CONFIG`
+   - `cpName`: "Connected with {requester_email}"
+   - `teamLabel`: fallback a "—" cuando `team_name` es null
+
+**Alternativas descartadas:**
+- Insertar `team_id` del invitado: conexión no pertenece a un team específico
+- Crear workspace dummy: agrega complejidad innecesaria
+- LEFT JOIN explícito: Supabase ya lo hace implícito, problema era falta de fallback
+
+#### Gap de trazabilidad + nuevo filtro Audit Log (commit c038fab + 7362c57)
+
+**Cambios implementados:**
+1. **Eventos disconnected/cancelled:** Agregado `viewer_role` bilateral a eventos `connection_disconnected` y `connection_cancelled` (mismo patrón que `connection_accepted`)
+
+2. **Filtro por tipo en Audit Log:**
+   - **AuditTimeline.tsx:** Agregado `filterType` state y select UI con categorías (Connection Events, Session Events, All Events)
+   - Lógica de filtrado por tipo + team combinados
+
+3. **Shared teams en dropdown:**
+   - **AuditTimeline.tsx + AuditView.tsx:** Patrón de IDs sintéticos para metadata-only teams:
+     ```typescript
+     const syntheticId = `metadata:${e.team_name}`
+     ```
+   - Equipos compartidos (sin `team_id` real) ahora aparecen en dropdown "All teams"
+
+4. **Fallback team_name en getAuditEvents (commit 7362c57):**
+   - Aplicado mismo patrón de fallback a `src/lib/db/audit.ts` para consistencia con `documentation.ts`
+
+**Decisión técnica:**
+Eventos cross-account sin workspace requieren diseño específico: metadata debe incluir toda la info necesaria (no depender de JOINs), frontend debe manejar nulls con fallbacks, y filtros deben soportar IDs sintéticos para equipos metadata-only.
+
+**Riesgos conocidos:**
+- Eventos con `workspace_id=null` no tienen `team_id` — no se incluyen en filtro por team real (solo en "All teams"). Aceptable: eventos de conexión son cross-account.
+
+**Estado OE C:** CERRADA. Registro bilateral, trazabilidad completa, eventos visible en ambas vistas, filtros funcionales.
+
+---
+
+### FASE 6 — Fix Teams Map/Tree View para isolated teams
+
+**Problema reportado:**
+Isolated teams (Connected Teams) mostraban 3 cajas worker en Teams Map/Tree View cuando debían mostrar solo 1. Diseño deseado: 1 nodo GM superior + 1 caja worker debajo.
+
+**Diagnóstico (src/lib/db/agent-map.ts):**
+- `agentsToShow = workspace.agent_sessions.slice(0, 1)` limitaba a 1 agente (manager)
+- Manager con `teamParentId === null` se convierte en `general_manager` (top node), NO en worker (caja)
+- Resultado: 1 nodo GM + 0 cajas (en vez de 1 nodo GM + 1 caja)
+
+**Decisión técnica aprobada:**
+Implementar patrón de nodo worker sintético: para isolated teams donde `agent_role === 'manager'`, generar DOS `AgentNode` desde un solo `agent_session`:
+1. Nodo normal (`role: 'manager'`) → renderiza como GM top node
+2. Nodo sintético (`agentId: '${agent.id}-synthetic-worker'`, `role: 'worker1'`) → renderiza como worker box
+
+**Verificación de riesgo:**
+- `grep -rn "agentId" src/` confirmó que `agentId` solo se usa para:
+  1. React key en map
+  2. Lookup en Map
+  3. NO se usa para navegación (navegación usa `workspaceId`)
+- ID sintético es seguro — ambos nodos apuntan al mismo workspace
+
+**Cambios implementados:**
+
+**1. src/lib/db/agent-map.ts líneas 68-88:**
+```typescript
+// NUEVO: Para isolated teams, generar nodo worker sintético adicional
+if (team.type === 'isolated' && agent.agent_role === 'manager') {
+  nodes.push({
+    agentId: `${agent.id}-synthetic-worker`,
+    role: 'worker1' as 'manager' | 'worker1' | 'worker2',
+    // ... mismo workspaceId, teamId, provider, model que manager real
+  })
+}
+```
+
+**Resultado esperado:**
+- Manager genera 2 nodos: GM superior (role: manager) + worker box (role: worker1 sintético)
+- Ambos apuntan al mismo workspace
+- Total: 1 nodo GM + 1 caja = estructura correcta
+
+**Alternativas descartadas:**
+- Cambiar `teamParentId` del manager a team.id: rompería la semántica (manager NO es hijo de su propio team)
+- Agregar worker real en DB: isolated teams solo tienen 1 agente (manager), no necesitan workers reales
+
+---
+
+### FASE 7 — Fix EditTeamModal para isolated teams
+
+**Problema:**
+Modal de edición mostraba 3 columnas (Manager + Worker 1 + Worker 2) para isolated teams, cuando solo tiene 1 agente (manager).
+
+**Cambios implementados:**
+
+**1. src/components/teams/EditTeamModal.tsx línea 70-76:**
+Filtrar agents state para mostrar solo manager en isolated teams:
+```typescript
+const [agents, setAgents] = useState<AgentEdit[]>(
+  team.type === 'isolated'
+    ? rawAgents.slice(0, 1).map(toAgentEdit)  // Solo manager
+    : rawAgents.map(toAgentEdit)              // Todos
+)
+```
+
+**2. Línea 220:**
+Grid adaptativo según tipo de team:
+```typescript
+<div className={`grid gap-3 mb-3 ${team.type === 'isolated' ? 'grid-cols-1' : 'grid-cols-3'}`}>
+```
+
+**Resultado:**
+- Isolated teams: 1 sola columna (Manager)
+- Normal teams (SAT/MAT): 3 columnas (Manager + Workers)
+
+**Estado:** CERRADA. Build exitoso, push a producción (commit 5718f32).
+
+---
+
+### FASE 8 — Ideas registradas en AISyncPlans.md
+
+**Idea 1 — Claude Code como Worker:**
+Usuario planteó posibilidad de usar Claude Code como tercer worker en teams SAT/MAT. Registrado en AISyncPlans.md con nota de alto riesgo (requiere investigar APIs de Claude Code, límites de sesión, y modelo de facturación).
+
+**Idea 2 — Exportación a Google Drive:**
+Registrado concepto de exportar documentación (checkpoints, audit log) a Google Drive. Pendiente de diseño y priorización.
+
+**Estado:** Registradas como ideas futuras, no implementadas.
+
+---
+
+### Decisiones técnicas tomadas (sesión completa)
+
+1. **Audit log bilateral para eventos de conexión:** `connection_accepted`, `connection_disconnected`, `connection_cancelled` se registran en AMBAS cuentas (host + invitee) con metadata `viewer_role`.
+
+2. **Eventos cross-account sin workspace:** Diseñar con metadata autosuficiente (no depender de JOINs), frontend con fallbacks para nulls, IDs sintéticos para equipos metadata-only.
+
+3. **Nodo worker sintético para isolated teams:** Generar 2 nodos desde 1 agente (manager) para lograr visualización "1 GM + 1 caja" sin modificar semántica de DB.
+
+4. **EditTeamModal adaptativo:** Filtrar agents y grid según `team.type` para mostrar solo campos relevantes.
+
+5. **Rutina de cierre duro obligatoria:** Actualizar handoff.md ANTES de declarar OE cerrada (establecido por corrección de gap documental).
+
+---
+
+### Alternativas descartadas (sesión completa)
+
+- Insertar `team_id` del invitado en eventos de conexión (no pertenecen a team específico)
+- Crear workspace dummy para eventos cross-account (complejidad innecesaria)
+- Modificar `teamParentId` del manager para forzar renderizado como worker (rompe semántica)
+- Agregar workers reales en DB para isolated teams (no necesarios)
+- Retry automático para Gemini 503 (puede empeorar rate limits)
+- Implementar default ON para Web Search hoy (pospuesto a mañana)
+
+---
+
+### Riesgos conocidos / deuda técnica
+
+1. **Eventos cross-account no filtran por team real:** Eventos con `workspace_id=null` aparecen solo en "All teams", no en filtro por team específico. Aceptable por diseño.
+
+2. **ID sintético para nodo worker:** `agentId` sintético (`${agent.id}-synthetic-worker`) solo seguro porque no se usa para navegación. Si en futuro se agrega navegación por agentId, requerirá refactor.
+
+3. **Web Search default OFF:** Pendiente implementar "default ON + alerta visual OFF" (discutido, no implementado).
+
+4. **Título triplicado en workspace compartido:** Bug detectado ("SHARED: SHARED: SHARED...") no diagnosticado ni corregido.
+
+5. **Botón "Today" en Audit Log:** No funciona (pospuesto).
+
+6. **Realtime en WorkspaceShell:** Chat humano requiere F5 para ver mensajes nuevos (único gap de realtime confirmado).
+
+---
+
+### Pendientes para próxima sesión
+
+**BUGS DETECTADOS:**
+1. Título triplicado "SHARED: SHARED: SHARED..." en header de workspace compartido
+2. Botón "Today" en Audit Log no funciona
+
+**FEATURES DISCUTIDAS NO IMPLEMENTADAS:**
+1. Web Search: default ON + alerta visual roja cuando OFF
+2. Mensaje "This connection is no longer available" en HumanChatPanel cuando conexión inactiva
+
+**REALTIME:**
+1. WorkspaceShell chat humano requiere realtime (diagnosticado por Agustín, confirmado gap)
+2. OE B.1/B.2 (Realtime general, buildOtherPanelsSnapshot cross-cell) siguen diferidas
+
+**CONNECTED TEAMS (OE C):**
+1. Piezas 3 y 4 (Metadata package, Send Checkpoint) diferidas — alto riesgo arquitectural
+
+---
+
+### Lecciones clave
+
+1. **Auditoría de cierres es crítica:** Gap documental de 4 commits requirió backfill exhaustivo. Rutina de cierre duro (actualizar handoff.md ANTES de confirmar OE cerrada) ahora es obligatoria.
+
+2. **Diagnóstico dual (backend + frontend):** Problema de `connection_accepted` invisible requirió verificar AMBOS lados — query con fallback metadata + frontend con manejo de nulls. Single-point fix hubiera sido incompleto.
+
+3. **Patrón de nodo sintético:** Solución elegante para gap de visualización sin modificar DB schema ni semántica. Requiere verificación de uso de ID sintético (grep exhaustivo) para confirmar safety.
+
+4. **Eventos cross-account sin workspace:** Diseño específico para audit trail bilateral — metadata autosuficiente, frontend resiliente a nulls, IDs sintéticos para equipos metadata-only.
+
+5. **Gemini 503 es comportamiento esperado:** Error de alta demanda/quota de API externa, no bug de AISync. Mostrar error tal cual es correcto (no custom message).
+
+---
+
+**Estado final:** Build exitoso. Commit 5718f32 pushed a producción. OE C CERRADA. Teams Map/Tree View fixes CERRADOS. Documentación actualizada (handoff + PRODUCT_STATUS + DECISIONS). Pendientes claros para mañana.
