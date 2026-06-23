@@ -8622,3 +8622,134 @@ No se modificó `page.tsx` porque `otherUserName` sigue siendo pasado a HumanCha
 
 **Lección clave:**
 Detección de errores específicos del backend debe usar doble condición (status + texto) para evitar capturar casos genéricos futuros. En features cross-account, consistencia de etiquetas de usuario (usar siempre email) es crítica para UX bilateral coherente. Gaps de Realtime se mitigan capturando errores del backend, no intentando resolver sincronización completa en cada fix puntual.
+
+## 2026-06-23 — Human Chat duplicate inactive connection notice fix
+
+**Commit:** fix: prevent duplicate inactive connection notices
+
+**Archivos modificados:**
+- src/components/workspace/HumanChatPanel.tsx
+- handoff.md
+- PRODUCT_STATUS.md
+
+---
+
+**Problema:**
+Duplicación visual del mensaje "This connection is no longer active." en HumanChatPanel. El mismo copy aparecía DOS veces:
+1. Banner ámbar superior (entre header y mensajes)
+2. Caja roja de error (cerca del input/composer)
+
+**Causa raíz:**
+El handler del 404 específico (líneas 190-192 anterior) hacía simultáneamente:
+- `setError('This connection is no longer active.')` → disparaba error inferior (caja roja)
+- `setLocalConnectionInactive(true)` → alimentaba `isConnectionNoLongerActive` → disparaba banner superior (ámbar)
+
+Un único boolean combinado (`isConnectionNoLongerActive`) controlaba AMBOS renders visuales, causando duplicación cuando `localConnectionInactive` se seteaba a true.
+
+**Decisión técnica:**
+Separar señales visuales según origen del estado de conexión inactiva:
+
+1. **Banner superior (ámbar):** Solo para estados recibidos desde server (`connectionStatus` = 'cancelled' o 'disconnected'). Representa workspace que cargó con conexión ya inactiva.
+
+2. **Aviso inferior cerca del composer (ámbar):** Solo para detección client-side al intentar enviar (`localConnectionInactive`). Representa workspace que estaba abierto y la conexión cayó sin F5.
+
+3. **Input disabled:** Se mantiene para ambos casos (no cambia comportamiento).
+
+**Cambios implementados:**
+
+**1. src/components/workspace/HumanChatPanel.tsx líneas 75-83:**
+Separación de booleanos visuales:
+```typescript
+// Banner superior: solo para conexiones ya inactivas desde server
+const shouldShowInactiveConnectionBanner = !!(
+  connectionStatus &&
+  ['cancelled', 'disconnected'].includes(connectionStatus)
+)
+
+// Input disabled: ambos casos (server inactive + client-detected inactive)
+const isConnectionNoLongerActive = shouldShowInactiveConnectionBanner || localConnectionInactive
+```
+
+**2. Líneas 293-299:**
+Banner superior ahora usa `shouldShowInactiveConnectionBanner`:
+```typescript
+{/* Inactive connection banner - only for server-known inactive connections */}
+{shouldShowInactiveConnectionBanner && (
+  <div className="shrink-0 px-4 py-2.5 bg-amber-50 border-b border-amber-200">
+    <p className="text-xs text-amber-800 font-medium">
+      This connection is no longer active.
+    </p>
+  </div>
+)}
+```
+
+**3. Líneas 190-195:**
+Handler del 404 YA NO usa `setError` para caso de conexión inactiva:
+```typescript
+if (res.status === 404 && data.error?.includes('Connection not found or not active')) {
+  // Set local inactive state - will show composer-level notice, not duplicate banner
+  setLocalConnectionInactive(true)
+  setError(null) // Clear any previous error
+} else {
+  setError(data.error ?? 'Failed to send message')
+}
+```
+
+**4. Líneas 367-374:**
+Nuevo aviso cercano al composer (solo cuando `localConnectionInactive` es true Y banner superior NO se muestra):
+```typescript
+{/* Composer-level inactive connection notice (client-detected) */}
+{localConnectionInactive && !shouldShowInactiveConnectionBanner && (
+  <div className="shrink-0 px-4 py-2 bg-amber-50 border-t border-amber-200">
+    <p className="text-xs text-amber-800 font-medium">
+      This connection is no longer active.
+    </p>
+  </div>
+)}
+```
+
+**Resultado esperado:**
+
+**Caso A - Workspace carga con conexión ya inactiva (cancelled/disconnected desde server):**
+- ✅ Muestra solo banner superior ámbar
+- ❌ NO muestra aviso inferior
+- ✅ Input deshabilitado
+
+**Caso B - Conexión cae mientras workspace abierto sin F5:**
+- ❌ NO muestra banner superior
+- ✅ Muestra solo aviso inferior cerca del composer
+- ✅ Input deshabilitado
+
+**Caso C - Conexión active normal:**
+- ❌ NO muestra banner
+- ❌ NO muestra aviso inferior
+- ✅ Input habilitado
+- ✅ Envío funciona normal
+
+**Validaciones:**
+- npm run lint: ✅ OK (warnings pre-existentes en CanvasViewport)
+- npm run build: ✅ OK
+
+**Alcance:**
+- HumanChatPanel / Connected Teams / Shared Workspace UX refinement
+- NO se tocó backend `/api/human-chat` (validación correcta)
+- NO se tocó Realtime (gap conocido y diferido)
+- NO se tocaron Teams Map ni EditTeamModal
+- NO se tocó panel IA propia
+- NO se tocó bug del título triplicado `SHARED: SHARED: SHARED...`
+
+**Restricciones respetadas:**
+- ✅ `/api/human-chat` no tocado
+- ✅ Realtime no tocado
+- ✅ Teams Map no tocado
+- ✅ EditTeamModal no tocado
+- ✅ Panel IA propia no tocado
+- ✅ Providers, streaming, schema, migrations no tocados
+- ✅ No polling/listeners nuevos
+- ✅ Header fix previo (email) preservado
+- ✅ Bug SHARED triplicado no tocado (fuera de alcance)
+
+**Estado:** COMPLETO. Build exitoso. Listo para commit.
+
+**Lección clave:**
+Cuando un componente renderiza múltiples avisos visuales del mismo tipo (banners, errores, notices), cada uno debe tener su propio boolean de control específico que refleje claramente su propósito y origen. Usar un único boolean combinado para múltiples renders visuales genera duplicación cuando múltiples condiciones se cumplen simultáneamente. Separar las señales visuales según su semántica (server-known state vs client-detected state) mejora claridad y evita duplicación.

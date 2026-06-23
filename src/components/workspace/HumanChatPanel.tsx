@@ -72,11 +72,14 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
 
   const hasSelection = selectedIndices.size > 0
 
-  // Detect inactive connection using explicit allowlist
-  const isConnectionNoLongerActive = !!(
+  // Banner superior: solo para conexiones ya inactivas desde server
+  const shouldShowInactiveConnectionBanner = !!(
     connectionStatus &&
     ['cancelled', 'disconnected'].includes(connectionStatus)
-  ) || localConnectionInactive
+  )
+
+  // Input disabled: ambos casos (server inactive + client-detected inactive)
+  const isConnectionNoLongerActive = shouldShowInactiveConnectionBanner || localConnectionInactive
 
   // Expose public methods via ref
   useImperativeHandle(ref, () => ({
@@ -188,8 +191,9 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
 
         // Check for inactive connection error with strict validation (status + text)
         if (res.status === 404 && data.error?.includes('Connection not found or not active')) {
-          setError('This connection is no longer active.')
+          // Set local inactive state - will show composer-level notice, not duplicate banner
           setLocalConnectionInactive(true)
+          setError(null) // Clear any previous error
         } else {
           setError(data.error ?? 'Failed to send message')
         }
@@ -287,8 +291,8 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
         <p className="text-xs text-gray-500 mt-0.5">Direct human-to-human communication</p>
       </div>
 
-      {/* Inactive connection banner */}
-      {isConnectionNoLongerActive && (
+      {/* Inactive connection banner - only for server-known inactive connections */}
+      {shouldShowInactiveConnectionBanner && (
         <div className="shrink-0 px-4 py-2.5 bg-amber-50 border-b border-amber-200">
           <p className="text-xs text-amber-800 font-medium">
             This connection is no longer active.
@@ -361,6 +365,15 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
       {error && (
         <div className="shrink-0 px-4 py-2 bg-red-50 border-t border-red-200">
           <p className="text-xs text-red-600">{error}</p>
+        </div>
+      )}
+
+      {/* Composer-level inactive connection notice (client-detected) */}
+      {localConnectionInactive && !shouldShowInactiveConnectionBanner && (
+        <div className="shrink-0 px-4 py-2 bg-amber-50 border-t border-amber-200">
+          <p className="text-xs text-amber-800 font-medium">
+            This connection is no longer active.
+          </p>
         </div>
       )}
 
