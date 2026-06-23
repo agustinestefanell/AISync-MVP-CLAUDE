@@ -8985,3 +8985,51 @@ Agregar `router.refresh()` en callback `onUpdated` del componente que renderiza 
 
 **Lección clave:**
 En Next.js App Router, datos cargados por SSR y pasados como props son inmutables del lado del cliente. Un guardado exitoso en base de datos no implica que la UI lo refleje — falta siempre confirmar que existe un paso explícito de revalidación (`router.refresh`, refetch, o invalidación de cache) entre "se guardó" y "se ve actualizado". No asumir que `onUpdated` callback implica invalidación automática de páginas relacionadas.
+
+---
+
+## 2026-06-23 — router.refresh after EditTeamModal provider update
+
+**Fecha:** 2026-06-23
+**Tipo:** Mini OE / Fix / Provider refresh post-edit
+
+**Contexto:**
+Diagnóstico confirmado en commit `98ef4fa` y entrada #17 de `CodingWorkshop.md`. El modal guarda correctamente el provider en `agent_sessions` vía `PATCH /api/teams/[id]`, pero el Workspace recibe `workspace` como prop inmutable de SSR que no se vuelve a pedir tras la edición. El cambio queda en base de datos, pero la UI puede seguir mostrando el provider anterior hasta F5 o navegación limpia.
+
+**Objetivo:**
+Forzar la re-ejecución de SSR / revalidación del árbol cliente-servidor del lado de quien edita, agregando `router.refresh()` en el callback `onUpdated` del componente padre que renderiza `EditTeamModal`.
+
+**Cambio realizado:**
+- Se agregó `router.refresh()` en el callback `handleUpdated` de `TeamsClient.tsx` (línea 229).
+- El objetivo es forzar revalidación SSR/client route cache después de editar provider del Manager.
+- El provider ya se guardaba correctamente en `agent_sessions` vía `PATCH /api/teams/[id]`; el problema era que el Workspace podía conservar props SSR viejas hasta F5.
+
+**Archivos tocados:**
+- `src/components/teams/TeamsClient.tsx` — agregado `useRouter` import + `router.refresh()` en `handleUpdated`
+- `handoff.md` — esta entrada
+- `CodingWorkshop.md` — actualización entrada #17
+- (PRODUCT_STATUS.md no requiere actualización — feature Teams/provider editing ya documentado)
+
+**Alcance:**
+- Teams / EditTeamModal parent callback / provider refresh.
+- Cubre: edición desde Teams/Teams Map → volver al Workspace → Workspace debe leer provider actualizado sin F5 manual.
+- No cubre: Workspace ya abierto en otra pestaña paralela (fuera de alcance MVP).
+
+**Restricciones respetadas:**
+- ✅ No se modificó `EditTeamModal.tsx` en su lógica de guardado.
+- ✅ No se tocó `/api/teams/[id]`.
+- ✅ No se tocaron WorkspaceShell, WorkspaceClient ni AgentPanel.
+- ✅ No se tocaron RLS, schema ni migrations.
+- ✅ No se tocaron providers ni streaming.
+- ✅ No se tocó filtro de agents ni grid de isolated teams.
+- ✅ No se implementó refetch específico ni estado global.
+- ✅ ProjectList.tsx ya tenía `router.refresh()` en su `onUpdated` — no requirió modificación.
+
+**Validaciones:**
+- `npm run lint`: ✅ Warnings pre-existentes en `CanvasViewport.tsx` (no relacionados)
+- `npm run build`: ✅ Build exitoso
+
+**Estado:** Complete. Commit pendiente.
+
+**Lección clave:**
+Patrón `router.refresh()` tras guardado exitoso ya establecido en el repo (AdminClient.tsx, ProjectList.tsx). Aplicado consistentemente a callback `handleUpdated` de TeamsClient para sincronizar ediciones de teams con SSR cache de Workspace.

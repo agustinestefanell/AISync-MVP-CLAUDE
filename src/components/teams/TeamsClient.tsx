@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
@@ -144,6 +145,7 @@ interface TeamsClientProps {
 }
 
 export default function TeamsClient({ pageName, projectName, projectId, initialTeams }: TeamsClientProps) {
+  const router = useRouter()
   const [teams, setTeams]             = useState<TeamWithWorkspaces[]>(initialTeams)
   const [connections, setConnections] = useState<Connection[]>([])
   const [view, setView]               = useState<ViewMode>('map')
@@ -225,6 +227,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   function handleUpdated(updated: TeamWithWorkspaces) {
     setTeams(prev => prev.map(t => t.id === updated.id ? updated : t))
     setEditingTeam(null)
+    router.refresh()
   }
 
   function handleDeleted(teamId: string) {
