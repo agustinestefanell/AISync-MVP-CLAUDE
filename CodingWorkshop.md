@@ -657,3 +657,126 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
 - **Lección:** En APIs PATCH que actualizan múltiples campos, campos estructurales como `type` no deben recalcularse automáticamente desde campos derivados (`agents`) sin verificar primero el estado actual. Un `type` derivado de agents funciona para teams SAT/MAT, pero teams `isolated` tienen `type` asignado por sistema (al aceptar conexión), no por configuración de usuario — sobrescribirlo rompe invariantes de Connected Teams. Actualización parcial sin preservar campos críticos genera mutaciones silenciosas que rompen funcionalidad dependiente. Router.refresh() expuso bug preexistente que antes quedaba oculto por cache SSR. Solución: leer estado actual antes de update, aplicar lógica condicional para tipos especiales, fail-safe (retornar error si lectura falla en lugar de recalcular a ciegas).
 
+
+---
+
+### 19. Patrón arquitectónico — Derivación de identidad por posición en lugar de campo explícito
+
+- **Problema general:** El sistema tiene múltiples puntos que derivan identidad de rol (quién es el Manager) y clasificación de team (SAT vs MAT) a partir de posición en array o recálculo local en runtime, en lugar de leer campos explícitos persistidos (`agent_role`, `teams.type`). Esto genera riesgo de mutación silenciosa cuando queries sin `ORDER BY` retornan filas en orden distinto después de UPDATE.
+
+- **Incidentes observados (2026-06-23):**
+  1. Badge SAT/MAT en header del Workspace cambió sin que usuario agregara/quitara agents
+  2. Panel que debería mostrar "AI GENERAL MANAGER" mostró "WORKER 1" con provider distinto al editado
+  3. (Relacionado) `team.type` mutaba de `'isolated'` a `'SAT'` al editar (ya corregido en commit 90b6de5)
+
+- **Causa raíz arquitectónica:**
+
+  **Múltiples fuentes de verdad para conceptos críticos:**
+
+  1. **Manager identity:**
+     - Fuente de verdad canónica: `agent_sessions.agent_role = 'manager'` (campo explícito en DB)
+     - Implementación real en código: `workspace.agent_sessions[0]` (posición en array)
+     - Desconexión confirmada
+
+  2. **SAT/MAT classification:**
+     - Fuente de verdad canónica: `teams.type` (campo persistido en DB, calculado al crear/actualizar team)
+     - Implementación real en código: Recálculo local en runtime contando providers en `agent_sessions`
+     - Desconexión confirmada
+
+  **Queries sin ORDER BY explícito:**
+
+  - `getWorkspaceWithAgents()`: `select('*, agent_sessions(*), teams(...)')` — sin ORDER BY
+  - `getTeamsForProject()`: `select('*, workspaces(*, agent_sessions(*)))` — ORDER BY solo para teams, no para agent_sessions anidado
+  - Postgres NO garantiza orden estable sin ORDER BY explícito
+  - UPDATE de `agent_sessions` puede cambiar orden físico (`ctid`) de las filas
+  - Próxima consulta sin ORDER BY puede retornar orden distinto
+
+- **Mecánica del fallo:**
+
+  1. Usuario edita provider del Manager desde EditTeamModal
+  2. API ejecuta UPDATE a `agent_sessions` en loop (uno por agent)
+  3. Postgres reorganiza físicamente las filas (cambio de `ctid` o reorganización de página)
+  4. Usuario recarga workspace (o `router.refresh()` fuerza SSR)
+  5. Query `getWorkspaceWithAgents()` sin ORDER BY retorna agents en orden distinto
+  6. `workspace.agent_sessions[0]` ahora apunta a Worker1 en lugar de Manager
+  7. WorkspaceShell renderiza Worker1 como primer panel (etiquetado "Manager Panel")
+  8. Badge SAT/MAT recalculado desde orden distinto puede cambiar si conteo de providers cambia por coincidencia de posición
+
+- **Superficies afectadas (mapeo exhaustivo):**
+
+  **Riesgo ALTO (asumen posición = identidad):**
+
+  1. `WorkspaceShell.tsx` líneas 446-465: `workspace.agent_sessions[0]` como Manager Panel
+  2. `EditTeamModal.tsx` línea 72: `rawAgents.slice(0, 1)` para teams isolated
+  3. `agent-map.ts` línea 45: `workspace.agent_sessions.slice(0, 1)` para Teams Map/Tree
+  4. `WorkspaceShell.tsx` líneas 75-78: Recalcula SAT/MAT localmente contando providers
+  5. `workspace/[id]/page.tsx` línea 53: Recalcula SAT/MAT localmente en SSR
+
+  **Riesgo MEDIO:**
+
+  6. `HandoffPackageModal.tsx` líneas 25-26: `sessions[0]` y `sessions[1]` como defaults
+
+  **Queries sin ORDER BY (infraestructura):**
+
+  7. `workspaces.ts` línea 8: `getWorkspaceWithAgents()`
+  8. `teams.ts` línea 46: `getTeamsForProject()`
+
+- **Consecuencias del patrón:**
+
+  - Mutaciones silenciosas de identidad visual (Manager ↔ Worker)
+  - Badge SAT/MAT inestable (cambia sin acción del usuario)
+  - Teams isolated pueden mostrar/editar el agent equivocado
+  - Review & Forward puede fallar si depende de orden (mitigado parcialmente — usa `.find(role)`)
+  - Debugging extremadamente difícil (síntoma intermitente, depende de timing de UPDATE y queries posteriores)
+
+- **Proceso de diagnóstico:**
+
+  Mini OE de solo lectura. Se mapearon todas las superficies que determinan Manager identity y SAT/MAT classification. Se confirmó que múltiples puntos usan posición en lugar de campo explícito, y que queries críticas carecen de ORDER BY. Se verificó comportamiento conocido de Postgres: UPDATE puede cambiar orden físico de filas, queries sin ORDER BY no garantizan estabilidad. Se descartó que el patrón provenga de código heredado de demo — es implementación local del MVP que asumió orden estable.
+
+- **Solución final:** Pendiente. No implementada en esta OE de diagnóstico. Requiere OE futura de fix estructural.
+
+- **Recomendación de alcance para OE futura:**
+
+  **OPCIÓN A — Fix quirúrgico (mínimo):**
+  - Agregar `ORDER BY agent_role ASC` a queries de `agent_sessions`
+  - Razón: `'manager'` < `'worker1'` < `'worker2'` alfabéticamente → `[0]` siempre será manager
+  - Pros: Fix mínimo, bajo riesgo
+  - Contras: Mantiene asunción implícita `[0]` = manager (deuda técnica persiste)
+
+  **OPCIÓN B — Fix estructural (recomendado):**
+  1. Agregar `ORDER BY agent_role ASC` a todas las queries (infraestructura)
+  2. Reemplazar `[0]` por `.find(s => s.agent_role === 'manager')` en superficies críticas
+  3. Reemplazar recálculo local SAT/MAT por lectura de `teams.type` (campo ya existe)
+  4. Razón: Elimina asunciones implícitas, usa campos explícitos, fuente de verdad única
+  5. Pros: Fix completo, previene futuros incidentes del mismo patrón
+  6. Contras: Más archivos modificados (~8 archivos), mayor testing requerido
+
+  **OPCIÓN C — Fix híbrido (pragmático):**
+  1. Agregar `ORDER BY agent_role ASC` (infraestructura — previene incidente inmediato)
+  2. Reemplazar recálculo SAT/MAT por lectura de `teams.type` (ya tenemos el campo)
+  3. Documentar patrón `[0]` como deuda técnica conocida para refactor futuro
+  4. Razón: Balancea riesgo/alcance — previene lo crítico, reduce duplicación de fuente de verdad SAT/MAT
+  5. Pros: Previene incidente, mejora arquitectura parcialmente, testing moderado
+  6. Contras: Mantiene patrón `[0]` para Manager (menor riesgo con ORDER BY garantizado)
+
+- **Commit:** No aplica. OE de diagnóstico sin implementación.
+
+- **Lección arquitectónica (reutilizable):**
+
+  **Identidad derivada requiere fuente de verdad única y explícita.**
+
+  Cuando un sistema necesita distinguir roles o clasificaciones (Manager vs Worker, SAT vs MAT), debe haber UNA fuente canónica de esa información, y el código debe leerla directamente en lugar de derivarla. Derivar identidad de posición en array, orden de retorno de queries, o recálculo local en múltiples puntos genera riesgo de desincronización. Si existe un campo persistido (`agent_role`, `teams.type`), úsalo. Si no existe, créalo. No confíes en orden físico de base de datos sin ORDER BY explícito — Postgres no garantiza estabilidad, y UPDATE puede reorganizar filas.
+
+  **Red flags a evitar:**
+  - `array[0]` como proxy de identidad sin ORDER BY garantizado
+  - Recálculo local de clasificación en lugar de lectura de campo persistido
+  - Múltiples superficies calculando el mismo concepto de forma independiente
+  - Queries sin ORDER BY para datos donde el orden importa
+  - Comentarios que dicen "typically" o "usually" sobre posición → admiten que no es garantía
+
+  **Patrón correcto:**
+  - Campo explícito en DB (`agent_role`, `type`)
+  - Query con ORDER BY si orden importa
+  - Acceso por filtro explícito: `.find(s => s.agent_role === 'manager')` en lugar de `[0]`
+  - Fuente de verdad única: si `teams.type` existe, no recalcular SAT/MAT en runtime
+
