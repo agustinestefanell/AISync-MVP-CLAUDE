@@ -8431,3 +8431,59 @@ Pasado `connectionStatus={connectionContext.status}` a `HumanChatPanel`.
 
 **Lección clave:**
 En flujos de lifecycle, `undefined` no debe mezclar "no existe" con "existe pero está inactivo". Es necesario preservar estado suficiente (status field) para decidir visualmente. Usar allowlist cerrada de estados en lugar de comparación negativa protege contra estados futuros no contemplados — decisión de arquitectura especialmente importante en features cross-account cercanas a RLS.
+
+## 2026-06-23 — FIX CRÍTICO: query de connectionContext con .maybeSingle()
+
+**Commit:** fix: use maybeSingle + order for connection query to handle historical records
+
+**Problema detectado por usuario:**
+La query de `team_connections` en workspace page usaba `.single()` sin filtro de status. Esto causaba error PostgreSQL (no `undefined` controlado) si existían múltiples filas con el mismo `scope_isolated_team_id` — escenario real cuando:
+1. Se acepta conexión → `scope_isolated_team_id` se setea
+2. Se hace disconnect/reject → status='cancelled' o 'rejected'
+3. Se crea NUEVA conexión con mismo requester+receiver
+4. Segundo accept reutiliza mismo `scope_isolated_team_id` (porque isolated team ya existe)
+5. Ahora hay DOS filas con mismo `scope_isolated_team_id` → `.single()` FALLA con error
+
+**Análisis de schema:**
+- `team_connections` NO tiene constraint UNIQUE en `scope_isolated_team_id`
+- Status se actualiza IN-PLACE (no se crean nuevas filas al cambiar status)
+- PERO isolated team se reutiliza si ya existe (línea 108 de accept: `if (!data.scope_isolated_team_id)`)
+- Resultado: múltiples conexiones (históricas + activa) PUEDEN compartir mismo `scope_isolated_team_id`
+
+**Solución implementada:**
+Cambiar de `.single()` a `.maybeSingle()` + ordenar por `updated_at DESC` + `limit(1)` para tomar la conexión más reciente:
+
+```typescript
+// ANTES (línea 94):
+.eq('scope_isolated_team_id', team.id)
+.single()
+
+// DESPUÉS:
+.eq('scope_isolated_team_id', team.id)
+.order('updated_at', { ascending: false })
+.limit(1)
+.maybeSingle()
+```
+
+**Por qué `updated_at` y no `created_at`:**
+- `updated_at` se actualiza en cada cambio de status (accept, disconnect, cancel)
+- La conexión más reciente (por `updated_at`) es la que representa el estado actual de la relación entre las dos cuentas
+- Si hay múltiples filas, la más reciente es la que debe gobernar el comportamiento UI
+
+**Por qué `.maybeSingle()` y no `.single()`:**
+- `.single()` falla con error si hay 0 filas o >1 filas
+- `.maybeSingle()` retorna `null` si hay 0 filas, retorna la única fila si hay exactamente 1, y retorna la primera fila (después de order + limit) si hay >1
+- Esto convierte un error runtime en un caso controlado
+
+**Validación:**
+- npm run build: ✅ OK
+- TypeScript: ✅ Sin errores (`.maybeSingle()` retorna `T | null`, compatible con `connection | undefined`)
+
+**Riesgo previo no detectado:**
+- Los 15 ítems de validación de la OE no incluían "team con múltiples registros históricos de conexión"
+- Este escenario es real en producción cuando usuario hace disconnect y luego reconecta
+
+**Estado:** FIXED. Build exitoso. Listo para commit.
+
+**Lección clave:**
+Cuando se elimina un filtro que garantizaba unicidad (como `status='active'`), verificar si hay constraint UNIQUE en los campos restantes. Si no existe, `.single()` es inseguro y debe reemplazarse por `.maybeSingle()` + ordenamiento explícito. Casos de "múltiples registros históricos" no siempre son evidentes en validación funcional básica — requieren análisis de schema + ciclo de vida completo.

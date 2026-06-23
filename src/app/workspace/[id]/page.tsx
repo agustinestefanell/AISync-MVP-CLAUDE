@@ -92,7 +92,9 @@ export default async function WorkspacePage({
       .from('team_connections')
       .select('id, requester_account_id, receiver_account_id, requester_email, requester_team_name, receiver_email, receiver_team_name, description, color, welcome_viewed_by_invitee, welcome_viewed_by_requester, status')
       .eq('scope_isolated_team_id', team.id)
-      .single()
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
     if (connection) {
       const isHost = connection.requester_account_id === user.id
