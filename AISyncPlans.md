@@ -1025,3 +1025,28 @@ Google OAuth ya configurado en Supabase Auth. Drive API requiere agregar scope `
 - Formato sugerido inicial: JSON estructurado para checkpoints, PDF para reportes de Audit Log
 
 **Revisar cuando Connected Teams y Documentation Mode estén más maduros.**
+
+## Connected Teams connection context — 2026-06-23
+
+WorkspaceClient recibe estado de conexión para workspaces compartidos asociados a Connected Teams.
+
+**Reglas:**
+- **status `active`:** comportamiento actual intacto; Human Chat habilitado.
+- **status `cancelled`:** mostrar banner "This connection is no longer active." y deshabilitar input del Human Chat.
+- **status `disconnected`:** mostrar banner "This connection is no longer active." y deshabilitar input del Human Chat.
+- **connectionContext `undefined`:** no mostrar banner; se interpreta como workspace local normal o workspace sin conexión asociada.
+- **status `pending`:** no se contempla como estado visual de workspace compartido porque el workspace se crea recién al aceptar la conexión.
+
+**Regla de arquitectura:**
+El estado visual de conexión inactiva debe depender de una lista explícita de estados cerrados/cancelados, no de una comparación negativa contra `active`.
+
+**Implementación:**
+```typescript
+const isConnectionNoLongerActive = !!(
+  connectionStatus &&
+  ['cancelled', 'disconnected'].includes(connectionStatus)
+)
+```
+
+**Por qué lista explícita:**
+Connected Teams está cerca de cross-account access y RLS-sensitive behavior. Un futuro status (ej: `paused`, `suspended`) no debe activar banner, input disabling, o alterar shared-workspace behavior por accidente. Cualquier nuevo status requiere decisión explícita de producto/seguridad antes de mapearse a comportamiento UI.

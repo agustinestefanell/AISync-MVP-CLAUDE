@@ -46,6 +46,7 @@ interface ConnectionContext {
   isHost:         boolean
   otherUserEmail: string
   otherUserName?: string
+  status:         string
 }
 
 interface Props {

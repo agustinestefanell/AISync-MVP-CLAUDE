@@ -8304,3 +8304,130 @@ Registrado concepto de exportar documentación (checkpoints, audit log) a Google
 ---
 
 **Estado final:** Build exitoso. Commit 5718f32 pushed a producción. OE C CERRADA. Teams Map/Tree View fixes CERRADOS. Documentación actualizada (handoff + PRODUCT_STATUS + DECISIONS). Pendientes claros para mañana.
+
+## 2026-06-23 — Connected Teams inactive connection state
+
+**Commit:** fix: show inactive connection banner and disable human chat input
+
+**Archivos modificados:**
+- src/app/workspace/[id]/page.tsx
+- src/components/workspace/WorkspaceClient.tsx
+- src/components/workspace/WorkspaceShell.tsx
+- src/components/workspace/HumanChatPanel.tsx
+- handoff.md
+- PRODUCT_STATUS.md
+- AISyncPlans.md
+- DECISIONS.md
+
+---
+
+**Problema:**
+Cuando una conexión asociada a un workspace compartido pasaba a `cancelled` o `disconnected`, el workspace seguía mostrando el HumanChatPanel como si la conexión estuviera activa, sin advertencia al usuario. La query de conexión filtraba por `status = 'active'`, haciendo que conexiones inactivas retornaran `connectionContext = undefined` — indistinguible de un workspace local normal que nunca tuvo conexión.
+
+**Decisión técnica:**
+1. **Query sin filtro de status:** Cambiar query de `team_connections` en workspace page para traer la conexión sin filtrar por status, permitiendo distinguir entre:
+   - No existe conexión (workspace local normal)
+   - Existe conexión `active`
+   - Existe conexión `cancelled`
+   - Existe conexión `disconnected`
+
+2. **Pasar status en connectionContext:** Extender `ConnectionContext` con campo `status` y pasarlo desde page.tsx → WorkspaceClient → WorkspaceShell → HumanChatPanel.
+
+3. **Lista explícita de estados inactivos:** Usar allowlist cerrada `['cancelled', 'disconnected'].includes(connectionStatus)` en lugar de comparación negativa `status !== 'active'` para evitar que estados futuros activen banner por accidente.
+
+4. **Banner + input deshabilitado:** Cuando conexión está `cancelled` o `disconnected`:
+   - Mostrar banner amber "This connection is no longer active."
+   - Deshabilitar textarea del chat humano con placeholder "Connection inactive"
+   - Deshabilitar botón Send
+   - Deshabilitar Forward y acciones
+   - Mantener panel IA propia funcionando normal
+
+**Cambios implementados:**
+
+**1. src/app/workspace/[id]/page.tsx línea 94:**
+```typescript
+// ANTES:
+.eq('scope_isolated_team_id', team.id)
+.eq('status', 'active')
+.single()
+
+// DESPUÉS:
+.eq('scope_isolated_team_id', team.id)
+.single()
+```
+
+**2. src/app/workspace/[id]/page.tsx líneas 80-85 y 107:**
+Extendido `connectionContext` con `status`:
+```typescript
+let connectionContext: {
+  // ... campos existentes
+  status: string
+} | undefined
+
+connectionContext = {
+  // ... campos existentes
+  status: connection.status,
+}
+```
+
+**3. src/components/workspace/WorkspaceClient.tsx línea 49:**
+Actualizado tipo `ConnectionContext` con campo `status: string`.
+
+**4. src/components/workspace/WorkspaceShell.tsx línea 32:**
+Actualizado tipo `ConnectionContext` con campo `status: string`.
+
+**5. src/components/workspace/WorkspaceShell.tsx línea 440:**
+Pasado `connectionStatus={connectionContext.status}` a `HumanChatPanel`.
+
+**6. src/components/workspace/HumanChatPanel.tsx:**
+- Línea 26: Agregado prop `connectionStatus?: string`
+- Líneas 71-74: Detectar conexión inactiva con lista explícita:
+  ```typescript
+  const isConnectionNoLongerActive = !!(
+    connectionStatus &&
+    ['cancelled', 'disconnected'].includes(connectionStatus)
+  )
+  ```
+- Líneas 277-283: Banner amber cuando `isConnectionNoLongerActive`
+- Línea 365: Input deshabilitado con `disabled={sending || isConnectionNoLongerActive}`
+- Línea 360: Botón Send deshabilitado con `disabled={!input.trim() || sending || isConnectionNoLongerActive}`
+- Líneas 376, 390: Forward y acciones deshabilitados cuando conexión inactiva
+
+**Resultado esperado:**
+- **Conexión `active`:** No muestra banner, input habilitado, comportamiento actual preservado
+- **Conexión `cancelled`:** Muestra banner, input deshabilitado con placeholder "Connection inactive"
+- **Conexión `disconnected`:** Muestra banner, input deshabilitado con placeholder "Connection inactive"
+- **Sin `connectionContext`:** No muestra banner (workspace local normal)
+- **Panel IA propia:** Intacto en todos los casos
+
+**Alternativas descartadas:**
+- Usar `status !== 'active'` — descartado porque estados futuros activarían banner sin decisión explícita
+- Mostrar banner si `connectionContext` es `undefined` — descartado porque workspace local normal no debe mostrar banner
+- Bloquear workspace completo o paneles IA — descartado porque el usuario debe poder seguir usando su panel IA local
+- Crear mensaje custom de error — descartado porque banner simple es suficiente
+
+**Riesgos conocidos / deuda técnica:**
+1. **Query sin filtro de status:** Ahora trae conexión incluso si está inactiva. Esto es intencional para distinguir estados, pero cualquier lógica que asuma "si existe connectionContext entonces está active" debe revisarse (no detectado en esta OE).
+
+2. **Lista cerrada de estados:** Futuros estados de conexión (ej: `paused`, `suspended`) NO activarán el banner hasta que se agreguen explícitamente a la allowlist. Esto es intencional — decisión de producto/seguridad requerida antes de activar comportamiento visual.
+
+3. **Welcome screen:** La query de welcome metadata sigue dentro del bloque `if (connection)` (líneas 97-145 de page.tsx), por lo que welcome solo se mostrará si existe conexión (incluso inactiva). Esto es correcto — welcome se muestra una vez y queda marcado incluso si conexión se cancela después.
+
+**Validaciones:**
+- `npm run lint`: ✅ OK (warnings pre-existentes en CanvasViewport)
+- `npm run build`: ✅ OK
+- TypeScript: ✅ Sin errores después de fix de tipo booleano en `isConnectionNoLongerActive`
+
+**Restricciones respetadas:**
+- ✅ No se tocó RLS de checkpoints/messages
+- ✅ No se tocó /api/chat
+- ✅ No se tocó panel de IA propia
+- ✅ No se tocaron Teams Map ni EditTeamModal
+- ✅ No se usó `status !== 'active'`
+- ✅ No se tocaron migrations ni schema
+- ✅ No se tocó backend de accept/reject/disconnect
+
+**Estado:** COMPLETO. Build exitoso. Listo para commit y push.
+
+**Lección clave:**
+En flujos de lifecycle, `undefined` no debe mezclar "no existe" con "existe pero está inactivo". Es necesario preservar estado suficiente (status field) para decidir visualmente. Usar allowlist cerrada de estados en lugar de comparación negativa protege contra estados futuros no contemplados — decisión de arquitectura especialmente importante en features cross-account cercanas a RLS.

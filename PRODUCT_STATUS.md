@@ -188,7 +188,6 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Botón "Today" en Audit Log | No funciona (pospuesto) |
 | **FEATURES DISCUTIDAS NO IMPLEMENTADAS** | |
 | Web Search default ON + alerta visual | Propuesta discutida 2026-06-22 pero NO implementada — default ON + alerta visual roja cuando OFF. Quedó registrado como pendiente. |
-| Mensaje "connection no longer available" | Propuesta discutida 2026-06-22 pero NO implementada — mostrar mensaje en HumanChatPanel cuando conexión inactiva. |
 | **REALTIME GAPS** | |
 | WorkspaceShell chat humano | Requiere F5 para ver mensajes nuevos (único gap de realtime confirmado por Agustín). Diagnosticado pero no corregido. |
 | OE B.1/B.2 | Realtime general + buildOtherPanelsSnapshot cross-cell siguen diferidos |
@@ -219,6 +218,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | **Audit Log filter improvements** | ✅ Closed | 2026-06-22 (commit e5919a4) — AJUSTE 1: Shared teams (isolated) ahora aparecen en dropdown "All teams" usando synthetic IDs (metadata:${team_name}). AJUSTE 2: Nuevo filtro "All types" con categorías de eventos (Checkpoint Saved, Resume Work, Web Search, Connections, etc.) — convive con search box (AND logic). AJUSTE 3: Metadata viewer_role agregado a eventos de conexión (host/invitee) → títulos muestran rol explícito ("Connected with [email] — As Invitee"). |
 | **Teams Map/Tree View — Isolated teams fix** | ✅ Closed | 2026-06-22 (commit 5718f32) — FIX 1 (agent-map.ts): Nodo worker sintético para isolated teams. Manager genera 2 nodos: (1) GM top node (role: manager) + (2) worker box (role: worker1 sintético). Ambos apuntan al mismo workspace. Verificación de riesgo confirmó agentId solo usado para React key, no navegación. FIX 2 (EditTeamModal.tsx): Filtrar agents a solo manager + grid adaptativo (1 columna vs 3). Resultado: isolated teams muestran 1 GM + 1 caja worker (antes mostraban 1 GM + 0 cajas). |
 | **Welcome screen bilateral** | ✅ Closed | 2026-06-22 (commit e5177df, migration 039 pending) — Host (requester) ahora ve pantalla de bienvenida en primera visita al shared workspace ("You can now open their shared workspace..."). Evento welcome_viewed_by_requester registrado en team_connections. Invitee welcome ya existía (welcome_viewed_by_invitee). Contenido diferenciado por rol. |
+| **Inactive connection state** | ✅ Closed | 2026-06-23 — Workspaces vinculados a conexiones `cancelled` o `disconnected` ahora muestran banner "This connection is no longer active." y deshabilitan input del chat humano. Query de connectionContext eliminó filtro `status = 'active'` para distinguir entre conexión inexistente vs inactiva. Lista explícita de estados inactivos `['cancelled', 'disconnected']` en lugar de negación. Panel IA propia sigue funcionando normal. Conexiones `active` y workspaces locales sin cambios. |
 | Metadata package (host → invitee) | Pending | Post-MVP — optional governance sharing |
 
 ---

@@ -82,6 +82,7 @@ export default async function WorkspacePage({
     isHost: boolean
     otherUserEmail: string
     otherUserName?: string
+    status: string
   } | undefined
 
   let initialHumanMessages: HumanMessage[] = []
@@ -91,7 +92,6 @@ export default async function WorkspacePage({
       .from('team_connections')
       .select('id, requester_account_id, receiver_account_id, requester_email, requester_team_name, receiver_email, receiver_team_name, description, color, welcome_viewed_by_invitee, welcome_viewed_by_requester, status')
       .eq('scope_isolated_team_id', team.id)
-      .eq('status', 'active')
       .single()
 
     if (connection) {
@@ -105,6 +105,7 @@ export default async function WorkspacePage({
           isHost,
           otherUserEmail: isHost ? connection.receiver_email : connection.requester_email,
           otherUserName: isHost ? undefined : connection.requester_team_name,
+          status: connection.status,
         }
 
         // Load human messages

@@ -29,6 +29,7 @@ interface ConnectionContext {
   isHost:         boolean
   otherUserEmail: string
   otherUserName?: string
+  status:         string
 }
 
 interface Props {
@@ -437,6 +438,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
               forwardTargets={[{ role: 'manager', label: 'Manager' }]}
               onForward={handleHumanForward}
               workspaceLocked={locked}
+              connectionStatus={connectionContext.status}
             />
 
             {/* Manager Panel (first agent_session) */}

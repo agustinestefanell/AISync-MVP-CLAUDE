@@ -716,3 +716,36 @@ Establecer rutina de cierre duro obligatoria: actualizar handoff.md ANTES de dec
 
 **Lección clave:**
 La documentación es parte del entregable, no un "extra". Una OE sin handoff entry NO está completa. El costo de backfill (tiempo + tokens + re-derivar contexto) siempre supera el costo de documentar en el momento. Ritual de cierre debe ser hard gate, no soft reminder.
+
+## 2026-06-23 — Use an explicit inactive-status allowlist for Connected Teams inactive banners
+
+**Decision:**
+Use an explicit inactive-status allowlist for Connected Teams inactive banners.
+
+**Reason:**
+The inactive connection banner must only appear for statuses deliberately approved for that behavior. AISync uses:
+
+```typescript
+['cancelled', 'disconnected'].includes(connectionStatus)
+```
+
+instead of:
+
+```typescript
+connectionStatus !== 'active'
+```
+
+because Connected Teams is close to cross-account access and RLS-sensitive behavior. A future status must not trigger the inactive banner, input disabling, or altered shared-workspace behavior by accident. Any new status requires an explicit product/security decision before being mapped to UI behavior.
+
+**Status:**
+Accepted / Implemented.
+
+**Impact:**
+- `cancelled` and `disconnected` show "This connection is no longer active."
+- `active` preserves current behavior.
+- `pending` is intentionally excluded.
+- `undefined` connectionContext preserves local workspace behavior.
+- future statuses do not change behavior automatically.
+
+**Lección clave:**
+En features cross-account cercanas a RLS, usar allowlist cerrada de estados en lugar de comparación negativa protege contra estados futuros no contemplados. Esto es especialmente importante cuando el comportamiento afecta permisos, acceso a datos, o interacción entre cuentas.

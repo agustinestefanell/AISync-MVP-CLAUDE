@@ -23,6 +23,7 @@ interface Props {
   forwardTargets?: { role: string; label: string }[]
   onForward?: (messages: HumanMessage[], targetRole: string) => void
   workspaceLocked?: boolean
+  connectionStatus?: string
 }
 
 // Day marker helper
@@ -56,6 +57,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   forwardTargets,
   onForward,
   workspaceLocked = false,
+  connectionStatus,
 }, ref) {
   const [messages, setMessages] = useState<HumanMessage[]>(initialMessages)
   const [input, setInput] = useState('')
@@ -68,6 +70,12 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const hasSelection = selectedIndices.size > 0
+
+  // Detect inactive connection using explicit allowlist
+  const isConnectionNoLongerActive = !!(
+    connectionStatus &&
+    ['cancelled', 'disconnected'].includes(connectionStatus)
+  )
 
   // Expose public methods via ref
   useImperativeHandle(ref, () => ({
@@ -272,6 +280,15 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
         <p className="text-xs text-gray-500 mt-0.5">Direct human-to-human communication</p>
       </div>
 
+      {/* Inactive connection banner */}
+      {isConnectionNoLongerActive && (
+        <div className="shrink-0 px-4 py-2.5 bg-amber-50 border-b border-amber-200">
+          <p className="text-xs text-amber-800 font-medium">
+            This connection is no longer active.
+          </p>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {!isMounted ? (
@@ -345,19 +362,19 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
         <div className="ui-chat-composer">
           <textarea
             ref={textareaRef}
-            className="ui-chat-composer-input"
-            placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+            className="ui-chat-composer-input disabled:cursor-not-allowed disabled:opacity-45"
+            placeholder={isConnectionNoLongerActive ? "Connection inactive" : "Type your message... (Enter to send, Shift+Enter for new line)"}
             value={input}
-            disabled={sending}
+            disabled={sending || isConnectionNoLongerActive}
             rows={1}
             style={{ resize: 'none', minHeight: '36px', maxHeight: '96px', overflowY: 'auto' }}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
           />
           <button
-            className="ui-button ui-button-primary ui-chat-send text-xs text-white disabled:opacity-40"
+            className="ui-button ui-button-primary ui-chat-send text-xs text-white disabled:cursor-not-allowed disabled:opacity-40"
             onClick={handleSend}
-            disabled={!input.trim() || sending}
+            disabled={!input.trim() || sending || isConnectionNoLongerActive}
           >
             {sending ? '…' : 'Send'}
           </button>
@@ -373,7 +390,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
                 className="ui-forward-select"
                 value={forwardTarget}
                 onChange={e => setForwardTarget(e.target.value)}
-                disabled={!forwardTargets?.length || workspaceLocked}
+                disabled={!forwardTargets?.length || workspaceLocked || isConnectionNoLongerActive}
               >
                 {forwardTargets?.map(t => (
                   <option key={t.role} value={t.role}>{t.label}</option>
@@ -387,7 +404,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
             <button
               className="ui-button ui-button-primary ui-chat-action-button text-xs text-white disabled:opacity-40"
               onClick={handleForward}
-              disabled={!hasSelection || !onForward || workspaceLocked}
+              disabled={!hasSelection || !onForward || workspaceLocked || isConnectionNoLongerActive}
               title="Review and forward selected messages"
             >
               Review & Forward
