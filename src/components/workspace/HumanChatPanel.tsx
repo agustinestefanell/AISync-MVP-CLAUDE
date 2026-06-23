@@ -49,7 +49,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   connectionId,
   currentUserId,
   otherUserEmail,
-  otherUserName,
+  otherUserName: _otherUserName, // Unused - header now shows email only
   initialMessages,
   onSelectionChange,
   onSaveVersion,
@@ -66,6 +66,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
   const [isMounted, setIsMounted] = useState(false)
   const [forwardTarget, setForwardTarget] = useState(forwardTargets?.[0]?.role ?? '')
+  const [localConnectionInactive, setLocalConnectionInactive] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -75,7 +76,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   const isConnectionNoLongerActive = !!(
     connectionStatus &&
     ['cancelled', 'disconnected'].includes(connectionStatus)
-  )
+  ) || localConnectionInactive
 
   // Expose public methods via ref
   useImperativeHandle(ref, () => ({
@@ -184,7 +185,14 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
       if (!res.ok) {
         const data = await res.json()
         console.error('[HumanChat] POST failed:', data)
-        setError(data.error ?? 'Failed to send message')
+
+        // Check for inactive connection error with strict validation (status + text)
+        if (res.status === 404 && data.error?.includes('Connection not found or not active')) {
+          setError('This connection is no longer active.')
+          setLocalConnectionInactive(true)
+        } else {
+          setError(data.error ?? 'Failed to send message')
+        }
         return
       }
 
@@ -268,14 +276,13 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   }
 
   console.log('[HumanChat] messagesByDay:', messagesByDay)
-  const displayName = otherUserName || otherUserEmail
 
   return (
     <div className="flex flex-col h-full bg-white border border-gray-200 rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="shrink-0 px-4 py-3 border-b border-gray-200 bg-gray-50">
         <h2 className="text-sm font-semibold text-gray-900">
-          Chat with {displayName}
+          Chat with {otherUserEmail}
         </h2>
         <p className="text-xs text-gray-500 mt-0.5">Direct human-to-human communication</p>
       </div>
@@ -331,7 +338,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
                     >
                       <div className="flex items-baseline justify-between gap-2 mb-1">
                         <span className="text-xs font-medium text-gray-700">
-                          {isMe ? 'You' : displayName}
+                          {isMe ? 'You' : otherUserEmail}
                         </span>
                         <span className="text-[10px] text-gray-400">
                           {formatMessageTime(message.created_at)}

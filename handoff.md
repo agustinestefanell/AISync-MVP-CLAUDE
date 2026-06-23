@@ -21,7 +21,7 @@ Agregar metadata (description + color) a team_connections para personalizar Shar
 
 **Cambios implementados:**
 1. Migración 030: `ALTER TABLE team_connections ADD COLUMN description text, ADD COLUMN color text DEFAULT '#000000'`
-2. ConnectTeamModal: 
+2. ConnectTeamModal:
    - Eliminado selector "Your host team (outgoing SM)"
    - Agregado campo description (obligatorio)
    - Agregado paleta visual de 8 colores
@@ -113,7 +113,7 @@ Reordenar secciones de HumanChatPanel para que coincida pixel-perfect con AgentP
 1. Movido bloque de Input desde línea 419 → línea 344 (después de Messages, antes de Forward section)
 2. Contenedor de Input actualizado: `className="ui-chat-input-section shrink-0"` (igual que AgentPanel)
 3. Div interno actualizado: `className="ui-chat-composer"` (igual que AgentPanel)
-4. Textarea actualizado: 
+4. Textarea actualizado:
    - `className="ui-chat-composer-input"` (reemplazó Tailwind inline)
    - `style={{ resize: 'none', minHeight: '36px', maxHeight: '96px', overflowY: 'auto' }}`
 5. Botón Send actualizado: `className="ui-button ui-button-primary ui-chat-send text-xs text-white disabled:opacity-40"`
@@ -6434,7 +6434,7 @@ Reemplazar autostart automático por prefill simple del input. El usuario llega 
 2. `ChatFirstClient`: navegación cambió de `?autostart=${managerSessionId}` a `?prefill=${encodeURIComponent(initialIntent)}`
 3. `workspace/[id]/page`: searchParams cambió de `autostart?: string` a `prefill?: string`
 4. `WorkspaceClient`: props cambió de `autostartSessionId` a `prefillMessage`
-5. `WorkspaceShell`: 
+5. `WorkspaceShell`:
    - Props cambió de `autostartSessionId` a `prefillMessage`
    - Removido useEffect completo con lógica de autostart y console.logs
    - Pasa `initialInput={session.agent_role === 'manager' ? prefillMessage : undefined}` al panel manager
@@ -7471,7 +7471,7 @@ Errores de hidratación React pueden romper completamente el árbol de component
 
 ## Sesión 2026-06-22 — Welcome screen para Host en Connected Teams
 
-**Fecha:** 2026-06-22  
+**Fecha:** 2026-06-22
 **Archivos modificados:**
 - supabase/migrations/039_welcome_viewed_by_requester.sql
 - src/app/api/connections/mark-welcome-viewed/route.ts
@@ -7542,7 +7542,7 @@ Bienvenidas contextuales en features cross-account deben ser bilaterales con con
 
 ## Sesión 2026-06-22 — OE C (Piezas 1 y 2): Registro de conexión en audit_log del invitado
 
-**Fecha:** 2026-06-22  
+**Fecha:** 2026-06-22
 **Archivos modificados:**
 - src/app/api/connections/[id]/route.ts (INSERT audit_log en accept)
 
@@ -7596,7 +7596,7 @@ Eventos de conexión cross-account son audit-critical porque cruzan límites de 
 
 ## Sesión 2026-06-22 — OE C gaps completos: disconnected, cancelled y nuevo filtro Audit Log
 
-**Fecha:** 2026-06-22  
+**Fecha:** 2026-06-22
 **Archivos modificados:**
 - src/app/api/connections/[id]/route.ts (INSERT audit_log en disconnect + DELETE)
 - src/components/audit/AuditTimeline.tsx (EVENT_CONFIG + filtro rediseñado)
@@ -7696,7 +7696,7 @@ Eventos de desconexión cross-account requieren audit bilateral con metadata que
 
 ## Sesión 2026-06-22 — Fix team_name fallback en getAuditEvents (audit.ts)
 
-**Fecha:** 2026-06-22  
+**Fecha:** 2026-06-22
 **Archivos modificados:**
 - src/lib/db/audit.ts (función getAuditEvents)
 
@@ -7716,8 +7716,8 @@ Agregar fallback en el map: si `workspaces.teams.name` es null, intentar extraer
 
 **audit.ts línea 35:**
 ```typescript
-const teamName = r.workspaces?.teams?.name 
-  ?? (r.metadata?.requester_team_name as string | null | undefined) 
+const teamName = r.workspaces?.teams?.name
+  ?? (r.metadata?.requester_team_name as string | null | undefined)
   ?? null
 ```
 
@@ -7744,7 +7744,7 @@ Eventos cross-account sin workspace requieren fallbacks de metadata para campos 
 
 ## Sesión 2026-06-22 — Ajustes a filtros de Audit Log + metadata de eventos de conexión
 
-**Fecha:** 2026-06-22  
+**Fecha:** 2026-06-22
 **Archivos modificados:**
 - src/app/api/connections/[id]/route.ts (metadata viewer_role en 3 eventos de conexión)
 - src/components/audit/AuditTimeline.tsx (filtro por Type + uniqueTeams con metadata + eventTitle con role)
@@ -7842,7 +7842,7 @@ Filtros sobre datos heterogéneos (teams con ID vs metadata-only teams) requiere
 
 ## Sesión 2026-06-22 — OE C (Pieza 3): Fix renderizado de connection_accepted en Audit Views
 
-**Fecha:** 2026-06-22  
+**Fecha:** 2026-06-22
 **Archivos modificados:**
 - src/components/audit/AuditTimeline.tsx
 - src/lib/db/documentation.ts (función getDocAuditEvents)
@@ -8487,3 +8487,138 @@ Cambiar de `.single()` a `.maybeSingle()` + ordenar por `updated_at DESC` + `lim
 
 **Lección clave:**
 Cuando se elimina un filtro que garantizaba unicidad (como `status='active'`), verificar si hay constraint UNIQUE en los campos restantes. Si no existe, `.single()` es inseguro y debe reemplazarse por `.maybeSingle()` + ordenamiento explícito. Casos de "múltiples registros históricos" no siempre son evidentes en validación funcional básica — requieren análisis de schema + ciclo de vida completo.
+
+## 2026-06-23 — Human Chat inactive connection error and user label normalization
+
+**Commit:** fix: normalize inactive connection error and human chat user label
+
+**Archivos modificados:**
+- src/components/workspace/HumanChatPanel.tsx
+- handoff.md
+- PRODUCT_STATUS.md
+
+---
+
+**Problema:**
+Dos gaps de UX post-implementación de inactive connection state (commits 510f24e + 7f185ef):
+
+1. **Error crudo al enviar mensaje con conexión inactiva:** Si workspace queda abierto sin F5 mientras contraparte desconecta, al intentar enviar mensaje humano el backend rechaza correctamente con 404 "Connection not found or not active", pero el frontend mostraba ese texto técnico crudo al usuario.
+
+2. **Inconsistencia en header del chat humano:** Host veía email del invitado ("Chat with agustinestefanell@gmail.com") pero invitado veía nombre de team del host ("Chat with Equipo Principal-AISYNC") debido a construcción asimétrica de `otherUserName` en page.tsx línea 109.
+
+**Contexto:**
+Gap conocido y diferido: WorkspaceShell no tiene Realtime. Si conexión se cancela mientras workspace está abierto, `isConnectionNoLongerActive` sigue en `false` hasta F5. Esta OE NO resuelve Realtime — solo captura el error del backend y normaliza el copy visible.
+
+---
+
+### FIX 1 — Copy correcto de conexión inactiva
+
+**Cambios implementados:**
+
+**1. src/components/workspace/HumanChatPanel.tsx líneas 62-77:**
+Agregado estado local `localConnectionInactive` y actualizado `isConnectionNoLongerActive`:
+```typescript
+const [localConnectionInactive, setLocalConnectionInactive] = useState(false)
+
+const isConnectionNoLongerActive = !!(
+  connectionStatus &&
+  ['cancelled', 'disconnected'].includes(connectionStatus)
+) || localConnectionInactive
+```
+
+**2. Líneas 184-196:**
+Detección estricta de error con doble condición (status + texto específico):
+```typescript
+if (!res.ok) {
+  const data = await res.json()
+
+  // Check for inactive connection error with strict validation (status + text)
+  if (res.status === 404 && data.error?.includes('Connection not found or not active')) {
+    setError('This connection is no longer active.')
+    setLocalConnectionInactive(true)
+  } else {
+    setError(data.error ?? 'Failed to send message')
+  }
+  return
+}
+```
+
+**Resultado:**
+- Usuario ve copy oficial "This connection is no longer active."
+- Input queda deshabilitado localmente para intentos siguientes
+- 404 genérico o con otro texto NO activa este comportamiento
+- Envío normal con conexión `active` sigue funcionando sin cambios
+
+**Validación estricta de 404:**
+- `/api/human-chat` POST tiene UN SOLO caso de 404: conexión no encontrada o no activa (línea 83)
+- Texto específico: "Connection not found or not active"
+- Detección usa doble condición `status === 404 && error.includes('Connection not found or not active')` para evitar capturar 404 genéricos futuros
+
+---
+
+### FIX 2 — Unificación de header a email
+
+**Cambios implementados:**
+
+**1. src/components/workspace/HumanChatPanel.tsx línea 52:**
+Marcado `otherUserName` como unused con prefijo `_`:
+```typescript
+otherUserName: _otherUserName, // Unused - header now shows email only
+```
+
+**2. Línea 277:**
+Header usa directamente `otherUserEmail`:
+```typescript
+<h2 className="text-sm font-semibold text-gray-900">
+  Chat with {otherUserEmail}
+</h2>
+```
+
+**3. Línea 341:**
+Sender label en mensajes también usa `otherUserEmail`:
+```typescript
+{isMe ? 'You' : otherUserEmail}
+```
+
+**Resultado:**
+- **Host:** "Chat with agustinestefanell@gmail.com" (email del invitado)
+- **Invitado:** "Chat with agustin@correo.com" (email del host)
+- Consistencia bilateral — ambos lados ven email de la contraparte
+- `requester_team_name` ya no se usa como etiqueta visible de usuario humano
+
+**Decisión técnica:**
+No se modificó `page.tsx` porque `otherUserName` sigue siendo pasado a HumanChatPanel (para evitar romper props) pero marcado como unused. La construcción asimétrica en page.tsx línea 109 (`otherUserName: isHost ? undefined : connection.requester_team_name`) queda intacta pero irrelevante.
+
+---
+
+**Alcance:**
+- HumanChatPanel / Connected Teams / Shared Workspace
+- NO se tocó Realtime (gap conocido y diferido)
+- NO se tocó `/api/human-chat` (backend correcto)
+- NO se tocó panel IA propia
+- NO se tocaron Teams Map ni EditTeamModal
+
+**Restricciones respetadas:**
+- ✅ No se tocó `/api/human-chat`
+- ✅ No se tocó Realtime
+- ✅ No se tocó Teams Map
+- ✅ No se tocó EditTeamModal
+- ✅ No se tocó panel IA propia
+- ✅ No se tocaron providers, streaming, schema ni migrations
+- ✅ No polling/listeners nuevos
+- ✅ No se tocó bug del título triplicado `SHARED: SHARED: SHARED...`
+
+**Validaciones:**
+- npm run lint: ✅ OK (warnings pre-existentes en CanvasViewport)
+- npm run build: ✅ OK
+
+**Riesgos conocidos / deuda técnica:**
+1. **Realtime en WorkspaceShell:** Sigue diferido. Usuario debe hacer F5 para ver cambios de status en tiempo real. Este fix solo captura el error del backend cuando usuario intenta enviar sin F5.
+2. **`otherUserName` prop:** Sigue siendo pasado pero no usado. Podr
+
+ía eliminarse en futuro refactor de props (breaking change menor).
+
+**Estado:** COMPLETO. Build exitoso. Listo para commit.
+
+**Lección clave:**
+Detección de errores específicos del backend debe usar doble condición (status + texto) para evitar capturar casos genéricos futuros. En features cross-account, consistencia de etiquetas de usuario (usar siempre email) es crítica para UX bilateral coherente. Gaps de Realtime se mitigan capturando errores del backend, no intentando resolver sincronización completa en cada fix puntual.
