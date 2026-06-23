@@ -594,3 +594,23 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
   (como status = 'active'), verificar el schema antes de asumir que
   .single() sigue siendo seguro. Si no hay UNIQUE constraint en los campos
   restantes, usar .maybeSingle() + ordenamiento explícito por defecto.
+
+---
+
+### 16. Human Chat Realtime: dos causas distintas bajo un mismo síntoma
+
+- **Problema:** Los mensajes humanos en Connected Teams podían requerir F5 para verse del lado del receptor. El síntoma se reportó como un solo problema, pero el diagnóstico de esta sesión confirmó que corresponde a dos causas distintas en momentos distintos del proyecto.
+
+- **Causa raíz 1 — CONFIRMADA Y RESUELTA:** Errores de hydration de React (#425, #418, #423) rompían el árbol de React en HumanChatPanel, impidiendo cualquier actualización de UI — ni optimistic update ni Realtime podían reflejarse en pantalla. Resuelto en commits 829abdd y 7a3a3f7 (2026-06-18) agregando estado `isMounted` y calculando `messagesByDay` solo en cliente. Este fix también resolvió un problema asociado de mensajes duplicados, vía deduplicación en el callback de Realtime.
+
+- **Causa raíz 2 — PROBABLE, NO CONFIRMADA, PENDIENTE DE FIX:** Con el árbol de React ya estable, persiste una ventana de carrera entre la carga inicial de mensajes en servidor (SSR, timestamp T0) y el momento en que el canal de Realtime queda suscrito en el cliente (timestamp T1). Un mensaje insertado en esa ventana no llega al receptor por evento Realtime, y solo aparece tras F5 (que vuelve a traer todo el historial). El emisor no sufre este gap porque ve su propio mensaje vía optimistic update, independiente de Realtime.
+
+- **Consecuencia:** El receptor puede no ver mensajes entrantes en tiempo real de forma consistente, específicamente cuando el envío ocurre muy cerca del momento en que el receptor abre o recarga el workspace.
+
+- **Proceso de diagnóstico:** Mini OE de solo lectura: localización de las 3 suscripciones Realtime del proyecto, revisión de ciclo de vida del canal (useEffect, cleanup), scope del canal (filtro por connection_id, sin colisión entre usuarios/pestañas), revisión de políticas RLS de human_messages (SELECT policy simple, riesgo bajo), y reconstrucción temporal de la secuencia SSR → mount → subscribe.
+
+- **Solución final:** Pendiente. No implementada en esta sesión de diagnóstico. Recomendación: refetch incremental de mensajes inmediatamente después de que el canal queda SUBSCRIBED, con deduplicación por message.id contra los mensajes ya cargados — cierra la ventana T0→T1 sin necesidad de polling.
+
+- **Commit:** Ninguno (solo diagnóstico)
+
+- **Lección:** Un mismo síntoma reportado ("hace falta F5") puede tener más de una causa raíz en momentos distintos del proyecto. Antes de diagnosticar de nuevo un síntoma ya investigado, revisar el historial de commits relacionados — puede que el problema original ya esté resuelto y lo que se observa ahora sea un caso residual distinto, no una recurrencia del mismo bug.

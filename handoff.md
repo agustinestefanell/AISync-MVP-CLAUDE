@@ -8753,3 +8753,86 @@ Nuevo aviso cercano al composer (solo cuando `localConnectionInactive` es true Y
 
 **Lección clave:**
 Cuando un componente renderiza múltiples avisos visuales del mismo tipo (banners, errores, notices), cada uno debe tener su propio boolean de control específico que refleje claramente su propósito y origen. Usar un único boolean combinado para múltiples renders visuales genera duplicación cuando múltiples condiciones se cumplen simultáneamente. Separar las señales visuales según su semántica (server-known state vs client-detected state) mejora claridad y evita duplicación.
+
+---
+
+## [2026-06-23] — Mini OE de Diagnóstico: Realtime intermitente en Human Chat
+
+**Tipo:** Mini OE de solo lectura / diagnóstico exhaustivo / sin fix
+
+**Contexto:**
+El gap histórico decía: "mensajes humanos requieren F5 para verse — Realtime no está conectado". Sin embargo, testing reciente mostró al menos un caso donde Realtime funcionó correctamente sin F5. Esto contradecía el diagnóstico original y sugería intermitencia, no ausencia total.
+
+**Objetivo:**
+Diagnosticar arquitectura actual de Realtime del chat humano sin modificar código funcional. Confirmar si Realtime existe, dónde se monta, con qué filtro, si hay intermitencia por ciclo de vida/RLS/reconexión, y diferenciar entre problema original vs caso residual.
+
+**Hallazgos:**
+
+1. **Realtime PRESENTE y funcional** — `HumanChatPanel.tsx:101-154`:
+   - Canal: `human-chat-${connectionId}`
+   - Filtro: `connection_id=eq.${connectionId}`
+   - Evento: `INSERT` en tabla `human_messages`
+   - Cleanup: ✅ correcto (`removeChannel` en línea 152)
+   - Dependencias: `[connectionId]` estable
+   - Logging completo de estados (`SUBSCRIBED`, `CHANNEL_ERROR`, `TIMED_OUT`, `CLOSED`)
+
+2. **Causa raíz 1 — CONFIRMADA Y RESUELTA (2026-06-18):**
+   - React hydration errors (#425, #418, #423) rompían el árbol de componentes
+   - Ni optimistic update ni Realtime podían reflejarse en UI
+   - Resuelto en commits `829abdd` (isMounted + messagesByDay en cliente) y `7a3a3f7` (deduplicación + subscription logging)
+   - También se resolvió duplicación de mensajes (optimistic + Realtime sin dedup)
+
+3. **Causa raíz 2 — PROBABLE, NO CONFIRMADA:**
+   - Race condition entre SSR (T0) y mount del canal Realtime (T1)
+   - Mensajes insertados en ventana temporal `[T0, T1]` no llegan al receptor vía Realtime
+   - Solo aparecen tras F5 (que trae historial completo desde DB)
+   - Emisor no sufre el gap (ve su mensaje vía optimistic update inmediato)
+
+4. **RLS de `human_messages` (migración 037):**
+   - SELECT policy simple: `from_account_id = auth.uid() OR to_account_id = auth.uid()`
+   - INSERT policy más compleja: JOIN con `team_connections`, valida `status = 'active'`
+   - Riesgo bajo de eventos bloqueados por RLS (SELECT policy sin JOINs)
+
+5. **Otras suscripciones Realtime en el proyecto:**
+   - `TeamsClient.tsx`: escucha `team_connections` (no mensajes), con polling fallback 15s
+   - `ProjectList.tsx`: escucha `team_connections` (badge), con polling fallback 15s
+   - Solo `HumanChatPanel` escucha `human_messages`
+
+**Recomendación para futura OE de fix:**
+Implementar **refetch incremental** inmediatamente después de que el canal quede `SUBSCRIBED`:
+- Hacer `fetch('/api/human-chat?connectionId=...')` post-subscribe
+- Mergear con `initialMessages` usando deduplicación por `message.id`
+- Cierra ventana T0→T1 sin necesidad de polling continuo
+- Patrón similar al fallback usado en `TeamsClient` y `ProjectList`
+
+**Archivos analizados (solo lectura):**
+- `src/components/workspace/HumanChatPanel.tsx` — canal Realtime principal
+- `src/components/workspace/WorkspaceShell.tsx` — montaje de HumanChatPanel
+- `src/app/workspace/[id]/page.tsx` — SSR de mensajes iniciales y connectionContext
+- `src/app/api/human-chat/route.ts` — insert de mensajes, validación de status
+- `supabase/migrations/037_human_messages.sql` — tabla y RLS
+- `src/components/teams/TeamsClient.tsx` — patrón de Realtime + polling fallback
+- `src/components/ProjectList.tsx` — patrón de Realtime + polling fallback
+
+**Archivos modificados:**
+- `CodingWorkshop.md` — entrada #16 (Human Chat Realtime: dos causas distintas bajo un mismo síntoma)
+- `handoff.md` — esta entrada
+
+**Restricciones respetadas:**
+- ✅ Código funcional no modificado
+- ✅ `/api/human-chat` no tocado
+- ✅ RLS no modificada
+- ✅ Schema/migrations no modificadas
+- ✅ Implementación de Realtime no modificada
+- ✅ WorkspaceShell no tocado
+- ✅ Teams Map / EditTeamModal no tocados
+- ✅ Sin commit de código
+
+**Validaciones:**
+- git status: solo `.claude/settings.local.json` + `CodingWorkshop.md` + `handoff.md`
+- No se ejecutó build (sin cambios en código funcional)
+
+**Estado:** Diagnóstico completo. Fix pendiente para OE separada.
+
+**Lección clave:**
+Un mismo síntoma reportado ("hace falta F5") puede tener más de una causa raíz en momentos distintos del proyecto. Antes de diagnosticar de nuevo un síntoma ya investigado, revisar historial de commits relacionados — puede que el problema original ya esté resuelto y lo que se observa ahora sea un caso residual distinto, no una recurrencia del mismo bug. En este caso: hydration errors (resueltos) vs race condition SSR→mount (pendiente).
