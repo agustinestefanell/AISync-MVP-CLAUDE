@@ -22,7 +22,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     agents: Array<{ id: string; provider: string; model: string; config?: Record<string, unknown> | null; description?: string | null }>
   }
 
-  const teamType = computeType(agents)
+  // Read current team type to preserve 'isolated' teams (Connected Teams)
+  const { data: currentTeam, error: readErr } = await supabase
+    .from('teams')
+    .select('type')
+    .eq('id', params.id)
+    .single()
+
+  if (readErr || !currentTeam) {
+    return NextResponse.json({ error: 'Team not found or could not be read.' }, { status: 404 })
+  }
+
+  // Preserve 'isolated' type for Connected Teams; recalculate SAT/MAT for normal teams
+  const teamType = currentTeam.type === 'isolated' ? 'isolated' : computeType(agents)
 
   const { error: teamErr } = await supabase
     .from('teams')

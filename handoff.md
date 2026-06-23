@@ -9033,3 +9033,42 @@ Forzar la re-ejecución de SSR / revalidación del árbol cliente-servidor del l
 
 **Lección clave:**
 Patrón `router.refresh()` tras guardado exitoso ya establecido en el repo (AdminClient.tsx, ProjectList.tsx). Aplicado consistentemente a callback `handleUpdated` de TeamsClient para sincronizar ediciones de teams con SSR cache de Workspace.
+
+---
+
+## 2026-06-23 — Fix: Preserve isolated team.type on team edit
+
+**Fecha:** 2026-06-23
+**Tipo:** Fix quirúrgico / Connected Teams / Team type integrity
+
+**Context:**
+Editing provider/name/description from EditTeamModal on `isolated` Connected Teams teams mutated `team.type` to `'SAT'` because the API unconditionally recalculated `type` using `computeType(agents)` from a Manager-only payload. This broke HumanChatPanel (not rendered), made Workers visible, removed "Shared Session" badge, and lost connection metadata.
+
+**Causa raíz (confirmada por diagnóstico previo):**
+`EditTeamModal` filters `agents` to only Manager when `team.type === 'isolated'` (línea 71) but does NOT include `type` in PATCH payload. API `PATCH /api/teams/[id]` calculated `teamType = computeType(agents)` from received agents and ALWAYS updated `teams.type = teamType` (línea 32) without checking current type. Single-provider payload → `computeType()` returns `'SAT'` → silent mutation `'isolated'` → `'SAT'`.
+
+**Change:**
+`PATCH /api/teams/[id]` now reads the current persisted `team.type` before update (SELECT type WHERE id = params.id). If current type is `'isolated'`, it preserves `'isolated'`. If current type is `'SAT'` or `'MAT'`, it continues using `computeType(agents)` as before. If reading current team fails, API returns 404 error and does not proceed with update.
+
+**Archivos modificados:**
+- `src/app/api/teams/[id]/route.ts` — agregadas líneas 16-26 (read current type + conditional preservation)
+- `handoff.md` — esta entrada
+- `CodingWorkshop.md` — completada entrada #18 con solución final
+
+**Restricciones respetadas:**
+- ✅ EditTeamModal.tsx no modificado
+- ✅ Payload del modal no modificado
+- ✅ Datos existentes no modificados (fix previene futuras mutaciones, no corrige registros ya afectados)
+- ✅ WorkspaceShell/HumanChatPanel/Teams Map no modificados
+- ✅ RLS/schema/migrations no modificados
+
+**Validaciones:**
+- `npm run lint`: ✅ Warnings pre-existentes en CanvasViewport.tsx (no relacionados)
+- `npm run build`: ✅ Build exitoso
+- Validación funcional por evidencia de código: ✅ Confirmada
+
+**Estado:** Complete. Fix aplicado. Commit pendiente.
+
+**Lección aplicada:**
+Campos estructurales derivados (como `type`) no deben recalcularse desde payloads parciales cuando existen tipos especiales (`isolated`) con invariantes de servidor. La API debe preservar invariantes estructurales y no delegar integridad del `type` al cliente.
+
