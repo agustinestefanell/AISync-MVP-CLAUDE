@@ -614,3 +614,21 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 - **Commit:** (pendiente en esta sesión)
 
 - **Lección:** Un mismo síntoma reportado ("hace falta F5") puede tener más de una causa raíz en momentos distintos del proyecto. Antes de diagnosticar de nuevo un síntoma ya investigado, revisar el historial de commits relacionados — puede que el problema original ya esté resuelto y lo que se observa ahora sea un caso residual distinto, no una recurrencia del mismo bug.
+
+---
+
+### 17. EditTeamModal: cambio de provider no se refleja en Workspace
+
+- **Problema:** El usuario cambia el provider del Manager desde EditTeamModal (ej. Gemini → OpenAI), guarda el cambio, pero el Workspace sigue mostrando y usando el provider anterior hasta que se hace F5.
+
+- **Causa raíz:** CONFIRMADA. El modal guarda correctamente en `agent_sessions.provider` (misma tabla y campo que lee el Workspace — no hay desconexión de fuente de verdad: payload completo, API actualiza correctamente). El problema es que WorkspaceShell/WorkspaceClient reciben `workspace` como prop inmutable cargada una sola vez por SSR al abrir la página. No existe ningún mecanismo (`router.refresh`, revalidación, refetch) que vuelva a pedir esos datos después de que el modal cierra. AgentPanel renderiza `session.provider` directamente desde esa prop congelada. El commit `5718f32` (fix de isolated teams) se descartó como causa — solo tocó layout visual y filtro de agentes, sin relación con guardado/lectura de provider.
+
+- **Consecuencia:** La UI confirma una edición que no impacta el comportamiento real del Workspace hasta una recarga manual completa — riesgo de que el usuario piense que cambió el provider de una sesión en curso cuando en realidad sigue operando con el provider anterior.
+
+- **Proceso de diagnóstico:** Mini OE de solo lectura: se trazó el flujo completo desde el `<select>` del modal hasta el render de AgentPanel, confirmando que escritura y lectura usan la misma tabla/campo (descartando hipótesis de team vs agent_session y de payload incompleto), y aislando la causa real en la ausencia de revalidación de las props SSR del Workspace.
+
+- **Solución final:** Agregar `router.refresh()` en el callback `onUpdated` del componente padre de EditTeamModal (Teams page / Teams Map), para forzar la re-ejecución de SSR tras guardar. Alcance: cubre volver a entrar al Workspace después de editar. No cubre un Workspace ya abierto en otra pestaña en paralelo (edge case fuera de alcance del MVP).
+
+- **Commit:** Pendiente
+
+- **Lección:** En Next.js App Router, datos cargados por SSR y pasados como props son inmutables del lado del cliente. Un guardado exitoso en base de datos no implica que la UI lo refleje — falta siempre confirmar que existe un paso explícito de revalidación (`router.refresh`, refetch, o invalidación de cache) entre "se guardó" y "se ve actualizado".

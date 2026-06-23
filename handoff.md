@@ -8900,3 +8900,88 @@ Se agregó refetch incremental único cuando el canal Realtime de Human Chat con
 
 **Lección clave:**
 Una race condition entre SSR y client mount se mitiga con un refetch incremental único post-SUBSCRIBED, sin necesidad de polling continuo. La deduplicación por ID garantiza que no se dupliquen mensajes ya cargados. Guard `isMounted` previene setState después de cleanup. El patrón es más simple y eficiente que polling (usado en `TeamsClient`/`ProjectList`), pero requiere merge explícito en lugar de reemplazo ciego del estado.
+
+---
+
+## [2026-06-23] — Mini OE de Diagnóstico: EditTeamModal provider no se refleja en Workspace
+
+**Tipo:** Mini OE de solo lectura / diagnóstico exhaustivo / sin fix
+
+**Contexto:**
+El usuario cambia el provider del Manager desde EditTeamModal (ej. Gemini → OpenAI), guarda el cambio, pero el Workspace sigue mostrando y usando el provider anterior hasta hacer F5. Atención especial: commit `5718f32` modificó EditTeamModal recientemente (fix de isolated teams), pero el diagnóstico debía separar layout visual de guardado de datos.
+
+**Objetivo:**
+Diagnosticar flujo completo provider: EditTeamModal → guardado → tabla/campo → lectura Workspace → render. Confirmar si el bug es payload incompleto, fuente de verdad diferente, cache/memoización, o falta de revalidación.
+
+**Hallazgos:**
+
+1. **Flujo de guardado CORRECTO:**
+   - EditTeamModal construye payload completo (líneas 136-142): incluye `provider` y `model` ✅
+   - API `PATCH /api/teams/[id]` recibe payload ✅
+   - API actualiza `agent_sessions.provider` y `agent_sessions.model` (líneas 39-49 de route) ✅
+   - API devuelve team actualizado con `.select('*, workspaces(*, agent_sessions(*))')` ✅
+
+2. **Flujo de lectura CORRECTO:**
+   - SSR ejecuta `getWorkspaceWithAgents()` → SELECT con JOIN a `agent_sessions(*)` ✅
+   - WorkspaceClient recibe `workspace` como prop inmutable ✅
+   - WorkspaceShell recibe `workspace` como prop inmutable ✅
+   - AgentPanel recibe `session: AgentSession` como prop ✅
+   - AgentPanel renderiza `session.provider` y `session.model` directamente (líneas 470, 473) ✅
+
+3. **Escritura y lectura usan LA MISMA fuente:**
+   - Modal escribe: `agent_sessions.provider`, `agent_sessions.model`
+   - Workspace lee: `workspace.agent_sessions[i].provider`, `workspace.agent_sessions[i].model`
+   - ✅ **NO hay desconexión de fuente de verdad**
+
+4. **Causa raíz confirmada — Falta de revalidación:**
+   - `workspace` es prop inmutable de SSR, cargada UNA sola vez al abrir la página
+   - No existe `router.refresh()`, revalidación, ni refetch tras `onUpdated` del modal
+   - Callback `onUpdated` solo actualiza estado local del parent (Teams page), NO invalida Workspace
+   - Usuario vuelve al Workspace → sigue usando props SSR originales con provider antiguo
+
+5. **Commit `5718f32` NO relacionado:**
+   - Solo modificó: layout visual (grid cols) + filtro de agents (slice) para isolated teams
+   - NO tocó: payload del submit, guardado de provider/model, callbacks de actualización
+   - Evidencia: payload actual incluye provider/model correctamente (confirmado en código)
+
+**Hipótesis evaluadas:**
+
+| Hipótesis | Estado |
+|---|---|
+| A — Guardado correcto sin refresh | ✅ CONFIRMADA |
+| B — Provider omitido del payload | ❌ DESCARTADA (payload completo) |
+| C — Team provider vs agent_session provider | ❌ DESCARTADA (ambos usan agent_sessions) |
+| D — Cache/memoización | ⚠️ SECUNDARIO (consecuencia de props inmutables) |
+
+**Recomendación para futura OE de fix:**
+Agregar `router.refresh()` en callback `onUpdated` del componente que renderiza EditTeamModal (Teams page o Teams Map), para forzar re-ejecución de SSR tras guardar. Alcance: cubre volver a entrar al Workspace después de editar. No cubre Workspace ya abierto en otra pestaña en paralelo (edge case fuera de alcance del MVP). Riesgo: BAJO — patrón oficial Next.js App Router.
+
+**Archivos analizados (solo lectura):**
+- `src/components/teams/EditTeamModal.tsx` — construcción del payload, submit
+- `src/app/api/teams/[id]/route.ts` — PATCH que actualiza agent_sessions
+- `src/lib/db/workspaces.ts` — `getWorkspaceWithAgents()` (SSR loader)
+- `src/app/workspace/[id]/page.tsx` — SSR que pasa props a WorkspaceClient
+- `src/components/workspace/WorkspaceClient.tsx` — pasa props a WorkspaceShell
+- `src/components/workspace/WorkspaceShell.tsx` — pasa session a AgentPanel
+- `src/components/workspace/AgentPanel.tsx` — renderiza `session.provider`
+
+**Archivos modificados:**
+- `CodingWorkshop.md` — entrada #17 (EditTeamModal provider no se refleja en Workspace)
+- `handoff.md` — esta entrada
+
+**Restricciones respetadas:**
+- ✅ Código funcional no modificado
+- ✅ EditTeamModal no tocado
+- ✅ WorkspaceShell no tocado
+- ✅ AgentPanel no tocado
+- ✅ API routes no modificadas
+- ✅ RLS/schema/migrations no tocadas
+- ✅ Sin commit de código
+
+**Validaciones:**
+- git status: solo `.claude/settings.local.json` + `CodingWorkshop.md` + `handoff.md`
+
+**Estado:** Diagnóstico completo. Fix pendiente para OE separada con `router.refresh()`.
+
+**Lección clave:**
+En Next.js App Router, datos cargados por SSR y pasados como props son inmutables del lado del cliente. Un guardado exitoso en base de datos no implica que la UI lo refleje — falta siempre confirmar que existe un paso explícito de revalidación (`router.refresh`, refetch, o invalidación de cache) entre "se guardó" y "se ve actualizado". No asumir que `onUpdated` callback implica invalidación automática de páginas relacionadas.
