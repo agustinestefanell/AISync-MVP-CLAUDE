@@ -189,7 +189,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | **FEATURES DISCUTIDAS NO IMPLEMENTADAS** | |
 | Web Search default ON + alerta visual | Propuesta discutida 2026-06-22 pero NO implementada — default ON + alerta visual roja cuando OFF. Quedó registrado como pendiente. |
 | **REALTIME GAPS** | |
-| WorkspaceShell chat humano | Requiere F5 para ver mensajes nuevos (único gap de realtime confirmado por Agustín). Diagnosticado pero no corregido. |
+| WorkspaceShell chat humano | ✅ **RESUELTO** — Race condition T0→T1 (SSR → Realtime mount) mitigado con refetch incremental post-SUBSCRIBED. HumanChatPanel ahora refetchea mensajes cuando canal confirma `SUBSCRIBED`, mergeando con estado local vía dedup por `message.id`. Sin polling continuo. Commit pendiente 2026-06-23. |
 | OE B.1/B.2 | Realtime general + buildOtherPanelsSnapshot cross-cell siguen diferidos |
 | **CONNECTED TEAMS (OE C) DIFERIDOS** | |
 | Piezas 3 y 4 | Metadata package + Send Checkpoint diferidos — alto riesgo arquitectural |

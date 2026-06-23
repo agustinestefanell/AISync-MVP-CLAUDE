@@ -609,8 +609,8 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
 - **Proceso de diagnóstico:** Mini OE de solo lectura: localización de las 3 suscripciones Realtime del proyecto, revisión de ciclo de vida del canal (useEffect, cleanup), scope del canal (filtro por connection_id, sin colisión entre usuarios/pestañas), revisión de políticas RLS de human_messages (SELECT policy simple, riesgo bajo), y reconstrucción temporal de la secuencia SSR → mount → subscribe.
 
-- **Solución final:** Pendiente. No implementada en esta sesión de diagnóstico. Recomendación: refetch incremental de mensajes inmediatamente después de que el canal queda SUBSCRIBED, con deduplicación por message.id contra los mensajes ya cargados — cierra la ventana T0→T1 sin necesidad de polling.
+- **Solución final:** Se implementó refetch incremental único al confirmar estado `SUBSCRIBED` del canal Realtime. Cuando el callback de suscripción detecta `status === 'SUBSCRIBED'`, ejecuta una consulta a `human_messages` filtrando por `connection_id`, usando el mismo Supabase client del componente. Los mensajes refetcheados se mergean con el estado local usando deduplicación por `message.id` (Map por ID + sort cronológico). Esto cierra la ventana de carrera T0→T1 entre SSR y mount del canal, sin agregar polling continuo. Se agregó guard `isMounted` para prevenir setState después de cleanup. Implementado en `HumanChatPanel.tsx` líneas 102-188 (modificación del callback de `.subscribe()`).
 
-- **Commit:** Ninguno (solo diagnóstico)
+- **Commit:** (pendiente en esta sesión)
 
 - **Lección:** Un mismo síntoma reportado ("hace falta F5") puede tener más de una causa raíz en momentos distintos del proyecto. Antes de diagnosticar de nuevo un síntoma ya investigado, revisar el historial de commits relacionados — puede que el problema original ya esté resuelto y lo que se observa ahora sea un caso residual distinto, no una recurrencia del mismo bug.

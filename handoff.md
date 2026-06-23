@@ -8836,3 +8836,67 @@ Implementar **refetch incremental** inmediatamente después de que el canal qued
 
 **Lección clave:**
 Un mismo síntoma reportado ("hace falta F5") puede tener más de una causa raíz en momentos distintos del proyecto. Antes de diagnosticar de nuevo un síntoma ya investigado, revisar historial de commits relacionados — puede que el problema original ya esté resuelto y lo que se observa ahora sea un caso residual distinto, no una recurrencia del mismo bug. En este caso: hydration errors (resueltos) vs race condition SSR→mount (pendiente).
+
+---
+
+## [2026-06-23] — Human Chat Realtime post-subscription refetch
+
+**Tipo:** Mini OE / Connected Teams / Human Chat / Fix de race condition T0→T1
+
+**Contexto:**
+Mini OE de fix para cerrar la ventana de carrera entre carga inicial SSR (T0) y suscripción Realtime efectiva en cliente (T1). Mensajes insertados en esa ventana no llegaban al receptor por evento Realtime, solo aparecían tras F5.
+
+**Cambio realizado:**
+Se agregó refetch incremental único cuando el canal Realtime de Human Chat confirma estado `SUBSCRIBED`. El refetch consulta `human_messages` filtrando por `connection_id` (usando el mismo Supabase client del componente) y mergea el resultado con el estado local deduplicando por `message.id`.
+
+**Implementación:**
+- Modificación del callback `.subscribe()` en `HumanChatPanel.tsx` líneas 102-188
+- Callback ahora es `async` para permitir `await` del refetch
+- Cuando `status === 'SUBSCRIBED'`:
+  1. Log: refetching messages
+  2. Query: `supabase.from('human_messages').select('*').eq('connection_id', connectionId).order('created_at', asc)`
+  3. Merge: Map por `message.id` + sort cronológico
+  4. Log: merged state count
+- Guard `isMounted` para prevenir setState después de cleanup
+- Cleanup: `isMounted = false` antes de `removeChannel`
+
+**Archivos tocados:**
+- `src/components/workspace/HumanChatPanel.tsx` (callback de suscripción Realtime)
+- `CodingWorkshop.md` (actualización entrada #16 — "Solución final")
+- `handoff.md` (esta entrada)
+
+**Alcance:**
+- HumanChatPanel / Connected Teams / Human Chat Realtime / Race condition T0→T1
+- Cierra ventana entre SSR y mount del canal
+- Sin polling continuo
+
+**Restricciones respetadas:**
+- ✅ `/api/human-chat` no tocado
+- ✅ RLS no modificada
+- ✅ Schema/migrations no modificados
+- ✅ Sin polling continuo (refetch único post-SUBSCRIBED)
+- ✅ Teams Map no tocado
+- ✅ EditTeamModal no tocado
+- ✅ Panel IA propia no tocado
+- ✅ Banner/error conexión inactiva no modificado
+- ✅ Header email no modificado
+- ✅ Bug `SHARED: SHARED: SHARED...` no tocado
+- ✅ Lógica de `shouldShowInactiveConnectionBanner` / `localConnectionInactive` preservada
+- ✅ Providers, streaming, schema, migrations no tocados
+
+**Validaciones:**
+- `npm run lint`: ✅ OK (warnings pre-existentes en CanvasViewport, no relacionados)
+- `npm run typecheck`: N/A (comando no disponible en package.json)
+- `npm run build`: ✅ OK — build exitoso sin errores
+
+**Comportamiento esperado:**
+- **Conexión active normal, sin race:** Comportamiento idéntico al actual (refetch no agrega mensajes nuevos si no hay gap)
+- **Mensaje insertado entre SSR y SUBSCRIBED:** Aparece sin F5 tras refetch post-suscripción
+- **Workspace abre sin mensajes pendientes:** Refetch devuelve array vacío o igual a SSR, sin mensajes fantasma
+- **Workspace abre con mensajes ya cargados por SSR:** Refetch no duplica mensajes (dedup por `message.id`)
+- **Callback SUBSCRIBED:** Sigue logueando como antes + nuevo log de refetch
+
+**Estado:** COMPLETO. Build exitoso. Listo para commit.
+
+**Lección clave:**
+Una race condition entre SSR y client mount se mitiga con un refetch incremental único post-SUBSCRIBED, sin necesidad de polling continuo. La deduplicación por ID garantiza que no se dupliquen mensajes ya cargados. Guard `isMounted` previene setState después de cleanup. El patrón es más simple y eficiente que polling (usado en `TeamsClient`/`ProjectList`), pero requiere merge explícito en lugar de reemplazo ciego del estado.

@@ -100,6 +100,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
 
   // Realtime subscription
   useEffect(() => {
+    let isMounted = true
     const supabase = createClient()
     const channel = supabase
       .channel(`human-chat-${connectionId}`, {
@@ -134,10 +135,40 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
         }
       )
-      .subscribe((status, err) => {
+      .subscribe(async (status, err) => {
         console.log('[HumanChat] Subscription status:', status, err)
         if (status === 'SUBSCRIBED') {
           console.log('[HumanChat] Successfully subscribed to human_messages')
+
+          // Refetch messages once to close the T0→T1 gap (SSR initial load → Realtime subscription)
+          console.log('[HumanChat] Refetching messages to catch any inserted during subscription setup...')
+          try {
+            const { data: refetchedMessages, error: refetchError } = await supabase
+              .from('human_messages')
+              .select('*')
+              .eq('connection_id', connectionId)
+              .order('created_at', { ascending: true })
+
+            if (refetchError) {
+              console.error('[HumanChat] Refetch error:', refetchError)
+            } else if (refetchedMessages && isMounted) {
+              console.log('[HumanChat] Refetched', refetchedMessages.length, 'messages')
+              // Merge with existing messages, deduplicating by message.id
+              setMessages((current) => {
+                const byId = new Map(current.map((msg) => [msg.id, msg]))
+                for (const msg of refetchedMessages as HumanMessage[]) {
+                  byId.set(msg.id, msg)
+                }
+                const merged = Array.from(byId.values()).sort(
+                  (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                )
+                console.log('[HumanChat] Merged state:', merged.length, 'messages')
+                return merged
+              })
+            }
+          } catch (err) {
+            console.error('[HumanChat] Refetch exception:', err)
+          }
         } else if (status === 'CHANNEL_ERROR') {
           console.error('[HumanChat] Channel error:', err)
         } else if (status === 'TIMED_OUT') {
@@ -148,6 +179,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
       })
 
     return () => {
+      isMounted = false
       console.log('[HumanChat] Unsubscribing from channel')
       supabase.removeChannel(channel)
     }
