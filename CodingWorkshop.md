@@ -559,3 +559,38 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 - Elementos sin background explícito heredan blanco por defecto del navegador, no transparent
 - Cuando un div padre tiene color sólido, TODOS los hijos deben tener `background: transparent` explícito para que el color sea visible
 - Los logs confirmaron que el problema era CSS puro, no data pipeline — color correcto llegaba pero quedaba oculto debajo de capas blancas
+
+## 2026-06-23 — connectionContext: .single() falla con registros históricos de conexión
+
+- Problema: Al eliminar el filtro .eq('status', 'active') de la query de
+  team_connections (necesario para distinguir conexión inexistente de
+  conexión inactiva), la query con .single() podía fallar con error de
+  PostgreSQL en vez de retornar undefined.
+
+- Causa raíz: scope_isolated_team_id no tiene constraint UNIQUE en
+  team_connections. El status se actualiza in-place en accept/disconnect/
+  reject, pero si un team se desconecta y luego se reconecta con el mismo
+  partner, el accept reutiliza el scope_isolated_team_id existente,
+  generando una segunda fila. Dos filas con el mismo scope_isolated_team_id
+  → .single() rompe con error, no con undefined controlado.
+
+- Consecuencia: Workspace con historial de reconexión podía crashear al
+  cargar, en vez de mostrar el estado correcto. No detectado por los 15
+  ítems de validación de la OE porque ninguno cubría "team con más de un
+  registro histórico de conexión".
+
+- Proceso de solución: Verificación de schema (sin UNIQUE constraint) +
+  verificación de código de accept/disconnect/reject (confirmando
+  actualización in-place pero sin prevenir duplicados) + reproducción del
+  escenario de reconexión.
+
+- Solución final: Reemplazar .single() por 
+  .order('updated_at', { ascending: false }).limit(1).maybeSingle()
+  — toma siempre la fila más reciente, nunca lanza error por duplicados.
+
+- Commit: 7f185ef
+
+- Lección: Cuando se elimina un filtro que garantizaba unicidad implícita
+  (como status = 'active'), verificar el schema antes de asumir que
+  .single() sigue siendo seguro. Si no hay UNIQUE constraint en los campos
+  restantes, usar .maybeSingle() + ordenamiento explícito por defecto.
