@@ -9370,3 +9370,63 @@ aparentemente inocuo en el futuro puede reintroducir el mismo patrón de
 
 **Sesión cerrada.**
 
+---
+
+## 2026-06-24 — Mini OE: Review & Forward Manager to connected human user
+
+**Cambio realizado:**
+En teams isolated vinculados a Connected Teams, el Manager ahora ofrece como target de Review & Forward al usuario humano del otro lado de la conexión. El dropdown muestra el email de la contraparte (Host o Invitado, según quién use el Manager) en vez de mostrar Worker1/Worker2 (que existen en DB pero están ocultos en la UX de Connected Teams).
+
+**Implementación:**
+- El envío hacia humano usa `/api/human-chat` existente, respetando la validación de conexión active y la determinación automática de `to_account_id` según rol (requester/receiver).
+- El mensaje forwarded se refleja en HumanChatPanel sin requerir F5 en el lado emisor — via Realtime subscription (deduplica por `message.id`).
+- Se reutilizó el patrón existente de Audit Log para `review_forward`, extendiendo metadata con `target_type: 'human_chat'`, `target_email`, `connection_id`, `message_count`.
+- Teams normales (no isolated) mantienen el comportamiento anterior: `forwardTargets` sigue mostrando Workers disponibles.
+
+**Archivos tocados:**
+- `src/components/workspace/WorkspaceShell.tsx`:
+  - Líneas 526-539: `forwardTargets` del Manager — bifurcación por `workspace.teams?.type === 'isolated'`:
+    - Si isolated + connectionContext válido: `[{ role: 'human_chat', label: connectionContext.otherUserEmail }]`
+    - Si isolated sin connectionContext: `[]` con warning controlado
+    - Si no isolated: mantiene lógica anterior (Workers disponibles)
+  - Líneas 156-214: `handlePanelForward` async — reconoce `targetRole === 'human_chat'`:
+    - POST a `/api/human-chat` con payload `{ connectionId, content }`
+    - Consume response (mensaje insertado aparecerá via Realtime)
+    - Registra Audit Log con metadata extendida
+    - Caso normal (agent → agent) sin cambios
+- `handoff.md` — esta entrada
+- `PRODUCT_STATUS.md` — bloque Connected Teams / Review & Forward actualizado
+
+**Alcance:**
+WorkspaceShell / Review & Forward / HumanChatPanel / Connected Teams isolated.
+
+**Restricciones respetadas:**
+- No se tocó `/api/human-chat` en su lógica de validación — se reutilizó tal cual.
+- No se tocaron RLS, schema ni migrations.
+- No se tocaron Teams Map ni EditTeamModal.
+- No se tocó Manager identity ni team.type.
+- No se implementó drag-and-drop.
+- No se modificó la existencia de Worker1/Worker2 en DB — siguen existiendo pero no se muestran como targets.
+- Teams normales mantienen Review & Forward anterior (Manager → Workers).
+
+**Patrón de destinatario:**
+- El destinatario humano correcto se determina automáticamente por `/api/human-chat`:
+  - Si el usuario actual es requester (Host) → destinatario es receiver (Invitado)
+  - Si el usuario actual es receiver (Invitado) → destinatario es requester (Host)
+- El dropdown muestra `connectionContext.otherUserEmail`, que ya representa al otro usuario correctamente independiente de quién sea el Manager operator.
+
+**Conexión inactiva:**
+- Si `connectionStatus` es `'cancelled'` o `'disconnected'`, `/api/human-chat` rechaza con 404 "Connection not found or not active".
+- El Manager panel no filtra proactivamente el target humano en estos casos — delega la validación al endpoint (patrón consistente con Human Chat normal).
+
+**Validaciones:**
+- lint: ✅ Exitoso (warnings de CanvasViewport pre-existentes, fuera de scope)
+- typecheck: No disponible en proyecto
+- build: ✅ Exitoso
+
+**Estado:**
+Complete — listo para commit y push.
+
+**Lección técnica:**
+El patrón de Review & Forward entre agentes era local (append directo via `targetRef.appendUserMessage()`), mientras que Review & Forward hacia humano requiere persistencia via `/api/human-chat` por la naturaleza multi-usuario del chat humano. Ambos flujos coexisten limpiamente en `handlePanelForward` con bifurcación por `targetRole === 'human_chat'`. El endpoint `/api/human-chat` ya manejaba todos los edge cases necesarios (validación de conexión, determinación de destinatario, inserción transaccional), por lo que no fue necesario duplicar lógica.
+

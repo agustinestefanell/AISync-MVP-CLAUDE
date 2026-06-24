@@ -152,7 +152,63 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   }
 
   // ── Panel-level Review & Forward ─────────────────────────────────────────
-  function handlePanelForward(fromSession: AgentSession, messages: ChatMessage[], targetRole: string) {
+  async function handlePanelForward(fromSession: AgentSession, messages: ChatMessage[], targetRole: string) {
+    // Special case: forward to human chat in isolated teams
+    if (targetRole === 'human_chat' && connectionContext) {
+      const label = AGENT_LABEL[fromSession.agent_role] ?? fromSession.agent_role
+      const forwarded = messages
+        .map(m => `${m.role === 'user' ? 'User' : label}: ${m.content}`)
+        .join('\n\n')
+
+      const content = `[Forwarded from ${label}]\n\n${forwarded}`
+
+      try {
+        const res = await fetch('/api/human-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            connectionId: connectionContext.connectionId,
+            content,
+          }),
+        })
+
+        if (!res.ok) {
+          const error = await res.json()
+          console.error('[WorkspaceShell] Forward to human failed:', error)
+          return
+        }
+
+        // Message was successfully sent and will appear via Realtime subscription
+        // HumanChatPanel doesn't expose appendMessage, so we rely on Realtime
+        await res.json() // Consume response body
+
+        panelRefs.current[fromSession.id]?.clearSelection()
+
+        // Audit log
+        fetch('/api/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workspace_id: workspace.id,
+            event_type: 'review_forward',
+            metadata: {
+              from: fromSession.agent_role,
+              to: 'human_chat',
+              target_type: 'human_chat',
+              target_email: connectionContext.otherUserEmail,
+              connection_id: connectionContext.connectionId,
+              message_count: messages.length,
+            },
+          }),
+        }).catch(console.error)
+      } catch (err) {
+        console.error('[WorkspaceShell] Forward to human failed:', err)
+      }
+
+      return
+    }
+
+    // Normal case: forward to another agent session
     const targetSession = workspace.agent_sessions.find(s => s.agent_role === targetRole)
     if (!targetSession) return
     const targetRef = panelRefs.current[targetSession.id]
@@ -462,9 +518,18 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                 initialMessages={initialMessages[managerSession.id] ?? []}
                 workspaceLocked={locked}
                 onSelectionChange={count => handleSelectionChange(managerSession.id, count)}
-                forwardTargets={workspace.agent_sessions
-                  .filter(s => s.id !== managerSession.id)
-                  .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
+                forwardTargets={
+                  // In isolated teams, Manager can only forward to the connected human user
+                  workspace.teams?.type === 'isolated'
+                    ? connectionContext
+                      ? [{ role: 'human_chat', label: connectionContext.otherUserEmail }]
+                      : (() => {
+                          console.warn('[WorkspaceShell] Missing connectionContext/otherUserEmail for isolated forward target')
+                          return [] // No targets available in anomalous case
+                        })()
+                    : workspace.agent_sessions
+                        .filter(s => s.id !== managerSession.id)
+                        .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
                 }
                 onForward={(messages, targetRole) => handlePanelForward(managerSession, messages, targetRole)}
                 onCreateHandoff={() => setShowHandoffModal(true)}
