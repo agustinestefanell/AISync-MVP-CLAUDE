@@ -818,3 +818,51 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
   **Conclusión:** Ensanchamiento de tipo seguro. No requiere corrección.
 
+---
+
+## #20 — HumanChat optimistic update con `broadcast: { self: false }`
+
+**Problema:**
+El emisor de un Review & Forward Manager → humano no veía su propio mensaje en `HumanChatPanel` sin F5, pese a que el mensaje se guardaba correctamente en DB.
+
+**Causa raíz:**
+La suscripción Realtime del `HumanChatPanel` usa `broadcast: { self: false }` (línea 108), por lo que el emisor **no recibe su propio evento de INSERT** por diseño de Supabase Realtime. El envío manual ya hacía optimistic update local (líneas 236-245), pero el camino de forward agregado en commit `aaf0b6e` descartaba el mensaje devuelto por el endpoint y asumía incorrectamente que Realtime actualizaría la vista del emisor (comentario líneas 181-182: "will appear via Realtime subscription").
+
+**Consecuencia:**
+El forward se guardaba correctamente, pero la vista del emisor quedaba desactualizada hasta refresh manual. El destinatario tampoco veía el mensaje inmediatamente (gap Realtime conocido, independiente del forward).
+
+**Proceso de solución:**
+1. Diagnóstico confirmó que `/api/human-chat` devolvía el mensaje insertado con `id`, `created_at` y todos los campos necesarios.
+2. Se comparó el envío manual (que SÍ funciona) con el camino de forward (que no).
+3. Se identificó que el forward descartaba el mensaje devuelto (`await res.json()` sin usar el valor).
+4. Se confirmó que `broadcast: { self: false }` es por diseño y NO debe cambiarse.
+5. Se agregó método `appendMessage` al ref de `HumanChatPanel` con deduplicación por `message.id`.
+6. Se extrajo helper local `appendMessageWithDedupe` para reutilizar lógica entre envío manual y nuevo método de ref.
+
+**Solución final:**
+- `HumanChatPanelHandle` expone `appendMessage(message: HumanMessage)` con dedupe por `message.id` y orden cronológico.
+- `WorkspaceShell.tsx` usa el mensaje real devuelto por `/api/human-chat` y lo agrega localmente via `humanChatRef.current?.appendMessage(newMessage)`.
+- El comentario incorrecto fue corregido para reflejar la realidad técnica de `broadcast: { self: false }`.
+- El helper local elimina duplicación entre envío manual y método de ref, sin cambiar comportamiento.
+
+**Lección:**
+Toda funcionalidad que inserte mensajes humanos en `HumanChatPanel` debe considerar que **`broadcast: { self: false }` excluye al emisor del evento Realtime por diseño**. El emisor necesita actualización local explícita si debe ver su propio mensaje inmediatamente. No asumir que "el mensaje aparecerá via Realtime" — eso solo aplica al destinatario, no al emisor.
+
+**Patrón reutilizable:**
+```typescript
+// 1. POST al endpoint y obtener mensaje insertado
+const res = await fetch('/api/human-chat', { method: 'POST', body: ... })
+const newMessage = await res.json() as HumanMessage
+
+// 2. Actualizar vista local del emisor
+humanChatRef.current?.appendMessage(newMessage)
+
+// 3. El destinatario recibirá el mensaje via Realtime (si la suscripción está activa)
+```
+
+**Archivos modificados:**
+- `src/components/workspace/HumanChatPanel.tsx` — interface, helper, método ref
+- `src/components/workspace/WorkspaceShell.tsx` — uso de mensaje real + comentario corregido
+
+**Commits:** `aaf0b6e` (forward original) + follow-up 2026-06-24 (optimistic update)
+

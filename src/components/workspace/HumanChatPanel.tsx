@@ -9,6 +9,7 @@ export interface HumanChatPanelHandle {
   getAllMessages(): HumanMessage[]
   getSelectedMessages(): HumanMessage[]
   clearSelection(): void
+  appendMessage(message: HumanMessage): void
 }
 
 interface Props {
@@ -81,6 +82,26 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   // Input disabled: ambos casos (server inactive + client-detected inactive)
   const isConnectionNoLongerActive = shouldShowInactiveConnectionBanner || localConnectionInactive
 
+  // Helper: append message with deduplication and scroll
+  const appendMessageWithDedupe = (message: HumanMessage) => {
+    setMessages((current) => {
+      // Deduplicate by message.id
+      if (current.some((existing) => existing.id === message.id)) {
+        return current
+      }
+
+      // Add and sort chronologically
+      return [...current, message].sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() -
+          new Date(b.created_at).getTime()
+      )
+    })
+
+    // Scroll to bottom to show new message
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+  }
+
   // Expose public methods via ref
   useImperativeHandle(ref, () => ({
     getAllMessages: () => messages,
@@ -90,6 +111,9 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
     },
     clearSelection: () => {
       setSelectedIndices(new Set())
+    },
+    appendMessage: (message: HumanMessage) => {
+      appendMessageWithDedupe(message)
     },
   }), [messages, selectedIndices])
 
@@ -238,20 +262,14 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
       console.log('[HumanChat] Received sentMessage:', sentMessage)
 
       console.log('[HumanChat] Current messages state before update:', messages.length)
-      setMessages(prev => {
-        const updated = [...prev, sentMessage]
-        console.log('[HumanChat] Updated messages state:', updated.length, updated)
-        return updated
-      })
+      appendMessageWithDedupe(sentMessage)
+      console.log('[HumanChat] Updated messages state via appendMessageWithDedupe')
 
       setInput('')
       // Auto-resize textarea back to default
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto'
       }
-
-      // Scroll to bottom to show new message
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err) {
       setError('Network error')
       console.error('[HumanChat] Exception in handleSend:', err)

@@ -178,9 +178,10 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           return
         }
 
-        // Message was successfully sent and will appear via Realtime subscription
-        // HumanChatPanel doesn't expose appendMessage, so we rely on Realtime
-        await res.json() // Consume response body
+        // The sender does not receive its own Realtime event because the human chat
+        // subscription uses broadcast self: false, so we append the inserted message locally
+        const newMessage = await res.json() as HumanMessage
+        humanChatRef.current?.appendMessage(newMessage)
 
         panelRefs.current[fromSession.id]?.clearSelection()
 

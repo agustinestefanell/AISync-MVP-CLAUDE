@@ -9430,3 +9430,57 @@ Complete — listo para commit y push.
 **Lección técnica:**
 El patrón de Review & Forward entre agentes era local (append directo via `targetRef.appendUserMessage()`), mientras que Review & Forward hacia humano requiere persistencia via `/api/human-chat` por la naturaleza multi-usuario del chat humano. Ambos flujos coexisten limpiamente en `handlePanelForward` con bifurcación por `targetRole === 'human_chat'`. El endpoint `/api/human-chat` ya manejaba todos los edge cases necesarios (validación de conexión, determinación de destinatario, inserción transaccional), por lo que no fue necesario duplicar lógica.
 
+---
+
+## 2026-06-24 — Follow-up: Optimistic update for Manager forward to human chat
+
+**Cambio realizado:**
+Se agregó actualización local del `HumanChatPanel` para el emisor después de un Review & Forward exitoso del Manager hacia el usuario humano conectado. El fix anterior (`aaf0b6e`) guardaba correctamente el mensaje en DB pero no actualizaba la vista del emisor, quien debía hacer F5 para verlo.
+
+**Causa raíz:**
+La suscripción Realtime del `HumanChatPanel` usa `broadcast: { self: false }`, por lo que el emisor no recibe su propio evento de INSERT. El envío manual normal ya hacía optimistic update local, pero el camino de forward agregado en `aaf0b6e` asumía incorrectamente que Realtime actualizaría al emisor.
+
+**Implementación:**
+- Se extendió `HumanChatPanelHandle` con método `appendMessage(message: HumanMessage)` que deduplica por `message.id` y ordena cronológicamente.
+- Se extrajo helper local `appendMessageWithDedupe` dentro de `HumanChatPanel.tsx` para reutilizar lógica de append/dedupe entre envío manual y nuevo método de ref.
+- `WorkspaceShell.tsx` ahora usa el mensaje real devuelto por `/api/human-chat` (línea 113 del endpoint: `return NextResponse.json(newMessage as HumanMessage, { status: 201 })`) y lo agrega localmente via `humanChatRef.current?.appendMessage(newMessage)`.
+- Se corrigió el comentario incorrecto que asumía actualización via Realtime.
+
+**Archivos tocados:**
+- `src/components/workspace/HumanChatPanel.tsx`:
+  - Línea 11: agregado `appendMessage(message: HumanMessage): void` a interface
+  - Líneas 87-102: helper local `appendMessageWithDedupe` con dedupe por `message.id`, orden cronológico y scroll
+  - Líneas 104-113: expuesto `appendMessage` en `useImperativeHandle`
+  - Líneas 236-248: envío manual ahora usa `appendMessageWithDedupe` (sin cambio funcional, solo extracción de helper)
+- `src/components/workspace/WorkspaceShell.tsx`:
+  - Líneas 181-184: comentario corregido + uso de mensaje real devuelto por endpoint + llamada a `humanChatRef.current?.appendMessage(newMessage)`
+- `handoff.md` — esta entrada
+- `PRODUCT_STATUS.md` — bloque Connected Teams / Review & Forward actualizado
+- `CodingWorkshop.md` — entrada sobre lección de `broadcast: { self: false }`
+
+**Alcance:**
+- Solo emisor de Manager → humano.
+- No se modificó destinatario (su caso es el gap Realtime conocido, no específico del forward).
+- No se modificó Realtime ni `broadcast: { self: false }`.
+
+**Restricciones respetadas:**
+- No se tocó `/api/human-chat`.
+- No se modificó `broadcast: { self: false }`.
+- No se modificó canal/filtro Realtime.
+- No se tocó el caso destinatario.
+- No se reabrió dropdown/destinatario de R&F.
+- No se tocaron Manager identity ni team.type.
+- No se tocaron RLS, schema ni migrations.
+- El envío manual normal sigue funcionando igual (helper extraído sin cambio semántico).
+
+**Validaciones:**
+- lint: ✅ Exitoso (warnings de CanvasViewport pre-existentes, fuera de scope)
+- typecheck: No disponible en proyecto
+- build: ✅ Exitoso
+
+**Estado:**
+Complete — listo para commit y push.
+
+**Lección clave:**
+Toda funcionalidad que inserte mensajes humanos debe considerar que `broadcast: { self: false }` excluye al emisor del evento Realtime por diseño. El emisor necesita actualización local explícita si debe ver su propio mensaje inmediatamente. El envío manual ya lo hacía; el forward agregado en `aaf0b6e` lo omitió por un comentario incorrecto que asumía que Realtime actualizaría al emisor.
+
