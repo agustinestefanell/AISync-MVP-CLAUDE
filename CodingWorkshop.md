@@ -733,33 +733,26 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
   Mini OE de solo lectura. Se mapearon todas las superficies que determinan Manager identity y SAT/MAT classification. Se confirmó que múltiples puntos usan posición en lugar de campo explícito, y que queries críticas carecen de ORDER BY. Se verificó comportamiento conocido de Postgres: UPDATE puede cambiar orden físico de filas, queries sin ORDER BY no garantizan estabilidad. Se descartó que el patrón provenga de código heredado de demo — es implementación local del MVP que asumió orden estable.
 
-- **Solución final:** Pendiente. No implementada en esta OE de diagnóstico. Requiere OE futura de fix estructural.
+- **Solución final:** Implementada 2026-06-24. Se aplicó Opción C+ (híbrida mejorada).
 
-- **Recomendación de alcance para OE futura:**
+  **Opción C+ implementada:**
+  1. ✅ Agregado `ORDER BY agent_role ASC` en `workspaces.ts` y `teams.ts` (infraestructura)
+  2. ✅ Reemplazado recálculo local SAT/MAT por lectura directa de `teams.type` en `WorkspaceShell.tsx` y `workspace/[id]/page.tsx`
+  3. ✅ Reemplazado `agent_sessions[0]` y `slice(0,1)` por `.find(s => s.agent_role === 'manager')` en las 3 superficies críticas: `WorkspaceShell.tsx`, `EditTeamModal.tsx`, `agent-map.ts`
+  4. ✅ Agregado manejo de caso anómalo con warnings en consola (no fallback silencioso a `[0]`)
+  5. ✅ Deuda técnica residual documentada: `HandoffPackageModal` fuera de alcance C+ autorizado
 
-  **OPCIÓN A — Fix quirúrgico (mínimo):**
-  - Agregar `ORDER BY agent_role ASC` a queries de `agent_sessions`
-  - Razón: `'manager'` < `'worker1'` < `'worker2'` alfabéticamente → `[0]` siempre será manager
-  - Pros: Fix mínimo, bajo riesgo
-  - Contras: Mantiene asunción implícita `[0]` = manager (deuda técnica persiste)
+  **Razón de C+ sobre C:** Se reemplazó el patrón `[0]` en superficies críticas en lugar de solo documentarlo como deuda técnica. Alcance menor que Opción B completa (no refactoriza todo el sistema de roles), pero elimina el riesgo activo en los 3 puntos confirmados de fallo.
 
-  **OPCIÓN B — Fix estructural (recomendado):**
-  1. Agregar `ORDER BY agent_role ASC` a todas las queries (infraestructura)
-  2. Reemplazar `[0]` por `.find(s => s.agent_role === 'manager')` en superficies críticas
-  3. Reemplazar recálculo local SAT/MAT por lectura de `teams.type` (campo ya existe)
-  4. Razón: Elimina asunciones implícitas, usa campos explícitos, fuente de verdad única
-  5. Pros: Fix completo, previene futuros incidentes del mismo patrón
-  6. Contras: Más archivos modificados (~8 archivos), mayor testing requerido
+- **Archivos modificados:**
+  - `src/lib/db/workspaces.ts` — ORDER BY en query
+  - `src/lib/db/teams.ts` — ORDER BY en query
+  - `src/components/workspace/WorkspaceShell.tsx` — Manager explícito + team.type source
+  - `src/components/teams/EditTeamModal.tsx` — Manager explícito en isolated filter
+  - `src/lib/db/agent-map.ts` — Manager explícito en Teams Map/Tree
+  - `src/app/workspace/[id]/page.tsx` — team.type source en SSR
 
-  **OPCIÓN C — Fix híbrido (pragmático):**
-  1. Agregar `ORDER BY agent_role ASC` (infraestructura — previene incidente inmediato)
-  2. Reemplazar recálculo SAT/MAT por lectura de `teams.type` (ya tenemos el campo)
-  3. Documentar patrón `[0]` como deuda técnica conocida para refactor futuro
-  4. Razón: Balancea riesgo/alcance — previene lo crítico, reduce duplicación de fuente de verdad SAT/MAT
-  5. Pros: Previene incidente, mejora arquitectura parcialmente, testing moderado
-  6. Contras: Mantiene patrón `[0]` para Manager (menor riesgo con ORDER BY garantizado)
-
-- **Commit:** No aplica. OE de diagnóstico sin implementación.
+- **Commit:** Pendiente. Fix completo en código.
 
 - **Lección arquitectónica (reutilizable):**
 

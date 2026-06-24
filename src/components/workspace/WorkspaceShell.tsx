@@ -71,11 +71,23 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const humanChatRef    = useRef<HumanChatPanelHandle | null>(null)
   const selectionCounts = useRef<Record<string, number>>({})
 
-  // SAT vs MAT: one provider = SAT, many = MAT (same logic as teams/route.ts)
+  // Identify Manager by explicit agent_role (not by position)
+  const managerSession = useMemo(() => {
+    const manager = workspace.agent_sessions.find(s => s.agent_role === 'manager')
+    if (!manager) {
+      console.warn('[WorkspaceShell] Manager session not found for workspace', workspace.id)
+    }
+    return manager
+  }, [workspace.agent_sessions, workspace.id])
+
+  // Read team.type from persisted data (single source of truth)
   const teamType = useMemo(() => {
-    const providers = new Set(workspace.agent_sessions.map(s => s.provider))
-    return providers.size === 1 ? ('SAT' as const) : ('MAT' as const)
-  }, [workspace.agent_sessions])
+    if (!workspace.teams?.type) {
+      console.warn('[WorkspaceShell] Missing team.type for workspace', workspace.id)
+      return 'SAT' as const  // Defensive fallback
+    }
+    return workspace.teams.type === 'isolated' ? ('SAT' as const) : workspace.teams.type
+  }, [workspace.teams?.type, workspace.id])
 
   // Snapshot of last N messages from all panels except the calling one
   const buildOtherPanelsSnapshot = useCallback((currentSessionId: string) => {
@@ -441,28 +453,30 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
               connectionStatus={connectionContext.status}
             />
 
-            {/* Manager Panel (first agent_session) */}
-            <AgentPanel
-              key={workspace.agent_sessions[0].id}
-              ref={el => { panelRefs.current[workspace.agent_sessions[0].id] = el }}
-              session={workspace.agent_sessions[0]}
-              initialMessages={initialMessages[workspace.agent_sessions[0].id] ?? []}
-              workspaceLocked={locked}
-              onSelectionChange={count => handleSelectionChange(workspace.agent_sessions[0].id, count)}
-              forwardTargets={workspace.agent_sessions
-                .filter(s => s.id !== workspace.agent_sessions[0].id)
-                .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
-              }
-              onForward={(messages, targetRole) => handlePanelForward(workspace.agent_sessions[0], messages, targetRole)}
-              onCreateHandoff={() => setShowHandoffModal(true)}
-              onSaveVersion={openSaveModal}
-              onOpenSaveSelection={openSaveSelectionModal}
-              teamId={workspace.team_id}
-              projectId={workspace.teams?.project_id ?? undefined}
-              teamType={teamType}
-              getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(workspace.agent_sessions[0].id)}
-              initialInput={workspace.agent_sessions[0].agent_role === 'manager' ? prefillMessage : undefined}
-            />
+            {/* Manager Panel (identified by agent_role) */}
+            {managerSession && (
+              <AgentPanel
+                key={managerSession.id}
+                ref={el => { panelRefs.current[managerSession.id] = el }}
+                session={managerSession}
+                initialMessages={initialMessages[managerSession.id] ?? []}
+                workspaceLocked={locked}
+                onSelectionChange={count => handleSelectionChange(managerSession.id, count)}
+                forwardTargets={workspace.agent_sessions
+                  .filter(s => s.id !== managerSession.id)
+                  .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
+                }
+                onForward={(messages, targetRole) => handlePanelForward(managerSession, messages, targetRole)}
+                onCreateHandoff={() => setShowHandoffModal(true)}
+                onSaveVersion={openSaveModal}
+                onOpenSaveSelection={openSaveSelectionModal}
+                teamId={workspace.team_id}
+                projectId={workspace.teams?.project_id ?? undefined}
+                teamType={teamType}
+                getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(managerSession.id)}
+                initialInput={prefillMessage}
+              />
+            )}
           </>
         ) : (
           workspace.agent_sessions.map(session => (

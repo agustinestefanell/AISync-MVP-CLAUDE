@@ -40,9 +40,12 @@ export function deriveAgentNodesFromTeams(
       : null
 
     // For isolated teams (Connected Teams), show only 1 node in Map/Tree View
-    // (the first agent_session, typically manager). Normal teams (SAT/MAT) show all sessions.
+    // (the manager agent_session). Normal teams (SAT/MAT) show all sessions.
     const agentsToShow = team.type === 'isolated'
-      ? workspace.agent_sessions.slice(0, 1)
+      ? (() => {
+          const manager = workspace.agent_sessions.find(s => s.agent_role === 'manager')
+          return manager ? [manager] : []
+        })()
       : workspace.agent_sessions
 
     for (const agent of agentsToShow) {

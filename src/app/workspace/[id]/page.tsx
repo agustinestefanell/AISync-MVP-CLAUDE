@@ -50,7 +50,8 @@ export default async function WorkspacePage({
 
   const team = workspace.teams
   const pageName = team?.name ?? 'Workspace'
-  const teamType = new Set(workspace.agent_sessions.map(s => s.provider)).size === 1 ? 'SAT' : 'MAT'
+  // Read team.type from persisted data (single source of truth)
+  const teamType = team?.type === 'isolated' ? 'SAT' : (team?.type ?? 'SAT')
 
   let accentColor: string | undefined
   if (team?.project_id) {

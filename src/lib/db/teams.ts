@@ -46,5 +46,6 @@ export async function getTeamsForProject(projectId: string): Promise<TeamWithWor
     .select('*, workspaces(*, agent_sessions(*))')
     .eq('project_id', projectId)
     .order('created_at', { ascending: true })
+    .order('agent_role', { foreignTable: 'agent_sessions', ascending: true })
   return (data as unknown as TeamWithWorkspaces[]) ?? []
 }

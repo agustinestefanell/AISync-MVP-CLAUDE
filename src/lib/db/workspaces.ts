@@ -7,6 +7,7 @@ export async function getWorkspaceWithAgents(workspaceId: string): Promise<Works
     .from('workspaces')
     .select('*, agent_sessions(*), teams(id, name, parent_id, project_id, type, created_at)')
     .eq('id', workspaceId)
+    .order('agent_role', { foreignTable: 'agent_sessions', ascending: true })
     .single()
   return (data as WorkspaceWithAgents) ?? null
 }

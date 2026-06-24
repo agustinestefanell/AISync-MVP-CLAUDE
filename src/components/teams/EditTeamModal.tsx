@@ -67,11 +67,19 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
   const [description, setDescription] = useState(team.description ?? '')
   const [leadRole]                    = useState<'manager' | 'submanager' | 'worker'>(team.lead_role ?? 'worker')
   const [parentId, setParentId]       = useState(team.parent_id ?? '')
-  const [agents, setAgents]           = useState<AgentEdit[]>(
-    team.type === 'isolated'
-      ? rawAgents.slice(0, 1).map(toAgentEdit)  // Isolated teams: solo manager editable
-      : rawAgents.map(toAgentEdit)              // Teams normales: todos los agentes
-  )
+  const [agents, setAgents]           = useState<AgentEdit[]>(() => {
+    if (team.type === 'isolated') {
+      // Isolated teams: only manager editable (identified by agent_role)
+      const managerAgent = rawAgents.find(a => a.agent_role === 'manager')
+      if (!managerAgent) {
+        console.warn('[EditTeamModal] Manager agent not found for isolated team', team.id)
+        return []
+      }
+      return [toAgentEdit(managerAgent)]
+    }
+    // Normal teams: all agents editable
+    return rawAgents.map(toAgentEdit)
+  })
   const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([])
   const [error, setError]             = useState('')
   const [saving, setSaving]           = useState(false)

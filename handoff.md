@@ -9072,3 +9072,88 @@ Editing provider/name/description from EditTeamModal on `isolated` Connected Tea
 **Lección aplicada:**
 Campos estructurales derivados (como `type`) no deben recalcularse desde payloads parciales cuando existen tipos especiales (`isolated`) con invariantes de servidor. La API debe preservar invariantes estructurales y no delegar integridad del `type` al cliente.
 
+
+---
+
+## 2026-06-24 — Stabilize Manager identity and team.type source
+
+**Fecha:** 2026-06-24
+**Tipo:** Mini OE / Fix estructural acotado (Opción C+) / Manager identity / SAT-MAT classification
+
+**Contexto:**
+Diagnóstico confirmado en commit `d2a004a` y entrada #19 de `CodingWorkshop.md`. El sistema derivaba identidad de Manager usando posición en array (`agent_sessions[0]`, `slice(0,1)`) y recalculaba SAT/MAT localmente contando providers, en lugar de leer campos explícitos (`agent_role`, `teams.type`). Síntomas: Badge SAT/MAT cambiaba sin acción del usuario, Manager Panel podía mostrar Worker1 con provider distinto al editado. Causa raíz: queries sin ORDER BY permitían que Postgres retornara filas en orden distinto post-UPDATE, múltiples fuentes de verdad para conceptos críticos.
+
+**Objetivo:**
+Corregir la causa estructural en superficies críticas ya identificadas: establecer fuente única de verdad para Manager identity (`agent_role === 'manager'`) y SAT/MAT classification (`teams.type`), con ORDER BY defensivo en queries.
+
+**Cambios realizados:**
+
+1. **Infraestructura — Queries con ORDER BY explícito:**
+   - `src/lib/db/workspaces.ts` — agregado `.order('agent_role', { foreignTable: 'agent_sessions', ascending: true })` en `getWorkspaceWithAgents()`
+   - `src/lib/db/teams.ts` — agregado `.order('agent_role', { foreignTable: 'agent_sessions', ascending: true })` en `getTeamsForProject()`
+   - Razón: estabilizar orden físico defensivamente, prevenir que UPDATE reorganice filas visiblemente
+
+2. **WorkspaceShell.tsx — Manager explícito + team.type como fuente única:**
+   - Agregado `managerSession = workspace.agent_sessions.find(s => s.agent_role === 'manager')` con warning si no existe
+   - Reemplazado `workspace.agent_sessions[0]` por `managerSession` en Manager Panel (8 ocurrencias → 1 búsqueda explícita)
+   - Agregado condicional `{managerSession && (...)}` para caso anómalo
+   - Reemplazado recálculo local `teamType` (contaba providers) por lectura directa de `workspace.teams.type`
+   - Agregado warning si `teams.type` falta, con fallback defensivo a `'SAT'`
+
+3. **EditTeamModal.tsx — isolated teams filtran Manager por rol explícito:**
+   - Reemplazado `rawAgents.slice(0, 1)` por `rawAgents.find(a => a.agent_role === 'manager')`
+   - Agregado warning si no hay Manager en isolated team
+   - Retorna array vacío si no hay Manager (estado controlado, no fallback silencioso a `[0]`)
+
+4. **agent-map.ts — Teams Map/Tree identifican Manager por rol:**
+   - Reemplazado `workspace.agent_sessions.slice(0, 1)` por `.find(s => s.agent_role === 'manager')`
+   - Retorna array vacío si no hay Manager (previene error en loop)
+
+5. **workspace/[id]/page.tsx — SSR usa team.type persistido:**
+   - Reemplazado recálculo local `teamType` (contaba providers) por lectura directa de `team?.type`
+   - Mapeo `'isolated'` → `'SAT'` para badge display
+   - Fallback defensivo a `'SAT'` si `team.type` es null/undefined
+
+**Archivos modificados:**
+- `src/lib/db/workspaces.ts`
+- `src/lib/db/teams.ts`
+- `src/components/workspace/WorkspaceShell.tsx`
+- `src/components/teams/EditTeamModal.tsx`
+- `src/lib/db/agent-map.ts`
+- `src/app/workspace/[id]/page.tsx`
+- `handoff.md` — esta entrada
+- `CodingWorkshop.md` — actualización entrada #19 con solución final
+
+**Alcance:**
+- Opción C+ aprobada: ORDER BY defensivo + Manager identity explícita + fuente única team.type
+- Superficies críticas del alcance autorizadas: todas modificadas
+- No se tocaron: HandoffPackageModal, HumanChatPanel, Review & Forward, /api/chat, providers, streaming, RLS, schema, migrations, datos existentes
+
+**Restricciones respetadas:**
+- ✅ No se tocó HandoffPackageModal.tsx
+- ✅ No se tocó HumanChatPanel ni Review & Forward
+- ✅ No se tocó /api/chat ni providers/streaming
+- ✅ No se tocaron RLS, schema ni migrations
+- ✅ No se modificaron datos existentes
+- ✅ No se usó fallback silencioso a `[0]` — caso anómalo genera warning visible en consola
+- ✅ No se amplió scope unilateralmente
+- ✅ Demo (`C:\proyectos\AISync\MVP`) no fue modificada
+
+**Validaciones:**
+- `npm run lint`: comando no disponible (Next.js no incluye lint por defecto)
+- `npx tsc --noEmit`: ✅ Typecheck exitoso
+- `npm run build`: ✅ Build exitoso
+
+**Estado:** Complete. Commit pendiente.
+
+**Decisión técnica:**
+Se eligió Opción C+ (híbrida pragmática) sobre Opción A (quirúrgica ORDER BY únicamente) u Opción B (estructural completa con refactor global de roles). Razón: balancea riesgo/alcance — previene incidente crítico mediante ORDER BY, elimina duplicación de fuente de verdad SAT/MAT mediante lectura de `teams.type`, y establece patrón explícito `.find(agent_role === 'manager')` en superficies críticas sin refactorizar sistema completo de roles. Deuda técnica residual: HandoffPackageModal aún usa `sessions[0]` y `sessions[1]`, pero está fuera de alcance C+ autorizado.
+
+**Riesgos conocidos:**
+- Teams ya afectados por incidentes previos (badge SAT/MAT mutado, Manager/Worker intercambiados) NO son corregidos por este fix — requieren OE separada de reparación de datos si corresponde.
+- Caso anómalo (no existe Manager en `agent_sessions`) genera warning en consola pero no rompe UI — previene crash, pero la experiencia degradada requiere investigación si aparece en producción.
+
+**Alternativas descartadas:**
+- Opción A (solo ORDER BY): mantiene asunción implícita `[0]` = manager, deuda técnica persiste
+- Opción B (refactor global): alcance demasiado amplio para mini OE, riesgo elevado, testing extenso requerido
+- Fallback silencioso a `[0]`: reintroduce misma causa raíz, descartado por OE
