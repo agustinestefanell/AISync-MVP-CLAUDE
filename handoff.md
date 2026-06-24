@@ -9157,3 +9157,108 @@ Se eligió Opción C+ (híbrida pragmática) sobre Opción A (quirúrgica ORDER 
 - Opción A (solo ORDER BY): mantiene asunción implícita `[0]` = manager, deuda técnica persiste
 - Opción B (refactor global): alcance demasiado amplio para mini OE, riesgo elevado, testing extenso requerido
 - Fallback silencioso a `[0]`: reintroduce misma causa raíz, descartado por OE
+
+---
+
+## 2026-06-23 — Remove silent SAT fallback for missing team.type
+
+**Tipo:** Mini OE / Follow-up correctivo / Cumplimiento de Anexo / `team.type` source of truth
+
+**Contexto:**
+En la Mini OE de Estabilización C+ (commit `6b9cd0c`) se aprobó un Anexo que prohibía explícitamente usar fallback silencioso a `SAT`, `MAT` o `computeType()` cuando `teams.type` no está disponible. Sin embargo, la implementación introdujo dos violaciones puntuales:
+- `src/app/workspace/[id]/page.tsx` línea 54: `team?.type ?? 'SAT'`
+- `src/components/workspace/WorkspaceShell.tsx` línea 87: `return 'SAT' as const // Defensive fallback`
+
+**Objetivo:**
+Alinear ambos puntos con el Anexo aprobado: si `team.type` llega `null`, `undefined`, vacío o con valor no reconocido, debe tratarse como caso anómalo con warning controlado y sin asumir SAT/MAT.
+
+**Cambios realizados:**
+
+1. **src/app/workspace/[id]/page.tsx:**
+   - Eliminado fallback `team?.type ?? 'SAT'`
+   - Agregado warning explícito si `rawTeamType` es falsy
+   - `teamType` ahora retorna `undefined` (no `'SAT'`) cuando `team.type` falta
+   - Mapeo `'isolated' → 'SAT'` preservado para badge display válido
+
+2. **src/components/workspace/WorkspaceShell.tsx:**
+   - Reemplazado `return 'SAT' as const` por `return null`
+   - Warning preservado: `[WorkspaceShell] Missing team.type for workspace`
+   - `teamType` ahora puede ser `'SAT' | 'MAT' | null`
+
+3. **Propagación de tipo `null`:**
+   - `src/components/workspace/AgentPanel.tsx`: tipo `teamType?: 'SAT' | 'MAT' | null`
+   - `src/components/workspace/PromptLibrary.tsx`: tipo `teamType?: 'SAT' | 'MAT' | null`
+   - Lógica de snapshot en AgentPanel ya maneja correctamente: `teamType === 'SAT'` recibe snapshot, otros casos (MAT/null) reciben array vacío
+
+4. **Renderizado visual (TopRibbon):**
+   - Badge SAT/MAT solo se renderiza si `badge` existe: `{badge && (...)}`
+   - Con `undefined` o `null`, el badge no se muestra
+   - Estado unknown/faltante visualmente distinguible de SAT válido (no badge vs. badge blanco)
+
+**Archivos modificados:**
+- `src/app/workspace/[id]/page.tsx`
+- `src/components/workspace/WorkspaceShell.tsx`
+- `src/components/workspace/AgentPanel.tsx`
+- `src/components/workspace/PromptLibrary.tsx`
+- `handoff.md` (esta entrada)
+- `CodingWorkshop.md` (actualización entrada #19)
+
+**Alcance:**
+- Corrección acotada al fallback silencioso de `team.type`
+- Cumplimiento del Anexo aprobado en Estabilización C+
+- No reabre alcance completo de la OE C+
+
+**Restricciones respetadas:**
+- ✅ No se tocó la identificación de Manager por `agent_role === 'manager'`
+- ✅ No se tocó `EditTeamModal.tsx`
+- ✅ No se tocó `agent-map.ts`
+- ✅ No se tocaron `HandoffPackageModal`, `HumanChatPanel`, `Review & Forward`
+- ✅ No se tocó `/api/chat`
+- ✅ No se tocaron RLS, schema ni migrations
+- ✅ No se modificaron datos existentes
+- ✅ No se reabrió la OE C+ completa
+- ✅ Demo (`C:\proyectos\AISync\MVP`) no modificada
+
+**Validaciones:**
+- `npm run build`: ✅ Build exitoso
+- Warnings: solo CanvasViewport (fuera de scope)
+- Grep fallback silencioso: ✅ No se encontraron `team?.type ?? 'SAT'` ni `return 'SAT' as const` en scope
+
+**Casos validados:**
+
+| # | Caso | Resultado |
+|---|---|---|
+| 1 | Team con `type = SAT` | Badge SAT blanco correcto |
+| 2 | Team con `type = MAT` | Badge MAT negro correcto |
+| 3 | Team con `type = isolated` | Mapea a SAT, comportamiento preservado |
+| 4-5 | `type = null/undefined` | No muestra badge (distinguible de SAT válido) |
+| 6-7 | `type` faltante | Warning en page.tsx y WorkspaceShell |
+| 8 | Estado unknown visual | Sin badge (vs. badge blanco SAT) |
+| 9-11 | Sin fallback silencioso | ✅ Confirmado por grep |
+| 12 | Manager identity intacta | ✅ `agent_role === 'manager'` preservado |
+| 13-16 | Archivos prohibidos | ✅ No tocados |
+| 17 | Repo activo | ✅ `C:\proyectos\AISync\aisync-mvp-claude` |
+| 18 | Build | ✅ Exitoso |
+
+**Confirmación de rutas:**
+- Repo activo: `C:\proyectos\AISync\aisync-mvp-claude`
+- page.tsx: `src\app\workspace\[id]\page.tsx`
+- WorkspaceShell.tsx: `src\components\workspace\WorkspaceShell.tsx`
+- AgentPanel.tsx: `src\components\workspace\AgentPanel.tsx`
+- PromptLibrary.tsx: `src\components\workspace\PromptLibrary.tsx`
+- Demo no editada: confirmado
+
+**Decisión técnica:**
+Se eligió `undefined` en page.tsx (para compatibilidad con `badge?: string`) y `null` en WorkspaceShell (más explícito en lógica de negocio). Ambos valores representan estado anómalo y no se convierten a SAT. El badge solo se renderiza cuando existe, implementando el requisito del Anexo: caso anómalo debe ser visualmente distinguible de estado sano.
+
+**Riesgos conocidos:**
+- Teams existentes con `team.type` faltante mostrarán warning en consola y no tendrán badge SAT/MAT. Esto es comportamiento intencional según Anexo, no un bug.
+- Si existe data histórica con `team.type = null`, requiere investigación/reparación fuera del alcance de esta Mini OE.
+
+**Alternativas descartadas:**
+- Fallback silencioso a SAT: contradice Anexo aprobado, rechazado
+- Recálculo por providers: contradice fuente única de verdad, rechazado
+- Badge "Unknown" explícito: innecesario, ausencia de badge es suficientemente distinguible
+
+**Estado:** Complete. Listo para commit/push.
+

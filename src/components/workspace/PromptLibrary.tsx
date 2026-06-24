@@ -32,7 +32,7 @@ interface Props {
   onClose:     () => void
   userId?:     string
   teamId:      string
-  teamType?:   'SAT' | 'MAT'
+  teamType?:   'SAT' | 'MAT' | null
   workspaceId?: string
   sessionId:   string
   agentRole:   string

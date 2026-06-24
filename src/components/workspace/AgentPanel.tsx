@@ -117,7 +117,7 @@ interface Props {
   // SAT/MAT structured context (Capa 3 + 4)
   teamId?:                  string
   projectId?:               string
-  teamType?:                'SAT' | 'MAT'
+  teamType?:                'SAT' | 'MAT' | null
   getOtherPanelsSnapshot?:  () => PanelSnapshot[]
   initialInput?:            string
 }

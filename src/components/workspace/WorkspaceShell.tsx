@@ -84,7 +84,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const teamType = useMemo(() => {
     if (!workspace.teams?.type) {
       console.warn('[WorkspaceShell] Missing team.type for workspace', workspace.id)
-      return 'SAT' as const  // Defensive fallback
+      return null
     }
     return workspace.teams.type === 'isolated' ? ('SAT' as const) : workspace.teams.type
   }, [workspace.teams?.type, workspace.id])

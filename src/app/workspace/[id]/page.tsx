@@ -50,8 +50,16 @@ export default async function WorkspacePage({
 
   const team = workspace.teams
   const pageName = team?.name ?? 'Workspace'
+
   // Read team.type from persisted data (single source of truth)
-  const teamType = team?.type === 'isolated' ? 'SAT' : (team?.type ?? 'SAT')
+  const rawTeamType = team?.type
+  if (!rawTeamType) {
+    console.warn('[workspace/[id]/page] Missing teams.type for workspace/team', {
+      workspaceId: workspace.id,
+      teamId: team?.id,
+    })
+  }
+  const teamType = rawTeamType === 'isolated' ? 'SAT' : (rawTeamType ?? undefined)
 
   let accentColor: string | undefined
   if (team?.project_id) {

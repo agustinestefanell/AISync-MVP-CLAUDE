@@ -773,3 +773,29 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
   - Acceso por filtro explícito: `.find(s => s.agent_role === 'manager')` en lugar de `[0]`
   - Fuente de verdad única: si `teams.type` existe, no recalcular SAT/MAT en runtime
 
+
+- **Nota de seguimiento — corrección del Anexo (2026-06-23):**
+
+  Durante el cierre original de Estabilización C+ (commit `6b9cd0c`) se introdujo una desviación puntual del Anexo aprobado: dos superficies convertían `team.type` faltante en `SAT` de forma silenciosa, violando la regla de "no fallback silencioso" establecida en el Anexo.
+
+  **Casos detectados:**
+  - `src/app/workspace/[id]/page.tsx` línea 54: `team?.type ?? 'SAT'`
+  - `src/components/workspace/WorkspaceShell.tsx` línea 87: `return 'SAT' as const // Defensive fallback`
+
+  **Corrección aplicada (Mini OE de seguimiento):**
+  - page.tsx: reemplazado `?? 'SAT'` por `?? undefined` con warning explícito si `rawTeamType` falta
+  - WorkspaceShell.tsx: reemplazado `return 'SAT' as const` por `return null`
+  - Propagado tipo `| null` en `AgentPanel.tsx` y `PromptLibrary.tsx`
+  - Badge SAT/MAT solo se renderiza si existe (`{badge && (...)}`), estado unknown/faltante visualmente distinguible
+  - Lógica de snapshot en AgentPanel ya manejaba correctamente: `teamType === 'SAT'` recibe snapshot, otros casos (MAT/null) reciben `[]`
+
+  La estabilización C+ queda corregida para cumplir el Anexo aprobado: `teams.type` sigue siendo fuente canónica y, si falta, no se reemplaza por un valor inferido. Se elimina el fallback silencioso a `SAT` en `workspace/[id]/page.tsx` y `WorkspaceShell.tsx`.
+
+  **Archivos adicionales modificados:**
+  - `src/app/workspace/[id]/page.tsx`
+  - `src/components/workspace/WorkspaceShell.tsx`
+  - `src/components/workspace/AgentPanel.tsx`
+  - `src/components/workspace/PromptLibrary.tsx`
+
+  **Build:** ✅ Exitoso. Grep confirmó eliminación de fallbacks silenciosos.
+
