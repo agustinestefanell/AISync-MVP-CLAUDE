@@ -9301,3 +9301,72 @@ aparentemente inocuo en el futuro puede reintroducir el mismo patrón de
 
 **Conclusión:** Ensanchamiento de tipo seguro. No requiere corrección.
 
+
+---
+
+## 2026-06-23 — Cierre de sesión: Manager identity + SAT/MAT badge stability (5 commits)
+
+**Rango de commits:** `e0040c3` (fix: refresh teams route after provider update) → `35ce4e4` (docs: audit confirmation - teamType widening is safe)
+
+### Commits de la sesión:
+
+1. **90b6de5** — fix: preserve isolated team type on edit
+   - EditTeamModal: `type: 'isolated'` explícito en PATCH (no recalcular con `computeType`)
+   - Previene mutación `isolated → SAT` al editar provider/model
+
+2. **d2a004a** — docs: deep diagnostic on agent_sessions role/badge integrity
+   - Diagnóstico exhaustivo de superficies que derivan Manager identity y SAT/MAT classification
+   - Mapeo completo de causas: posición en array + queries sin ORDER BY + recálculo local
+   - Entrada #19 en CodingWorkshop.md
+
+3. **6b9cd0c** — fix: stabilize manager identity and team type source
+   - Implementación Opción C+: ORDER BY defensivo + Manager explícito + fuente única `team.type`
+   - 6 archivos modificados: `workspaces.ts`, `teams.ts`, `WorkspaceShell.tsx`, `EditTeamModal.tsx`, `agent-map.ts`, `workspace/[id]/page.tsx`
+   - Manager identity: `.find(s => s.agent_role === 'manager')` reemplaza `[0]` y `slice(0,1)` en superficies críticas
+   - SAT/MAT classification: lectura directa de `teams.type` reemplaza recálculo local
+   - Anexo aprobado: prohibió fallback silencioso a SAT/MAT
+
+4. **f1ba022** — fix: remove silent SAT fallback for missing team type
+   - Mini OE de seguimiento: corrección de violaciones puntuales del Anexo
+   - `workspace/[id]/page.tsx`: `team?.type ?? 'SAT'` → `team?.type ?? undefined`
+   - `WorkspaceShell.tsx`: `return 'SAT' as const` → `return null`
+   - Propagación de tipo `| null` a `AgentPanel.tsx` y `PromptLibrary.tsx`
+   - Badge SAT/MAT solo se renderiza si existe, estado unknown distinguible
+
+5. **35ce4e4** — docs: audit confirmation - teamType widening is safe
+   - Auditoría de solo lectura confirmó seguridad del ensanchamiento de tipo
+   - Lógica consumidora usa `teamType === 'SAT'`, `null` cae correctamente en rama conservadora
+   - Riesgo residual identificado: Teams Map renderiza `teamType` sin defensiva, protegido por constraint `NOT NULL`
+   - Lección arquitectónica: dependencias en constraints DB deben documentarse
+
+### Qué quedó resuelto:
+
+✅ **Manager identity estable** — identificación por `agent_role === 'manager'` explícito, no por posición en array
+✅ **SAT/MAT badge estable** — clasificación por `teams.type` persistido, no por recálculo local
+✅ **Team isolated preservado** — EditTeamModal no recalcula tipo al editar provider/model
+✅ **Fallback silencioso eliminado** — `team.type` faltante genera warning y estado visual distinguible, no asume SAT
+✅ **Anexo cumplido** — no fallback silencioso, no recálculo, warning controlado
+✅ **Auditoría completada** — ensanchamiento de tipo seguro, riesgo residual documentado
+
+### Qué quedó pendiente:
+
+⏳ **Reparación de datos existentes** — team afectado por incidente (badge SAT/MAT mutado, Manager/Worker intercambiados) requiere investigación y posible reparación manual fuera del alcance de estas OEs
+
+⏳ **Review & Forward en isolated teams** — Manager panel muestra Worker 1/Worker 2 como destinatarios (workers ocultos pero existentes en DB), no incluye al usuario humano de la conexión como destinatario válido — diagnóstico pendiente
+
+⏳ **Edición de team conectado (Host/Invitee)** — EditTeamModal no es independiente entre Host e Invitado; el Invitado replica los cambios del Host. Pendiente confirmar si es bug de código o decisión de arquitectura no resuelta (el team isolated pertenece estructuralmente solo al Host)
+
+### Archivos documentales actualizados:
+
+- `handoff.md` — 3 entradas (Estabilización C+, corrección fallback, auditoría)
+- `CodingWorkshop.md` — entrada #19 actualizada con solución final + nota de seguimiento + nota de auditoría
+- `PRODUCT_STATUS.md` — 2 nuevos pendientes agregados en sección Connected Teams
+
+### Validaciones finales:
+
+- Build: ✅ Exitoso (solo warnings CanvasViewport fuera de scope)
+- Git status: ✅ Limpio (solo `.claude/settings.local.json` local)
+- Commits pusheados: ✅ 5/5
+
+**Sesión cerrada.**
+
