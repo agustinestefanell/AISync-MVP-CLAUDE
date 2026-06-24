@@ -337,11 +337,18 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
         // ERR-003: persistir userMsg antes del stream — un corte de red no debe
         // borrar la acción del usuario. Fail-open: si falla, el chat continúa.
         try {
-          await fetch('/api/messages', {
+          const persistRes = await fetch('/api/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionId: session.id, messages: [userMsg] }),
           })
+          if (!persistRes.ok) {
+            const errorText = await persistRes.text().catch(() => '')
+            console.error('[AgentPanel] Failed to persist userMsg before stream', {
+              status: persistRes.status,
+              error: errorText,
+            })
+          }
         } catch (persistErr) {
           console.error('[AgentPanel] failed to persist userMsg before stream', persistErr)
         }
@@ -400,11 +407,18 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
         setApiMessages(prev => [...prev, { role: 'assistant', content: fullContent }])
 
         // Solo assistantMsg — userMsg ya fue persistido antes del stream (ERR-003)
-        await fetch('/api/messages', {
+        const assistantPersistRes = await fetch('/api/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: session.id, messages: [assistantMsg] }),
         })
+        if (!assistantPersistRes.ok) {
+          const errorText = await assistantPersistRes.text().catch(() => '')
+          console.error('[AgentPanel] Failed to persist assistantMsg after stream', {
+            status: assistantPersistRes.status,
+            error: errorText,
+          })
+        }
       } catch (err) {
         // ERR-003: si el stream se cortó con contenido parcial, conservarlo y
         // persistirlo como mensaje interrumpido en vez de descartarlo.
@@ -417,11 +431,18 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
           setMessages(prev => [...prev, interruptedMsg])
           setApiMessages(prev => [...prev, { role: 'assistant', content: interruptedMsg.content }])
           try {
-            await fetch('/api/messages', {
+            const interruptedPersistRes = await fetch('/api/messages', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ sessionId: session.id, messages: [interruptedMsg] }),
             })
+            if (!interruptedPersistRes.ok) {
+              const errorText = await interruptedPersistRes.text().catch(() => '')
+              console.error('[AgentPanel] Failed to persist interrupted message', {
+                status: interruptedPersistRes.status,
+                error: errorText,
+              })
+            }
           } catch (persistErr) {
             console.error('[AgentPanel] failed to persist interrupted message', persistErr)
           }

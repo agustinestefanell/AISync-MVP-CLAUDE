@@ -9650,3 +9650,77 @@ Agregar al protocolo de cierre de sesión: si se va a cerrar Claude Code sin com
 **Actualización de protocolo:**
 El prompt de cierre duro existente ya contempla diagnóstico inicial (`pwd`, `git branch`, `git status`, `git diff --stat`). Confirmado que este paso NO es opcional — debe ejecutarse al inicio de cada sesión, no solo al inicio de cada OE.
 
+---
+
+## 2026-06-24 — RLS fix: Connected Teams invitee access to messages
+
+**Cambio realizado:**
+Se agregaron dos políticas RLS nuevas para permitir que el Invitado (receiver) de una conexión `active` pueda leer e insertar mensajes en `messages` para agent_sessions pertenecientes al workspace/team isolated compartido:
+- Policy SELECT: `"Invitee can read messages in isolated workspace"`
+- Policy INSERT: `"Invitee can insert messages in isolated workspace"`
+
+Las políticas Host existentes (`messages_select`, `messages_insert`) fueron preservadas intactas.
+
+Se agregó también manejo explícito de error en `AgentPanel.tsx` para los tres POSTs a `/api/messages`: ahora verifican `res.ok` y logean errores con status y detalles, eliminando el fallo silencioso previo.
+
+**Archivos tocados:**
+- `supabase/migrations/040_invitee_messages_access.sql` — nueva migración
+- `src/components/workspace/AgentPanel.tsx` — agregado res.ok check en 3 POSTs (líneas ~340, ~403, ~420)
+- `handoff.md` — esta entrada
+- `CodingWorkshop.md` — completada entrada #21
+- `PRODUCT_STATUS.md` — actualizado bloque Connected Teams
+
+**Aplicación de migración:**
+- SQL preparado por Claude Code
+- Migración aplicada a base de datos real por Product Owner desde SQL Editor de Supabase
+- Confirmación: "Success" sin errores
+- Fecha de aplicación: 2026-06-24
+
+**Alcance de seguridad (validado por lógica SQL):**
+- `tc.receiver_account_id = auth.uid()` — solo el invitado autenticado
+- `tc.status = 'active'` — solo conexiones activas
+- `tc.scope_isolated_team_id IS NOT NULL` — solo teams isolated válidos
+- JOIN via `agent_sessions → workspaces → team_connections` — garantiza que mensaje pertenece al workspace compartido
+- Terceros sin conexión: bloqueados (no cumplen receiver_account_id)
+- Conexiones cancelled/disconnected: bloqueadas (no cumplen status = 'active')
+- Otros teams del Invitado: bloqueados (scope_isolated_team_id no coincide)
+
+**Validación realizada por Claude Code:**
+- Revisión lógica SQL: ✅ Condiciones de seguridad verificadas
+- Build: ✅ `npm run lint` exitoso, `npm run build` exitoso
+- AgentPanel res.ok/logging: ✅ Agregado en los 3 POSTs
+
+**Validación pendiente por Product Owner con cuentas reales:**
+
+| Caso | Estado |
+|---|---|
+| Host escribe al Manager | Pendiente de prueba viva |
+| Host lee historial | Pendiente de prueba viva |
+| Invitado active escribe al Manager | Pendiente de prueba viva |
+| Invitado active persiste mensaje tras F5 | Pendiente de prueba viva |
+| Invitado active lee historial previo | Pendiente de prueba viva |
+| Invitado prueba Worker1/Worker2 | Pendiente de prueba viva |
+| Tercer usuario sin conexión bloqueado | Pendiente de prueba viva |
+| Conexión cancelled/disconnected bloqueada | Pendiente de prueba viva |
+
+**Restricciones respetadas:**
+- ✅ No se tocó RLS de otras tablas
+- ✅ No se tocaron checkpoints/checkpoint_messages/session_attachments/session_tool_calls/token_usage/audit_log
+- ✅ No se modificaron ni eliminaron policies Host
+- ✅ No se tocó `/api/messages` endpoint (solo lectura)
+- ✅ No se tocó streaming
+- ✅ No se tocaron datos existentes
+
+**Tablas pendientes de corrección:**
+- `checkpoints` + `checkpoint_messages` (URGENTE — feature core)
+- `token_usage` (IMPORTANTE — billing real)
+- `session_attachments` + `session_tool_calls` (MEDIA — features avanzadas)
+- `audit_log` (MEDIA — compliance)
+- 5 tablas adicionales con menor impacto (decisión arquitectónica pendiente)
+
+**Estado:**
+- Migración aplicada: ✅ Sí (por Product Owner, confirmación "Success")
+- Código actualizado: ✅ Sí (AgentPanel.tsx con res.ok check)
+- Build validado: ✅ Sí (lint + build exitosos)
+- Prueba viva con cuentas reales: ⏳ Pendiente de ejecución manual por Product Owner
+

@@ -962,3 +962,29 @@ Ver `handoff.md` entrada 2026-06-24 para tabla completa de auditoría con las 20
 **Fecha auditoría:** 2026-06-24 (mapeo completo de 20 tablas)
 **Estado:** Pendiente corrección (cada tabla requiere OE separada, testing exhaustivo, no tocar RLS sin revisión)
 
+**Solución final — `messages`:**
+Se preparó migración RLS 040 específica para `messages`.
+
+La solución agrega policies adicionales de `SELECT` e `INSERT` para el Invitado de una conexión `active`, siguiendo el mismo patrón validado en `agent_sessions` (migración 028) y `human_messages` (migración 037): el acceso se permite únicamente cuando `messages.session_id` pertenece a una `agent_session` del workspace cuyo `team_id` coincide con `team_connections.scope_isolated_team_id`, y el usuario autenticado es `team_connections.receiver_account_id`.
+
+Las policies existentes del Host no fueron modificadas ni eliminadas.
+
+También se agregó manejo explícito de error en los tres POSTs de `AgentPanel.tsx` hacia `/api/messages`, para que un fallo de persistencia ya no quede silencioso. Ahora verifican `res.ok` y logean status + detalles del error.
+
+**Aplicación:**
+- Migración aplicada a base de datos real por Product Owner desde SQL Editor de Supabase
+- Confirmación: "Success" sin errores
+- Fecha: 2026-06-24
+
+**Nota de validación:**
+Claude Code validó la lógica SQL y el build exitoso. La validación real de RLS requiere prueba viva con cuentas autenticadas Host/Invitado/Tercero. Esas pruebas deben ser ejecutadas manualmente por el Product Owner y registradas cuando se completen.
+
+**Alcance:**
+- Tabla corregida: `messages` ✅
+- Tablas no corregidas en esta OE: `checkpoints`, `checkpoint_messages`, `session_attachments`, `session_tool_calls`, `token_usage`, `audit_log` y cualquier otra tabla del listado de auditoría (requieren OEs separadas)
+
+**Archivos:**
+- `supabase/migrations/040_invitee_messages_access.sql`
+- `src/components/workspace/AgentPanel.tsx` (res.ok check en 3 POSTs)
+- Commit pendiente
+
