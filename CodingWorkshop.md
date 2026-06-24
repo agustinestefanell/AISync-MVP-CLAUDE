@@ -866,3 +866,99 @@ humanChatRef.current?.appendMessage(newMessage)
 
 **Commits:** `aaf0b6e` (forward original) + follow-up 2026-06-24 (optimistic update)
 
+---
+
+### 21. RLS gap — Connected Teams Invitee no puede persistir mensajes
+
+**Problema:**
+Invitado de Connected Teams (receiver en team_connections) puede ver el workspace compartido y el Manager panel, pero sus mensajes al AI Manager no persisten. Después de F5, todos los mensajes del Invitado desaparecen. Contador de mensajes en tabla `messages` sube para Host, no sube para Invitado. Error completamente silencioso — no hay alerta visual, solo `console.error` oculto.
+
+**Causa raíz:**
+Política RLS `messages_insert` solo valida `p.account_id = auth.uid()`, que es TRUE solo para el Host (dueño del project). Invitado tiene `auth.uid()` diferente, entonces la condición falla y Supabase bloquea el INSERT. Migración 028 (Connected Teams) agregó políticas de Invitado para `workspaces` y `agent_sessions`, pero NO actualizó `messages` ni otras 12 tablas con FK a `workspace_id`/`session_id`.
+
+**Arquitectura del problema:**
+Cuando migración 028 introdujo Connected Teams, extendió el modelo de "dueño único" (single-account ownership) a "dueño + invitado compartido" (shared multi-account access). Las políticas RLS de `workspaces` y `agent_sessions` fueron actualizadas para contemplar acceso del Invitado via `team_connections.receiver_account_id`. Pero el resto de tablas relacionadas (13 en total) NO fueron actualizadas en la misma migración.
+
+RLS evalúa políticas tabla por tabla — no hereda acceso transitivamente. El hecho de que el Invitado pueda leer `agent_sessions` NO hace que automáticamente pueda insertar en `messages`. Cada tabla necesita su propia política explícita.
+
+**Consecuencia:**
+- **Data loss silencioso** en producción
+- Invitado ve sus mensajes en UI (estado local React) pero nunca se guardan en DB
+- Al recargar, conversación del Invitado desaparece completamente
+- Feature core (chat con Manager) rota para 50% de los usuarios de Connected Teams
+- No hay feedback visual — usuario no sabe que está perdiendo datos
+
+**Por qué el error fue silencioso:**
+`AgentPanel.tsx` línea 340 hace POST a `/api/messages` sin verificar `res.ok`. Cuando RLS bloquea, endpoint retorna 500, pero `fetch()` NO lanza excepción (HTTP 500 es respuesta válida, no error de red). El código solo hace `console.error` dentro del `catch`, que nunca se ejecuta porque no hay excepción. Usuario no ve nada.
+
+**Proceso de diagnóstico:**
+1. Product Owner reportó: "mensajes del Invitado desaparecen al recargar, mensajes del Host persisten"
+2. Consulta SQL directa confirmó: tabla `messages` solo tiene mensajes del Host, ninguno del Invitado
+3. Auditoría de políticas RLS comparó `messages` vs `workspaces` vs `agent_sessions` vs `human_messages`
+4. `human_messages` (migración 037, posterior a Connected Teams) SÍ contempla Invitado correctamente
+5. `messages` (migración 002, pre-Connected Teams) NO fue actualizado en migración 028
+6. Búsqueda exhaustiva: 12 tablas adicionales con mismo problema
+
+**Solución requerida (NO aplicada en esta OE):**
+Agregar política RLS para Invitee access en 13 tablas:
+- `messages` (CRÍTICO — data loss confirmado)
+- `checkpoints`, `checkpoint_messages` (ALTO — feature core)
+- `session_attachments`, `session_tool_calls` (MEDIO — features avanzadas)
+- `token_usage` (MEDIO-ALTO — bloqueante para billing real, no urgente para operación actual)
+- 7 tablas adicionales con menor impacto (ver auditoría completa en handoff.md)
+
+Patrón a seguir (ejemplo para `messages`):
+```sql
+CREATE POLICY "Invitee can insert messages in isolated workspace"
+  ON public.messages FOR INSERT WITH CHECK (
+    session_id IN (
+      SELECT ags.id
+      FROM public.agent_sessions ags
+      JOIN public.workspaces w ON w.id = ags.workspace_id
+      JOIN public.team_connections tc 
+        ON tc.scope_isolated_team_id = w.team_id
+      WHERE tc.receiver_account_id = auth.uid()
+        AND tc.status = 'active'
+        AND tc.scope_isolated_team_id IS NOT NULL
+    )
+  );
+```
+
+**Lección arquitectónica:**
+Al extender un modelo de "dueño único" a "acceso compartido multi-cuenta", **cada tabla relacionada debe auditarse explícitamente**. No asumir que "si la tabla padre tiene acceso, las hijas heredan". RLS no funciona así.
+
+Checklist obligatorio para cualquier feature multi-account:
+1. Identificar TODAS las tablas con FK a las entidades compartidas (usar grep de migraciones)
+2. Auditar políticas existentes tabla por tabla
+3. Extender políticas en la MISMA migración que introduce la feature
+4. Validar que errores RLS sean visibles (agregar verificación de `res.ok` en fetch)
+5. Testing end-to-end con ambos roles (owner + invitee/collaborator)
+
+**Síntoma de alerta:**
+Si una migración agrega políticas de acceso compartido para 2-3 tablas pero el feature involucra 10+ tablas relacionadas, hay RLS gaps.
+
+**Patrón anti:** 
+"Migración 028 arregló workspaces y agent_sessions, el resto debe funcionar por transitividad" ❌
+
+**Patrón correcto:**
+"Migración 028 debe actualizar TODAS las tablas con FK a workspace_id/session_id, o documentar explícitamente cuáles NO se comparten y por qué"
+
+**Hallazgo:**
+Auditoría completa encontró 13 tablas con políticas inseguras para Connected Teams:
+- 3 críticas (data loss o feature core rota)
+- 4 media-alta (billing/compliance/features avanzadas)
+- 6 baja (administrativas/opcionales, requieren decisión arquitectónica)
+
+Ver `handoff.md` entrada 2026-06-24 para tabla completa de auditoría con las 20 tablas evaluadas.
+
+**Archivos involucrados:**
+- `supabase/migrations/002_messages.sql` — políticas originales (pre-Connected Teams)
+- `supabase/migrations/028_scope_isolated_team.sql` — introdujo Connected Teams, actualizó solo 2 tablas
+- `supabase/migrations/037_human_messages.sql` — tabla nueva post-Connected Teams, políticas correctas desde el inicio
+- `src/components/workspace/AgentPanel.tsx` — sendPrompt sin verificación de res.ok (oculta errores RLS)
+- `src/app/api/messages/route.ts` — endpoint que retorna 500 cuando RLS falla
+
+**Fecha descubrimiento:** 2026-06-24 (incidente reportado por Product Owner)
+**Fecha auditoría:** 2026-06-24 (mapeo completo de 20 tablas)
+**Estado:** Pendiente corrección (cada tabla requiere OE separada, testing exhaustivo, no tocar RLS sin revisión)
+

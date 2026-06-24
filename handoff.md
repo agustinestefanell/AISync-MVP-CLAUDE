@@ -9484,3 +9484,169 @@ Complete — listo para commit y push.
 **Lección clave:**
 Toda funcionalidad que inserte mensajes humanos debe considerar que `broadcast: { self: false }` excluye al emisor del evento Realtime por diseño. El emisor necesita actualización local explícita si debe ver su propio mensaje inmediatamente. El envío manual ya lo hacía; el forward agregado en `aaf0b6e` lo omitió por un comentario incorrecto que asumía que Realtime actualizaría al emisor.
 
+---
+
+## 2026-06-24 — Auditoría RLS Connected Teams: 13 tablas inseguras detectadas
+
+**Contexto:**
+Incidente reportado por Product Owner: mensajes del Invitado al Manager no persisten, solo los del Host. Después de F5, conversación del Invitado desaparece completamente. Pérdida silenciosa de datos — no hay error visible.
+
+**Diagnóstico:**
+Política RLS `messages_insert` (migración 002, pre-Connected Teams) solo valida `p.account_id = auth.uid()` (Host). Invitado tiene account_id distinto, entonces Supabase bloquea INSERT silenciosamente. Migración 028 (Connected Teams) agregó políticas de Invitado para `workspaces` y `agent_sessions`, pero NO actualizó `messages`.
+
+**Auditoría exhaustiva ejecutada:**
+Mapeo completo de 20 tablas relacionadas con workspace_id/session_id/team_id. Resultado: 13 tablas con políticas inseguras para Invitado (no contempladas en migración 028).
+
+**Clasificación por severidad:**
+
+🔴 **CRÍTICAS** (data loss o feature core rota):
+1. `messages` — conversación user↔AI no persiste para Invitado (confirmado en producción)
+2. `checkpoints` + `checkpoint_messages` — Save Version no funciona para Invitado
+
+🟠 **MEDIA-ALTA** (billing/compliance/features avanzadas):
+3. `token_usage` — tokens del Invitado no se registran (**bloqueante para billing real**, no urgente hoy)
+4. `session_attachments` + `session_tool_calls` — archivos adjuntos y herramientas no funcionan
+5. `audit_log` — eventos del Invitado no aparecen en log del Host (compliance)
+
+🟡 **BAJA** (features administrativas/opcionales, requieren decisión arquitectónica):
+6. `teams` (UPDATE/DELETE) — Invitado puede leer pero no editar team isolated (¿intencional?)
+7. `saved_selections` — feature "Save Selection" no funciona para Invitado
+8. `prompt_assignments` — Invitado no puede asignar prompts a workers
+9. `context_sources` — Invitado no puede subir Context Files
+
+✅ **SEGURAS** (ya contemplan Connected Teams):
+- `workspaces`, `agent_sessions` (migración 028)
+- `human_messages` (migración 037)
+- `team_connections` (migración 008, diseñada para bilateral access)
+
+**Tabla resumen de las 20 tablas auditadas:**
+
+| Tabla | FK a Workspace/Session | Estado | Impacto si Inseguro |
+|-------|----------------------|--------|---------------------|
+| `messages` | session_id | ❌ INSEGURO | **Pérdida silenciosa de datos** (confirmado 2026-06-24) |
+| `checkpoints` | workspace_id | ❌ INSEGURO | Invitado no puede guardar checkpoints |
+| `checkpoint_messages` | checkpoint_id | ❌ INSEGURO | Invitado no puede guardar contenido de checkpoints |
+| `session_attachments` | session_id, workspace_id | ❌ INSEGURO | Invitado no puede subir archivos adjuntos |
+| `session_tool_calls` | session_id, workspace_id | ❌ INSEGURO | Tool calls del Invitado no se persisten |
+| `token_usage` | session_id, workspace_id | ⚠️ REVISAR | Tokens del Invitado no se registran (problema de billing) |
+| `audit_log` | workspace_id (opcional) | ⚠️ REVISAR | Eventos del Invitado no se registran en audit_log compartido |
+| `teams` | project_id | ⚠️ REVISAR | Invitado no puede editar team isolated |
+| `saved_selections` | workspace_id | ⚠️ REVISAR | Invitado no puede guardar selecciones de contexto |
+| `prompt_assignments` | prompt_id | ⚠️ REVISAR | Invitado no puede asignar prompts en workspace compartido |
+| `context_sources` | workspace_id/session_id | ⚠️ REVISAR | Invitado no puede subir Context Files en workspace compartido |
+| `workspaces` | team_id | ✅ SEGURO | Migración 028 contempla Invitado |
+| `agent_sessions` | workspace_id | ✅ SEGURO | Migración 028 contempla Invitado |
+| `human_messages` | connection_id | ✅ SEGURO | Migración 037 contempla Invitado desde el inicio |
+| `team_connections` | team_id | ✅ SEGURO | Migración 008 diseñada para bilateral access |
+| `accounts` | - | ✅ N/A | Tabla raíz |
+| `projects` | - | ✅ N/A | Cada cuenta tiene sus propios projects |
+| `user_api_keys` | - | ✅ N/A | Cada usuario tiene sus propias keys |
+| `user_custom_providers` | - | ✅ N/A | Cada usuario tiene sus propios providers |
+| `prompt_library` | - | ✅ N/A | Cada usuario tiene su propia biblioteca |
+
+**Causa arquitectónica:**
+RLS evalúa políticas tabla por tabla — no hereda acceso transitivamente. El hecho de que Invitado pueda leer `agent_sessions` NO hace que automáticamente pueda insertar en `messages`. Migración 028 extendió modelo de "dueño único" a "acceso compartido", pero solo actualizó 2 de 15 tablas relacionadas.
+
+**Lección clave:**
+Al agregar cualquier feature multi-account (Connected Teams, Team Collaboration, Project Sharing):
+1. Identificar TODAS las tablas con FK a las entidades compartidas (grep exhaustivo de migraciones)
+2. Auditar políticas existentes tabla por tabla
+3. Extender políticas en la MISMA migración que introduce la feature
+4. NUNCA asumir que "el resto funciona por transitividad"
+
+**Por qué el error fue silencioso:**
+`AgentPanel.tsx` línea 340 hace POST a `/api/messages` sin verificar `res.ok`. Cuando RLS bloquea, endpoint retorna 500, pero código no verifica status. Solo hace `console.error` en catch que nunca se ejecuta (HTTP 500 no lanza excepción en fetch). Usuario ve mensaje en UI (estado local React) pero nunca se guarda.
+
+**Patrón de corrección (ejemplo para `messages`):**
+```sql
+-- Migración nueva (040 o posterior)
+DROP POLICY IF EXISTS "Invitee can read messages in isolated workspace" ON public.messages;
+CREATE POLICY "Invitee can read messages in isolated workspace"
+  ON public.messages FOR SELECT USING (
+    session_id IN (
+      SELECT ags.id
+      FROM public.agent_sessions ags
+      JOIN public.workspaces w ON w.id = ags.workspace_id
+      JOIN public.team_connections tc 
+        ON tc.scope_isolated_team_id = w.team_id
+      WHERE tc.receiver_account_id = auth.uid()
+        AND tc.status = 'active'
+        AND tc.scope_isolated_team_id IS NOT NULL
+    )
+  );
+
+DROP POLICY IF EXISTS "Invitee can insert messages in isolated workspace" ON public.messages;
+CREATE POLICY "Invitee can insert messages in isolated workspace"
+  ON public.messages FOR INSERT WITH CHECK (
+    session_id IN (
+      SELECT ags.id
+      FROM public.agent_sessions ags
+      JOIN public.workspaces w ON w.id = ags.workspace_id
+      JOIN public.team_connections tc 
+        ON tc.scope_isolated_team_id = w.team_id
+      WHERE tc.receiver_account_id = auth.uid()
+        AND tc.status = 'active'
+        AND tc.scope_isolated_team_id IS NOT NULL
+    )
+  );
+```
+
+**Corrección pendiente:**
+Cada tabla requiere OE separada con:
+- Migración SQL que agrega política de Invitee (patrón: JOIN team_connections WHERE receiver_account_id = auth.uid())
+- Testing exhaustivo (Host + Invitee) para verificar que ambos lados funcionan
+- Verificación de que NO se abre brecha de seguridad
+- Fix de error handling en código (agregar verificación res.ok en fetch)
+
+**Prioridad de corrección:**
+1. 🔴 `messages` (INMEDIATO — data loss en producción)
+2. 🔴 `checkpoints` + `checkpoint_messages` (URGENTE — feature core rota)
+3. 🟠 `token_usage` (IMPORTANTE — bloqueante para billing real, resolver antes de cobrar de verdad)
+4. 🟠 `session_attachments` + `session_tool_calls` (MEDIA — features avanzadas)
+5. 🟠 `audit_log` (MEDIA — compliance)
+6. 🟡 Resto: decisión arquitectónica pendiente (¿se comparte o no?)
+
+**Archivos documentales actualizados:**
+- `handoff.md` — esta entrada
+- `CodingWorkshop.md` — entrada #21 (patrón arquitectónico + lección completa)
+
+**Restricciones cumplidas:**
+- No se modificó código
+- No se modificaron políticas RLS
+- No se modificaron datos
+- No se hizo commit
+- Auditoría de solo lectura completada
+
+**Próximos pasos:**
+OE separada para cada corrección crítica, empezando por `messages`. Cada OE debe incluir:
+- Migración SQL nueva
+- Testing end-to-end (Host + Invitee)
+- Fix de error handling (verificar res.ok)
+- Actualización de handoff.md
+
+---
+
+## 2026-06-24 — Nota de protocolo: hard refresh omitido al reiniciar Claude Code
+
+**Incidente menor:**
+Al cerrar sesión anterior y abrir nueva sesión de Claude Code, el sistema mantuvo contexto stale de conversaciones previas. Diagnóstico inicial asumió commits no presentes, generando confusión sobre estado del repo.
+
+**Causa:**
+Claude Code no hace hard refresh automático del contexto al reiniciar. Si la sesión anterior cerró sin explicit cleanup, parte del contexto puede persistir.
+
+**Corrección aplicada:**
+Ejecutar ritual de apertura de sesión estándar:
+```bash
+pwd
+git remote -v
+git branch --show-current
+git status --short
+git log --oneline -8
+```
+
+**Lección:**
+Agregar al protocolo de cierre de sesión: si se va a cerrar Claude Code sin completar una OE, hacer commit o stash explícito de cualquier cambio en progreso, y documentar estado exacto en handoff.md. Al reabrir, siempre ejecutar ritual de apertura antes de asumir estado del repo.
+
+**Actualización de protocolo:**
+El prompt de cierre duro existente ya contempla diagnóstico inicial (`pwd`, `git branch`, `git status`, `git diff --stat`). Confirmado que este paso NO es opcional — debe ejecutarse al inicio de cada sesión, no solo al inicio de cada OE.
+
