@@ -9262,3 +9262,42 @@ Se eligió `undefined` en page.tsx (para compatibilidad con `badge?: string`) y 
 
 **Estado:** Complete. Listo para commit/push.
 
+
+### Nota de auditoría — Riesgo residual mitigado por constraint de DB
+
+Tras la corrección del fallback silencioso (commit f1ba022), se auditó el
+ensanchamiento de tipo de `teamType` ('SAT' | 'MAT' → 'SAT' | 'MAT' | null)
+propagado a `AgentPanel.tsx` y `PromptLibrary.tsx`. Confirmado como seguro:
+toda la lógica consumidora usa el patrón `teamType === 'SAT'` (nunca
+`!== 'MAT'`), así que `null` cae en la misma rama conservadora que `MAT`
+(sin snapshot compartido), que es el comportamiento correcto para un
+estado desconocido.
+
+Riesgo residual identificado (no corregido, no requiere acción inmediata):
+en Teams Map, `TeamAgentCard.tsx` y `AgentCard.tsx` renderizan
+`node.teamType` directamente como texto, sin manejar un caso `null`. Hoy
+esto está protegido porque `teams.type` tiene constraint `NOT NULL` en
+la base de datos — la fila nunca puede llegar sin valor. Si ese constraint
+se relajara o eliminara en el futuro por cualquier motivo, esos dos
+componentes mostrarían literalmente la palabra "null" como texto visible
+en la UI, en vez de fallar de forma controlada.
+
+Lección: cuando una protección de UI depende de un constraint de base de
+datos en vez de manejar el caso explícitamente en el código, esa
+dependencia debe quedar documentada — de lo contrario, un cambio de schema
+aparentemente inocuo en el futuro puede reintroducir el mismo patrón de
+"asunción silenciosa" que esta serie de OEs corrigió.
+
+**Auditoría realizada:** 2026-06-23
+**Archivos auditados:**
+- `src/components/workspace/AgentPanel.tsx` — usos líneas 353, 367, 881
+- `src/components/workspace/PromptLibrary.tsx` — prop no utilizada
+- `src/app/api/chat/route.ts` — lógica de snapshot línea 167
+- `src/components/teams/map/TeamAgentCard.tsx` — renderizado directo línea 247
+- `src/components/teams/map/AgentCard.tsx` — renderizado directo líneas 74, 169
+- `src/components/teams/TreeView.tsx` — badge condicional línea 94
+- `supabase/migrations/001_hierarchy.sql` — constraint NOT NULL confirmado
+- `supabase/migrations/028_scope_isolated_team.sql` — CHECK constraint confirmado
+
+**Conclusión:** Ensanchamiento de tipo seguro. No requiere corrección.
+

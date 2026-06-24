@@ -799,3 +799,22 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
   **Build:** ✅ Exitoso. Grep confirmó eliminación de fallbacks silenciosos.
 
+
+- **Nota de auditoría — Riesgo residual mitigado por constraint de DB (2026-06-23):**
+
+  Tras la corrección del fallback silencioso, se auditó el ensanchamiento de tipo `teamType` propagado a `AgentPanel.tsx` y `PromptLibrary.tsx`. Confirmado como seguro: toda la lógica consumidora usa `teamType === 'SAT'` (nunca `!== 'MAT'`), así que `null` cae en la misma rama conservadora que `MAT` (sin snapshot compartido), que es el comportamiento correcto para estado desconocido.
+
+  **Riesgo residual identificado (no corregido, no requiere acción inmediata):**
+
+  En Teams Map, `TeamAgentCard.tsx` (línea 247) y `AgentCard.tsx` (líneas 74, 169) renderizan `node.teamType` directamente como texto sin manejar caso `null`. Hoy esto está protegido porque `teams.type` tiene constraint `NOT NULL` en DB (migración 001) — la fila nunca puede llegar sin valor. Si ese constraint se relajara en el futuro, esos componentes mostrarían literalmente "null" como texto en UI.
+
+  **Lección arquitectónica adicional:**
+
+  **Protección de UI basada en constraint de DB debe documentarse explícitamente.**
+
+  Cuando un componente asume que un valor nunca será `null` porque confía en un constraint de DB (en vez de manejar el caso defensivamente en código), esa dependencia debe quedar documentada. De lo contrario, un cambio de schema aparentemente inocuo puede reintroducir el patrón de "asunción silenciosa" que corregimos en Estabilización C+. La alternativa es que cada componente maneje `null` explícitamente con fallback visible ("Unknown", "—", etc.), pero eso duplica la protección cuando el constraint ya la garantiza. El trade-off es: duplicación defensiva vs. documentación de la dependencia. Elegimos documentar en este caso porque el constraint es parte del diseño arquitectural (teams siempre tiene tipo).
+
+  **Archivos auditados:** `AgentPanel.tsx`, `PromptLibrary.tsx`, `/api/chat/route.ts`, `TeamAgentCard.tsx`, `AgentCard.tsx`, `TreeView.tsx`, migraciones 001 y 028.
+
+  **Conclusión:** Ensanchamiento de tipo seguro. No requiere corrección.
+
