@@ -9486,6 +9486,99 @@ Toda funcionalidad que inserte mensajes humanos debe considerar que `broadcast: 
 
 ---
 
+## [2026-06-25] — Human Chat Realtime startup timing logs
+
+**Tipo:** Mini OE / Instrumentación / Logging temporal / Sin cambio funcional
+
+**Contexto:**
+Diagnóstico del 2026-06-25 confirmó que existe una ventana de tiempo variable entre el montaje de `HumanChatPanel` y la confirmación de estado `SUBSCRIBED` del canal Realtime. Los logs existentes confirmaban que los eventos ocurrían, pero no permitían medir la duración precisa de esa ventana porque carecían de timestamps.
+
+**Objetivo:**
+Agregar instrumentación temporal en `HumanChatPanel.tsx` para medir el tiempo de arranque del canal Realtime y cuantificar la ventana crítica T0→T1.
+
+**Cambio realizado:**
+Se agregó logging con `Date.now()` en tres puntos del useEffect que crea el canal Realtime:
+
+1. **mountTime:** Al inicio del useEffect, inmediatamente después de `let isMounted = true`
+2. **subscribeStartTime:** Justo antes de llamar a `.subscribe()` sobre el canal
+3. **subscribedTime:** Dentro del callback cuando `status === 'SUBSCRIBED'`
+
+Los logs incluyen:
+- Timestamp absoluto de cada evento
+- Elapsed time mount → subscribe
+- Elapsed time subscribe → SUBSCRIBED
+- Elapsed time total mount → SUBSCRIBED
+
+**Implementación:**
+```typescript
+// Línea 128-129: Punto 1 - Mount time
+const mountTime = Date.now()
+console.log('[HumanChat] Mount time:', mountTime)
+
+// Línea 162-168: Punto 2 - Subscribe start time
+const subscribeStartTime = Date.now()
+console.log(
+  '[HumanChat] Subscribe start time:',
+  subscribeStartTime,
+  'Elapsed since mount:',
+  subscribeStartTime - mountTime,
+  'ms'
+)
+
+// Línea 172-182: Punto 3 - SUBSCRIBED confirmed
+const subscribedTime = Date.now()
+console.log(
+  '[HumanChat] SUBSCRIBED confirmed at:',
+  subscribedTime,
+  'Elapsed since subscribe():',
+  subscribedTime - subscribeStartTime,
+  'ms',
+  'Total elapsed since mount:',
+  subscribedTime - mountTime,
+  'ms'
+)
+```
+
+**Alcance:**
+- Instrumentación de medición únicamente
+- NO es un fix funcional del bug receptor
+- NO modifica comportamiento de Realtime
+- NO modifica refetch post-SUBSCRIBED
+- NO modifica deduplicación
+- NO toca otros componentes
+
+**Archivos modificados:**
+- `src/components/workspace/HumanChatPanel.tsx` (logging temporal en useEffect de Realtime)
+- `handoff.md` (esta entrada)
+
+**Restricciones respetadas:**
+- ✅ useEffect dependencies no tocadas (sigue siendo `[connectionId]`)
+- ✅ Realtime config no tocada (`broadcast.self: false` preservado)
+- ✅ channel name/filter no tocados
+- ✅ refetch post-SUBSCRIBED no tocado
+- ✅ deduplicación no tocada
+- ✅ manejo de estados CHANNEL_ERROR/TIMED_OUT/CLOSED no tocado
+- ✅ `/api/human-chat` no tocado
+- ✅ RLS/schema/migrations no tocados
+- ✅ cleanup/removeChannel no tocado
+- ✅ otros componentes no tocados
+
+**Validaciones:**
+- `npm run lint`: ✅ OK (warnings pre-existentes en CanvasViewport, no relacionados)
+- `npm run typecheck`: N/A (comando no disponible en package.json)
+- `npm run build`: ✅ OK — build exitoso sin errores
+
+**Uso previsto:**
+Logs disponibles para prueba de medición de tiempo de arranque de Realtime en pestaña recién abierta. Permite cuantificar la ventana crítica entre mount del componente y confirmación SUBSCRIBED del WebSocket.
+
+**Estado:**
+Complete — listo para commit y push.
+
+**Lección clave:**
+Instrumentación temporal con timestamps es una herramienta de diagnóstico no invasiva que no requiere cambios funcionales. Permite medir ventanas de tiempo críticas sin modificar lógica de negocio, configuración de infraestructura ni comportamiento observable por el usuario.
+
+---
+
 ## 2026-06-24 — Auditoría RLS Connected Teams: 13 tablas inseguras detectadas
 
 **Contexto:**

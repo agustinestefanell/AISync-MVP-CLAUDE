@@ -125,6 +125,9 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   // Realtime subscription
   useEffect(() => {
     let isMounted = true
+    const mountTime = Date.now()
+    console.log('[HumanChat] Mount time:', mountTime)
+
     const supabase = createClient()
     const channel = supabase
       .channel(`human-chat-${connectionId}`, {
@@ -159,10 +162,31 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
         }
       )
-      .subscribe(async (status, err) => {
+
+    const subscribeStartTime = Date.now()
+    console.log(
+      '[HumanChat] Subscribe start time:',
+      subscribeStartTime,
+      'Elapsed since mount:',
+      subscribeStartTime - mountTime,
+      'ms'
+    )
+
+    channel.subscribe(async (status, err) => {
         console.log('[HumanChat] Subscription status:', status, err)
         if (status === 'SUBSCRIBED') {
+          const subscribedTime = Date.now()
           console.log('[HumanChat] Successfully subscribed to human_messages')
+          console.log(
+            '[HumanChat] SUBSCRIBED confirmed at:',
+            subscribedTime,
+            'Elapsed since subscribe():',
+            subscribedTime - subscribeStartTime,
+            'ms',
+            'Total elapsed since mount:',
+            subscribedTime - mountTime,
+            'ms'
+          )
 
           // Refetch messages once to close the T0→T1 gap (SSR initial load → Realtime subscription)
           console.log('[HumanChat] Refetching messages to catch any inserted during subscription setup...')
