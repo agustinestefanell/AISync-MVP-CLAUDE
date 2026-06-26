@@ -785,7 +785,7 @@ La arquitectura correcta de Connected Teams es: **dos edificios separados**, uno
 
 **Desviación detectada:**
 La implementación actual (hasta 2026-06-26) se desvió de esta decisión: existe un único Manager compartido entre Host e Invitado por conexión, almacenado en `team_connections.scope_isolated_team_id`. Esto generó una cadena de bugs en los últimos 3 días:
-1. **Bug de RLS cross-account:** Se requirieron parches en `messages` y `checkpoints` para permitir acceso cross-account a la conversación del Manager compartido (migraciones 015, 041).
+1. **Bug de RLS cross-account:** Se requirieron parches en `messages` (commit 443e0e2, migración 040) y `checkpoints` (commit 15323f5, migración 041) para permitir acceso cross-account a la conversación del Manager compartido.
 2. **Bug de `team.type` mutando:** El Manager compartido cambiaba su tipo de `'isolated'` a `'normal'` al editar metadata del team (fix aplicado en commit 54fa466).
 3. **Bug de "Save Version" del chat humano:** Al intentar guardar checkpoint del chat humano, se capturó por error la conversación del Manager compartido (detectado 2026-06-26, no fixeado todavía).
 
