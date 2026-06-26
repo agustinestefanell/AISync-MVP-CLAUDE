@@ -9986,3 +9986,133 @@ Los invitees en Connected Teams (usuarios guest en workspaces compartidos vía t
 **Lección clave:**
 En arquitecturas multi-tenant con ownership indirecto (vía connections), TODAS las tablas de content plane accesibles desde workspaces compartidos deben incluir la cláusula de invitee en sus políticas RLS. No basta con corregir `messages`; cada tabla (checkpoints, checkpoint_messages, audit_log, etc.) requiere la misma lógica de acceso. Esto confirma el patrón arquitectural: RLS como capa de ownership unificada, no como reglas aisladas por tabla.
 
+---
+
+## Sesión 2026-06-26 — Etapas 0-3 del rediseño de Connected Teams: corrección arquitectural Manager separado por usuario
+
+**Fecha:** 2026-06-26  
+**Tipo:** Corrección arquitectural mayor (8 etapas, plan aprobado)
+
+**Commits de esta sesión:**
+- `95f71a5` — docs: Connected Teams architecture decision - two separate managers per connection (Etapa 0)
+- `37516fa` — docs: correct migration references with commit hashes (443e0e2, 15323f5)
+- `748d259` — feat: add host_isolated_team_id and invitee_isolated_team_id to team_connections (Etapa 1)
+- `cb48df8` — feat: create separate isolated teams for host and invitee on accept (Etapa 2)
+- `46bff0f` — docs: mark Etapa 2 as completed in DECISIONS.md
+- `649838a` — feat: add dual-read helpers for team_connections (Etapa 3 partial)
+
+**Archivos modificados:**
+- `DECISIONS.md` — nueva entrada DEC-XXX documentando arquitectura correcta y plan de 8 etapas
+- `supabase/migrations/042_host_invitee_isolated_teams.sql` — nueva migración (aplicada manualmente en Supabase)
+- `src/app/api/connections/[id]/route.ts` — PATCH accept ahora crea dos managers + dos proyectos (líneas 179-267)
+- `src/lib/db/connections.ts` — nuevo archivo con helpers de dual-read
+- `src/app/api/connections/route.ts` — GET usa select extendido con campos nuevos
+- `scripts/validate-etapa2.mjs`, `scripts/validate-nueva-conexion.mjs` — scripts de validación temporal
+
+**Decisión técnica (registrada en DECISIONS.md):**
+
+La arquitectura correcta de Connected Teams es: **dos edificios separados**, uno por usuario (Host e Invitee). Cada usuario tiene su propio Manager y Workers en su propio team/workspace/account. La conexión entre ambos es únicamente el chat humano (`human_messages`). **Nunca debe existir lectura cruzada entre el Manager de un usuario y el del otro**, ni siquiera en modo lectura.
+
+La implementación actual se desvió: existe un único Manager compartido entre Host e Invitee por conexión, almacenado en `team_connections.scope_isolated_team_id`. Esto generó bugs de RLS cross-account, mutación de `team.type`, y captura incorrecta en "Save Version" del chat humano.
+
+**Plan de 8 etapas aprobado (ver DECISIONS.md para detalle completo):**
+
+- **Etapa 0:** Documentación y registro de decisión — ✅ COMPLETADA
+- **Etapa 1:** Schema — agregar columnas nuevas a `team_connections` — ✅ COMPLETADA
+- **Etapa 2:** Write path — crear dos managers separados al aceptar — ✅ COMPLETADA
+- **Etapa 3:** Read path (backend) — dual-read helpers — 🔄 PARCIAL (helpers creados, faltan server components)
+- **Etapa 4:** Read path (frontend) — componentes leen dual — ⏳ PENDIENTE
+- **Etapa 5:** RLS — simplificar políticas cross-account — ⏳ PENDIENTE
+- **Etapa 6:** Validación — conexiones nuevas vs. legacy — ⏳ PENDIENTE
+- **Etapa 7:** Migración de datos — migrar conexión de prueba — ⏳ PENDIENTE
+- **Etapa 8:** Cleanup — eliminar campos legacy — ⏳ PENDIENTE
+
+**Cambios implementados en Etapa 2:**
+
+Cuando un invitado acepta una conexión, el sistema ahora:
+
+1. **Crea proyecto del Host:** nombre `[host_email]+[invitee_email]`
+2. **Crea proyecto del Invitee:** nombre `[invitee_email]+[host_email]`
+3. **Mueve el team del Host** al proyecto nuevo del Host
+4. **Crea team del Invitee** en el proyecto nuevo del Invitee
+5. **Ambos teams** tienen:
+   - `type: 'isolated'`
+   - 3 agent_sessions (manager, worker1, worker2)
+   - Mismo provider/model (copiado del Host, temporal hasta Etapa 2.5)
+   - Mismo color (desde `team_connections.color`)
+6. **Guarda referencias:**
+   - `scope_isolated_team_id` → team del Host (sin cambios, backward compatibility)
+   - `host_isolated_team_id` → team del Host (nuevo)
+   - `invitee_isolated_team_id` → team del Invitee (nuevo)
+
+**Validación con datos reales (conexión b25b823c creada 2026-06-26 17:53):**
+
+✅ Todos los campos poblados correctamente:
+- `host_isolated_team_id`: `f43d2085-d346-4486-90ea-591c5210295b`
+- `invitee_isolated_team_id`: `cabfc979-6f5f-4e3d-8d49-36b4b4f95c4d`
+- `scope_isolated_team_id`: `f43d2085-d346-4486-90ea-591c5210295b` (match con host ✅)
+
+✅ Dos proyectos nuevos creados:
+- Host: `agustin.viaje@gmail.com+agustinestefanell@gmail.com`
+- Invitee: `agustinestefanell@gmail.com+agustin.viaje@gmail.com`
+
+✅ Dos teams isolated separados (3 agent_sessions cada uno)
+
+**Cambios implementados en Etapa 3 (parcial):**
+
+Creado `src/lib/db/connections.ts` con helpers de dual-read:
+
+- `getHostIsolatedTeamId()`: intenta `host_isolated_team_id`, fallback a `scope_isolated_team_id`
+- `getInviteeIsolatedTeamId()`: intenta `invitee_isolated_team_id`, fallback a `scope_isolated_team_id`
+- `getUserIsolatedTeamId()`: retorna team correcto según rol del usuario (host/invitee)
+- `getVisibleIsolatedTeamIds()`: async helper para Teams Map/Tree View
+- `CONNECTIONS_SELECT_WITH_ISOLATED_TEAMS`: select extendido que incluye los 3 campos
+
+GET `/api/connections` actualizado para usar select extendido.
+
+**Pendiente para completar Etapa 3:**
+
+Server components que leen `scope_isolated_team_id` directamente:
+- `src/app/workspace/[id]/page.tsx` (línea 103)
+- `src/app/teams/page.tsx` (líneas 10, 32, 36, 46)
+
+**Alternativas descartadas:**
+
+- **Panel espejo (lectura cross-account):** Descartado 2026-06-18 por riesgo de seguridad y complejidad de RLS bidireccional
+- **Manager único compartido con RLS abierta:** Descartado por violación del principio "opt-in" y ambigüedad de costos
+- **Modificar schema para eliminar scope_isolated_team_id antes de migrar datos:** Descartado, se mantiene hasta Etapa 8
+
+**Riesgos conocidos:**
+
+1. **Complejidad de migración:** Plan de 8 etapas extenso, cada etapa debe ejecutarse cuidadosamente
+2. **Dual-read temporal:** Etapas 3-6 requieren lógica de dual-read que se limpia en Etapa 8
+3. **RLS bidireccional temporal:** RLS cross-account de `messages`/`checkpoints` debe mantenerse hasta Etapa 7
+4. **Testing en producción:** No hay staging, el plan se ejecuta con conexión de prueba como validación
+5. **Provider/model del Invitee difiere del Host:** El código copia del primer `agent_session` del requester_team, pero el manager no es necesariamente el primero. Impacto no crítico (Etapa 2.5 permitirá selección manual).
+6. **Team Name del Host tiene duplicación:** "Shared: Shared: Team Power ↔ ..." — cosmético, no funcional
+
+**Deuda técnica:**
+
+Ninguna nueva introducida. El plan de 8 etapas está diseñado para corregir la desviación arquitectural sin generar nueva deuda.
+
+**Estado:**
+
+- ✅ Etapa 0: Documentación completa
+- ✅ Etapa 1: Migración 042 aplicada
+- ✅ Etapa 2: Write path completado y validado con datos reales
+- 🔄 Etapa 3: Helpers de backend creados, faltan server components
+- ⏳ Etapas 4-8: Pendientes
+
+**Validaciones:**
+
+- lint: ✅ Exitoso
+- build: ✅ Exitoso
+- Migración 042: ✅ Aplicada manualmente en Supabase
+- Conexión nueva de prueba: ✅ Validada con script (commit 649838a)
+- Conexión vieja: ✅ No afectada (backward compatibility garantizada)
+
+**Lección clave:**
+
+Una desviación arquitectural no detectada temprano genera deuda técnica compuesta: cada fix parcial (RLS patch, fix de `team.type`, etc.) consolida la arquitectura incorrecta en lugar de corregirla. El costo de corregir crece exponencialmente con el tiempo. Validar arquitectura contra decisiones originales antes de implementar fixes es crítico — si el fix requiere parches complejos (RLS cross-account, mutación de tipo), es señal de que la arquitectura subyacente está desviada.
+
+**Próxima sesión:** Completar Etapa 3 (actualizar server components `workspace/[id]/page.tsx` y `teams/page.tsx` para usar helpers de dual-read) y avanzar a Etapa 4 (frontend components).
