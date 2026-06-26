@@ -184,6 +184,97 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
                     scope_isolated_workspace_id: isolatedWorkspace.id,
                   })
                   .eq('id', params.id)
+
+                // Etapa 2: Create two separate projects and teams (host + invitee)
+                // Create project for Host
+                const { data: hostProject } = await createAdminClient()
+                  .from('projects')
+                  .insert({
+                    account_id: fullConnection.requester_account_id,
+                    name: `${data.requester_email}+${data.receiver_email ?? user.email}`,
+                    status: 'active',
+                  })
+                  .select()
+                  .single()
+
+                // Create project for Invitee
+                const { data: inviteeProject } = await createAdminClient()
+                  .from('projects')
+                  .insert({
+                    account_id: user.id,
+                    name: `${data.receiver_email ?? user.email}+${data.requester_email}`,
+                    status: 'active',
+                  })
+                  .select()
+                  .single()
+
+                if (hostProject && inviteeProject) {
+                  // Move Host's isolated team to Host's new project
+                  await createAdminClient()
+                    .from('teams')
+                    .update({ project_id: hostProject.id })
+                    .eq('id', isolatedTeam.id)
+
+                  // Create Invitee's isolated team in Invitee's new project
+                  const inviteeTeamName = `Shared: ${data.receiver_email ?? user.email} ↔ ${data.requester_email}`
+                  const { data: inviteeTeam } = await createAdminClient()
+                    .from('teams')
+                    .insert({
+                      project_id: inviteeProject.id,
+                      name: inviteeTeamName,
+                      type: 'isolated',
+                      parent_id: null,
+                      description: fullConnection.description ?? `Shared workspace with ${data.requester_email}`,
+                      color: fullConnection.color ?? '#000000',
+                    })
+                    .select()
+                    .single()
+
+                  if (inviteeTeam) {
+                    // Create workspace for Invitee
+                    const { data: inviteeWorkspace } = await createAdminClient()
+                      .from('workspaces')
+                      .insert({
+                        team_id: inviteeTeam.id,
+                        name: `Workspace ${inviteeTeamName}`,
+                      })
+                      .select()
+                      .single()
+
+                    if (inviteeWorkspace) {
+                      // Create 3 agent_sessions for Invitee (same provider/model as Host)
+                      await createAdminClient().from('agent_sessions').insert([
+                        {
+                          workspace_id: inviteeWorkspace.id,
+                          agent_role: 'manager',
+                          provider: defaultProvider,
+                          model: defaultModel,
+                        },
+                        {
+                          workspace_id: inviteeWorkspace.id,
+                          agent_role: 'worker1',
+                          provider: defaultProvider,
+                          model: defaultModel,
+                        },
+                        {
+                          workspace_id: inviteeWorkspace.id,
+                          agent_role: 'worker2',
+                          provider: defaultProvider,
+                          model: defaultModel,
+                        },
+                      ])
+
+                      // Update team_connections with both isolated team IDs (Etapa 2)
+                      await createAdminClient()
+                        .from('team_connections')
+                        .update({
+                          host_isolated_team_id: isolatedTeam.id,
+                          invitee_isolated_team_id: inviteeTeam.id,
+                        })
+                        .eq('id', params.id)
+                    }
+                  }
+                }
               }
             }
           }
