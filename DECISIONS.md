@@ -838,9 +838,9 @@ La conexión de prueba activa en producción es de testing interno, sin usuarios
 4. **Testing en producción:** No hay entorno de staging — el plan se ejecuta directamente en producción con la conexión de prueba como caso de validación.
 
 **Plan de 8 etapas aprobado:**
-- **Etapa 0:** Documentación y registro de decisión (esta entrada en `DECISIONS.md`)
-- **Etapa 1:** Schema — agregar `host_isolated_team_id` e `invitee_isolated_team_id` a `team_connections` (nullable)
-- **Etapa 2:** Write path — POST `/api/connections` y PATCH accept crean dos managers separados
+- **Etapa 0:** Documentación y registro de decisión (esta entrada en `DECISIONS.md`) — ✅ COMPLETADA (commits 95f71a5, 37516fa)
+- **Etapa 1:** Schema — agregar `host_isolated_team_id` e `invitee_isolated_team_id` a `team_connections` (nullable) — ✅ COMPLETADA (commit 748d259, migración 042 aplicada manualmente)
+- **Etapa 2:** Write path — PATCH accept crea dos managers separados (uno Host, uno Invitee) — ✅ COMPLETADA (commit cb48df8, validación manual pendiente)
 - **Etapa 3:** Read path (backend) — helpers y API routes leen dual (nuevos campos → fallback a legacy)
 - **Etapa 4:** Read path (frontend) — componentes leen dual
 - **Etapa 5:** RLS — simplificar políticas de `messages`/`checkpoints` (ya no necesitan acceso cross-account al Manager)
@@ -848,7 +848,23 @@ La conexión de prueba activa en producción es de testing interno, sin usuarios
 - **Etapa 7:** Migración de datos — migrar conexión de prueba al nuevo modelo (pérdida de historial de IA aceptada)
 - **Etapa 8:** Cleanup — eliminar `scope_isolated_team_id`, eliminar dual-read, eliminar RLS legacy cross-account
 
-**Estado:** Etapa 0 completada (registro de decisión). Etapas 1-8 pendientes de ejecución secuencial.
+**Estado:** Etapas 0, 1, 2 completadas. Etapa 2 requiere validación manual (crear conexión nueva, verificar DB). Etapas 3-8 pendientes.
+
+**Detalles de Etapa 2 (commit cb48df8):**
+- **Cambio:** Al aceptar conexión, se crean dos proyectos nuevos (uno por cuenta) y dos teams isolated separados (uno por usuario)
+- **Proyectos creados:**
+  - Host: `[host_email]+[invitee_email]`
+  - Invitee: `[invitee_email]+[host_email]`
+- **Teams creados:** Ambos con estructura idéntica (type: 'isolated', 3 agent_sessions: manager/worker1/worker2)
+- **Provider/model:** Copiado del Host (temporal hasta Etapa 2.5)
+- **Color:** Copiado de `team_connections.color` a ambos teams
+- **Referencias guardadas:**
+  - `scope_isolated_team_id` (legacy, sin cambios — apunta al team del Host)
+  - `host_isolated_team_id` (nuevo — apunta al team del Host)
+  - `invitee_isolated_team_id` (nuevo — apunta al team del Invitee)
+- **Archivo modificado:** `src/app/api/connections/[id]/route.ts` (líneas 179-267)
+- **Backward compatibility:** Conexiones creadas antes de cb48df8 conservan solo `scope_isolated_team_id` — no se rompen
+- **Validación pendiente:** Crear conexión nueva, verificar que ambos teams existen en DB con referencias correctas
 
 **Lección clave:**
 Una desviación arquitectural no detectada temprano genera deuda técnica compuesta: cada fix parcial (RLS patch, fix de `team.type`, etc.) consolida la arquitectura incorrecta en lugar de corregirla. El costo de corregir crece exponencialmente con el tiempo. Validar arquitectura contra decisiones originales antes de implementar fixes es crítico — si el fix requiere parches complejos (RLS cross-account, mutación de tipo), es señal de que la arquitectura subyacente está desviada.
