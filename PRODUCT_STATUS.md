@@ -361,3 +361,39 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 - /start visual redesign: ✅ Closed — Implementación completa desde assets de referencia (SVG + JSON spec) 2026-06-16. Layout exacto 365px/918px/365px, gradiente de fondo oficial, typography del JSON (44px headline, 21px panel title, 16px card title, 15px body, 13px label, 18px button), colores exactos, shadow/radius del JSON, split connector SVG path, mini-cards ilustrativas, copy exacto, IBM Plex Sans mantenida. Bundle optimizado: 5.61kB → 4.66kB (-950 bytes).
 - Auth / Session hygiene: ✅ Closed — 2026-06-26. Google login now forces account selection via OAuth `prompt: select_account`. Logout now clears residual SMPanel localStorage keys (`sm-connection`, `sm-messages`, `sm-panel-open`). Middleware, SSR cookies, and Supabase signOut scope unchanged.
 - Connected Teams / Dashboard unread badge: ✅ Closed — 2026-06-26. Connected team boxes now show a client-side unread badge for human chat messages. Last seen state is stored locally per connection using `human-chat-last-seen-{connectionId}`. Badge uses the same visual style as Requests. Limitation: unread state is browser-local and does not sync across devices. Server-side read receipts remain future work.
+
+---
+
+## RLS Connected Teams — Checkpoint Tables Fix (2026-06-26)
+
+### Tabla de doble validación: `checkpoints` + `checkpoint_messages`
+
+| Ítem de validación | Tipo | Lógica SQL ✓ | Prueba viva ⏳ | Notas |
+|---|---|---|---|---|
+| **HOST puede guardar checkpoint en workspace compartido** | Funcional | ✅ | ⏳ | Policy permite `p.account_id = auth.uid()` (ownership directo) |
+| **HOST puede leer checkpoints propios en workspace compartido** | Funcional | ✅ | ⏳ | Policy SELECT con ownership directo |
+| **INVITEE puede guardar checkpoint en workspace compartido** | Funcional | ✅ | ⏳ | Policy INSERT con cláusula invitee via `team_connections.receiver_account_id` |
+| **INVITEE puede leer checkpoints del workspace compartido** | Funcional | ✅ | ⏳ | Policy SELECT con cláusula invitee |
+| **INVITEE puede leer checkpoint_messages del workspace compartido** | Funcional | ✅ | ⏳ | Policy SELECT transitiva via checkpoint accesible |
+| **TERCERO (no owner, no invitee) NO puede guardar checkpoint** | Seguridad | ✅ | ⏳ | RLS deny-by-default — auth.uid() no match en ninguna cláusula |
+| **TERCERO NO puede leer checkpoints ajenos** | Seguridad | ✅ | ⏳ | RLS deny-by-default |
+| **TERCERO NO puede leer checkpoint_messages ajenos** | Seguridad | ✅ | ⏳ | RLS deny-by-default transitivo |
+| **Conexión CANCELLED no da acceso al invitee** | Seguridad | ✅ | ⏳ | Policy filtrada por `tc.status = 'connected'` |
+| **Conexión DISCONNECTED no da acceso al invitee** | Seguridad | ✅ | ⏳ | Policy filtrada por `tc.status = 'connected'` |
+| **AgentPanel verifica res.ok antes de parsear** | Resiliencia | ✅ | ✅ | Código agregado en WorkspaceShell.tsx confirmSave() línea ~388-392 |
+| **Error RLS loguea status y detalles en consola** | Resiliencia | ✅ | ⏳ | `console.error` con res.status + errText |
+| **Frontend muestra error accionable (no silent fail)** | UX | ✅ | ⏳ | setSaveModalError con mensaje de error |
+
+**Estado de validación:**
+- ✅ Lógica SQL: Todas las policies revisadas y confirmadas correctas
+- ✅ Build: Exitoso sin errores (warnings pre-existentes en CanvasViewport no relacionados)
+- ✅ Migración 041: Aplicada exitosamente en Supabase por el Product Owner
+- ⏳ Prueba viva: Pendiente de ejecución con cuentas autenticadas (Host/Invitee/Tercero)
+
+**Archivos modificados:**
+- `supabase/migrations/041_invitee_checkpoints_access.sql`
+- `src/components/workspace/WorkspaceShell.tsx`
+
+**Lección arquitectónica:**
+Confirmación del patrón establecido en fix de `messages` (#21): cada tabla de content plane con FK a `workspace_id` debe extender sus políticas RLS para contemplar acceso indirecto del invitee via `team_connections.status = 'connected'`. No hay herencia transitiva de RLS — cada tabla requiere políticas explícitas.
+

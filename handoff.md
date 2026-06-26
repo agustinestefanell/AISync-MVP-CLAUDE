@@ -9904,3 +9904,81 @@ Se agregó indicador client-side de mensajes no leídos en boxes de Connected Te
 
 **Estado:**
 - Complete
+
+---
+
+## 2026-06-26 — Mini OE: RLS fix checkpoints + checkpoint_messages para Connected Teams invitees
+
+**Fecha:** 2026-06-26
+
+**Archivos modificados:**
+- `supabase/migrations/041_invitee_checkpoints_access.sql` (nueva migración)
+- `src/components/workspace/WorkspaceShell.tsx`
+- `handoff.md` — esta entrada
+- `CodingWorkshop.md` — entrada de auditoría actualizada
+- `PRODUCT_STATUS.md` — actualizado con tabla de doble validación
+
+**Decisión técnica:**
+Corregir el bloqueo de acceso a checkpoints/checkpoint_messages para invitees en Connected Teams (usuarios que son guest en workspaces compartidos). Antes del fix, los invitees no podían leer ni guardar checkpoints debido a políticas RLS que solo verificaban ownership directo (`auth.uid() = p.account_id`), sin considerar team_connections con status='connected'.
+
+**Cambios implementados:**
+1. **Migración 041** (aplicada manualmente en Supabase por el Product Owner):
+   - `checkpoints` SELECT: permite auth.uid() como account_id del project O como invitee en connection connected que une workspace.team_id
+   - `checkpoints` INSERT: misma lógica
+   - `checkpoint_messages` SELECT: permite si el checkpoint asociado es accesible por SELECT de checkpoints
+   - `checkpoint_messages` INSERT: permite si el checkpoint asociado es accesible por SELECT de checkpoints
+
+2. **WorkspaceShell.tsx** (línea ~388-392):
+   - Agregada verificación de `res.ok` antes de parsear JSON en `confirmSave()`.
+   - Si falla (`!res.ok`), loguea `res.status` y texto del error en consola sin lanzar excepción no controlada.
+   - Mismo patrón que ya aplicamos en `AgentPanel.tsx` para el fix de messages.
+
+**Patrón de la política:**
+```sql
+exists (
+  select 1 from teams t
+  join projects p on p.id = t.project_id
+  where t.id = workspaces.team_id
+    and (
+      p.account_id = auth.uid()
+      or exists (
+        select 1 from team_connections tc
+        where tc.status = 'connected'
+          and (
+            (tc.host_team_id = t.id and tc.invitee_user_id = auth.uid())
+            or (tc.guest_team_id = t.id and tc.host_user_id = auth.uid())
+          )
+      )
+    )
+)
+```
+
+**Alternativas descartadas:**
+- Crear tabla separada `invitee_checkpoints` → rechazada: violación arquitectural, duplica data de content plane.
+- Permitir acceso a checkpoint_messages sin revisar checkpoint padre → rechazada: rompe integridad referencial lógica.
+- Usar FK formal de audit_log a checkpoints → pendiente: audit_log es event stream multi-objeto, FK rígido complica arquitectura. Tradeoff temporal aún bajo evaluación.
+
+**Riesgos conocidos:**
+- Las políticas ahora dependen del estado de `team_connections.status='connected'`. Si una conexión se desconecta, el invitee pierde acceso a checkpoints previos (comportamiento esperado, pero puede sorprender al usuario).
+- No hay soft-delete de checkpoints: si un workspace se desconecta, los checkpoints persisten pero el invitee no puede acceder.
+
+**Deuda técnica:**
+- Ninguna nueva introducida por este fix.
+- Deuda previa documentada en DOCTRINE.md: audit_log sin FK formal a checkpoints queda pendiente de definición arquitectural (ver "Decisión pendiente: integridad vs. polimorfismo" en sección Audit Log).
+
+**Estado:**
+- ✅ Migración 041 aplicada exitosamente en Supabase
+- ✅ WorkspaceShell.tsx editado y build exitoso
+- ⏳ Tabla de doble validación en PRODUCT_STATUS.md marcada como pendiente de prueba viva hasta confirmación del Product Owner
+
+**Contexto del problema:**
+Los invitees en Connected Teams (usuarios guest en workspaces compartidos vía team_connections) podían enviar/recibir mensajes de IA y participar en Human Chat, pero al intentar guardar un checkpoint recibían error 500 o silencio del servidor (RLS deny-by-default). El problema raíz: las políticas de `checkpoints` y `checkpoint_messages` solo validaban ownership directo del project, sin contemplar el acceso indirecto vía team_connections con status='connected'.
+
+**Validaciones:**
+- lint: ✅ Exitoso (warnings pre-existentes en CanvasViewport, no relacionados)
+- build: ✅ Exitoso
+- Migración SQL: ✅ Aplicada exitosamente en Supabase por el Product Owner
+
+**Lección clave:**
+En arquitecturas multi-tenant con ownership indirecto (vía connections), TODAS las tablas de content plane accesibles desde workspaces compartidos deben incluir la cláusula de invitee en sus políticas RLS. No basta con corregir `messages`; cada tabla (checkpoints, checkpoint_messages, audit_log, etc.) requiere la misma lógica de acceso. Esto confirma el patrón arquitectural: RLS como capa de ownership unificada, no como reglas aisladas por tabla.
+

@@ -385,6 +385,13 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           connectionId: connectionContext?.connectionId,
         }),
       })
+
+      if (!res.ok) {
+        const errText = await res.text()
+        console.error('[WorkspaceShell confirmSave] Checkpoint save failed:', res.status, errText)
+        throw new Error(`Failed to save checkpoint (${res.status})`)
+      }
+
       const { checkpoint, error } = await res.json()
       if (error) throw new Error(error)
 

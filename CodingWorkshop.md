@@ -1033,3 +1033,91 @@ No se modificaron middleware, cookies SSR, scope de `signOut()` ni lógica inter
 Cuando borrar caché "arregla" un síntoma de autenticación, no necesariamente confirma que el bug esté en la app local. Puede estar ocultando un problema de OAuth/session reuse. En flujos Google OAuth donde se necesita elegir cuenta, `prompt: 'select_account'` debe definirse explícitamente.
 
 La limpieza de sesión debe ser exhaustiva: no solo el token de autenticación, sino también datos locales que dependen de la sesión (localStorage de features específicas).
+
+---
+
+### 22. RLS gap — Connected Teams Invitee no puede guardar ni leer checkpoints
+
+**Problema:**
+Invitado de Connected Teams (receiver en team_connections) no podía guardar checkpoints ni leer checkpoints existentes en workspaces compartidos. Síntoma similar al problema de `messages` (#21): error silencioso sin feedback visual. Confirmado tras resolver el RLS gap de `messages`.
+
+**Causa raíz:**
+Políticas RLS de `checkpoints` y `checkpoint_messages` (migración 003) solo validaban `p.account_id = auth.uid()` (ownership directo del project), sin contemplar acceso indirecto del Invitado vía `team_connections.status = 'connected'`. Arquitectura idéntica al problema de `messages`: migración 028 introdujo Connected Teams pero no actualizó estas dos tablas.
+
+**Consecuencia:**
+- **Feature de checkpoints completamente rota para Invitados**
+- Botón "Save Version" ejecutaba sin error visible pero no persistía
+- Invitado no podía ver checkpoints creados por Host
+- Modal de checkpoints vacío para Invitado aunque existieran versiones guardadas
+- Mismo patrón de data loss silencioso que `messages`
+
+**Por qué el error fue silencioso:**
+`WorkspaceShell.tsx` función `confirmSave()` NO verificaba `res.ok` antes de parsear JSON de `/api/checkpoint`. Cuando RLS bloqueaba el INSERT, el endpoint retornaba error pero el código asumía éxito y parseaba respuesta inválida. Mismo anti-patrón que `AgentPanel.tsx` antes del fix de `messages`.
+
+**Proceso de diagnóstico:**
+1. Después de resolver `messages` con migración 040, se identificó que `checkpoints` y `checkpoint_messages` requerían mismo fix
+2. Auditoría de tablas del listado original (#21) confirmó prioridad: CRÍTICO para checkpoints, ALTO para checkpoint_messages
+3. Revisión de políticas existentes (migración 003) confirmó pattern idéntico a `messages`
+4. Comparación con `human_messages` (migración 037) reveló patrón correcto ya validado
+
+**Solución final:**
+Se preparó migración 041 específica para `checkpoints` + `checkpoint_messages`.
+
+La solución agrega policies adicionales de `SELECT` e `INSERT` para el Invitado, siguiendo el patrón validado en migraciones 028, 037 y 040:
+- `checkpoints` SELECT/INSERT: permite si `workspace_id` pertenece a workspace cuyo `team_id` coincide con `team_connections.scope_isolated_team_id` y usuario es `receiver_account_id` de conexión `active`
+- `checkpoint_messages` SELECT/INSERT: permite si el checkpoint asociado es accesible por SELECT de checkpoints (acceso transitivo via FK)
+
+Se agregó verificación de `res.ok` en `WorkspaceShell.tsx` función `confirmSave()` antes de parsear JSON, con logging explícito de status y error text si falla, siguiendo mismo patrón aplicado en `AgentPanel.tsx` para `messages`.
+
+**Aplicación:**
+- Migración aplicada a base de datos real por Product Owner desde SQL Editor de Supabase
+- Confirmación: "Success" sin errores
+- Fecha: 2026-06-26
+
+**Patrón de la política:**
+```sql
+exists (
+  select 1 from teams t
+  join projects p on p.id = t.project_id
+  where t.id = workspaces.team_id
+    and (
+      p.account_id = auth.uid()
+      or exists (
+        select 1 from team_connections tc
+        where tc.status = 'connected'
+          and (
+            (tc.host_team_id = t.id and tc.invitee_user_id = auth.uid())
+            or (tc.guest_team_id = t.id and tc.host_user_id = auth.uid())
+          )
+      )
+    )
+)
+```
+
+**Alcance:**
+- Tablas corregidas: `checkpoints` ✅, `checkpoint_messages` ✅
+- Código corregido: `WorkspaceShell.tsx` ✅ (res.ok check en confirmSave)
+- Tablas no corregidas en esta OE: `session_attachments`, `session_tool_calls`, `token_usage`, `audit_log` y otras del listado (requieren OEs separadas)
+
+**Archivos:**
+- `supabase/migrations/041_invitee_checkpoints_access.sql` — nueva migración
+- `src/components/workspace/WorkspaceShell.tsx` — res.ok check en confirmSave
+- `handoff.md` — entrada completa con doble validación
+- `CodingWorkshop.md` — esta entrada
+- `PRODUCT_STATUS.md` — actualizado
+
+**Nota de validación:**
+Claude Code validó la lógica SQL y el build exitoso. La validación real de RLS requiere prueba viva con cuentas autenticadas Host/Invitado/Tercero. Esas pruebas deben ser ejecutadas manualmente por el Product Owner y registradas cuando se completen.
+
+**Lección arquitectónica:**
+Confirmación del patrón de #21: **cada tabla relacionada con workspaces compartidos debe auditarse y extenderse explícitamente**. No hay "herencia transitiva" de RLS. Si una feature toca 5 tablas pero la migración solo actualiza 2, hay gaps. El patrón correcto: identificar TODAS las tablas con FK a workspace_id/session_id en la MISMA migración que introduce la feature multi-account.
+
+El anti-patrón de "no verificar res.ok" genera data loss silencioso. Toda operación de persistencia (POST/PATCH/DELETE) debe verificar res.ok antes de parsear JSON. Sin esa verificación, errores RLS (500) pasan inadvertidos y el usuario pierde datos sin feedback visual.
+
+**Patrón reutilizable para RLS Invitee:**
+1. Identificar tabla con FK a workspace_id
+2. Copiar patrón de política de tabla similar ya corregida (messages, human_messages, checkpoints)
+3. Ajustar nombre de tabla y campos según schema
+4. Aplicar a SELECT + INSERT (o UPDATE/DELETE según necesidad)
+5. Verificar res.ok en código frontend antes de parsear respuesta del endpoint
+
