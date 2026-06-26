@@ -12,7 +12,12 @@ function LoginForm() {
   async function signInWithGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${location.origin}/auth/callback`,
+        queryParams: {
+          prompt: 'select_account',
+        },
+      },
     })
   }
 

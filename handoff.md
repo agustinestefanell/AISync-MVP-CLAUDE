@@ -9817,3 +9817,45 @@ Se agregó también manejo explícito de error en `AgentPanel.tsx` para los tres
 - Build validado: ✅ Sí (lint + build exitosos)
 - Prueba viva con cuentas reales: ⏳ Pendiente de ejecución manual por Product Owner
 
+
+---
+
+## 2026-06-26 — Google account selection and SMPanel logout cleanup
+
+**Cambio realizado:**
+Se agregó `prompt: 'select_account'` al flujo de login con Google mediante Supabase `signInWithOAuth`. Google debe mostrar siempre selección de cuenta al hacer login, incluso si existe una sesión OAuth activa en el navegador.
+
+Se agregó limpieza de claves residuales de SMPanel al hacer logout:
+- `sm-connection`
+- `sm-messages`
+- `sm-panel-open`
+
+**Archivos tocados:**
+- `src/app/login/page.tsx` — agregado `queryParams: { prompt: 'select_account' }` preservando `redirectTo`
+- `src/components/LogoutButton.tsx` — agregado `localStorage.removeItem()` para las 3 claves de SMPanel
+- `handoff.md` — esta entrada
+- `CodingWorkshop.md` — nueva entrada
+- `PRODUCT_STATUS.md` — actualizado
+
+**Restricciones respetadas:**
+- No se tocó `src/middleware.ts`
+- No se tocó lógica de cookies SSR (`src/lib/supabase/server.ts`)
+- No se cambió scope de `signOut()` (sigue siendo default/global)
+- No se tocaron otros flujos auth (GitHub, recuperación, registro)
+- No se tocó `SMPanel.tsx` (solo se limpian sus claves desde LogoutButton)
+- No se usó `localStorage.clear()` — solo claves específicas confirmadas
+- No se tocaron RLS/schema/migrations
+
+**Validaciones:**
+- lint: ✅ Exitoso (warnings pre-existentes en CanvasViewport, no relacionados)
+- build: ✅ Exitoso
+- selección de cuenta Google: ⏳ Pendiente de prueba manual en navegador
+- limpieza localStorage: ⏳ Pendiente de verificación manual (DevTools → Application → Local Storage)
+
+**Contexto del problema:**
+Un usuario hacía logout en AISync, hacía clic en "Continuar con Google", elegía explícitamente una cuenta distinta en la pantalla de selección de Google, pero AISync lo logueaba de nuevo en la cuenta anterior. En intentos posteriores, Google ni siquiera mostraba la pantalla de selección — entraba directo a la cuenta vieja.
+
+Borrar la caché del navegador "resolvía" el síntoma temporalmente, pero no corregía la causa raíz: el flujo OAuth de Google sin `prompt: 'select_account'` permitía a Google reutilizar su sesión OAuth activa sin mostrar selector de cuenta.
+
+**Estado:**
+- Complete

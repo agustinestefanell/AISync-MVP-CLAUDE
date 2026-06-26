@@ -8,6 +8,12 @@ export default function LogoutButton() {
   const router = useRouter()
 
   async function handleLogout() {
+    // Clear SMPanel localStorage before signing out
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sm-connection')
+      localStorage.removeItem('sm-messages')
+      localStorage.removeItem('sm-panel-open')
+    }
     await supabase.auth.signOut()
     router.push('/login')
   }

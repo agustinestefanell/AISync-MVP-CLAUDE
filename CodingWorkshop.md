@@ -988,3 +988,48 @@ Claude Code validó la lógica SQL y el build exitoso. La validación real de RL
 - `src/components/workspace/AgentPanel.tsx` (res.ok check en 3 POSTs)
 - Commit pendiente
 
+
+---
+
+## Google OAuth reutilizaba cuenta activa y SMPanel conservaba localStorage tras logout
+
+### Problema
+Después de hacer logout en AISync, el usuario intentaba iniciar sesión con Google pero Google reutilizaba automáticamente la última cuenta activa del navegador, sin mostrar selector de cuenta.
+
+Además, las claves de localStorage usadas por SMPanel quedaban persistidas después del logout.
+
+### Causa raíz
+El flujo de `signInWithOAuth` para Google no enviaba `prompt: 'select_account'`. Sin ese parámetro, Google puede reutilizar su sesión OAuth activa y no mostrar pantalla de selección de cuenta.
+
+La limpieza de sesión de AISync tampoco removía las claves locales de SMPanel:
+- `sm-connection`
+- `sm-messages`
+- `sm-panel-open`
+
+### Consecuencia
+El usuario podía quedar atrapado en una cuenta Google previa aunque cerrara sesión dentro de AISync.
+
+Borrar caché del navegador podía parecer una solución, pero solo enmascaraba el problema al limpiar también estado/sesión del navegador. No corregía la causa real en el flujo OAuth.
+
+### Proceso de solución
+- Se localizó el llamado real a `supabase.auth.signInWithOAuth` en `src/app/login/page.tsx`.
+- Se confirmó que el provider Google no incluía `prompt: 'select_account'`.
+- Se localizó el flujo real de logout en `src/components/LogoutButton.tsx`.
+- Se confirmaron las claves exactas de localStorage usadas por SMPanel: `sm-connection`, `sm-messages`, `sm-panel-open`.
+- Se agregó el query param OAuth mínimo preservando el `redirectTo` existente.
+- Se agregó limpieza explícita de las claves SMPanel al logout con protección SSR.
+
+### Solución final
+El login con Google ahora incluye `queryParams: { prompt: 'select_account' }`, preservando el `redirectTo` existente.
+
+El logout de AISync ahora elimina explícitamente:
+- `sm-connection`
+- `sm-messages`
+- `sm-panel-open`
+
+No se modificaron middleware, cookies SSR, scope de `signOut()` ni lógica interna de SMPanel.
+
+### Lección
+Cuando borrar caché "arregla" un síntoma de autenticación, no necesariamente confirma que el bug esté en la app local. Puede estar ocultando un problema de OAuth/session reuse. En flujos Google OAuth donde se necesita elegir cuenta, `prompt: 'select_account'` debe definirse explícitamente.
+
+La limpieza de sesión debe ser exhaustiva: no solo el token de autenticación, sino también datos locales que dependen de la sesión (localStorage de features específicas).
