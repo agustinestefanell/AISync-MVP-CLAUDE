@@ -38,6 +38,8 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const [confirmDelete,     setConfirmDelete]     = useState<string | null>(null)
   const [projectError,      setProjectError]      = useState('')
   const [editingTeam,       setEditingTeam]       = useState<TeamWithWorkspaces | null>(null)
+  const [currentUserId,     setCurrentUserId]     = useState<string | null>(null)
+  const [unreadCounts,      setUnreadCounts]      = useState<Record<string, number>>({})
 
   const fetchConnections = useCallback(() => {
     fetch('/api/connections')
@@ -54,6 +56,52 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   }, [])
 
   useEffect(() => { fetchConnections(); fetchActiveProject() }, [fetchConnections, fetchActiveProject])
+
+  // Get current user ID for unread calculation
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUserId(data.user.id)
+    })
+  }, [])
+
+  // Calculate unread counts for active connections
+  useEffect(() => {
+    if (!currentUserId || connections.length === 0) return
+
+    const supabase = createClient()
+    const activeConns = connections.filter(c => c.status === 'active')
+
+    // Fetch unread messages for all active connections
+    Promise.all(
+      activeConns.map(async (conn) => {
+        const lastSeen = Number(
+          (typeof window !== 'undefined' && localStorage.getItem(`human-chat-last-seen-${conn.id}`)) || '0'
+        )
+
+        const { data } = await supabase
+          .from('human_messages')
+          .select('id, created_at, from_account_id, to_account_id')
+          .eq('connection_id', conn.id)
+          .eq('to_account_id', currentUserId)
+          .order('created_at', { ascending: false })
+
+        if (!data) return { connectionId: conn.id, count: 0 }
+
+        const unreadMessages = data.filter((msg) => {
+          const messageTime = new Date(msg.created_at).getTime()
+          return messageTime > lastSeen
+        })
+
+        return { connectionId: conn.id, count: unreadMessages.length }
+      })
+    ).then((results) => {
+      const counts = Object.fromEntries(
+        results.map((r) => [r.connectionId, r.count])
+      )
+      setUnreadCounts(counts)
+    })
+  }, [connections, currentUserId])
 
   // Realtime subscription for connection changes
   useEffect(() => {
@@ -428,18 +476,25 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <Link
-                        href={
-                          c.scope_isolated_workspace_id
-                            ? `/workspace/${c.scope_isolated_workspace_id}`
-                            : c.scope_isolated_team?.workspaces?.[0]?.id
-                              ? `/workspace/${c.scope_isolated_team.workspaces[0].id}`
-                              : '/teams'
-                        }
-                        className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-2.5 py-1 rounded transition-colors"
-                      >
-                        Open →
-                      </Link>
+                      <div className="relative">
+                        <Link
+                          href={
+                            c.scope_isolated_workspace_id
+                              ? `/workspace/${c.scope_isolated_workspace_id}`
+                              : c.scope_isolated_team?.workspaces?.[0]?.id
+                                ? `/workspace/${c.scope_isolated_team.workspaces[0].id}`
+                                : '/teams'
+                          }
+                          className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-2.5 py-1 rounded transition-colors"
+                        >
+                          Open →
+                        </Link>
+                        {(unreadCounts[c.id] ?? 0) > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                            {unreadCounts[c.id]}
+                          </span>
+                        )}
+                      </div>
                       {!isConfirming && (
                         <button
                           type="button"

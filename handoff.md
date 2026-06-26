@@ -9859,3 +9859,48 @@ Borrar la caché del navegador "resolvía" el síntoma temporalmente, pero no co
 
 **Estado:**
 - Complete
+
+---
+
+## 2026-06-26 — Dashboard unread badge for Connected Teams human chat
+
+**Cambio realizado:**
+Se agregó indicador client-side de mensajes no leídos en boxes de Connected Teams del Dashboard.
+
+- `HumanChatPanel` guarda `human-chat-last-seen-{connectionId}` en localStorage al abrir/montar la conversación.
+- Dashboard compara mensajes recibidos en `human_messages` contra esa marca local y muestra un badge numérico si hay mensajes posteriores.
+- El badge reutiliza el estilo visual del indicador rojo existente de Requests (`bg-red-500`, badge circular con número).
+
+**Archivos tocados:**
+- `src/components/workspace/HumanChatPanel.tsx` — agregado useEffect que guarda `human-chat-last-seen-{connectionId}` al montar
+- `src/components/ProjectList.tsx` — agregado estado `unreadCounts`, useEffect para obtener userId, useEffect para consultar `human_messages` y calcular unread por conexión, badge visual en el botón "Open →"
+- `handoff.md` — esta entrada
+- `PRODUCT_STATUS.md` — actualizado
+
+**Alcance:**
+- Opción A client-side.
+- Sin cambios de base de datos.
+- No se tocó `/api/human-chat`.
+
+**Limitación conocida:**
+- El indicador no se sincroniza entre navegadores/dispositivos.
+- Si el usuario lee mensajes desde otro navegador, este navegador puede seguir mostrando no leídos.
+- Solución persistida server-side queda para OE futura.
+
+**Restricciones respetadas:**
+- No se tocaron RLS/schema/migrations.
+- No se tocó `/api/human-chat`.
+- No se modificó lógica de envío/recepción de Human Chat.
+- No se tocaron Teams Map ni EditTeamModal.
+- Requests badge sigue intacto (solo se reutilizó su estilo visual).
+
+**Validaciones:**
+- lint: ✅ Exitoso (warnings pre-existentes en CanvasViewport, no relacionados)
+- build: ✅ Exitoso
+- badge con mensajes nuevos: ⏳ Pendiente de prueba manual
+- badge desaparece al abrir chat: ⏳ Pendiente de prueba manual
+- badge reaparece con mensaje nuevo: ⏳ Pendiente de prueba manual
+- Requests sin regresión: ⏳ Pendiente de verificación visual
+
+**Estado:**
+- Complete

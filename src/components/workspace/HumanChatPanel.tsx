@@ -245,6 +245,16 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Mark chat as seen for unread badge
+  useEffect(() => {
+    if (typeof window === 'undefined' || !connectionId) return
+
+    localStorage.setItem(
+      `human-chat-last-seen-${connectionId}`,
+      String(Date.now())
+    )
+  }, [connectionId])
+
   async function handleSend() {
     console.log('[HumanChat] handleSend called, input:', input.trim())
     if (!input.trim() || sending) {
