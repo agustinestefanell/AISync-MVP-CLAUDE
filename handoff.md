@@ -9934,7 +9934,11 @@ Corregir el bloqueo de acceso a checkpoints/checkpoint_messages para invitees en
    - Mismo patrón que ya aplicamos en `AgentPanel.tsx` para el fix de messages.
 
 **Patrón de la política:**
+
+**NOTA DE CORRECCIÓN (2026-06-26):** El SQL real aplicado en migración 041 usa los campos correctos: `tc.receiver_account_id = auth.uid()`, `tc.status = 'active'`, y `tc.scope_isolated_team_id`. El patrón SQL mostrado a continuación en este handoff tuvo un error de transcripción al resumir (usaba `status = 'connected'`, `host_team_id`, `invitee_user_id` que no existen en el schema actual). El archivo real `supabase/migrations/041_invitee_checkpoints_access.sql` es correcto y fue aplicado exitosamente en Supabase. Ver lectura directa del archivo para el SQL canónico.
+
 ```sql
+-- PATRÓN RESUMIDO (con error de transcripción — ver archivo 041 para SQL real)
 exists (
   select 1 from teams t
   join projects p on p.id = t.project_id
