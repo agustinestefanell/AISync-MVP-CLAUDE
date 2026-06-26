@@ -749,3 +749,106 @@ Accepted / Implemented.
 
 **Lección clave:**
 En features cross-account cercanas a RLS, usar allowlist cerrada de estados en lugar de comparación negativa protege contra estados futuros no contemplados. Esto es especialmente importante cuando el comportamiento afecta permisos, acceso a datos, o interacción entre cuentas.
+
+---
+
+## 2026-06-26 — Connected Teams: Manager separado por usuario, sin panel espejo [ARQUITECTURA CORRECTA REVALIDADA]
+
+**Fecha de decisión original:** 2026-06-18 (validada con esquema visual del Product Owner)
+**Fecha de revalidación:** 2026-06-26 (confirmación antes de iniciar plan de corrección)
+**Fecha de registro formal:** 2026-06-26 (Etapa 0 del plan de corrección)
+**Estado:** Aprobado / En implementación progresiva
+**Área:** Arquitectura + Producto
+
+**Decisión:**
+La arquitectura correcta de Connected Teams es: **dos edificios separados**, uno por usuario (Host e Invitado). Cada usuario tiene su propio Manager y Workers en su propio team/workspace/account. La conexión entre ambos es únicamente un "campo de juego" compartido — el chat humano (`human_messages`). **Nunca debe existir lectura cruzada entre el Manager de un usuario y el del otro**, ni siquiera en modo lectura.
+
+**Diagrama conceptual:**
+```
+[Host Account]                    [Invitee Account]
+  └── Host Team                     └── Invitee Team
+      └── Host Workspace                └── Invitee Workspace
+          ├── Manager (Host)                ├── Manager (Invitee)
+          └── Workers (Host)                └── Workers (Invitee)
+
+           ╔════════════════════════╗
+           ║  Shared Human Chat     ║  ← ÚNICO punto de conexión
+           ║  (human_messages)      ║
+           ╚════════════════════════╝
+```
+
+**Por qué:**
+1. **Separación de costos:** Cada cuenta paga sus propios tokens — el Manager del Host consume keys del Host, el Manager del Invitado consume keys del Invitado. No hay ambigüedad de atribución.
+2. **Trazabilidad inequívoca:** Cada acción de IA queda atribuida a la cuenta que la generó. Audit log de cada cuenta registra solo sus propias interacciones de IA.
+3. **Seguridad:** El "panel espejo" (lectura cross-account del Manager del otro usuario) fue evaluado explícitamente el 2026-06-18 y descartado por riesgo de exposición de datos cross-account y complejidad de RLS bidireccional.
+4. **Soberanía de célula:** Coherente con el principio arquitectural de AISync: 1 Account = 1 Sovereign Cell. Cada usuario mantiene control completo de su lado de la conexión.
+
+**Desviación detectada:**
+La implementación actual (hasta 2026-06-26) se desvió de esta decisión: existe un único Manager compartido entre Host e Invitado por conexión, almacenado en `team_connections.scope_isolated_team_id`. Esto generó una cadena de bugs en los últimos 3 días:
+1. **Bug de RLS cross-account:** Se requirieron parches en `messages` y `checkpoints` para permitir acceso cross-account a la conversación del Manager compartido (migraciones 015, 041).
+2. **Bug de `team.type` mutando:** El Manager compartido cambiaba su tipo de `'isolated'` a `'normal'` al editar metadata del team (fix aplicado en commit 54fa466).
+3. **Bug de "Save Version" del chat humano:** Al intentar guardar checkpoint del chat humano, se capturó por error la conversación del Manager compartido (detectado 2026-06-26, no fixeado todavía).
+
+**Decisión de migración:**
+Se aprobó un plan de 8 etapas para corregir la desviación y alinear la implementación con la arquitectura correcta. Este plan genera los siguientes cambios:
+- **Dos managers separados por conexión:** `team_connections.host_isolated_team_id` y `team_connections.invitee_isolated_team_id`
+- **Eliminación del Manager compartido:** `team_connections.scope_isolated_team_id` se mantiene sin tocar durante Etapas 1-7, y se marca explícitamente como candidato a eliminación en la Etapa 8
+- **RLS simplificado:** Una vez migrado, las políticas cross-account de `messages` y `checkpoints` ya no serán necesarias para el Manager — solo para `human_messages`
+
+**Nomenclatura aprobada para nuevos campos (Etapas 1-8):**
+- `team_connections.host_isolated_team_id` → team/workspace del Manager del Host
+- `team_connections.invitee_isolated_team_id` → team/workspace del Manager del Invitado
+- `team_connections.scope_isolated_team_id` → campo legacy, se mantiene sin tocar hasta Etapa 8
+
+**Conexión de prueba existente:**
+La conexión de prueba activa en producción es de testing interno, sin usuarios externos reales. Se acepta la **pérdida de su historial de IA** (mensajes y checkpoints del Manager compartido) al migrarla al nuevo modelo en la Etapa 7. El historial del chat humano (`human_messages`) se preserva.
+
+**Alternativas descartadas (2026-06-18):**
+1. **Panel espejo (lectura cross-account):** Descartado por riesgo de seguridad (exposición de datos cross-account) y complejidad de RLS bidireccional.
+2. **Manager único compartido con RLS abierta:** Descartado por violación del principio "opt-in" de gobernanza y ambigüedad de costos.
+3. **Control remoto real (un usuario opera el Manager del otro):** Descartado por implicancias de seguridad y de costos.
+
+**Archivos y tablas afectados por el plan de corrección (identificados en diagnóstico del 2026-06-26):**
+
+**Schema/DB:**
+- `team_connections` (nuevas columnas en Etapa 1)
+- RLS policies de `messages` (simplificación en Etapa 5)
+- RLS policies de `checkpoints` + `checkpoint_messages` (simplificación en Etapa 5)
+
+**API Routes:**
+- `POST /api/connections` (creación de dos managers en Etapa 2)
+- `PATCH /api/connections/[id]` (accept → crear invitee manager en Etapa 2)
+- `GET /api/connections` (dual-read en Etapa 3)
+- Rutas que leen `scope_isolated_team_id` (actualizar a dual-read en Etapa 3)
+
+**Components:**
+- `ConnectTeamModal.tsx` (POST usa nuevos campos en Etapa 4)
+- `ConnectionsPanel.tsx` (renderiza managers separados en Etapa 4)
+- `WorkspaceShell.tsx` (si renderiza workspace compartido, actualizar en Etapa 4)
+- Cualquier componente que lea `scope_isolated_team_id` (actualizar a dual-read en Etapa 4)
+
+**Libs:**
+- `src/lib/db/connections.ts` (dual-read helper en Etapa 3)
+- Cualquier helper que lea `scope_isolated_team_id` (actualizar en Etapa 3)
+
+**Riesgos conocidos:**
+1. **Complejidad de migración:** El plan de 8 etapas es extenso — cada etapa debe ejecutarse cuidadosamente para evitar romper la conexión de prueba activa en producción hasta la Etapa 7.
+2. **Dual-read temporal:** Las Etapas 3-6 requieren lógica de dual-read (intentar nuevos campos, caer a `scope_isolated_team_id` legacy) — esto agrega complejidad temporal que se limpia en Etapa 8.
+3. **RLS bidireccional temporal:** La RLS cross-account de `messages`/`checkpoints` debe mantenerse activa hasta completar la Etapa 7 (migración de datos) — eliminarla antes romperá la conexión de prueba.
+4. **Testing en producción:** No hay entorno de staging — el plan se ejecuta directamente en producción con la conexión de prueba como caso de validación.
+
+**Plan de 8 etapas aprobado:**
+- **Etapa 0:** Documentación y registro de decisión (esta entrada en `DECISIONS.md`)
+- **Etapa 1:** Schema — agregar `host_isolated_team_id` e `invitee_isolated_team_id` a `team_connections` (nullable)
+- **Etapa 2:** Write path — POST `/api/connections` y PATCH accept crean dos managers separados
+- **Etapa 3:** Read path (backend) — helpers y API routes leen dual (nuevos campos → fallback a legacy)
+- **Etapa 4:** Read path (frontend) — componentes leen dual
+- **Etapa 5:** RLS — simplificar políticas de `messages`/`checkpoints` (ya no necesitan acceso cross-account al Manager)
+- **Etapa 6:** Validación — confirmar que conexiones nuevas usan arquitectura correcta, conexión de prueba legacy sigue funcional
+- **Etapa 7:** Migración de datos — migrar conexión de prueba al nuevo modelo (pérdida de historial de IA aceptada)
+- **Etapa 8:** Cleanup — eliminar `scope_isolated_team_id`, eliminar dual-read, eliminar RLS legacy cross-account
+
+**Estado:** Etapa 0 completada (registro de decisión). Etapas 1-8 pendientes de ejecución secuencial.
+
+**Lección clave:**
+Una desviación arquitectural no detectada temprano genera deuda técnica compuesta: cada fix parcial (RLS patch, fix de `team.type`, etc.) consolida la arquitectura incorrecta en lugar de corregirla. El costo de corregir crece exponencialmente con el tiempo. Validar arquitectura contra decisiones originales antes de implementar fixes es crítico — si el fix requiere parches complejos (RLS cross-account, mutación de tipo), es señal de que la arquitectura subyacente está desviada.
