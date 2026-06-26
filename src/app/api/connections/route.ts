@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimiters } from '@/lib/rate-limit'
+import { CONNECTIONS_SELECT_WITH_ISOLATED_TEAMS } from '@/lib/db/connections'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -10,9 +11,10 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Etapa 3: Use extended select that includes both new and legacy isolated team fields
   const { data, error } = await supabase
     .from('team_connections')
-    .select('*, description, color, scope_isolated_workspace_id, scope_isolated_team:scope_isolated_team_id(workspaces(id))')
+    .select(CONNECTIONS_SELECT_WITH_ISOLATED_TEAMS)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
