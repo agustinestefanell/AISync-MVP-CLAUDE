@@ -151,9 +151,21 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
           })),
         }),
       })
-      if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Error updating team.'); return }
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('[EditTeamModal] Failed to update team', {
+          status: res.status,
+          teamId: team.id,
+          error: errorData.error,
+        })
+        setError(errorData.error ?? 'Error updating team.')
+        return
+      }
       onUpdated(await res.json())
-    } catch { setError('Network error.') }
+    } catch (err) {
+      console.error('[EditTeamModal] Network error updating team', err)
+      setError('Network error.')
+    }
     finally { setSaving(false) }
   }
 
@@ -162,9 +174,23 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
     setSaving(true)
     try {
       const res = await fetch(`/api/teams/${team.id}`, { method: 'DELETE' })
-      if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Error.'); setSaving(false); return }
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('[EditTeamModal] Failed to delete team', {
+          status: res.status,
+          teamId: team.id,
+          error: errorData.error,
+        })
+        setError(errorData.error ?? 'Error.')
+        setSaving(false)
+        return
+      }
       onDeleted(team.id)
-    } catch { setError('Network error.'); setSaving(false) }
+    } catch (err) {
+      console.error('[EditTeamModal] Network error deleting team', err)
+      setError('Network error.')
+      setSaving(false)
+    }
   }
 
   return (
