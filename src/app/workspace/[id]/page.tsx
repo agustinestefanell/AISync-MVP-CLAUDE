@@ -4,6 +4,7 @@ import { getWorkspaceWithAgents } from '@/lib/db/workspaces'
 import { getMessages } from '@/lib/db/messages'
 import WorkspaceClient from '@/components/workspace/WorkspaceClient'
 import { CORPORATE_PALETTES } from '@/lib/teams/getProjectColor'
+import { getUserIsolatedTeamId } from '@/lib/db/connections'
 import type { Message, HumanMessage } from '@/lib/db/types'
 
 type MinimalTeam = { id: string; parent_id: string | null; created_at: string }
@@ -97,13 +98,18 @@ export default async function WorkspacePage({
   let initialHumanMessages: HumanMessage[] = []
 
   if (team?.type === 'isolated') {
-    const { data: connection } = await supabase
+    // Dual-read: query all three columns and let getUserIsolatedTeamId decide
+    const { data: connections } = await supabase
       .from('team_connections')
-      .select('id, requester_account_id, receiver_account_id, requester_email, requester_team_name, receiver_email, receiver_team_name, description, color, welcome_viewed_by_invitee, welcome_viewed_by_requester, status')
-      .eq('scope_isolated_team_id', team.id)
+      .select('id, requester_account_id, receiver_account_id, requester_email, requester_team_name, receiver_email, receiver_team_name, description, color, welcome_viewed_by_invitee, welcome_viewed_by_requester, status, host_isolated_team_id, invitee_isolated_team_id, scope_isolated_team_id')
+      .or(`host_isolated_team_id.eq.${team.id},invitee_isolated_team_id.eq.${team.id},scope_isolated_team_id.eq.${team.id}`)
       .order('updated_at', { ascending: false })
       .limit(1)
-      .maybeSingle()
+
+    // Find the connection where the current team matches the user's side
+    const connection = connections?.[0] && getUserIsolatedTeamId(connections[0], user.id) === team.id
+      ? connections[0]
+      : undefined
 
     if (connection) {
       const isHost = connection.requester_account_id === user.id

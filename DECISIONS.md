@@ -848,7 +848,17 @@ La conexión de prueba activa en producción es de testing interno, sin usuarios
 - **Etapa 7:** Migración de datos — migrar conexión de prueba al nuevo modelo (pérdida de historial de IA aceptada)
 - **Etapa 8:** Cleanup — eliminar `scope_isolated_team_id`, eliminar dual-read, eliminar RLS legacy cross-account
 
-**Estado:** Etapas 0, 1, 2 completadas. Etapa 2 requiere validación manual (crear conexión nueva, verificar DB). Etapas 3-8 pendientes.
+**Estado:** Etapas 0, 1, 2 completadas y validadas (2026-06-27). Etapa 3 implementada (parcial). Etapas 4-8 pendientes.
+
+**Validación Etapa 2 (2026-06-27 — SQL diagnostic query):**
+- **Conexión de prueba:** agustinestefanell@gmail.com (Host) + agustin.viaje@gmail.com (Invitee)
+- **Resultado:** ✅ Arquitectura correcta confirmada
+  - `host_isolated_team_id` → team del Host con workspace propio
+  - `invitee_isolated_team_id` → team del Invitee con workspace propio
+  - `scope_isolated_team_id` → igual a `host_isolated_team_id` (esperado según Etapa 2)
+  - **Workspaces separados confirmados** — cada team tiene su propio `workspace_id` distinto
+  - **Agent sessions separados confirmados** — cada workspace tiene sus propios 3 agent_sessions (manager/worker1/worker2)
+- **Conclusión:** La Etapa 2 está sana. Los datos están correctos. El problema reportado (Manager compartido) es de **consumo en frontend**, no de creación en backend.
 
 **Detalles de Etapa 2 (commit cb48df8):**
 - **Cambio:** Al aceptar conexión, se crean dos proyectos nuevos (uno por cuenta) y dos teams isolated separados (uno por usuario)
@@ -868,3 +878,54 @@ La conexión de prueba activa en producción es de testing interno, sin usuarios
 
 **Lección clave:**
 Una desviación arquitectural no detectada temprano genera deuda técnica compuesta: cada fix parcial (RLS patch, fix de `team.type`, etc.) consolida la arquitectura incorrecta en lugar de corregirla. El costo de corregir crece exponencialmente con el tiempo. Validar arquitectura contra decisiones originales antes de implementar fixes es crítico — si el fix requiere parches complejos (RLS cross-account, mutación de tipo), es señal de que la arquitectura subyacente está desviada.
+
+---
+
+## 2026-06-27 — Diagnóstico Etapa 3: consumo frontend vs creación backend
+
+**Contexto:**
+Post-implementación de Etapas 1-3, el Product Owner reportó que el Manager seguía siendo el mismo para Host e Invitado — preguntas hechas por separado aparecían replicadas tras F5, y cambiar el provider desde EditTeamModal en cualquiera de las dos cuentas aplicaba al mismo team real (prevalecía el del Host). Además, Teams Map del Invitado mostraba dos teams aislados para la misma conexión.
+
+**Diagnóstico ejecutado (2026-06-27):**
+Se ejecutó análisis de solo lectura sobre el código (sin modificaciones) para identificar qué componentes ya usan la arquitectura nueva (dual-read) y cuáles todavía acceden directamente a `scope_isolated_team_id`.
+
+**Hallazgos:**
+
+| Componente | ¿Usa dual-read? | Estado |
+|---|---|---|
+| `teams/page.tsx` (Invitee) | ✅ Parcial | Correcto para Invitee, pero falta lógica para Host |
+| `teams/page.tsx` (Host) | ❌ NO | **Bug:** `getProjectsWithHierarchy()` trae todos los teams del proyecto sin filtrar — Host ve ambos teams isolated |
+| `workspace/[id]/page.tsx` | ✅ SÍ | Correcto (usa `getUserIsolatedTeamId`) |
+| `MapView.tsx` / `TreeView.tsx` | ❌ NO | Usan `workspaceId` directo del team (no hay lógica de decisión) |
+| `EditTeamModal.tsx` | ❌ NO | Actualiza `team.id` directo sin dual-read |
+| `WorkspaceShell.tsx` / `AgentPanel.tsx` | ❌ NO | No acceden a arquitectura de conexiones (correcto — eso es Etapa 4+) |
+
+**Raíz del problema:**
+El Manager sigue siendo compartido porque:
+1. **El Host ve ambos isolated teams** (del Host y del Invitee) porque `getProjectsWithHierarchy()` trae todos los teams de su proyecto sin filtrar por rol
+2. **`MapView.tsx` / `TreeView.tsx` usan `workspaceId` directo** del team que venga en el array, sin aplicar lógica de dual-read
+3. **`EditTeamModal.tsx` actualiza `team.id` directo** — si el team que recibe es el del Host, actualiza el del Host
+
+**Validación de datos confirmó Etapa 2 sana:**
+SQL diagnostic query confirmó que los workspaces están correctamente separados en DB. El problema es de **consumo en frontend** (Teams Map y modal de edición acceden al team equivocado), no de creación en backend.
+
+**Plan de Etapa 4 (clarificado por diagnóstico):**
+Actualizar los siguientes componentes para que usen dual-read correctamente:
+
+1. **`teams/page.tsx` (lado Host):**
+   - Filtrar teams isolated del Host en lugar de traer todos los del proyecto
+   - O hacer query de conexiones donde `requester_account_id = user.id` y usar `getHostIsolatedTeamId()`
+
+2. **`MapView.tsx` y `TreeView.tsx`:**
+   - No requieren cambio directo (usan los teams que vienen de `teams/page.tsx`)
+   - Una vez que `teams/page.tsx` esté corregido, estos componentes verán los teams correctos
+
+3. **`EditTeamModal.tsx`:**
+   - Validar que el `team.id` recibido corresponde al usuario actual antes de permitir edición
+   - O asegurar que el team que llega al modal ya es el correcto (depende del fix de `teams/page.tsx`)
+
+4. **Confirmar `WorkspaceShell.tsx` / `AgentPanel.tsx`:**
+   - Ya confirmado que NO acceden a arquitectura de conexiones (correcto)
+   - No requieren cambios en Etapa 4
+
+**Estado:** Diagnóstico completado. Etapa 4 lista para implementación con scope preciso.

@@ -10116,3 +10116,126 @@ Ninguna nueva introducida. El plan de 8 etapas está diseñado para corregir la 
 Una desviación arquitectural no detectada temprano genera deuda técnica compuesta: cada fix parcial (RLS patch, fix de `team.type`, etc.) consolida la arquitectura incorrecta en lugar de corregirla. El costo de corregir crece exponencialmente con el tiempo. Validar arquitectura contra decisiones originales antes de implementar fixes es crítico — si el fix requiere parches complejos (RLS cross-account, mutación de tipo), es señal de que la arquitectura subyacente está desviada.
 
 **Próxima sesión:** Completar Etapa 3 (actualizar server components `workspace/[id]/page.tsx` y `teams/page.tsx` para usar helpers de dual-read) y avanzar a Etapa 4 (frontend components).
+
+---
+
+## [2026-06-27] — Connected Teams: Etapa 3 (parcial) + Diagnóstico exhaustivo de consumo frontend
+
+### Decisión / Estado cerrado
+
+**Etapa 3 completada parcialmente:** Actualizados `workspace/[id]/page.tsx` y `teams/page.tsx` para usar dual-read helpers. **Diagnóstico exhaustivo** ejecutado para identificar raíz del problema reportado (Manager compartido) y mapear componentes que faltan actualizar.
+
+**Validación de Etapa 2 confirmada sana:**
+
+SQL diagnostic query ejecutado en Supabase confirmó que la arquitectura de datos está correcta:
+- `host_isolated_team_id` → team del Host con workspace propio ✅
+- `invitee_isolated_team_id` → team del Invitee con workspace propio ✅
+- `scope_isolated_team_id` → igual a `host_isolated_team_id` (esperado) ✅
+- **Workspaces separados confirmados** — cada team tiene `workspace_id` distinto ✅
+- **Agent sessions separados confirmados** — cada workspace tiene sus propios 3 agent_sessions ✅
+
+**Conclusión:** La Etapa 2 está sana. Los datos están correctos. El problema reportado es de **consumo en frontend**, no de creación en backend.
+
+**Mapa de componentes (diagnóstico de solo lectura):**
+
+| Componente | ¿Usa dual-read? | Estado |
+|---|---|---|
+| `teams/page.tsx` (Invitee) | ✅ Parcial | Correcto para Invitee |
+| `teams/page.tsx` (Host) | ❌ NO | **Bug:** `getProjectsWithHierarchy()` trae todos los teams del proyecto sin filtrar |
+| `workspace/[id]/page.tsx` | ✅ SÍ | Actualizado (usa `getUserIsolatedTeamId`) |
+| `MapView.tsx` / `TreeView.tsx` | ❌ NO | Usan `workspaceId` directo del team |
+| `EditTeamModal.tsx` | ❌ NO | Actualiza `team.id` directo sin validación de ownership |
+| `WorkspaceShell.tsx` / `AgentPanel.tsx` | ❌ NO | No acceden a arquitectura de conexiones (correcto — eso es Etapa 4+) |
+
+**Raíz del problema identificada:**
+
+El Manager sigue siendo compartido porque:
+
+1. **El Host ve ambos isolated teams** (del Host y del Invitee) porque `getProjectsWithHierarchy()` trae todos los teams de su proyecto sin filtrar por rol
+2. **`MapView.tsx` / `TreeView.tsx` usan `workspaceId` directo** del team que venga en el array, sin aplicar lógica de dual-read
+3. **`EditTeamModal.tsx` actualiza `team.id` directo** — si el team que recibe es el del Host (porque el Host ve ambos teams), actualiza el del Host
+
+**El flujo completo del bug:**
+
+1. Host crea conexión → Etapa 2 crea dos teams isolated (Host y Invitee) en el proyecto del Host
+2. `teams/page.tsx` (lado Host) llama `getProjectsWithHierarchy()` → trae **ambos teams**
+3. `MapView.tsx` muestra ambos teams en el mapa (Host ve dos cards isolated)
+4. Host hace clic en cualquiera → `onOpen(workspaceId)` navega al workspace de ese team
+5. Si Host hace clic en el del Invitee, abre el workspace del Invitee (que no debería ver)
+6. `EditTeamModal` recibe el `team.id` del Invitee → actualiza el team del Invitee
+7. **Resultado:** Ambos usuarios terminan actualizando el mismo team (el que prevalece según cuál abrieron)
+
+### Archivos modificados (Etapa 3 parcial)
+
+- `src/app/workspace/[id]/page.tsx` — Actualizado para usar `getUserIsolatedTeamId()` con `.limit(1)` + validación
+- `src/app/teams/page.tsx` — Actualizado para usar dual-joins (`invitee_team` + `legacy_team`) con fallback inline
+- `.gitignore` — Agregado `scripts/` para proteger service_role keys de validación local
+
+### Plan de Etapa 4 (clarificado por diagnóstico)
+
+Actualizar componentes de consumo frontend:
+
+1. **`teams/page.tsx` (lado Host):**
+   - Hacer query de conexiones donde `requester_account_id = user.id`
+   - Usar `getHostIsolatedTeamId()` para filtrar solo el team del Host
+   - O filtrar teams isolated después de `getProjectsWithHierarchy()` usando lógica de ownership
+
+2. **`MapView.tsx` y `TreeView.tsx`:**
+   - No requieren cambio directo (usan teams que vienen de `teams/page.tsx`)
+   - Una vez que `teams/page.tsx` esté corregido, estos componentes verán los teams correctos
+
+3. **`EditTeamModal.tsx`:**
+   - Validar que el `team.id` recibido corresponde al usuario actual antes de permitir edición
+   - O asegurar que el team que llega al modal ya es el correcto (depende del fix de `teams/page.tsx`)
+
+4. **Confirmar `WorkspaceShell.tsx` / `AgentPanel.tsx`:**
+   - Ya confirmado que NO acceden a arquitectura de conexiones ✅
+   - No requieren cambios en Etapa 4
+
+### Alternativas descartadas
+
+- Modificar `MapView.tsx` / `TreeView.tsx` directamente — descartado porque el problema está en el array de teams que reciben, no en cómo los renderizan
+- Agregar validación de ownership en `workspace/[id]/page.tsx` — ya implementado en Etapa 3
+
+### Riesgos conocidos
+
+- **Host todavía ve ambos teams** en Teams Map hasta completar Etapa 4
+- **EditTeamModal todavía permite editar cualquier team** que llegue como prop (sin validación de ownership)
+- **Scripts de validación local contienen service_role key** — protegidos con `.gitignore`, nunca comitear
+
+### Deuda técnica
+
+Ninguna nueva. Etapa 3 parcial es paso intermedio válido hacia Etapa 4 completa.
+
+### Estado
+
+- ✅ Etapa 0: Documentación
+- ✅ Etapa 1: Schema (migración 042)
+- ✅ Etapa 2: Write path + **validación con SQL diagnostic query**
+- ✅ Etapa 3: **Parcialmente completada** — `workspace/[id]/page.tsx` y `teams/page.tsx` (Invitee) actualizados
+- 🔄 Etapa 4: **Scope clarificado** — `teams/page.tsx` (Host), validación en `EditTeamModal`
+- ⏳ Etapas 5-8: Pendientes
+
+### Validaciones
+
+- lint: ✅ Exitoso
+- build: ✅ Exitoso
+- SQL diagnostic query: ✅ Ejecutado — arquitectura de datos confirmada sana
+- `.gitignore`: ✅ Actualizado — `scripts/` protegido
+
+### Lección clave
+
+**Diagnóstico exhaustivo antes de implementar fixes previene rework.** El diagnóstico de solo lectura (sin modificar código) identificó con precisión:
+- Qué componentes ya usan dual-read (evitó trabajo duplicado)
+- Raíz exacta del problema (consumo frontend, no creación backend)
+- Scope preciso de Etapa 4 (4 componentes específicos, no "todo el frontend")
+
+**Testing con datos reales es crítico.** El Product Owner reportó bug post-implementación porque las Etapas 1-3 no fueron probadas en vivo. La SQL diagnostic query confirmó que los datos están correctos, redireccionando el fix al lugar correcto (frontend, no backend).
+
+### Próxima sesión
+
+Implementar Etapa 4 completa:
+1. Actualizar `teams/page.tsx` (lado Host) para filtrar solo el team del Host
+2. Validar que `MapView.tsx` / `TreeView.tsx` muestran solo el team correcto por usuario
+3. Agregar validación de ownership a `EditTeamModal.tsx` (o asegurar que el team que llega ya es el correcto)
+4. Testing en vivo con ambas cuentas (Host e Invitado) para confirmar que cada uno ve y edita solo su propio Manager
