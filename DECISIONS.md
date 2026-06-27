@@ -929,3 +929,59 @@ Actualizar los siguientes componentes para que usen dual-read correctamente:
    - No requieren cambios en Etapa 4
 
 **Estado:** Diagnóstico completado. Etapa 4 lista para implementación con scope preciso.
+
+---
+
+## 2026-06-27 — Connected Teams Etapa 4: Causa raíz era cache de Next.js, no lógica de queries
+
+**Contexto:**
+Diagnóstico de 2026-06-27 (matutino) concluyó que `getProjectsWithHierarchy()` traía "todos los teams del proyecto sin filtrar" causando que el Host viera ambos teams isolated. Esta hipótesis fue **descartada** con evidencia en la tarde del mismo día.
+
+**Investigación con evidencia SQL:**
+Query de verificación confirmó:
+- `HOST_TEAM` → `project_account_id` = `requester_account_id` ✅
+- `INVITEE_TEAM` → `project_account_id` = `receiver_account_id` ✅
+- Ambos proyectos tienen `account_id` **distintos** (uno por cuenta)
+
+**Análisis de código confirmó:**
+```typescript
+// Etapa 2, línea 193
+account_id: fullConnection.requester_account_id  // Proyecto del Host
+
+// Etapa 2, línea 204
+account_id: user.id  // Proyecto del Invitee (cuenta distinta)
+```
+
+**Conclusión:**
+`getProjectsWithHierarchy()` **SÍ respeta RLS correctamente**. La función usa `createClient()` (cliente autenticado), y RLS de `projects` exige `account_id = auth.uid()`. Por lo tanto:
+- El Host solo ve proyectos con `account_id = Host`
+- El Invitee solo ve proyectos con `account_id = Invitee`
+- **Cada usuario solo ve su propio proyecto** (y su propio team isolated)
+
+**Causa raíz real identificada:**
+`src/app/teams/page.tsx` **NO tenía `export const dynamic = 'force-dynamic'`**.
+
+Next.js estaba cacheando el resultado de `getProjectsWithHierarchy()` entre requests. Cuando el Invitee aceptaba una conexión (creando dos proyectos nuevos), el cache no se invalidaba. El Host navegaba a `/teams` y veía **datos cacheados desactualizados** (de antes de la aceptación, o parcialmente actualizados).
+
+**Fix aplicado (commit 25f1460):**
+```typescript
+export const dynamic = 'force-dynamic'
+```
+
+Agregado en `teams/page.tsx` (misma directiva que ya existe en `workspace/[id]/page.tsx`).
+
+**Consecuencia:**
+- Cambio mínimo (1 línea)
+- Bajo riesgo (patrón ya usado en otras rutas)
+- Fuerza re-rendering server-side en cada request
+- Elimina cache que causaba datos stale
+
+**Plan original de Etapa 4 (filtros explícitos + verificación en EditTeamModal):**
+**Diferido** a próxima sesión pendiente testing en vivo con F5 para confirmar si el fix de cache por sí solo resuelve el síntoma, o si todavía se necesitan los filtros adicionales.
+
+**Lecciones:**
+1. **Hipótesis basadas en síntomas pueden ser incorrectas** — verificar con evidencia SQL + código antes de implementar fixes complejos
+2. **Cache de Next.js es causa común de bugs de "datos inconsistentes"** — siempre verificar `export const dynamic` en rutas que muestran datos de DB que cambian con frecuencia
+3. **RLS funciona correctamente cuando está bien diseñado** — el problema nunca fue de seguridad, sino de UX (datos stale)
+
+**Estado:** Fix de cache aplicado y documentado. Etapa 4 completa (filtros explícitos) pendiente de validación con testing en vivo.

@@ -10239,3 +10239,97 @@ Implementar Etapa 4 completa:
 2. Validar que `MapView.tsx` / `TreeView.tsx` muestran solo el team correcto por usuario
 3. Agregar validación de ownership a `EditTeamModal.tsx` (o asegurar que el team que llega ya es el correcto)
 4. Testing en vivo con ambas cuentas (Host e Invitado) para confirmar que cada uno ve y edita solo su propio Manager
+
+---
+
+## [2026-06-27 tarde] — Connected Teams: Hipótesis de Etapa 4 descartada, causa raíz era cache de Next.js
+
+### Decisión / Estado cerrado
+
+**Hipótesis inicial (matutino 2026-06-27) DESCARTADA:** `getProjectsWithHierarchy()` trae todos los teams del proyecto sin filtrar, causando que el Host vea ambos teams isolated.
+
+**Investigación con evidencia SQL:**
+Query de verificación (`verify_account_ids.sql`) confirmó:
+- Proyecto del Host: `project_account_id` = `requester_account_id` (cuenta del Host) ✅
+- Proyecto del Invitee: `project_account_id` = `receiver_account_id` (cuenta del Invitee) ✅
+- **Son cuentas DISTINTAS** — cada proyecto pertenece a su usuario correspondiente
+
+**Análisis de código de Etapa 2 confirmó:**
+```typescript
+// Línea 193 de connections/[id]/route.ts
+account_id: fullConnection.requester_account_id  // Proyecto del Host
+
+// Línea 204
+account_id: user.id  // Proyecto del Invitee
+```
+
+Ambos proyectos se crean en **cuentas separadas**. Por lo tanto, `getProjectsWithHierarchy()` (que usa `createClient()` respetando RLS) **NO puede traer el proyecto del Invitee** al Host.
+
+**Causa raíz real identificada:**
+`src/app/teams/page.tsx` **NO tenía `export const dynamic = 'force-dynamic'`**.
+
+Next.js cacheaba el resultado de `getProjectsWithHierarchy()`. Cuando el Invitee aceptaba la conexión (creando proyectos nuevos), el cache no se invalidaba → el Host veía datos stale.
+
+### Archivos modificados
+
+- `src/app/teams/page.tsx` — Agregada directiva `export const dynamic = 'force-dynamic'` (línea 9)
+
+### Cambios implementados
+
+```typescript
+export const dynamic = 'force-dynamic'
+```
+
+Misma directiva que ya existe en `workspace/[id]/page.tsx`. Fuerza server-side rendering en cada request, eliminando cache que causaba datos desactualizados.
+
+### Alternativas descartadas
+
+- Implementar filtros explícitos en `teams/page.tsx` para excluir teams del Invitee — **innecesario** porque RLS ya los excluye correctamente; el problema era cache, no lógica
+- Agregar verificación de ownership en `EditTeamModal` como "segunda capa de defensa" — **diferido** a próxima sesión, pendiente testing en vivo para confirmar si el fix de cache por sí solo resuelve el síntoma
+
+### Riesgos conocidos
+
+- Fix de cache **puede no ser suficiente** si hay otras causas del problema (ej: estado client-side desactualizado, race conditions)
+- Testing en vivo con F5 es **crítico** para confirmar que el fix resuelve el síntoma observado
+
+### Deuda técnica
+
+Ninguna introducida. El fix es mínimo (1 línea) y usa un patrón ya establecido en otras rutas.
+
+### Estado
+
+- ✅ Etapa 0: Documentación
+- ✅ Etapa 1: Schema (migración 042)
+- ✅ Etapa 2: Write path + validación con SQL (dos conexiones validadas)
+- ✅ Etapa 3: Parcial — `workspace/[id]/page.tsx` y `teams/page.tsx` (Invitee) actualizados
+- ✅ **Etapa 4 (cache fix):** Aplicado `dynamic = 'force-dynamic'` — **pendiente testing en vivo**
+- ⏳ Etapa 4 (filtros explícitos): Diferida a próxima sesión
+- ⏳ Etapas 5-8: Pendientes
+
+### Validaciones
+
+- lint: ✅ Exitoso
+- build: ✅ Exitoso (ruta `/teams` ahora muestra `ƒ` dynamic en build output)
+- SQL evidence: ✅ Confirmado que proyectos están en cuentas separadas
+- Testing en vivo con F5: ⏳ **PENDIENTE — CRÍTICO PARA PRÓXIMA SESIÓN**
+
+### Lección clave
+
+**Verificar hipótesis con evidencia antes de implementar fixes complejos.**
+
+El diagnóstico matutino concluyó que `getProjectsWithHierarchy()` necesitaba filtros explícitos. La investigación de la tarde (con SQL evidence + análisis de código) **descartó esa hipótesis** y encontró la causa real: cache de Next.js.
+
+**Cache de Next.js es causa común de "datos inconsistentes" en rutas que muestran datos de DB.** Siempre verificar `export const dynamic` en rutas críticas.
+
+**RLS funciona correctamente** — el problema nunca fue de seguridad o de lógica de queries, sino de UX (datos stale por cache).
+
+### Próxima sesión
+
+**CRÍTICO — Testing en vivo con F5:**
+1. Host y Invitee abren `/teams` después de aceptar conexión → ¿cada uno ve solo su propio team?
+2. Host intenta editar provider del team isolated → ¿puede guardar correctamente?
+3. Ambos escriben mensajes a su Manager por separado → tras F5, ¿cada uno sigue viendo solo su propia conversación?
+
+Si el fix de cache **no resuelve** el síntoma → implementar plan original de Etapa 4 (filtros explícitos + verificación en EditTeamModal).
+
+Si el fix de cache **SÍ resuelve** el síntoma → marcar Etapa 4 como completada, avanzar a Etapa 5 (RLS simplification).
