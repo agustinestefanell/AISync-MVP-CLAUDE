@@ -6,6 +6,8 @@ import { getProjectsWithHierarchy } from '@/lib/db/projects'
 import TeamsClient from '@/components/teams/TeamsClient'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 
+export const dynamic = 'force-dynamic'
+
 interface IsolatedConnectionRow {
   invitee_isolated_team_id: string | null
   scope_isolated_team_id: string | null
