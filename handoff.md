@@ -10333,3 +10333,154 @@ El diagnóstico matutino concluyó que `getProjectsWithHierarchy()` necesitaba f
 Si el fix de cache **no resuelve** el síntoma → implementar plan original de Etapa 4 (filtros explícitos + verificación en EditTeamModal).
 
 Si el fix de cache **SÍ resuelve** el síntoma → marcar Etapa 4 como completada, avanzar a Etapa 5 (RLS simplification).
+
+---
+
+## [2026-06-29] — Fix: Dashboard "Open" button now uses correct workspace for invitee
+
+### Decisión / Estado cerrado
+
+**Root cause confirmado:**
+
+El botón "Open" en la sección Connected Teams del Dashboard (archivo `ProjectList.tsx`, líneas 480-491) usaba `scope_isolated_workspace_id` directamente, **sin dual-read basado en el rol del usuario** (host vs invitee).
+
+Esto causaba que el **Invitado siempre navegara al workspace del Host** cuando hacía clic en "Open" desde el Dashboard, en vez de navegar a su propio workspace isolated.
+
+**Importante:** Teams Map (`MapView.tsx`) **SÍ funcionaba correctamente** — este bug era específico del Dashboard.
+
+### Investigación realizada
+
+**Evidencia recolectada (2026-06-29):**
+
+1. **Datos SQL confirmados:** Conexión AA-AV tiene teams/workspaces separados correctamente:
+   - Host (AV): `team_id = 5160fc1b...`, `workspace_id = 78b162bb...`
+   - Invitee (AA): `team_id = 15c6f04f...`, `workspace_id = 2b9d73da...`
+
+2. **Debug visual en `teams/page.tsx` confirmó:** Cada usuario carga su team correcto (sin mezcla) — el problema **NO** estaba en el data layer.
+
+3. **Diagnóstico del botón "Open":**
+   - Código original usaba cascada: `c.scope_isolated_workspace_id` → `c.scope_isolated_team.workspaces[0].id` → `/teams`
+   - **NO usaba** `host_isolated_team` ni `invitee_isolated_team`
+   - **NO aplicaba dual-read** según `requester_account_id` vs `currentUserId`
+   - Comparación con `teams/page.tsx` (que **SÍ hace dual-read**): `invitee_team ?? legacy_team`
+
+**Conclusión:** El botón del Dashboard quedó **desactualizado** desde antes de Etapa 2 (cuando solo existía `scope_isolated_*` compartido). Nunca se actualizó para usar los campos nuevos de arquitectura separada.
+
+### Archivos modificados
+
+- `src/lib/db/connections.ts` — Nueva función `getUserIsolatedWorkspaceId()`
+- `src/components/ProjectList.tsx` — Importa y usa `getUserIsolatedWorkspaceId()`
+- `src/components/teams/MapView.tsx` — Limpieza de `console.log` de debug (investigación completada)
+
+### Cambios implementados
+
+#### 1. Nueva función helper en `connections.ts` (líneas 63-104)
+
+```typescript
+export function getUserIsolatedWorkspaceId(
+  connection: {
+    requester_account_id: string
+    receiver_account_id?: string | null
+    host_isolated_team?: { workspaces?: { id: string }[] } | null
+    invitee_isolated_team?: { workspaces?: { id: string }[] } | null
+    scope_isolated_team?: { workspaces?: { id: string }[] } | null
+    scope_isolated_workspace_id?: string | null
+  },
+  currentUserId: string
+): string | null
+```
+
+**Lógica:**
+- Compara `connection.requester_account_id === currentUserId` para determinar si es host o invitee
+- **Host**: `host_isolated_team.workspaces[0].id` → fallback a `scope_isolated_*`
+- **Invitee**: `invitee_isolated_team.workspaces[0].id` → fallback a `scope_isolated_*`
+
+**Patrón reutilizado:** Misma estructura que `getUserIsolatedTeamId()` existente.
+
+#### 2. Actualización del botón "Open" en `ProjectList.tsx`
+
+**Antes (líneas 480-491):**
+```typescript
+href={
+  c.scope_isolated_workspace_id
+    ? `/workspace/${c.scope_isolated_workspace_id}`
+    : c.scope_isolated_team?.workspaces?.[0]?.id
+      ? `/workspace/${c.scope_isolated_team.workspaces[0].id}`
+      : '/teams'
+}
+```
+
+**Después:**
+```typescript
+// Calcular workspace una sola vez (línea 460)
+const workspaceId = currentUserId ? getUserIsolatedWorkspaceId(c, currentUserId) : null
+
+// Usar en el Link (línea 485)
+href={workspaceId ? `/workspace/${workspaceId}` : '/teams'}
+```
+
+**Mejoras:**
+- ✅ Usa `currentUserId` (ya disponible en el componente) para determinar rol
+- ✅ Reutiliza helper centralizado (no duplica lógica)
+- ✅ Calcula workspace **una sola vez** por conexión (antes del JSX)
+- ✅ Compatibilidad backward con conexiones pre-Etapa 2 (fallback a `scope_*`)
+
+#### 3. Limpieza de debug
+
+Removido `console.log` temporal de `MapView.tsx` (líneas 111-129) — investigación completó confirmando que MapView/agent-map estaban sanos.
+
+### Alternativas descartadas
+
+- **Usar `c.direction === 'outgoing'`**: Aunque el campo existe en los datos del API, se prefirió comparación directa contra `requester_account_id` para consistencia con `getUserIsolatedTeamId()` existente
+- **Reimplementar lógica inline en ProjectList.tsx**: Se prefirió crear helper centralizado para reutilización futura
+
+### Riesgos conocidos
+
+Ninguno. El fix:
+- No modifica comportamiento para conexiones legacy (fallback a `scope_*` sigue funcionando)
+- No afecta Teams Map (que ya funcionaba correctamente)
+- Usa patrón ya establecido (`getUserIsolatedTeamId`)
+
+### Deuda técnica
+
+Ninguna introducida. El fix **elimina** deuda técnica (código desactualizado que no seguía arquitectura post-Etapa 2).
+
+### Estado
+
+✅ **CERRADA**
+- Función helper agregada a `connections.ts`
+- Dashboard actualizado
+- Debug limpiado
+- Build: ✅ Exitoso (warnings pre-existentes en CanvasViewport, no relacionados)
+- Lint: ✅ Exitoso
+- Commit: `da4042e` pushed
+
+### Validaciones
+
+- **Build/lint:** ✅ Exitoso
+- **Testing en vivo pendiente:** Host e Invitee hacen clic en "Open" desde Dashboard → cada uno debe navegar a su propio workspace
+- **Regresión Teams Map:** Verificar que el botón "Open Workspace" de Teams Map sigue funcionando (no tocado en este fix, solo limpieza de debug)
+
+### Impacto esperado
+
+**Antes del fix:**
+- Host (AV) → `scope_isolated_workspace_id` (`78b162bb...`) ✅ (funcionaba por casualidad)
+- Invitee (AA) → `scope_isolated_workspace_id` (`78b162bb...`) ❌ (workspace del host)
+
+**Después del fix:**
+- Host (AV) → `host_isolated_team.workspaces[0].id` (`78b162bb...`) ✅
+- Invitee (AA) → `invitee_isolated_team.workspaces[0].id` (`2b9d73da...`) ✅
+
+### Lección clave
+
+**Al agregar nuevos campos de arquitectura (Etapa 2), auditar TODOS los puntos de navegación que usan los campos legacy.**
+
+El fix de Etapa 2 actualizó:
+- ✅ `teams/page.tsx` (dual-read para mostrar teams)
+- ✅ `workspace/[id]/page.tsx` (dual-read para acceso a workspace)
+- ✅ Teams Map / MapView (funcionaba correctamente)
+
+Pero **NO actualizó:**
+- ❌ Dashboard `ProjectList.tsx` (botón "Open" en Connected Teams)
+
+**Estrategia correctiva:** Crear helpers centralizados (`getUserIsolatedTeamId`, `getUserIsolatedWorkspaceId`) para evitar duplicación de lógica dual-read en múltiples componentes.
