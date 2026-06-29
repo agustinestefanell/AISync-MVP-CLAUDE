@@ -10666,7 +10666,7 @@ Esto confirma que el tiempo de conexión **no es constante** — puede variar po
 
 ### Archivos relevantes
 
-- `src/components/workspace/panels/HumanChat.tsx` — Subscription setup y handler
+- `src/components/workspace/HumanChatPanel.tsx` — Subscription setup y handler
 - Líneas de log clave:
   - `[HumanChat] Mounting...` (inicio)
   - `[HumanChat] SUBSCRIBED confirmed at <timestamp>` (conexión establecida)
