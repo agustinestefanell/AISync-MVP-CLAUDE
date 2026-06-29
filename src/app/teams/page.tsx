@@ -81,6 +81,30 @@ export default async function TeamsPage() {
   ]
   const activeProject = projects.find(p => p.id === projectId)
 
+  // TEMPORAL DEBUG LOG — investigación Connected Teams
+  console.log('=== TEAMS PAGE DEBUG ===')
+  console.log('user.id:', user.id)
+  console.log('user.email:', user.email)
+  console.log('allTeams count:', allTeams.length)
+  console.log('allTeams details:', allTeams.map(t => ({
+    team_id: t.id,
+    team_name: t.name,
+    team_type: t.type,
+    workspace_id: t.workspaces?.[0]?.id ?? 'NO_WORKSPACE',
+    workspace_name: t.workspaces?.[0]?.name ?? 'NO_WORKSPACE',
+  })))
+  console.log('projects.flatMap teams:', projects.flatMap(p => p.teams as TeamWithWorkspaces[]).map(t => ({
+    team_id: t.id,
+    team_name: t.name,
+    source: 'projects.flatMap'
+  })))
+  console.log('isolatedTeams:', isolatedTeams.map(t => ({
+    team_id: t.id,
+    team_name: t.name,
+    source: 'isolatedTeams (from connections)'
+  })))
+  console.log('========================')
+
   return (
     <TeamsClient
       pageName="TEAMS MAP"
