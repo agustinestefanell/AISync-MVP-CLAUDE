@@ -10484,3 +10484,129 @@ Pero **NO actualizó:**
 - ❌ Dashboard `ProjectList.tsx` (botón "Open" en Connected Teams)
 
 **Estrategia correctiva:** Crear helpers centralizados (`getUserIsolatedTeamId`, `getUserIsolatedWorkspaceId`) para evitar duplicación de lógica dual-read en múltiples componentes.
+
+---
+
+## [2026-06-29 cierre] — Fix: Deduplicate teams in Teams Map
+
+### Decisión / Estado cerrado
+
+**Síntoma confirmado en vivo:**
+
+Invitees veían **dos tarjetas idénticas** del mismo team isolated en Teams Map (mismo team_id, mismo nombre D-00). Ambas navegaban correctamente al workspace, así que **no era bug de datos ni de navegación** — era puramente visual (duplicado en el array `allTeams`).
+
+### Root cause
+
+**Arquitectura de Etapa 2** crea un **proyecto separado** para el invitee con su isolated team (líneas 200-209 de `/api/connections/[id]/route.ts`):
+
+```typescript
+const { data: inviteeProject } = await createAdminClient()
+  .from('projects')
+  .insert({
+    account_id: user.id,  // Invitee's account
+    name: `${data.receiver_email}+${data.requester_email}`,
+    status: 'active',
+  })
+```
+
+Ese proyecto contiene el `invitee_isolated_team`.
+
+**En `teams/page.tsx`, `allTeams` se construía así:**
+
+```typescript
+const allTeams = [
+  ...projects.flatMap(p => p.teams),  // Incluye el proyecto del invitee con su isolated team
+  ...isolatedTeams  // Query a team_connections que TAMBIÉN trae el mismo isolated team
+]
+```
+
+**Resultado:** El mismo team aparecía **dos veces** — una desde `projects.flatMap()`, otra desde `isolatedTeams`.
+
+### Archivos modificados
+
+- `src/app/teams/page.tsx` — Deduplicación por `team.id` antes de pasar a `TeamsClient`
+
+### Cambios implementados
+
+```typescript
+// Antes (líneas 77-80)
+const allTeams = [
+  ...projects.flatMap(p => p.teams as TeamWithWorkspaces[]),
+  ...isolatedTeams
+]
+
+// Después (líneas 77-84)
+const allTeamsRaw = [
+  ...projects.flatMap(p => p.teams as TeamWithWorkspaces[]),
+  ...isolatedTeams
+]
+const allTeams = Array.from(
+  new Map(allTeamsRaw.map(t => [t.id, t])).values()
+)
+```
+
+**Técnica:** `Map` con `team.id` como clave elimina duplicados. Primera ocurrencia gana (no importa cuál fuente porque ambas representan el mismo team con los mismos datos).
+
+### Alternativas descartadas
+
+- **Filtrar `isolatedTeams` solo si no está en `projects`**: Más complejo, requiere doble loop o Set. Map es más simple y claro.
+- **Modificar query de `isolatedTeams` para excluir teams que ya están en proyectos del usuario**: Requeriría lógica adicional en SQL. Deduplicación client-side es más simple y funciona para todos los casos edge.
+
+### Riesgos conocidos
+
+Ninguno. Deduplicación es idempotente y no afecta comportamiento si no hay duplicados.
+
+### Deuda técnica
+
+Ninguna. La deduplicación es defensiva — protege contra duplicados actuales y futuros.
+
+### Estado
+
+✅ **CERRADA**
+- Deduplicación implementada
+- Build: ✅ Exitoso
+- Lint: ✅ Exitoso
+- Commit: `65c06d7` pushed
+- **Validación en vivo pendiente:** Invitee debe ver **una sola tarjeta** por isolated team
+
+### Investigación del día — Resumen completo
+
+**Síntomas reportados:**
+1. ❌ Invitee ve workspace del host (no el suyo) al hacer clic en "Open" desde Dashboard
+2. ❌ Invitee ve dos tarjetas idénticas del mismo team en Teams Map
+
+**Causas raíz identificadas:**
+1. **Dashboard "Open" button** (ProjectList.tsx) usaba `scope_isolated_workspace_id` sin dual-read → **RESUELTO** con `getUserIsolatedWorkspaceId()`
+2. **Teams Map duplicado** — Invitee isolated team aparece en `projects.flatMap()` Y en `isolatedTeams` → **RESUELTO** con deduplicación por `team.id`
+
+**Componentes confirmados sanos (no modificados):**
+- ✅ `teams/page.tsx` data layer — cada usuario carga sus teams correctos
+- ✅ `MapView.tsx` / `agent-map.ts` — navegación funciona correctamente
+- ✅ `getUserIsolatedTeamId()` / helpers de dual-read — funcionan bien
+
+**Archivos modificados hoy:**
+- `src/lib/db/connections.ts` — Nueva función `getUserIsolatedWorkspaceId()`
+- `src/components/ProjectList.tsx` — Usa `getUserIsolatedWorkspaceId()` para botón "Open"
+- `src/app/teams/page.tsx` — Deduplicación de `allTeams` por `team.id`
+- `src/components/teams/MapView.tsx` — Limpieza de debug temporal
+
+**Commits:**
+- `da4042e` — Dashboard "Open" button fix + limpieza debug
+- `9a580ba` — Documentación handoff Dashboard fix
+- `65c06d7` — Deduplicación Teams Map
+
+**Testing en vivo pendiente:**
+1. Invitee hace clic en "Open" desde Dashboard → debe navegar a su workspace (`2b9d73da...`), no al del host
+2. Invitee abre Teams Map → debe ver **una sola tarjeta** por isolated team, no dos
+
+### Lección clave final
+
+**Al implementar arquitectura de datos separados (Etapa 2: proyectos + teams isolated separados por usuario), auditar TODOS los puntos donde se combinan múltiples fuentes de datos.**
+
+En este caso:
+- `projects.flatMap()` trae teams del usuario (incluidos isolated teams en proyectos del usuario)
+- `isolatedTeams` query trae isolated teams desde conexiones
+
+**Sin deduplicación**, cualquier team que aparezca en ambas fuentes se muestra duplicado.
+
+**Patrón defensivo:** Siempre deduplicar arrays combinados por clave única (`team.id`) antes de renderizar, especialmente cuando las fuentes pueden solaparse por diseño arquitectural.
