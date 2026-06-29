@@ -75,10 +75,14 @@ export default async function TeamsPage() {
 
   // All projects in a single map; active project is highlighted.
   // Include isolated teams for invitee via team_connections
-  const allTeams = [
+  // Deduplicate by team.id (isolated teams may appear in both projects and isolatedTeams)
+  const allTeamsRaw = [
     ...projects.flatMap(p => p.teams as TeamWithWorkspaces[]),
     ...isolatedTeams
   ]
+  const allTeams = Array.from(
+    new Map(allTeamsRaw.map(t => [t.id, t])).values()
+  )
   const activeProject = projects.find(p => p.id === projectId)
 
   return (
