@@ -61,6 +61,51 @@ export function getUserIsolatedTeamId(
 }
 
 /**
+ * Gets the isolated workspace ID for the current user's side of a connection.
+ *
+ * Dual-read logic (Etapas 3-7):
+ * - For host: prefer host_isolated_team.workspaces[0].id, fallback to scope legacy
+ * - For invitee: prefer invitee_isolated_team.workspaces[0].id, fallback to scope legacy
+ *
+ * After Etapa 8, remove scope_isolated_* fallbacks.
+ *
+ * @param connection - The connection object with isolated team joins
+ * @param currentUserId - The current user's account ID
+ * @returns The workspace ID for the current user's side (host or invitee)
+ */
+export function getUserIsolatedWorkspaceId(
+  connection: {
+    requester_account_id: string
+    receiver_account_id?: string | null
+    host_isolated_team?: { workspaces?: { id: string }[] } | null
+    invitee_isolated_team?: { workspaces?: { id: string }[] } | null
+    scope_isolated_team?: { workspaces?: { id: string }[] } | null
+    scope_isolated_workspace_id?: string | null
+  },
+  currentUserId: string
+): string | null {
+  const isHost = connection.requester_account_id === currentUserId
+
+  if (isHost) {
+    // Host: prefer host_isolated_team.workspaces[0].id, fallback to scope
+    return (
+      connection.host_isolated_team?.workspaces?.[0]?.id ??
+      connection.scope_isolated_team?.workspaces?.[0]?.id ??
+      connection.scope_isolated_workspace_id ??
+      null
+    )
+  } else {
+    // Invitee: prefer invitee_isolated_team.workspaces[0].id, fallback to scope
+    return (
+      connection.invitee_isolated_team?.workspaces?.[0]?.id ??
+      connection.scope_isolated_team?.workspaces?.[0]?.id ??
+      connection.scope_isolated_workspace_id ??
+      null
+    )
+  }
+}
+
+/**
  * Extended select string for team_connections that includes both new and legacy fields.
  *
  * Use this in all queries that need isolated team data during Etapas 3-7.

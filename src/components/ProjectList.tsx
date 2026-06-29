@@ -11,6 +11,7 @@ import IncomingRequestsPanel from '@/components/teams/IncomingRequestsPanel'
 import HowConnectedTeamsModal from '@/components/teams/HowConnectedTeamsModal'
 import EditTeamModal from '@/components/teams/EditTeamModal'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
+import { getUserIsolatedWorkspaceId } from '@/lib/db/connections'
 
 const AGENT_META: Record<string, { label: string; color: string }> = {
   manager: { label: 'Manager', color: 'text-gray-600' },
@@ -457,6 +458,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                 : c.requester_team_name
               const partnerEmail = c.direction === 'outgoing' ? c.receiver_email : c.requester_email
               const isConfirming = confirmDisconnect === c.id
+              const workspaceId  = currentUserId ? getUserIsolatedWorkspaceId(c, currentUserId) : null
 
               return (
                 <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 space-y-2">
@@ -478,13 +480,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                     <div className="flex items-center gap-1.5 shrink-0">
                       <div className="relative">
                         <Link
-                          href={
-                            c.scope_isolated_workspace_id
-                              ? `/workspace/${c.scope_isolated_workspace_id}`
-                              : c.scope_isolated_team?.workspaces?.[0]?.id
-                                ? `/workspace/${c.scope_isolated_team.workspaces[0].id}`
-                                : '/teams'
-                          }
+                          href={workspaceId ? `/workspace/${workspaceId}` : '/teams'}
                           className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-2.5 py-1 rounded transition-colors"
                         >
                           Open →
