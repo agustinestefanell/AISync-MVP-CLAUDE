@@ -10610,3 +10610,70 @@ En este caso:
 **Sin deduplicación**, cualquier team que aparezca en ambas fuentes se muestra duplicado.
 
 **Patrón defensivo:** Siempre deduplicar arrays combinados por clave única (`team.id`) antes de renderizar, especialmente cuando las fuentes pueden solaparse por diseño arquitectural.
+
+---
+
+## [2026-06-29 tarde] — Realtime timing investigation: arranque variable, síntoma Review & Forward pendiente
+
+### Hallazgo / Estado parcial
+
+**Confirmado con instrumental de timing existente:**
+
+La ventana de arranque de Realtime (`Mount time → SUBSCRIBED confirmed`) **varía entre ejecuciones**:
+- Hoy: **462ms**
+- Medición anterior: **87-105ms**
+
+Esto confirma que el tiempo de conexión **no es constante** — puede variar por condiciones de red, carga del servidor Supabase, o estado del navegador.
+
+### Síntoma reportado hoy (NO explicado por esta medición)
+
+**Observación:** Mensaje de **Review & Forward del Manager** no aparece en vivo del lado del **Invitado** — requiere **F5** para verlo.
+
+**Por qué el timing de arranque NO explica esto:**
+- El síntoma ocurrió con el **chat ya abierto** y presumiblemente ya en estado `SUBSCRIBED`
+- No fue durante el arranque inicial de la sesión
+- Sugiere que el evento de Realtime **se perdió después** de la conexión establecida, no durante el handshake
+
+### Próximo paso pendiente — Captura de logs en tiempo real
+
+**Objetivo:** Confirmar si el evento de Realtime **llega o no llega** al receptor cuando se envía un mensaje de Review & Forward.
+
+**Metodología:**
+1. Abrir HumanChat del lado **Invitado** (receptor)
+2. Abrir DevTools → Console
+3. **Del lado Host (emisor):** Enviar un mensaje de Review & Forward
+4. **Del lado Invitado (receptor):** Buscar inmediatamente en la consola si aparece:
+   ```
+   [HumanChat] Realtime INSERT received:
+   ```
+
+**Resultados esperados:**
+
+- ✅ **Si el log aparece pero el mensaje no se muestra en UI** → El evento de Realtime llega, pero hay un bug en el rendering/state update del componente
+- ❌ **Si el log NO aparece** → El evento de Realtime se está perdiendo en algún punto de la cadena Supabase → cliente → subscription handler
+
+**Áreas sospechosas si el evento no llega:**
+- Filtros de la subscription en `HumanChat.tsx` (¿excluye mensajes de Review & Forward por algún criterio?)
+- Estado de la subscription (¿se desuscribe temporalmente durante alguna operación?)
+- Condiciones de race en el ciclo de vida del componente (¿`useEffect` cleanup cancelando subscriptions?)
+
+### Estado
+
+⏳ **PENDIENTE INVESTIGACIÓN**
+- Timing de arranque documentado (variable 87-462ms)
+- Root cause del síntoma R&F no identificado aún
+- Testing en vivo requerido con logs de consola del receptor
+
+### Archivos relevantes
+
+- `src/components/workspace/panels/HumanChat.tsx` — Subscription setup y handler
+- Líneas de log clave:
+  - `[HumanChat] Mounting...` (inicio)
+  - `[HumanChat] SUBSCRIBED confirmed at <timestamp>` (conexión establecida)
+  - `[HumanChat] Realtime INSERT received:` (evento recibido)
+
+### Lección provisional
+
+**El timing de arranque de Realtime es variable por naturaleza** — no es un indicador confiable de problemas de sincronización.
+
+**Para diagnosticar pérdida de eventos en tiempo real**, hay que capturar logs **en el momento exacto** del evento esperado, no solo medir tiempos de conexión inicial.
