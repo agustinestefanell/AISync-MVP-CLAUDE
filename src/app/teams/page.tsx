@@ -81,56 +81,12 @@ export default async function TeamsPage() {
   ]
   const activeProject = projects.find(p => p.id === projectId)
 
-  // TEMPORAL DEBUG — visible en navegador para diagnóstico Connected Teams
-  const teamsFromProjects = projects.flatMap(p => p.teams as TeamWithWorkspaces[])
-  const debugData = {
-    user_id: user.id,
-    user_email: user.email,
-    allTeams_count: allTeams.length,
-    teams_from_projects_count: teamsFromProjects.length,
-    teams_from_isolatedTeams_count: isolatedTeams.length,
-    allTeams_details: allTeams.map(t => ({
-      team_id: t.id,
-      team_name: t.name,
-      team_type: t.type,
-      workspace_id: t.workspaces?.[0]?.id ?? 'NO_WORKSPACE',
-      workspace_name: t.workspaces?.[0]?.name ?? 'NO_WORKSPACE',
-      source: teamsFromProjects.some(pt => pt.id === t.id) ? 'projects.flatMap' : 'isolatedTeams'
-    }))
-  }
-
   return (
-    <>
-      {/* DEBUG TEMPORAL — BORRAR DESPUÉS */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 9999,
-        backgroundColor: '#ffeb3b',
-        color: '#000',
-        padding: '16px',
-        fontSize: '11px',
-        fontFamily: 'monospace',
-        maxHeight: '40vh',
-        overflow: 'auto',
-        borderBottom: '4px solid #f57c00'
-      }}>
-        <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>
-          ⚠️ DEBUG TEMPORAL — BORRAR DESPUÉS ⚠️
-        </div>
-        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-          {JSON.stringify(debugData, null, 2)}
-        </pre>
-      </div>
-
-      <TeamsClient
-        pageName="TEAMS MAP"
-        projectName={activeProject?.name}
-        projectId={projectId}
-        initialTeams={allTeams}
-      />
-    </>
+    <TeamsClient
+      pageName="TEAMS MAP"
+      projectName={activeProject?.name}
+      projectId={projectId}
+      initialTeams={allTeams}
+    />
   )
 }

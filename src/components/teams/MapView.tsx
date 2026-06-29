@@ -108,7 +108,33 @@ export default function MapView({
       .catch(() => setConnectionMap({}))
   }, [teams])
 
-  const agentNodes = useMemo(() => deriveAgentNodesFromTeams(teams, connectionMap), [teams, connectionMap])
+  const agentNodes = useMemo(() => {
+    const nodes = deriveAgentNodesFromTeams(teams, connectionMap)
+
+    // TEMPORAL DEBUG — investigación Connected Teams navigation
+    console.log('=== MapView DEBUG: deriveAgentNodesFromTeams output ===')
+    console.log('Total nodes:', nodes.length)
+    console.log('Nodes details:', nodes.map(n => ({
+      agentId: n.agentId,
+      teamId: n.teamId,
+      teamName: n.teamName,
+      teamType: n.teamType,
+      workspaceId: n.workspaceId,
+      workspaceName: n.workspaceName,
+      role: n.role,
+      isSynthetic: n.agentId.includes('synthetic'),
+    })))
+    console.log('Isolated team nodes:', nodes.filter(n => n.teamType === 'isolated').map(n => ({
+      teamId: n.teamId,
+      teamName: n.teamName,
+      workspaceId: n.workspaceId,
+      role: n.role,
+      agentId: n.agentId,
+    })))
+    console.log('========================================================')
+
+    return nodes
+  }, [teams, connectionMap])
 
   const mapNodes   = useMemo(
     () => agentNodesToMapNodes(agentNodes, connectedTeamIds),
