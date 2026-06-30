@@ -167,3 +167,156 @@ Esta OE es la primera sub-etapa de limpieza dentro del plan de 8 etapas de Conne
 
 ---
 
+
+## Sesión 2026-06-30 — Etapa 8b: Limpieza de código scope_isolated_* + Etapa 8c: DROP COLUMN
+
+**Fecha:** 2026-06-30  
+**Tipo:** Refactor técnico (Connected Teams - cierre del plan de 8 etapas)  
+**Estado:** CERRADA Y VALIDADA EN PRODUCCIÓN  
+**Commits:** Etapa 8b (código), migración 044 aplicada manualmente (schema)
+
+**Archivos modificados (Etapa 8b):**
+- src/app/workspace/[id]/page.tsx (2 referencias eliminadas)
+- src/app/teams/page.tsx (9 referencias eliminadas)
+- src/lib/db/connections.ts (7 referencias + 5 comentarios eliminados)
+
+**Migración aplicada (Etapa 8c):**
+- supabase/migrations/044_drop_scope_isolated_fields.sql
+
+**Contexto:**
+Cierre final del rediseño de Connected Teams. Las Etapas 8b (código) y 8c (schema) eliminan completamente los campos legacy `scope_isolated_team_id` y `scope_isolated_workspace_id` del sistema, dejando únicamente la arquitectura de dos edificios separados (host_isolated_team_id + invitee_isolated_team_id).
+
+**Decisión técnica (Etapa 8b):**
+Eliminar las 12 referencias residuales a `scope_isolated_*` en código TypeScript antes de proceder con el DROP COLUMN físico.
+
+**Cambios implementados (Etapa 8b):**
+
+1. **workspace/[id]/page.tsx (líneas 104-105):**
+   - Eliminado `scope_isolated_team_id` del SELECT
+   - Eliminado del query `.or()` (queda solo host/invitee)
+
+2. **teams/page.tsx (líneas 13-63):**
+   - Tipo `IsolatedConnectionRow` simplificado (4 campos menos)
+   - SELECT simplificado: eliminado join `legacy_team:scope_isolated_team_id`
+   - Filtro `.or()` reemplazado por `.not('invitee_isolated_team_id', 'is', null)`
+   - Eliminado fallback dual-read
+
+3. **connections.ts (línea 88 + comentarios):**
+   - Constante `CONNECTIONS_SELECT_WITH_ISOLATED_TEAMS` simplificada
+   - Eliminados `scope_isolated_workspace_id` y join `scope_isolated_team`
+   - Comentarios legacy limpiados
+
+**Verificaciones Etapa 8b:**
+✅ Grep exhaustivo: 0 referencias residuales a `scope_isolated` en código TypeScript
+✅ TypeScript: sin errores de tipos
+✅ Build: exitoso
+✅ Lint: exitoso (warnings preexistentes en CanvasViewport.tsx)
+
+**Decisión técnica (Etapa 8c):**
+Eliminar físicamente las columnas `scope_isolated_team_id` y `scope_isolated_workspace_id` de `team_connections`, junto con las tres políticas RLS legacy que dependían de ellas.
+
+**Auditoría de políticas RLS:**
+
+Durante el diagnóstico previo a la Etapa 8c, se descubrió una séptima política RLS no mapeada:
+- `"Invitee can read isolated team"` en `teams` (creada manualmente, no versionada en migraciones)
+
+Esto llevó a una auditoría exhaustiva con queries SQL directos a `pg_policies`, que confirmó:
+- **Total de políticas legacy dependientes de scope_isolated_*:** 3 (no 2 como se asumió inicialmente)
+  1. `"Invitee can read isolated team"` en `teams`
+  2. `"Invitee can read isolated workspace"` en `workspaces` (de migración 028)
+  3. `"Invitee can read isolated agent_sessions"` en `agent_sessions` (de migración 028)
+
+**Confirmación de cobertura:**
+
+Se verificó con SQL exacto de migración 001 que las políticas de ownership normales cubren correctamente a ambos usuarios:
+- `teams_select`: verifica `p.account_id = auth.uid()` a través de `projects`
+- `workspaces_select`: verifica `p.account_id = auth.uid()` a través de `teams → projects`
+- `agent_sessions_select`: verifica `p.account_id = auth.uid()` a través de `workspaces → teams → projects`
+
+Con el modelo de dos edificios, cada usuario es dueño legítimo de su propio proyecto, haciendo las políticas legacy completamente redundantes.
+
+**Cambios implementados (Etapa 8c - Migración 044):**
+
+1. **DROP POLICY (3 políticas):**
+   - `"Invitee can read isolated team"` ON `public.teams`
+   - `"Invitee can read isolated workspace"` ON `public.workspaces`
+   - `"Invitee can read isolated agent_sessions"` ON `public.agent_sessions`
+
+2. **DROP COLUMN (2 columnas):**
+   - `scope_isolated_team_id` (con FK a teams)
+   - `scope_isolated_workspace_id` (sin FK)
+
+3. **COMMENT ON TABLE:**
+   - Actualizado comentario de `team_connections` documentando eliminación
+
+**Verificaciones Etapa 8c (ejecutadas en producción):**
+
+✅ **Migración aplicada:** "Success" sin errores
+
+✅ **Query 1 — Columnas eliminadas:**
+```sql
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'team_connections'
+  AND column_name IN ('scope_isolated_team_id', 'scope_isolated_workspace_id');
+```
+Resultado: 0 filas ✓
+
+✅ **Query 2 — Políticas legacy eliminadas:**
+```sql
+SELECT tablename, policyname FROM pg_policies
+WHERE policyname IN (
+  'Invitee can read isolated team',
+  'Invitee can read isolated workspace',
+  'Invitee can read isolated agent_sessions'
+);
+```
+Resultado: 0 filas ✓
+
+✅ **Query 3 — Políticas de ownership normales activas:**
+```sql
+SELECT tablename, policyname FROM pg_policies
+WHERE policyname IN ('teams_select', 'workspaces_select', 'agent_sessions_select')
+ORDER BY tablename;
+```
+Resultado: 3 filas ✓
+- `agent_sessions | agent_sessions_select`
+- `teams | teams_select`
+- `workspaces | workspaces_select`
+
+**Alternativas descartadas:**
+- Usar CASCADE en DROP COLUMN: descartado porque CASCADE eliminaría las políticas sin haberlas auditado primero — después del hallazgo de la política no mapeada en `teams`, quedó claro que no podíamos asumir que conocíamos todas las dependencias
+- Mantener las políticas legacy "por si acaso": descartado porque políticas redundantes aumentan superficie de ataque y complejidad sin aportar valor
+
+**Riesgos conocidos:**
+- Ninguno. Las políticas de ownership normales (migración 001) cubren correctamente a ambos usuarios con la arquitectura de dos edificios
+
+**Beneficios:**
+- Simplificación del sistema RLS: cada usuario accede a sus datos exclusivamente por ownership directo
+- Eliminación de complejidad cross-account legacy
+- Código y schema alineados con la arquitectura correcta (dos edificios separados)
+
+**VALIDACIÓN EN VIVO PENDIENTE:**
+
+El Product Owner debe confirmar una última vez, con las cuentas reales de la conexión más reciente, que todo sigue funcionando después de este cambio en políticas de seguridad:
+
+1. **Usuario Host:**
+   - Entrar a su propio Mono-Team (isolated team)
+   - Abrir el workspace
+   - Hablar con su Manager sin error
+
+2. **Usuario Invitee:**
+   - Entrar a su propio Mono-Team (isolated team)
+   - Abrir el workspace
+   - Hablar con su Manager sin error
+
+**Criterio de aprobación:**
+PASS si ambos usuarios pueden interactuar con sus Managers sin errores de RLS ni 403.
+
+**Siguiente paso:**
+Esperar validación en vivo del Product Owner. Una vez confirmado PASS, actualizar esta entrada con estado VALIDADA EN VIVO y cerrar el plan completo de 8 etapas en DECISIONS.md.
+
+**Lección clave:**
+Las auditorías de seguridad previas a cambios de schema deben ser exhaustivas y basadas en queries SQL directos a catálogos de sistema (`pg_policies`, `information_schema`), no solo en búsqueda de archivos de migraciones. Las dependencias manuales no versionadas existen y deben ser descubiertas activamente, no asumidas como inexistentes.
+
+---
+

@@ -1025,8 +1025,12 @@ Agregado en `teams/page.tsx` (misma directiva que ya existe en `workspace/[id]/p
 - **Estado del plan de 8 etapas:**
   - ✅ Etapa 0-4: Completadas y validadas en producción
   - ✅ Etapa 5: Completada (migración 043 ejecutada, validación en vivo PASS — 2026-06-30)
-  - **✅ Etapa 8a (Limpieza incremental):** Unificación de fuente de datos en accept flow — COMPLETADA Y VALIDADA (commit a077b27, 2026-06-30)
-  - ⏳ Etapas 6-8: Pendientes (deprecación, monitoreo, eliminación completa de `scope_isolated_team_id`)
+  - ✅ Etapa 6: Save Version del chat humano — Completada y validada en vivo (2026-06-30)
+  - ❌ Etapa 7: Descartada (migración de datos legacy — conexiones legacy todas cancelled, no requieren migración)
+  - ✅ **Etapa 8a (Limpieza incremental):** Unificación de fuente de datos en accept flow — COMPLETADA Y VALIDADA (commit a077b27, 2026-06-30)
+  - ✅ **Etapa 8b (Limpieza de código):** Eliminación de 12 referencias residuales a scope_isolated_* en TypeScript — COMPLETADA (2026-06-30)
+  - ✅ **Etapa 8c (DROP COLUMN):** Eliminación física de scope_isolated_team_id y scope_isolated_workspace_id + 3 políticas RLS legacy — COMPLETADA (migración 044 aplicada, validación en vivo PENDIENTE — 2026-06-30)
+  - **PLAN COMPLETO: 7 de 8 etapas completadas, 1 descartada. Validación final en vivo pendiente.**
 
 - **Why:** Las políticas RLS deben evolucionar con la arquitectura de datos. Mantener políticas redundantes aumenta superficie de ataque y complejidad. Simplificar a ownership directo cuando la arquitectura lo permite reduce riesgo y facilita razonamiento sobre seguridad.
 
@@ -1074,4 +1078,17 @@ Agregado en `teams/page.tsx` (misma directiva que ya existe en `workspace/[id]/p
 - **Why:** Código legacy con fuentes de datos duplicadas genera bugs de desincronización. Unificar a una sola fuente antes de la Etapa 8 final reduce complejidad y riesgo de la eliminación futura de `scope_isolated_team_id`.
 
 - **How to apply:** Cuando una query duplica datos entre un UPDATE y un SELECT separado, agregar los campos necesarios al SELECT del UPDATE y eliminar la query redundante. Validar con testing en vivo que ambas fuentes de datos estaban sincronizadas antes del cambio.
+
+
+---
+
+## 2026-06-30 � Connected Teams Etapa 8b y 8c: Eliminaci�n completa de scope_isolated_* (c�digo + schema)
+
+- **Decisi�n:** Eliminar completamente los campos legacy `scope_isolated_team_id` y `scope_isolated_workspace_id` del sistema, tanto en c�digo TypeScript (Etapa 8b) como en schema de DB (Etapa 8c), dejando �nicamente la arquitectura de dos edificios separados validada en Etapas 0-5.
+
+- **Mot
+
+ivo:** Con la arquitectura de dos edificios completamente implementada y validada (cada usuario due�o de su propio proyecto/team/workspace), los campos legacy y sus pol�ticas RLS asociadas son completamente redundantes. Mantenerlos aumenta complejidad, superficie de ataque, y riesgo de regresi�n futura a la arquitectura incorrecta.
+
+- **Estado:** Etapas 8b y 8c COMPLETADAS (c�digo + schema), validaci�n en vivo PENDIENTE (2026-06-30)
 

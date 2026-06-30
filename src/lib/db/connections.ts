@@ -1,5 +1,5 @@
 /**
- * Helpers for team_connections dual-read during Etapas 3-7
+ * Helpers for team_connections with two-building architecture
  * Part of Connected Teams correction plan (see DECISIONS.md 2026-06-26)
  */
 
@@ -7,9 +7,6 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * Gets the isolated team ID for the host (requester) side of a connection.
- *
- * Returns the host's isolated team ID (new architecture).
- * Legacy scope_isolated_team_id fallback removed in Etapa 8 (2026-06-30).
  */
 export function getHostIsolatedTeamId(connection: {
   host_isolated_team_id?: string | null
@@ -19,9 +16,6 @@ export function getHostIsolatedTeamId(connection: {
 
 /**
  * Gets the isolated team ID for the invitee (receiver) side of a connection.
- *
- * Returns the invitee's isolated team ID (new architecture).
- * Legacy scope_isolated_team_id fallback removed in Etapa 8 (2026-06-30).
  */
 export function getInviteeIsolatedTeamId(connection: {
   invitee_isolated_team_id?: string | null
@@ -54,9 +48,6 @@ export function getUserIsolatedTeamId(
 /**
  * Gets the isolated workspace ID for the current user's side of a connection.
  *
- * Returns the workspace ID from the user's isolated team (host or invitee).
- * Legacy scope_isolated_* fallbacks removed in Etapa 8 (2026-06-30).
- *
  * @param connection - The connection object with isolated team joins
  * @param currentUserId - The current user's account ID
  * @returns The workspace ID for the current user's side (host or invitee)
@@ -80,18 +71,15 @@ export function getUserIsolatedWorkspaceId(
 }
 
 /**
- * Extended select string for team_connections that includes both new and legacy fields.
- *
- * Use this in all queries that need isolated team data during Etapas 3-7.
- * After Etapa 8, remove scope_isolated_team and references to scope_isolated_team_id.
+ * Extended select string for team_connections that includes isolated team joins.
  */
-export const CONNECTIONS_SELECT_WITH_ISOLATED_TEAMS = '*, description, color, scope_isolated_workspace_id, scope_isolated_team:scope_isolated_team_id(workspaces(id)), host_isolated_team:host_isolated_team_id(workspaces(id)), invitee_isolated_team:invitee_isolated_team_id(workspaces(id))'
+export const CONNECTIONS_SELECT_WITH_ISOLATED_TEAMS = '*, description, color, host_isolated_team:host_isolated_team_id(workspaces(id)), invitee_isolated_team:invitee_isolated_team_id(workspaces(id))'
 
 /**
  * Gets isolated team IDs visible to the current user from connections.
  *
- * For host: returns host_isolated_team_id (or scope_isolated_team_id fallback)
- * For invitee: returns invitee_isolated_team_id (or scope_isolated_team_id fallback)
+ * For host: returns host_isolated_team_id
+ * For invitee: returns invitee_isolated_team_id
  *
  * This is used by Teams Map/Tree View to show isolated teams.
  */

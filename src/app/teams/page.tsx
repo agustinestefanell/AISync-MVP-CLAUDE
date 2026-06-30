@@ -10,12 +10,9 @@ export const dynamic = 'force-dynamic'
 
 interface IsolatedConnectionRow {
   invitee_isolated_team_id: string | null
-  scope_isolated_team_id: string | null
   description: string | null
   color: string | null
-  scope_isolated_workspace_id: string | null
   invitee_team: TeamWithWorkspaces | null
-  legacy_team: TeamWithWorkspaces | null
 }
 
 export default async function TeamsPage() {
@@ -29,24 +26,14 @@ export default async function TeamsPage() {
   const projects = await getProjectsWithHierarchy()
 
   // Fetch isolated teams where user is receiver (invitee)
-  // Dual-read: fetch both new and legacy fields with separate joins
   const supabaseAdmin = createAdminClient()
   const { data: isolatedConnections } = await supabaseAdmin
     .from('team_connections')
     .select(`
       invitee_isolated_team_id,
-      scope_isolated_team_id,
       description,
       color,
-      scope_isolated_workspace_id,
       invitee_team:invitee_isolated_team_id (
-        *,
-        workspaces (
-          *,
-          agent_sessions (*)
-        )
-      ),
-      legacy_team:scope_isolated_team_id (
         *,
         workspaces (
           *,
@@ -56,12 +43,11 @@ export default async function TeamsPage() {
     `)
     .eq('receiver_account_id', user.id)
     .eq('status', 'active')
-    .or('invitee_isolated_team_id.not.is.null,scope_isolated_team_id.not.is.null')
+    .not('invitee_isolated_team_id', 'is', null)
 
   const isolatedTeams = (isolatedConnections as IsolatedConnectionRow[] | null ?? [])
     .map(c => {
-      // Dual-read: prefer invitee_team (new arch), fall back to legacy_team
-      const team = c.invitee_team ?? c.legacy_team
+      const team = c.invitee_team
       if (!team) return null
 
       // Ensure color and description are present (copied at accept, but fallback to connection for safety)

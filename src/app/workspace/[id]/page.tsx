@@ -98,11 +98,11 @@ export default async function WorkspacePage({
   let initialHumanMessages: HumanMessage[] = []
 
   if (team?.type === 'isolated') {
-    // Dual-read: query all three columns and let getUserIsolatedTeamId decide
+    // Query connections that match either host or invitee isolated team
     const { data: connections } = await supabase
       .from('team_connections')
-      .select('id, requester_account_id, receiver_account_id, requester_email, requester_team_name, receiver_email, receiver_team_name, description, color, welcome_viewed_by_invitee, welcome_viewed_by_requester, status, host_isolated_team_id, invitee_isolated_team_id, scope_isolated_team_id')
-      .or(`host_isolated_team_id.eq.${team.id},invitee_isolated_team_id.eq.${team.id},scope_isolated_team_id.eq.${team.id}`)
+      .select('id, requester_account_id, receiver_account_id, requester_email, requester_team_name, receiver_email, receiver_team_name, description, color, welcome_viewed_by_invitee, welcome_viewed_by_requester, status, host_isolated_team_id, invitee_isolated_team_id')
+      .or(`host_isolated_team_id.eq.${team.id},invitee_isolated_team_id.eq.${team.id}`)
       .order('updated_at', { ascending: false })
       .limit(1)
 
