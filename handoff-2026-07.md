@@ -320,3 +320,116 @@ Las auditorías de seguridad previas a cambios de schema deben ser exhaustivas y
 
 ---
 
+
+## Sesión 2026-06-30 — Diagnóstico Context Files + Fixes preventivos
+
+**Fecha:** 2026-06-30 (tarde)  
+**Tipo:** Diagnóstico de bugs reportados + fixes preventivos  
+**Estado:** FIXES APLICADOS — Causa raíz real identificada, pendiente de resolver  
+**Commit:** 45c4096
+
+**Contexto:**
+Feedback real de uso con una consultora externa reportó dos problemas:
+1. Los Workers no incorporan los Context Files al responder tareas relacionadas
+2. Subir un PDF de 18KB da error: "unexpected token 'R', "Request EN"... is not valid JSON"
+
+**Diagnóstico ejecutado:**
+
+**Problema 1 — Context Files no llegan a Workers:**
+- Hipótesis inicial: `AgentPanel.tsx` no envía `project_id` al endpoint `/api/chat`, impidiendo recuperar Context Files con `scope: 'project'`
+- **Verificación con SQL real:** Ningún Context File existente tiene `scope: 'project'` (todos son `'team'` o `'session'`)
+- **Hipótesis descartada:** El fix de `project_id` NO es la causa del síntoma reportado
+
+**Hallazgo real (SQL diagnostic):**
+```sql
+SELECT scope, extracted_text_available, COUNT(*) as count
+FROM context_sources WHERE status = 'active'
+GROUP BY scope, extracted_text_available;
+```
+Resultado: **4 de 6 archivos activos con `scope: 'team'` tienen `extracted_text_available = false`**
+
+**Causa raíz real identificada:**
+La mayoría de los Context Files nunca tuvieron su texto extraído correctamente. Si `content_text` es NULL o `extracted_text_available = false`, no hay nada que inyectar en el prompt del Worker. La función `getContextSourcesForRuntime()` filtra explícitamente por:
+```typescript
+.eq('extracted_text_available', true)
+.not('content_text', 'is', null)
+```
+Por lo tanto, 4 de 6 archivos NO se inyectan en el prompt, explicando perfectamente el síntoma reportado.
+
+**Problema 2 — Error al subir PDF:**
+- Error: "unexpected token 'R', "Request EN"... is not valid JSON"
+- Causa: El frontend (`ContextFilePanel.tsx`) intenta hacer `await res.json()` sin try/catch cuando el servidor devuelve una respuesta no-JSON (timeout, error HTML, etc.)
+- **Relación con Problema 1:** Ambos problemas probablemente comparten la misma causa de fondo en el proceso de extracción de texto (`extractTextFromBuffer` en `/api/context/route.ts` líneas 104-116)
+
+**Fixes aplicados (preventivos, no resuelven causa raíz):**
+
+**Fix 1: Agregar project_id al payload del chat**
+- Archivo: `src/components/workspace/AgentPanel.tsx` línea 373
+- Cambio: Agregar `project_id: projectId ?? null` al POST body de `/api/chat`
+- Beneficio: Habilita Context Files con `scope: 'project'` para ser recuperados correctamente en futuro
+- **Limitación confirmada:** NO resuelve el síntoma reportado (ningún archivo existente tiene ese scope)
+- Tipo: Fix preventivo correcto, bajo riesgo
+
+**Fix 2: Captura defensiva de errores de parseo JSON**
+- Archivo: `src/components/workspace/ContextFilePanel.tsx` líneas 106-114
+- Cambio: Wrap `await res.json()` en try/catch
+- Si la respuesta del servidor no es JSON (timeout, HTML error), mostrar mensaje claro: "Failed to upload file. Please try again or contact support if the issue persists."
+- Beneficio: Usuario ve mensaje claro en lugar del error técnico "unexpected token 'R'..."
+- **Limitación:** NO investiga ni resuelve por qué falla la subida del PDF (solo mejora UX del error)
+- Tipo: Fix defensivo correcto, bajo riesgo
+
+**Verificaciones:**
+✅ Build exitoso
+✅ Lint exitoso
+✅ `projectId` confirmado disponible en props de `AgentPanel`
+✅ Verificación SQL confirmó scope de archivos existentes
+
+**Cambios netos:**
+- `AgentPanel.tsx`: +1 línea (project_id en payload)
+- `ContextFilePanel.tsx`: +8 líneas, -2 líneas (try/catch defensivo)
+
+**PENDIENTE — Próxima sesión prioritaria:**
+
+**Diagnosticar por qué falla la extracción de texto de Context Files**
+
+Candidato: `extractTextFromBuffer()` en `/api/context/route.ts` líneas 105-116
+```typescript
+try {
+  const bytes  = await file.arrayBuffer()
+  const buffer = Buffer.from(bytes)
+  const { text } = await extractTextFromBuffer(buffer, mimeType)
+  if (text) {
+    await extractAndSaveText(source.id, text)
+    source.extracted_text_available = true
+    source.content_text             = text
+  }
+} catch {
+  // Extraction failed — non-blocking
+}
+```
+
+**Preguntas a responder:**
+1. ¿Por qué 4 de 6 archivos fallan en extracción de texto?
+2. ¿Qué tipos de archivo son (PDF, DOCX, TXT, etc.)?
+3. ¿El error es silencioso por el try/catch vacío?
+4. ¿Falla `extractTextFromBuffer()` (en `src/lib/context/extractText.ts`)?
+5. ¿O falla `extractAndSaveText()` (en `src/lib/db/context.ts`)?
+6. ¿Hay logs disponibles en Vercel de estos fallos?
+
+**Hipótesis:** El PDF de 18KB que falla en subida probablemente también falla en extracción de texto. Ambos problemas reportados convergen en el mismo punto del código.
+
+**Impacto del problema:**
+- **Alto:** Los Context Files son una funcionalidad core para alimentar a los Workers con conocimiento específico del cliente
+- **Actual:** 67% de los archivos subidos (4 de 6) son inútiles porque no tienen texto extraído
+- **UX:** El usuario no recibe feedback de que la extracción falló — el archivo aparece como subido exitosamente pero nunca se usa
+
+**Alternativas descartadas:**
+- Investigar sin datos reales: descartado, se necesita SQL diagnostic first
+- Asumir que project_id era la causa: descartado tras verificación SQL
+- Tocar el backend sin confirmar la causa: descartado, se aplicaron solo fixes defensivos de bajo riesgo
+
+**Lección clave:**
+Un try/catch vacío que silencia errores (`catch { /* non-blocking */ }`) puede ocultar fallos críticos de funcionalidad. La extracción de texto falla silenciosamente, el usuario cree que el archivo está disponible, pero los Workers nunca lo reciben. El diagnóstico SQL fue crítico para descubrir el problema real detrás del síntoma reportado.
+
+---
+
