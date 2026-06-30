@@ -1,15 +1,22 @@
 # AISync MVP — Claude Code Reference
 
-## RUTINA DURA — Actualización de handoff.md
+## RUTINA DURA — Actualización de handoff
 
 Al cerrar cada OE, ANTES de confirmar que está cerrada,
-Claude Code DEBE actualizar handoff.md con:
+Claude Code DEBE actualizar el archivo de handoff activo con:
 
 1. Fecha y título de la OE
 2. Archivos modificados
 3. Decisión técnica tomada y por qué
 4. Alternativas descartadas y por qué se descartaron
 5. Riesgos conocidos o deuda técnica generada
+
+**Archivo activo:** `handoff-2026-07.md` (desde 2026-06-30)
+**Archivos anteriores:** `handoff.md` (cerrado, 576KB, histórico)
+
+**Regla de rotación:** Cuando el archivo activo alcance ~400KB, crear
+`handoff-YYYY-MM.md` nuevo, cerrar el anterior con nota de continuidad,
+y actualizar esta referencia en CLAUDE.md.
 
 Sin esta actualización, la OE NO está cerrada.
 
@@ -112,7 +119,7 @@ PROMPT DE CIERRE DURO OBLIGATORIO
 Al finalizar cada OE, mini-OE o fix directo, ejecutar en orden:
 
 1. Diagnóstico: pwd, git branch, git status, git diff --stat
-2. Actualizar handoff.md — SIEMPRE
+2. Actualizar archivo de handoff activo (handoff-2026-07.md) — SIEMPRE
 3. Actualizar PRODUCT_STATUS.md — SIEMPRE
 4. Actualizar AISyncPlans.md — si hubo cambio de arquitectura/DB/API/patrón
 5. Actualizar DECISIONS.md — si hubo decisión técnica nueva
@@ -123,7 +130,7 @@ Al finalizar cada OE, mini-OE o fix directo, ejecutar en orden:
 10. git add [archivos autorizados] && git commit -m "[mensaje]" && git push
 11. Reporte final con todos los campos del formato estándar
 
-Una OE no está cerrada hasta que handoff.md y PRODUCT_STATUS.md están actualizados.
+Una OE no está cerrada hasta que el handoff activo y PRODUCT_STATUS.md están actualizados.
 Sin excepción. Sin shortcuts.
 
 ## Regla de búsqueda exhaustiva pre-cierre

@@ -10824,3 +10824,8 @@ Cambiar IncomingRequestsPanel.tsx:160 — descartado porque ese texto es descrip
 En cambios cosméticos, identificar TODOS los lugares donde aparece el texto antes de definir alcance. Decidir explícitamente qué queda dentro y qué queda fuera, documentando ambos casos.
 
 ---
+
+---
+
+**ARCHIVO CERRADO — Continuación en handoff-2026-07.md a partir del 2026-06-30.**
+
