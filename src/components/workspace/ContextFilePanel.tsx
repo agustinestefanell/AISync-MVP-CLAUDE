@@ -105,8 +105,15 @@ export default function ContextFilePanel({
 
       const res = await fetch('/api/context', { method: 'POST', body: fd })
       if (!res.ok && res.status !== 207) {
-        const body = await res.json()
-        throw new Error(body.error ?? 'Upload failed')
+        let errorMsg = 'Upload failed'
+        try {
+          const body = await res.json()
+          errorMsg = body.error ?? errorMsg
+        } catch {
+          // Response is not JSON (timeout, HTML error, etc.)
+          errorMsg = 'Failed to upload file. Please try again or contact support if the issue persists.'
+        }
+        throw new Error(errorMsg)
       }
       setUploadDone(true)
       resetForm()
