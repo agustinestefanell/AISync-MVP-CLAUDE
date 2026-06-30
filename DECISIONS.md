@@ -985,3 +985,49 @@ Agregado en `teams/page.tsx` (misma directiva que ya existe en `workspace/[id]/p
 3. **RLS funciona correctamente cuando está bien diseñado** — el problema nunca fue de seguridad, sino de UX (datos stale)
 
 **Estado:** Fix de cache aplicado y documentado. Etapa 4 completa (filtros explícitos) pendiente de validación con testing en vivo.
+
+---
+
+## 2026-06-30 — Connected Teams Etapa 5: Eliminación de políticas RLS redundantes del Invitado
+
+- **Decisión:** Eliminar las 6 políticas RLS especiales de Invitado (migraciones 040 y 041) que permitían acceso cross-account a `messages`, `checkpoints` y `checkpoint_messages` del workspace compartido. Con la arquitectura de dos edificios (Etapas 0-4 completadas), cada usuario ahora accede a sus propios datos por ownership directo (`p.account_id = auth.uid()`), haciendo estas políticas redundantes.
+
+- **Motivo:** Las políticas especiales fueron diseñadas para el modelo de edificio compartido (anterior a Etapa 2), donde el Invitado necesitaba acceso cross-account al workspace del Host. Con dos edificios separados (cada usuario posee su propio proyecto → team → workspace), las políticas originales de ownership ya cubren correctamente a ambos usuarios.
+
+- **Evidencia:** Confirmado con datos reales de producción (2026-06-30): las 2 conexiones activas tienen `host_isolated_team_id` e `invitee_isolated_team_id` poblados. Todas las conexiones con solo `scope_isolated_team_id` están en estado `cancelled` y no requieren acceso activo.
+
+- **Políticas eliminadas (migración 043):**
+  - `Invitee can read messages in isolated workspace`
+  - `Invitee can insert messages in isolated workspace`
+  - `Invitee can read checkpoints in isolated workspace`
+  - `Invitee can insert checkpoints in isolated workspace`
+  - `Invitee can read checkpoint_messages in isolated workspace`
+  - `Invitee can insert checkpoint_messages in isolated workspace`
+
+- **Políticas que permanecen (sin cambios):**
+  - `messages_select` / `messages_insert` (migración 002)
+  - `checkpoints_select` / `checkpoints_insert` (migración 003)
+  - `checkpoint_messages_select` / `checkpoint_messages_insert` (migración 003)
+  
+  Estas políticas verifican `p.account_id = auth.uid()` y cubren correctamente a Host e Invitee en el modelo de dos edificios.
+
+- **Impacto:**
+  - **Host:** SIN CAMBIO (siempre usó política de ownership directo)
+  - **Invitee:** SIN CAMBIO funcional (ahora usa ownership directo en lugar de política especial)
+  - **Seguridad:** SIN REGRESIÓN (eliminamos vía de acceso redundante, no ampliamos acceso)
+
+- **Alternativas descartadas:**
+  - **Mantener políticas especiales "por si acaso":** Descartado. Políticas redundantes aumentan superficie de ataque y complejidad sin aportar valor. Con datos confirmando que todas las conexiones activas usan el modelo nuevo, no hay razón para mantener políticas del modelo viejo.
+  - **Migrar conexiones legacy antes de eliminar:** Innecesario. Todas las conexiones legacy están `cancelled` y no requieren acceso activo.
+
+- **Consecuencia:** Simplificación del sistema RLS. Cada usuario accede a sus datos exclusivamente por ownership directo, eliminando complejidad de políticas cross-account que ya no son necesarias. Validación en vivo pendiente con las 2 conexiones activas reales para confirmar que todas las operaciones (escribir/leer messages/checkpoints) funcionan correctamente sin errores 403/RLS.
+
+- **Estado del plan de 8 etapas:**
+  - ✅ Etapa 0-4: Completadas y validadas en producción
+  - ✅ Etapa 5: Completada (migración 043 ejecutada, validación en vivo pendiente)
+  - ⏳ Etapas 6-8: Pendientes (deprecación, monitoreo, eliminación de `scope_isolated_team_id`)
+
+- **Why:** Las políticas RLS deben evolucionar con la arquitectura de datos. Mantener políticas redundantes aumenta superficie de ataque y complejidad. Simplificar a ownership directo cuando la arquitectura lo permite reduce riesgo y facilita razonamiento sobre seguridad.
+
+- **How to apply:** Cuando una arquitectura de datos evoluciona de acceso compartido a ownership separado, verificar que las políticas RLS viejas son redundantes con datos reales antes de eliminarlas. Documentar el cambio con contexto completo (qué se elimina, por qué era necesario antes, por qué es redundante ahora, qué validación se hizo).
+

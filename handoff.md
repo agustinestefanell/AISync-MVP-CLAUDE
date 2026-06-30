@@ -10677,3 +10677,120 @@ Esto confirma que el tiempo de conexión **no es constante** — puede variar po
 **El timing de arranque de Realtime es variable por naturaleza** — no es un indicador confiable de problemas de sincronización.
 
 **Para diagnosticar pérdida de eventos en tiempo real**, hay que capturar logs **en el momento exacto** del evento esperado, no solo medir tiempos de conexión inicial.
+
+---
+
+## [2026-06-30] — Etapa 5: Eliminación de políticas RLS redundantes del Invitado
+
+### Contexto
+
+Con la arquitectura de dos edificios (Etapas 0-4) validada en producción, cada usuario (Host e Invitado) ahora posee su propio proyecto → team → workspace. Esto significa que ambos acceden a sus propios datos (`messages`, `checkpoints`, `checkpoint_messages`) por ownership directo (`p.account_id = auth.uid()`).
+
+Las políticas RLS especiales de Invitado (migraciones 040 y 041) fueron diseñadas para el modelo viejo de **edificio compartido**, donde el Invitado necesitaba acceso cross-account al workspace del Host. Con dos edificios separados, estas políticas especiales son ahora **redundantes**.
+
+### Archivos modificados
+
+- `supabase/migrations/043_remove_invitee_rls_policies.sql` (nueva migración)
+- `handoff.md` (esta entrada)
+- `DECISIONS.md` (entrada nueva: Etapa 5 completada)
+
+### Decisión técnica
+
+Eliminar las 6 políticas RLS especiales de Invitado que se volvieron redundantes:
+
+**messages (de migración 040):**
+- `Invitee can read messages in isolated workspace`
+- `Invitee can insert messages in isolated workspace`
+
+**checkpoints (de migración 041):**
+- `Invitee can read checkpoints in isolated workspace`
+- `Invitee can insert checkpoints in isolated workspace`
+
+**checkpoint_messages (de migración 041):**
+- `Invitee can read checkpoint_messages in isolated workspace`
+- `Invitee can insert checkpoint_messages in isolated workspace`
+
+**Políticas que PERMANECEN intactas** (de migraciones 002 y 003):
+- `messages_select` / `messages_insert`
+- `checkpoints_select` / `checkpoints_insert`
+- `checkpoint_messages_select` / `checkpoint_messages_insert`
+
+Estas políticas originales verifican `p.account_id = auth.uid()` y ahora cubren correctamente a **ambos** usuarios (Host e Invitado) en el modelo de dos edificios.
+
+### Migración 043 ejecutada en producción
+
+**Fecha:** 2026-06-30  
+**Resultado:** Las 6 políticas eliminadas exitosamente (confirmado por Product Owner)  
+**Conexiones activas validadas:** 2 conexiones con `host_isolated_team_id` e `invitee_isolated_team_id` poblados  
+**Conexiones legacy:** Todas las conexiones con solo `scope_isolated_team_id` están en estado `cancelled` — no dependen de las políticas eliminadas
+
+### Impacto
+
+- **Host:** SIN CAMBIO (siempre usó la política de ownership directo)
+- **Invitee:** SIN CAMBIO en acceso funcional (ahora usa ownership directo en lugar de la política especial)
+- **Seguridad:** SIN REGRESIÓN (eliminamos vía de acceso redundante, no ampliamos acceso)
+
+### Validación en vivo
+
+**Estado:** PENDIENTE confirmación del Product Owner
+
+**Checklist preparado para validar con las 2 conexiones activas reales:**
+
+**Conexión 1 (`7b7a1a9b...`):**
+- Host: `6a4ef0f9...` (AA)
+- Invitee: `3ce12b71...` (AV)
+
+**Conexión 2 (`95e8d623...`):**
+- Host: `6a4ef0f9...` (AA)
+- Invitee: `1e2cdc6c...`
+
+**Para cada usuario en cada conexión:**
+1. ✅ Escribir mensaje nuevo en su Mono-Team workspace
+2. ✅ Leer mensajes existentes
+3. ✅ Crear nuevo checkpoint (Save Version)
+4. ✅ Leer checkpoints existentes desde Repository View
+
+**Resultado esperado:** Todas las operaciones deben funcionar correctamente sin errores 403/RLS.
+
+### Alternativas descartadas
+
+- **Mantener políticas especiales "por si acaso":** Descartado. Las políticas redundantes aumentan superficie de ataque y complejidad sin aportar valor funcional. Con datos reales confirmando que todas las conexiones activas usan el modelo nuevo, no hay razón para mantener las políticas del modelo viejo.
+
+- **Migrar conexiones legacy antes de eliminar políticas:** Innecesario. Todas las conexiones legacy están en estado `cancelled` — no requieren acceso activo a datos.
+
+### Riesgos conocidos
+
+- **Si la validación en vivo falla:** Indicaría un problema arquitectural no detectado en el modelo de ownership directo. Requeriría investigación inmediata y posible rollback de la migración 043.
+
+- **Conexiones legacy con `scope_isolated_team_id` solo:** Quedan permanentemente rotas para acceso a messages/checkpoints (por diseño — aceptado desde la planificación de Etapa 2).
+
+### Estado del plan de 8 etapas (Connected Teams)
+
+✅ **Etapa 0:** Auditoría arquitectural — COMPLETADA  
+✅ **Etapa 1:** Migración 042 (columnas `host_isolated_team_id` + `invitee_isolated_team_id`) — COMPLETADA  
+✅ **Etapa 2:** Backfill de conexiones activas — COMPLETADA  
+✅ **Etapa 3:** Dual-read helpers (`getUserIsolatedTeamId()` etc.) — COMPLETADA  
+✅ **Etapa 4:** Migración de UI (Dashboard, Teams Map, navegación) — COMPLETADA  
+✅ **Etapa 5:** Eliminación de políticas RLS redundantes (migración 043) — **COMPLETADA** (pending live validation)  
+⏳ **Etapa 6:** Deprecación de `scope_isolated_team_id` (comentarios + warnings) — PENDIENTE  
+⏳ **Etapa 7:** Monitoreo y confirmación de estabilidad — PENDIENTE  
+⏳ **Etapa 8:** Eliminación física de `scope_isolated_team_id` — PENDIENTE
+
+### Lección clave
+
+**Las políticas RLS deben evolucionar con la arquitectura de datos.**
+
+Cuando la arquitectura cambia de un modelo de acceso compartido (cross-account) a un modelo de ownership separado (cada usuario posee sus datos), las políticas RLS especiales que soportaban el modelo viejo se vuelven redundantes y deben eliminarse.
+
+**Mantener políticas redundantes:**
+- Aumenta la superficie de ataque (más código = más vectores potenciales)
+- Genera confusión sobre qué política aplica en cada caso
+- Hace más difícil razonar sobre seguridad del sistema
+
+**Patrón aplicado:**
+1. Confirmar con datos reales que las políticas nuevas cubren todos los casos activos
+2. Verificar que las políticas viejas solo cubrían casos legacy ya descartados
+3. Eliminar las políticas viejas con migración documentada
+4. Validar en vivo que el acceso sigue funcionando correctamente
+
+---
