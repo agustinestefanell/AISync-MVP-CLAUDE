@@ -1024,10 +1024,54 @@ Agregado en `teams/page.tsx` (misma directiva que ya existe en `workspace/[id]/p
 
 - **Estado del plan de 8 etapas:**
   - ✅ Etapa 0-4: Completadas y validadas en producción
-  - ✅ Etapa 5: Completada (migración 043 ejecutada, validación en vivo pendiente)
-  - ⏳ Etapas 6-8: Pendientes (deprecación, monitoreo, eliminación de `scope_isolated_team_id`)
+  - ✅ Etapa 5: Completada (migración 043 ejecutada, validación en vivo PASS — 2026-06-30)
+  - **✅ Etapa 8a (Limpieza incremental):** Unificación de fuente de datos en accept flow — COMPLETADA Y VALIDADA (commit a077b27, 2026-06-30)
+  - ⏳ Etapas 6-8: Pendientes (deprecación, monitoreo, eliminación completa de `scope_isolated_team_id`)
 
 - **Why:** Las políticas RLS deben evolucionar con la arquitectura de datos. Mantener políticas redundantes aumenta superficie de ataque y complejidad. Simplificar a ownership directo cuando la arquitectura lo permite reduce riesgo y facilita razonamiento sobre seguridad.
 
 - **How to apply:** Cuando una arquitectura de datos evoluciona de acceso compartido a ownership separado, verificar que las políticas RLS viejas son redundantes con datos reales antes de eliminarlas. Documentar el cambio con contexto completo (qué se elimina, por qué era necesario antes, por qué es redundante ahora, qué validación se hizo).
+
+
+---
+
+## 2026-06-30 — Connected Teams Etapa 8a: Unificación de fuente de datos en accept flow (limpieza incremental)
+
+- **Decisión:** Unificar el accept flow (`POST /api/connections/[id]`) a una sola fuente de datos (`data`, resultado del UPDATE) eliminando el fetch redundante de `fullConnection`. Agregar campos necesarios (`requester_account_id`, `requester_team_id`, `requester_team_name`, etc.) al SELECT del UPDATE para evitar segundo query.
+
+- **Motivo:** Durante el rediseño de Connected Teams (Etapas 0-5), se detectó un problema arquitectural: el código mezclaba dos fuentes de datos inconsistentes (data del UPDATE, y fullConnection de un SELECT redundante) para nombrar los teams del Host y del Invitado — con riesgo de race conditions si ambos SELECTs leían valores diferentes.
+
+- **Contexto del plan mayor:** Esta es la primera sub-etapa de limpieza dentro del plan de 8 etapas de Connected Teams. El plan completo contempla eliminar `scope_isolated_team_id` en la Etapa 8 final. La Etapa 8a avanza en esa dirección limpiando código muerto y simplificando el flow de creación de isolated teams, pero NO toca `scope_isolated_team_id` todavía (eso queda para Etapa 8).
+
+- **Cambios implementados:**
+  1. **Línea 57 de route.ts:** Expandir `.select()` del UPDATE para incluir todos los campos necesarios
+  2. **Líneas 110-252 de route.ts:** Eliminar fetch redundante de `fullConnection` (11 líneas) y flow legacy de creación con `scope_isolated_team_id` (180 líneas del código viejo)
+  3. **Fuente única:** TODO el código usa `data.requester_team_id`, `data.requester_account_id`, `data.requester_email`, `data.receiver_email`, `data.requester_team_name`, `data.description`, `data.color` consistentemente
+  4. **src/lib/db/connections.ts:** Eliminados helpers de dual-read que ya no se usan
+
+- **Beneficios:**
+  - Single source of truth previene race conditions de data desync
+  - Reduce DB queries: una menos por cada connection accept
+  - Código más limpio: -32 líneas netas después de reestructuración completa
+
+- **Validación en vivo PASS (2026-06-30):**
+  - Conexión de prueba: `604bfeb6-...` (Host: agustinestefanell@gmail.com, Invitee: arenaglirsas@gmail.com)
+  - `host_isolated_team_id`: `9cd4a379-...`
+  - `invitee_isolated_team_id`: `c4a392e7-...` (distintos ✓)
+  - Nombres de teams y proyectos: correctos, sin mezclas de fuente de datos ✓
+  - Workspaces separados: `9a2099fc-...` (Host) + `f4fb4b83-...` (Invitee) ✓
+  - Funcionalidad UI: ambos usuarios pueden escribir al Manager sin error ✓
+
+- **Alternativas descartadas:**
+  - Mantener `fullConnection` y sincronizar manualmente: descartado porque mantiene el riesgo de desincronización
+  - Hacer dos UPDATEs separados: descartado porque genera más tráfico a DB y más puntos de falla
+
+- **Riesgos conocidos:**
+  - El código asume que `requester_team_id` existe en data — si por alguna razón no está, el fetch de `requesterTeam` podría fallar (pero está dentro del try/catch fail-open)
+
+- **Estado:** Completada y validada en vivo. Commit a077b27 pushed. Esta etapa es parte del plan incremental de limpieza del legado de `scope_isolated_team_id` — la eliminación completa del campo legacy se hará en la Etapa 8 final.
+
+- **Why:** Código legacy con fuentes de datos duplicadas genera bugs de desincronización. Unificar a una sola fuente antes de la Etapa 8 final reduce complejidad y riesgo de la eliminación futura de `scope_isolated_team_id`.
+
+- **How to apply:** Cuando una query duplica datos entre un UPDATE y un SELECT separado, agregar los campos necesarios al SELECT del UPDATE y eliminar la query redundante. Validar con testing en vivo que ambas fuentes de datos estaban sincronizadas antes del cambio.
 
