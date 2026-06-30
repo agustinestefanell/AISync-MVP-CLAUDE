@@ -10794,3 +10794,33 @@ Cuando la arquitectura cambia de un modelo de acceso compartido (cross-account) 
 4. Validar en vivo que el acceso sigue funcionando correctamente
 
 ---
+
+## Sesión 2026-06-30 — Mini OE: Dashboard labels Host/Invitee
+
+**Fecha:** 2026-06-30  
+**Tipo:** Cambio cosmético de texto  
+**Archivos modificados:**
+- src/components/ProjectList.tsx
+
+**Cambio implementado:**
+Renombrar las etiquetas visibles de las conexiones en el Dashboard de "outgoing"/"incoming" a "Host"/"Invitee" para alinear con el lenguaje usado en el resto del producto.
+
+**Detalles técnicos:**
+- Línea 477 de ProjectList.tsx: cambio de `{c.direction}` a `{c.direction === 'outgoing' ? 'Host' : 'Invitee'}`
+- La lógica interna (`c.direction === 'outgoing'` como valor de comparación) se mantiene sin cambios
+- Los estilos visuales (colores, tamaño, bordes) se mantienen idénticos
+
+**Área identificada pero NO modificada:**
+IncomingRequestsPanel.tsx:160 contiene el texto "Active connections (incoming)" que quedó fuera del alcance de esta mini-OE. Ese texto permanece sin cambios, pendiente de revisión separada con Product Owner para evaluar si debe cambiar en su contexto visual completo.
+
+**Alternativa descartada:**
+Cambiar IncomingRequestsPanel.tsx:160 — descartado porque ese texto es descriptivo de sección, no una etiqueta individual de conexión, y requiere validación visual de contexto completo.
+
+**Riesgos:** Ninguno. Cambio puramente cosmético sin impacto en lógica o datos.
+
+**Estado:** CERRADA. Build exitoso.
+
+**Lección clave:**
+En cambios cosméticos, identificar TODOS los lugares donde aparece el texto antes de definir alcance. Decidir explícitamente qué queda dentro y qué queda fuera, documentando ambos casos.
+
+---

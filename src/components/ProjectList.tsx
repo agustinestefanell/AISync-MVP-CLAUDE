@@ -474,7 +474,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                           ? 'text-blue-700 bg-blue-50 border-blue-200'
                           : 'text-purple-700 bg-purple-50 border-purple-200'
                       }`}>
-                        {c.direction}
+                        {c.direction === 'outgoing' ? 'Host' : 'Invitee'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
