@@ -27,10 +27,6 @@ export interface Connection {
   updated_at: string
   description?: string | null
   color?: string | null
-  scope_isolated_workspace_id?: string | null
-  scope_isolated_team?: {
-    workspaces: { id: string }[]
-  } | null
 }
 
 const CONNECTION_COLORS = [

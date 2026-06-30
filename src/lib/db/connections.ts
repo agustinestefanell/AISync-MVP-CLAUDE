@@ -8,33 +8,25 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 /**
  * Gets the isolated team ID for the host (requester) side of a connection.
  *
- * Dual-read logic (Etapas 3-7):
- * - Try host_isolated_team_id first (new architecture)
- * - Fall back to scope_isolated_team_id (legacy architecture)
- *
- * After Etapa 8, this becomes: return connection.host_isolated_team_id
+ * Returns the host's isolated team ID (new architecture).
+ * Legacy scope_isolated_team_id fallback removed in Etapa 8 (2026-06-30).
  */
 export function getHostIsolatedTeamId(connection: {
   host_isolated_team_id?: string | null
-  scope_isolated_team_id?: string | null
 }): string | null {
-  return connection.host_isolated_team_id || connection.scope_isolated_team_id || null
+  return connection.host_isolated_team_id ?? null
 }
 
 /**
  * Gets the isolated team ID for the invitee (receiver) side of a connection.
  *
- * Dual-read logic (Etapas 3-7):
- * - Try invitee_isolated_team_id first (new architecture)
- * - Fall back to scope_isolated_team_id (legacy architecture - SHARED team, incorrect but necessary for old connections)
- *
- * After Etapa 8, this becomes: return connection.invitee_isolated_team_id
+ * Returns the invitee's isolated team ID (new architecture).
+ * Legacy scope_isolated_team_id fallback removed in Etapa 8 (2026-06-30).
  */
 export function getInviteeIsolatedTeamId(connection: {
   invitee_isolated_team_id?: string | null
-  scope_isolated_team_id?: string | null
 }): string | null {
-  return connection.invitee_isolated_team_id || connection.scope_isolated_team_id || null
+  return connection.invitee_isolated_team_id ?? null
 }
 
 /**
@@ -50,7 +42,6 @@ export function getUserIsolatedTeamId(
     receiver_account_id?: string | null
     host_isolated_team_id?: string | null
     invitee_isolated_team_id?: string | null
-    scope_isolated_team_id?: string | null
   },
   currentUserId: string
 ): string | null {
@@ -63,11 +54,8 @@ export function getUserIsolatedTeamId(
 /**
  * Gets the isolated workspace ID for the current user's side of a connection.
  *
- * Dual-read logic (Etapas 3-7):
- * - For host: prefer host_isolated_team.workspaces[0].id, fallback to scope legacy
- * - For invitee: prefer invitee_isolated_team.workspaces[0].id, fallback to scope legacy
- *
- * After Etapa 8, remove scope_isolated_* fallbacks.
+ * Returns the workspace ID from the user's isolated team (host or invitee).
+ * Legacy scope_isolated_* fallbacks removed in Etapa 8 (2026-06-30).
  *
  * @param connection - The connection object with isolated team joins
  * @param currentUserId - The current user's account ID
@@ -79,29 +67,15 @@ export function getUserIsolatedWorkspaceId(
     receiver_account_id?: string | null
     host_isolated_team?: { workspaces?: { id: string }[] } | null
     invitee_isolated_team?: { workspaces?: { id: string }[] } | null
-    scope_isolated_team?: { workspaces?: { id: string }[] } | null
-    scope_isolated_workspace_id?: string | null
   },
   currentUserId: string
 ): string | null {
   const isHost = connection.requester_account_id === currentUserId
 
   if (isHost) {
-    // Host: prefer host_isolated_team.workspaces[0].id, fallback to scope
-    return (
-      connection.host_isolated_team?.workspaces?.[0]?.id ??
-      connection.scope_isolated_team?.workspaces?.[0]?.id ??
-      connection.scope_isolated_workspace_id ??
-      null
-    )
+    return connection.host_isolated_team?.workspaces?.[0]?.id ?? null
   } else {
-    // Invitee: prefer invitee_isolated_team.workspaces[0].id, fallback to scope
-    return (
-      connection.invitee_isolated_team?.workspaces?.[0]?.id ??
-      connection.scope_isolated_team?.workspaces?.[0]?.id ??
-      connection.scope_isolated_workspace_id ??
-      null
-    )
+    return connection.invitee_isolated_team?.workspaces?.[0]?.id ?? null
   }
 }
 
@@ -127,7 +101,7 @@ export async function getVisibleIsolatedTeamIds(
 ): Promise<string[]> {
   const { data: connections } = await supabase
     .from('team_connections')
-    .select('requester_account_id, receiver_account_id, host_isolated_team_id, invitee_isolated_team_id, scope_isolated_team_id, status')
+    .select('requester_account_id, receiver_account_id, host_isolated_team_id, invitee_isolated_team_id, status')
     .eq('status', 'active')
     .or(`requester_account_id.eq.${userId},receiver_account_id.eq.${userId}`)
 

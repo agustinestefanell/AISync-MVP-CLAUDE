@@ -93,13 +93,27 @@ export default function MapView({
 
     fetch('/api/connections')
       .then(r => r.json())
-      .then((connections: Array<{ scope_isolated_team_id?: string; description?: string | null; color?: string | null; status?: string }>) => {
+      .then((connections: Array<{
+        host_isolated_team_id?: string | null
+        invitee_isolated_team_id?: string | null
+        direction: 'outgoing' | 'incoming'
+        description?: string | null
+        color?: string | null
+        status?: string
+      }>) => {
         const map: Record<string, { description: string | null; color: string | null }> = {}
         for (const conn of connections) {
-          if (conn.status === 'active' && conn.scope_isolated_team_id && isolatedTeamIds.includes(conn.scope_isolated_team_id)) {
-            map[conn.scope_isolated_team_id] = {
-              description: conn.description ?? null,
-              color: conn.color ?? null,
+          if (conn.status === 'active') {
+            // Determine the correct team ID based on direction
+            const teamId = conn.direction === 'outgoing'
+              ? conn.host_isolated_team_id
+              : conn.invitee_isolated_team_id
+
+            if (teamId && isolatedTeamIds.includes(teamId)) {
+              map[teamId] = {
+                description: conn.description ?? null,
+                color: conn.color ?? null,
+              }
             }
           }
         }
