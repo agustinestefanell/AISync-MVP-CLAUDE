@@ -1202,3 +1202,34 @@ catch (error) {
 }
 ```
 
+---
+
+### 24. Context Files — PDF extraction crash: DOMMatrix is not defined
+
+**Problema:**
+Ciertos PDFs (confirmado con `TdR_Agroecologia_DAUA_25_09_30.pdf` y `Presupuesto_Nicolas_Cuadro_Manantiales_Maldonado.pdf`) fallaban en extracción de texto de forma determinística — mismo archivo, mismo error, en cada intento.
+
+**Causa raíz confirmada (vía logs de Vercel en producción, gracias a la instrumentación de Stage A — entrada #23):**
+`pdf-parse` depende de `pdfjs-dist`, que en ciertos PDFs (probablemente con estructura de layout compleja) intenta renderizar la página usando APIs de navegador (`DOMMatrix`, `Path2D`, `ImageData`) que no existen en Node.js. El paquete que normalmente provee un polyfill server-side de esas APIs, `@napi-rs/canvas`, no está instalado en el proyecto. Sin él, la extracción revienta con `ReferenceError: DOMMatrix is not defined`.
+
+**Consecuencia:**
+Antes de Stage A, esto era invisible — el archivo quedaba con `extracted_text_available=false` sin ninguna pista de por qué. Con el logging de Stage A, el error apareció completo en los logs de Vercel en el primer intento real, incluyendo file_id, file_type, mensaje y stack trace.
+
+**Lección de método (la parte más importante de este caso):**
+Dos hipótesis previas resultaron incorrectas al confrontarlas con datos reales: (1) se sospechó que la migración 045 no estaba aplicada — estaba aplicada, la request devolvía 200 igual; (2) se sospechó timeout de Vercel de 10s — el límite real configurado es 5 minutos. Ninguna hipótesis sin verificar con logs reales debe tratarse como causa confirmada. Instrumentar primero (Stage A) y leer evidencia real (logs de producción) antes de proponer un fix evitó que se implementara una solución para un problema equivocado.
+
+**Estado:** Causa raíz confirmada. Fix (Stage B) pendiente de definir entre dos opciones: instalar `@napi-rs/canvas` vs. configurar `pdf-parse` para omitir el path de renderizado. Ninguna opción agrega interpretación de contenido visual (gráficos/imágenes) — eso seguiría fuera de alcance del pipeline actual en cualquier caso.
+
+**Archivos involucrados:**
+- `src/lib/context/extractText.ts` (líneas 28-42 — PDF extraction con `pdf-parse`)
+- `src/app/api/context/route.ts` (líneas 104-135 — catch que capturó el error)
+- Logs de Vercel producción (~12:37 PM 2026-07-01)
+
+**Commit relacionado:** 03f4ffe (Stage A — instrumentación que hizo visible el error)
+
+**Lección técnica:**
+Server-side PDF parsing con `pdf-parse`/`pdfjs-dist` requiere polyfills de Canvas APIs cuando el PDF contiene estructura de layout compleja. Sin `@napi-rs/canvas` u otro polyfill equivalente, PDFs complejos fallan con `ReferenceError` de APIs de navegador. La dependencia no es obvia porque `pdf-parse` no la declara como `peerDependency` — solo falla en runtime con ciertos PDFs.
+
+**Lección metodológica:**
+**Instrumentar diagnóstico primero. Leer logs reales. Proponer fix después.** Hipótesis sin evidencia → riesgo de solución incorrecta. Stage A (logging) costó 1 sesión. Sin él, Stage B habría sido adivinanza. Con él, Stage B tiene causa raíz confirmada y dos opciones técnicas claras. El tiempo invertido en diagnóstico se recupera evitando fixes especulativos.
+
