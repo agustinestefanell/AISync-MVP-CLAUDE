@@ -712,3 +712,44 @@ Un try/catch vacío que silencia errores (`catch { /* non-blocking */ }`) puede 
 
 ---
 
+
+## 2026-07-01 — Context Files PDF Extraction — Stage C: Fix de API correcta para pdf-parse v2
+
+**Contexto completo desde Stage A:**
+
+**Stage A (commit 03f4ffe):** Instrumentación de logging estructurado. Agregado campo extraction_error en context_sources (migración 045). Logs revelaron "DOMMatrix is not defined".
+
+**Stage B — Intento 1 (commit 7479b21):** experimental.serverComponentsExternalPackages + @napi-rs/canvas@0.1.80. Validación: 3 uploads fallidos — DOMMatrix persistió.
+
+**Stage B — Intento 2 (commit 93c89d7):** experimental.outputFileTracingIncludes. Falla confirmada tras redeploy sin caché.
+
+**Diagnóstico (commits 091363c y 896f48d):** Endpoint temporal confirmó binario SÍ presente. Problema NO era packaging sino API incorrecta.
+
+**Causa raíz confirmada:**
+pdf-parse v2.4.5 expone clase PDFParse con .getText() y .destroy(), requiere CanvasFactory desde pdf-parse/worker ANTES de PDFParse. El código usaba sintaxis v1 contra paquete v2.
+
+**Stage C — Fix de código:**
+- Imports: CanvasFactory from pdf-parse/worker (primero), PDFParse from pdf-parse
+- Instanciar: new PDFParse({ data: new Uint8Array(buffer), CanvasFactory })
+- Ejecutar: await parser.getText()
+- Destruir: await parser.destroy() en finally con try/catch interno
+- Preservar: { text, supported } return shape, logging Stage A, packaging Stage B, bloque DOCX
+
+**Validación local:**
+✅ npm run lint — OK
+✅ npm run build — Exitoso
+✅ Solo extractText.ts modificado
+
+**Pendiente:**
+⏳ Preview Vercel con PDFs reales + DOCX control
+⏳ Query SQL: extracted_text_available=true, extraction_error=null
+
+**Commit Stage C:** Fix PDF extraction with pdf-parse v2 API
+
+**Rama:** fix/pdf-canvas-binary
+
+**Merge a main:** Solo tras validación preview exitosa
+
+**Estado:** Fix implementado, build local OK, pendiente validación preview.
+
+---

@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-07-01 (Context Files extraction diagnostics — Stage A: instrumented, validation manual pending)
+Last updated: 2026-07-01 (Context Files PDF extraction — Stage C: API fix implemented, build OK, pending preview validation)
 
 ---
 
@@ -144,8 +144,9 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Prompt Library — Tags UX mejorado | ✅ Closed | commit feat: improve tags UX with chip input, suggestions and filter | Chip input (Space/Enter/comma para materializar). X en chips para remover. Suggestions dropdown con tags existentes. Tag filter bar sobre la lista. Tags en cards como botones de filtro. Clear filter. Input con borde visible. Click en tag del filter bar agrega al form si está abierto. |
 | Context Files | ✅ Live | commit e68db2f | Light mode fixed — commit e68db2f |
 | Add Context File | ✅ Closed | `src/components/workspace/AgentPanel.tsx` | Upload, Team, Session, and Project scopes functional. `projectId` now propagated from WorkspaceShell → AgentPanel → ContextFilePanel via `workspace.teams?.project_id`. Migration 017 applied in Supabase. |
-| Context Files extraction diagnostics — Stage A | Partial | Migration 045 + logging instrumentation | Instrumented error capture for text extraction failures. Migration 045 adds `extraction_error` field. Route handler and extractText catches now log and persist error messages. Validation manual pending (requires applying migration + re-uploading failed PDF). Stage B (extraction fix) deferred until diagnostic evidence obtained. See handoff-2026-07.md for details. |
-| Context Files PDF extraction — Stage B | Partial | Branch fix/pdf-canvas-binary | Fixed runtime packaging of @napi-rs/canvas. Base attempt (serverComponentsExternalPackages + direct dependency) validated with 3 real uploads (20:01, 20:08, 20:12) — DOMMatrix persisted after redeploy without cache. Applied intermediate attempt: added outputFileTracingIncludes to explicitly trace canvas-linux-x64-gnu binary into serverless bundle. Pending: new preview validation, merge to main. If still fails, escalate to pdf.js standalone as last resort. See handoff-2026-07.md. |
+| Context Files extraction diagnostics — Stage A | ✅ Closed | Migration 045 + logging | Instrumented error capture: extraction_error field, logging in extractText.ts + route.ts. Revealed "DOMMatrix is not defined" in logs. See handoff-2026-07.md + CodingWorkshop #24. |
+| Context Files PDF extraction — Stage B | ✅ Closed | Commits 7479b21, 93c89d7 | Fixed runtime packaging: @napi-rs/canvas@0.1.80 + serverComponentsExternalPackages + outputFileTracingIncludes. Validated binario presente en build. Stage B necesario pero no suficiente — problema era API v1 vs v2, no packaging. See handoff-2026-07.md + CodingWorkshop #25. |
+| Context Files PDF extraction — Stage C | Partial | Branch fix/pdf-canvas-binary | **Fix de API:** Migrated extractText.ts to pdf-parse v2 API. Import CanvasFactory from pdf-parse/worker (before PDFParse), instantiate PDFParse class with data + CanvasFactory, call .getText(), destroy in finally. Preserved { text, supported } return shape, Stage A logging, Stage B packaging, DOCX block. Build local ✅ OK. **Pending:** Preview validation with real PDFs (TdR_Agroecologia_DAUA_25_09_30.pdf, Presupuesto_Nicolas_Cuadro_Manantiales_Maldonado.pdf) + DOCX control. Merge to main only after preview validation. See handoff-2026-07.md + CodingWorkshop #25. |
 
 ---
 
