@@ -1220,15 +1220,47 @@ Dos hipótesis previas resultaron incorrectas al confrontarlas con datos reales:
 
 **Estado:** Causa raíz confirmada. Fix (Stage B) pendiente de definir entre dos opciones: instalar `@napi-rs/canvas` vs. configurar `pdf-parse` para omitir el path de renderizado. Ninguna opción agrega interpretación de contenido visual (gráficos/imágenes) — eso seguiría fuera de alcance del pipeline actual en cualquier caso.
 
+**Stage B — Fix implementado (pendiente validación preview):**
+Se corrigió el empaquetado runtime de PDF extraction en Vercel mediante dos cambios:
+
+1. **next.config.mjs:** Agregado `experimental.serverComponentsExternalPackages: ['@napi-rs/canvas']` para compatibilidad con Next.js 14.2.35. **Crítico:** En Next 14, la externalización server-side debe usar `experimental.serverComponentsExternalPackages`, NO `serverExternalPackages` de primer nivel (sintaxis de Next 15).
+
+2. **package.json:** Promovido `@napi-rs/canvas` de dependencia opcional/transitiva a directa exacta mediante `npm install --save-exact @napi-rs/canvas@0.1.80`. Versión 0.1.80 requerida por compatibilidad con `pdfjs-dist` (pide `^0.1.80`, NO `1.0.0`). Sin rango semver (`^`, `~`) para evitar incompatibilidades.
+
+**Branch:** `fix/pdf-canvas-binary`  
+**Commit Stage B:** (pendiente push)
+
+**Validación pendiente:**
+- Preview de Vercel desde rama
+- Build Logs: confirmar instalación de @napi-rs/canvas@0.1.80 y canvas-linux-x64-gnu
+- Subir ambos PDFs problemáticos en preview
+- Confirmar `extracted_text_available=true` y `extraction_error=null` para ambos
+- Merge a main solo si validación exitosa
+
+**Intento intermedio (solo si DOMMatrix persiste):**
+Si después de aplicar `experimental.serverComponentsExternalPackages` y dependencia directa, la preview sigue mostrando `DOMMatrix is not defined`, aplicar antes de escalar a `pdf.js standalone`:
+```js
+experimental: {
+  serverComponentsExternalPackages: ['@napi-rs/canvas'],
+  outputFileTracingIncludes: {
+    '/api/context': ['./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*'],
+  },
+}
+```
+
 **Archivos involucrados:**
-- `src/lib/context/extractText.ts` (líneas 28-42 — PDF extraction con `pdf-parse`)
-- `src/app/api/context/route.ts` (líneas 104-135 — catch que capturó el error)
+- `src/lib/context/extractText.ts` (líneas 28-42 — PDF extraction con `pdf-parse`, sin cambios en Stage B)
+- `src/app/api/context/route.ts` (líneas 104-135 — catch que capturó el error, sin cambios en Stage B)
+- `next.config.mjs` (agregado experimental config)
+- `package.json` (agregado @napi-rs/canvas@0.1.80)
 - Logs de Vercel producción (~12:37 PM 2026-07-01)
 
 **Commit relacionado:** 03f4ffe (Stage A — instrumentación que hizo visible el error)
 
-**Lección técnica:**
+**Lección técnica ampliada:**
 Server-side PDF parsing con `pdf-parse`/`pdfjs-dist` requiere polyfills de Canvas APIs cuando el PDF contiene estructura de layout compleja. Sin `@napi-rs/canvas` u otro polyfill equivalente, PDFs complejos fallan con `ReferenceError` de APIs de navegador. La dependencia no es obvia porque `pdf-parse` no la declara como `peerDependency` — solo falla en runtime con ciertos PDFs.
+
+**En Next.js 14, paquetes NAPI server-side deben externalizarse con `experimental.serverComponentsExternalPackages`**. Dependencias opcionales/transitivas no garantizan instalación del binario nativo en runtime serverless — promover a dependencia directa exacta pineada. Versión exacta sin rango semver previene incompatibilidades con peerDependencies de pdfjs-dist. Si el tracer no detecta binarios nativos cargados dinámicamente, `experimental.outputFileTracingIncludes` es un intento intermedio barato antes de un rewrite completo.
 
 **Lección metodológica:**
 **Instrumentar diagnóstico primero. Leer logs reales. Proponer fix después.** Hipótesis sin evidencia → riesgo de solución incorrecta. Stage A (logging) costó 1 sesión. Sin él, Stage B habría sido adivinanza. Con él, Stage B tiene causa raíz confirmada y dos opciones técnicas claras. El tiempo invertido en diagnóstico se recupera evitando fixes especulativos.

@@ -145,6 +145,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Context Files | ✅ Live | commit e68db2f | Light mode fixed — commit e68db2f |
 | Add Context File | ✅ Closed | `src/components/workspace/AgentPanel.tsx` | Upload, Team, Session, and Project scopes functional. `projectId` now propagated from WorkspaceShell → AgentPanel → ContextFilePanel via `workspace.teams?.project_id`. Migration 017 applied in Supabase. |
 | Context Files extraction diagnostics — Stage A | Partial | Migration 045 + logging instrumentation | Instrumented error capture for text extraction failures. Migration 045 adds `extraction_error` field. Route handler and extractText catches now log and persist error messages. Validation manual pending (requires applying migration + re-uploading failed PDF). Stage B (extraction fix) deferred until diagnostic evidence obtained. See handoff-2026-07.md for details. |
+| Context Files PDF extraction — Stage B | Partial | Branch fix/pdf-canvas-binary | Fixed runtime packaging of @napi-rs/canvas. Added experimental.serverComponentsExternalPackages in next.config.mjs (Next 14 syntax). Promoted @napi-rs/canvas@0.1.80 to direct dependency with exact pinning. Pending: preview validation with 2 real PDFs, Build Logs review, merge to main. If DOMMatrix persists, apply intermediate attempt with outputFileTracingIncludes before escalating to pdf.js standalone. See handoff-2026-07.md for full details. |
 
 ---
 
