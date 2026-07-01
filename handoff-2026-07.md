@@ -174,10 +174,41 @@ experimental: {
 },
 ```
 
+**INTENTO INTERMEDIO APLICADO — 2026-07-01 ~20:15**
+
+**Evidencia sólida confirmada:** El intento base (solo `serverComponentsExternalPackages` + dependencia directa) NO fue suficiente.
+
+**Validación en preview con 3 uploads reales:**
+- **Upload 1:** 2026-07-01 20:01 → `DOMMatrix is not defined`
+- **Upload 2:** 2026-07-01 20:08 → `DOMMatrix is not defined`
+- **Upload 3:** 2026-07-01 20:12 (después de redeploy SIN caché) → `DOMMatrix is not defined`
+
+**Conclusión:** El redeploy forzado sin caché de build descartó la hipótesis de caché. El problema NO es de caché — es que el binario nativo `@napi-rs/canvas-linux-x64-gnu` no se está incluyendo en el bundle serverless de `/api/context`.
+
+**Cambio aplicado:**
+Agregado `experimental.outputFileTracingIncludes` en `next.config.mjs` para forzar inclusión explícita del binario nativo en el tracer de Next.js:
+
+```diff
+ experimental: {
+   serverComponentsExternalPackages: ['@napi-rs/canvas'],
++  outputFileTracingIncludes: {
++    '/api/context': ['./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*'],
++  },
+ },
+```
+
+**Ruta confirmada:** `/api/context` (confirmado contra `src/app/api/context/route.ts`)
+
+**Build local:** Exitoso
+
+**Commit:** (siguiente paso)
+
+**Próxima validación:** Nueva preview desde rama actualizada, repetir upload de PDFs reales
+
 **Riesgos pendientes:**
 - Preview podría fallar si Vercel tiene timeout/red/espacio insuficiente durante instalación del binario (32MB)
 - Función serverless con binario nativo tendrá cold start más lento (~2-5s adicionales, aceptable para Context Files)
-- Si persiste error después de intento intermedio, escalar a alternativa `pdf.js standalone` como último recurso
+- Si persiste error después de intento intermedio con outputFileTracingIncludes, escalar a alternativa `pdf.js standalone` como último recurso
 
 **Lección clave:**
 En Next.js 14, paquetes NAPI server-side deben externalizarse con `experimental.serverComponentsExternalPackages`. Dependencias opcionales/transitivas no garantizan instalación del binario nativo en runtime serverless — promover a dependencia directa exacta pineada. Versión exacta sin rango semver previene incompatibilidades con peerDependencies de pdfjs-dist.

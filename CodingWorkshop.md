@@ -1228,17 +1228,19 @@ Se corrigió el empaquetado runtime de PDF extraction en Vercel mediante dos cam
 2. **package.json:** Promovido `@napi-rs/canvas` de dependencia opcional/transitiva a directa exacta mediante `npm install --save-exact @napi-rs/canvas@0.1.80`. Versión 0.1.80 requerida por compatibilidad con `pdfjs-dist` (pide `^0.1.80`, NO `1.0.0`). Sin rango semver (`^`, `~`) para evitar incompatibilidades.
 
 **Branch:** `fix/pdf-canvas-binary`  
-**Commit Stage B:** (pendiente push)
+**Commit Stage B base:** 7479b21  
+**Commit Stage B intento intermedio:** (siguiente)
 
-**Validación pendiente:**
-- Preview de Vercel desde rama
-- Build Logs: confirmar instalación de @napi-rs/canvas@0.1.80 y canvas-linux-x64-gnu
-- Subir ambos PDFs problemáticos en preview
-- Confirmar `extracted_text_available=true` y `extraction_error=null` para ambos
-- Merge a main solo si validación exitosa
+**Validación Stage B base — 2026-07-01:**
+- ❌ **Intento base NO fue suficiente** — confirmado con 3 uploads reales en preview
+- Upload 1 (20:01): `DOMMatrix is not defined`
+- Upload 2 (20:08): `DOMMatrix is not defined`
+- Upload 3 (20:12, post-redeploy sin caché): `DOMMatrix is not defined`
+- **Conclusión:** El binario `canvas-linux-x64-gnu` NO se está incluyendo en el bundle serverless de `/api/context` a pesar de `serverComponentsExternalPackages`
 
-**Intento intermedio (solo si DOMMatrix persiste):**
-Si después de aplicar `experimental.serverComponentsExternalPackages` y dependencia directa, la preview sigue mostrando `DOMMatrix is not defined`, aplicar antes de escalar a `pdf.js standalone`:
+**Intento intermedio APLICADO — 2026-07-01 ~20:15:**
+El intento base falló con evidencia sólida (3 uploads + redeploy sin caché). Se aplicó `experimental.outputFileTracingIncludes` para forzar inclusión explícita del binario nativo:
+
 ```js
 experimental: {
   serverComponentsExternalPackages: ['@napi-rs/canvas'],
@@ -1247,6 +1249,14 @@ experimental: {
   },
 }
 ```
+
+**Razón:** `serverComponentsExternalPackages` externaliza el paquete (evita bundling incorrecto), pero el tracer de Next.js no detecta automáticamente los binarios nativos cargados dinámicamente. `outputFileTracingIncludes` fuerza la inclusión del directorio completo del binario nativo en el output de la función serverless.
+
+**Validación pendiente:**
+- Nueva preview desde rama actualizada
+- Upload de PDFs reales
+- Si exitoso: merge a main
+- Si DOMMatrix persiste: escalar a `pdf.js standalone` como último recurso
 
 **Archivos involucrados:**
 - `src/lib/context/extractText.ts` (líneas 28-42 — PDF extraction con `pdf-parse`, sin cambios en Stage B)
