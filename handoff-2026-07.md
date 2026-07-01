@@ -64,6 +64,134 @@ Archivos de log acumulativos deben tener estrategia de rotación desde el diseñ
 
 ---
 
+## Sesión 2026-07-01 — Context Files — Stage A: Instrumentación de errores de extracción
+
+**Fecha:** 2026-07-01  
+**Tipo:** Fix funcional / Diagnóstico  
+**Estado:** PARTIAL (instrumentado, no validado con caso real)  
+**Commit:** (pendiente)
+
+**Contexto:**
+Algunos archivos PDF fallan en extracción de texto sin causa visible. Investigación previa identificó 4 archivos con `extracted_text_available=false`, sin mensaje de error persistido. El catch vacío en `route.ts:114` y los catches silenciosos en `extractText.ts:35,49` tragaban errores sin loggear.
+
+**Objetivo Stage A:**
+Instrumentar diagnóstico para capturar mensaje real de error, sin corregir extracción aún. Stage B corregirá con evidencia.
+
+**Resultado Demo First:**
+- La demo (`C:\proyectos\AISync\MVP`) NO implementa Context Files ni extracción de texto
+- No hay patrón equivalente para portar
+- Demo no modificada
+
+**Archivos revisados:**
+- `supabase/migrations/017_context_sources.sql` (schema de `context_sources`)
+- `src/app/api/context/route.ts` (catch vacío línea 114)
+- `src/lib/context/extractText.ts` (catches internos líneas 35, 49)
+
+**Archivos tocados:**
+1. `supabase/migrations/045_add_extraction_error_field.sql` (nuevo)
+2. `src/app/api/context/route.ts` (catch instrumentado)
+3. `src/lib/context/extractText.ts` (catches propagando error)
+4. `handoff-2026-07.md` (este archivo)
+5. `PRODUCT_STATUS.md` (actualizado)
+6. `CodingWorkshop.md` (entrada agregada)
+
+**Cambios exactos realizados:**
+
+1. **Migración 045:**
+   ```sql
+   ALTER TABLE public.context_sources
+   ADD COLUMN IF NOT EXISTS extraction_error TEXT;
+   ```
+
+2. **route.ts (líneas 114-133):**
+   - Catch vacío reemplazado por logging estructurado
+   - Captura `error.message` y `error.stack`
+   - Loggea con `[Context Files] Extraction failed` + metadata (file_id, file_type, file_size_bytes)
+   - Persiste error en `context_sources.extraction_error` vía UPDATE
+
+3. **extractText.ts (líneas 35-39 y 53-57):**
+   - PDF catch: loggea `[Context Files] PDF text extraction error` + `throw error`
+   - DOCX catch: loggea `[Context Files] DOCX text extraction error` + `throw error`
+   - Ambos propagán error hacia `route.ts` en lugar de devolver `{ text: null, supported: true }`
+
+**Restricciones respetadas:**
+- ✅ NO se modificó `extracted_text_available`
+- ✅ NO se modificaron parsers (`pdf-parse`, `mammoth`)
+- ✅ NO se agregaron formatos nuevos
+- ✅ NO se tocó UI/UX visible
+- ✅ NO se tocaron archivos no autorizados
+- ✅ NO se modificaron migraciones anteriores
+- ✅ NO se tocó RLS ni storage policies
+
+**Resultado build/lint:**
+- ✅ `npm run lint` — exitoso (2 warnings preexistentes en `CanvasViewport.tsx`, no relacionados)
+- ✅ `npm run build` — exitoso (producción optimizada generada)
+
+**Validación manual:**
+❌ **NO EJECUTADA** — requiere:
+1. Aplicar migración 045 en Supabase Dashboard
+2. Re-subir archivo PDF fallido conocido (ej: `TdR_Agroecologia_DAUA_25_09_30.pdf`)
+3. Consultar `context_sources.extraction_error` en DB
+
+Query de validación pendiente:
+```sql
+SELECT id, title, file_type, file_size_bytes, extracted_text_available, extraction_error
+FROM public.context_sources
+WHERE title ILIKE '%TdR_Agroecologia_DAUA_25_09_30%'
+ORDER BY created_at DESC LIMIT 5;
+```
+
+**Riesgos pendientes:**
+- Migración 045 no aplicada en producción
+- Error real aún desconocido (requiere validación manual)
+- Stage B (fix de extracción) diferido hasta obtener evidencia diagnóstica
+
+**Próximos pasos:**
+1. Product Owner aplica migración 045 en Supabase
+2. Product Owner re-sube archivo PDF fallido
+3. Product Owner ejecuta query de validación y pega mensaje real de `extraction_error`
+4. Con evidencia, diseñar Stage B (corrección de extracción)
+
+**Lección clave:**
+Los fallos de extracción deben preservar mensaje real y stack antes de diseñar fixes de parser o soporte de formatos. Instrumentar diagnóstico primero, corregir después.
+
+---
+
+## Sesión 2026-07-01 — Housekeeping: Migración 044 versionada + organización de diagnósticos
+
+**Fecha:** 2026-07-01  
+**Tipo:** Housekeeping / infraestructura  
+**Estado:** CERRADA  
+**Commit:** ada3faf
+
+**Archivos modificados:**
+- `supabase/migrations/044_drop_scope_isolated_fields.sql` (agregado al repo, +89 líneas)
+- `supabase/diagnostics/DIAGNOSTIC_QUERY_find_mystery_policy.sql` (movido desde raíz)
+- `supabase/diagnostics/DIAGNOSTIC_QUERY_policies_scope_isolated.sql` (movido desde raíz)
+
+**Contexto:**
+Migración 044 ya estaba aplicada en producción (Etapa 8c — eliminación física de campos `scope_isolated_team_id` y `scope_isolated_workspace_id`). Solo faltaba versionar el archivo SQL en el repo.
+
+**Cambios implementados:**
+1. Agregado `044_drop_scope_isolated_fields.sql` a `supabase/migrations/`
+2. Creada carpeta `supabase/diagnostics/` para queries de diagnóstico
+3. Movidos 2 queries de diagnóstico de políticas RLS desde raíz de supabase a diagnostics/
+
+**Razón del cambio:**
+Mantener sincronizado el repo con el estado real de la base de datos en producción. Las migraciones aplicadas deben estar versionadas para trazabilidad y reproducibilidad en otros entornos.
+
+**Decisión técnica:**
+Organizar queries de diagnóstico en carpeta dedicada (`supabase/diagnostics/`) en lugar de dejarlos mezclados con migraciones. Mejora legibilidad y separación de responsabilidades.
+
+**Notas adicionales:**
+- Service role key de Supabase fue rotada previamente (Context Files diagnostic)
+- `.claude/settings.local.json` quedó modificado localmente pero no fue comiteado (configuración de máquina, no va al repo compartido)
+- Pendiente verificar si `.claude/settings.local.json` está en `.gitignore` (higiene, no urgente)
+
+**Estado:** CERRADA. No requiere build (solo SQL). Commit `ada3faf` pushed exitosamente.
+
+---
+
 ## Sesión 2026-06-30 — Etapa 8a: Unificación de fuente de datos en accept flow
 
 **Fecha:** 2026-06-30  

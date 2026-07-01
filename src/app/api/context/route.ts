@@ -111,8 +111,27 @@ export async function POST(req: Request) {
       source.extracted_text_available = true
       source.content_text             = text
     }
-  } catch {
-    // Extraction failed — non-blocking
+  } catch (error) {
+    // Extraction failed — log and persist error for diagnostics
+    const extractionErrorMessage = error instanceof Error ? error.message : String(error)
+    const extractionErrorStack   = error instanceof Error ? error.stack : undefined
+
+    console.error('[Context Files] Extraction failed', {
+      file_id:          source.id,
+      file_type:        mimeType,
+      file_size_bytes:  file.size,
+      extraction_error: extractionErrorMessage,
+      stack:            extractionErrorStack,
+    })
+
+    await supabase
+      .from('context_sources')
+      .update({
+        extraction_error: extractionErrorStack
+          ? `${extractionErrorMessage}\n${extractionErrorStack}`
+          : extractionErrorMessage,
+      })
+      .eq('id', source.id)
   }
 
   return Response.json({ source })

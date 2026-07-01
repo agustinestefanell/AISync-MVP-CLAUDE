@@ -1121,3 +1121,84 @@ El anti-patrón de "no verificar res.ok" genera data loss silencioso. Toda opera
 4. Aplicar a SELECT + INSERT (o UPDATE/DELETE según necesidad)
 5. Verificar res.ok en código frontend antes de parsear respuesta del endpoint
 
+---
+
+### 23. Context Files extraction failures were swallowed
+
+**Problema:**
+Algunos archivos PDF fallaban en extracción de texto sin dejar causa real visible ni persistida. 4 archivos con `extracted_text_available=false` identificados en investigación, sin mensaje de error.
+
+**Causa raíz:**
+Catches internos en `extractText.ts` (líneas 35, 49) devolvían `{ text: null, supported: true }` silenciosamente sin loggear. Catch en `route.ts` (línea 114) estaba vacío, sin logging ni persistencia de error. El sistema ocultaba completamente por qué fallaba la extracción.
+
+**Consecuencia:**
+Imposible diagnosticar sin logs. No se podía distinguir entre:
+- Parser no soportado (archivo .doc viejo, .xlsx, imagen)
+- Parser soportado pero archivo corrupto
+- Timeout de Vercel (>10 segundos)
+- Error en `pdf-parse` o `mammoth`
+- Buffer vacío o encoding incorrecto
+
+**Proceso de solución:**
+1. Investigación exhaustiva: localizar endpoint `/api/context`, función `extractTextFromBuffer`, catches vacíos
+2. Identificar variables disponibles en route handler (source.id, mimeType, file.size)
+3. Diseñar Stage A (diagnóstico) separado de Stage B (corrección)
+4. Agregar campo `extraction_error` en `context_sources` vía migración 045
+5. Instrumentar logging estructurado en 3 puntos:
+   - `route.ts` catch: loggea y persiste error completo con metadata
+   - `extractText.ts` PDF catch: loggea y propaga error
+   - `extractText.ts` DOCX catch: loggea y propaga error
+6. Hacer que catches internos propaguen error con `throw` en lugar de devolver `{ text: null }`
+
+**Solución final:**
+- Migración 045: `ALTER TABLE context_sources ADD COLUMN extraction_error TEXT`
+- `route.ts` catch instrumentado:
+  - Captura `error.message` y `error.stack`
+  - Loggea con `[Context Files] Extraction failed` + file_id, file_type, file_size_bytes
+  - Persiste en `context_sources.extraction_error` vía UPDATE
+- `extractText.ts` catches propagando error:
+  - PDF: loggea `[Context Files] PDF text extraction error` + `throw error`
+  - DOCX: loggea `[Context Files] DOCX text extraction error` + `throw error`
+
+**Archivos modificados:**
+- `supabase/migrations/045_add_extraction_error_field.sql` (nuevo)
+- `src/app/api/context/route.ts` (catch instrumentado, líneas 114-133)
+- `src/lib/context/extractText.ts` (catches propagando, líneas 35-39 y 53-57)
+
+**Restricciones respetadas:**
+- NO se modificó `extracted_text_available` ni su lógica
+- NO se modificaron parsers (`pdf-parse`, `mammoth`)
+- NO se agregaron formatos nuevos
+- NO se tocó UI/UX visible
+- Build exitoso, sin errores introducidos
+
+**Estado:** PARTIAL (instrumentado pero no validado con caso real)
+- Requiere: aplicar migración 045 + re-subir PDF fallido + consultar `extraction_error` en DB
+- Stage B (fix de extracción) diferido hasta obtener evidencia diagnóstica
+
+**Commit:** (pendiente — ver handoff-2026-07.md)
+
+**Lección:**
+Los fallos de extracción deben preservar mensaje real y stack trace antes de diseñar fixes de parser o soporte de formatos. **Instrumentar diagnóstico primero, corregir después con evidencia.** Catches vacíos o silenciosos convierten bugs determinísticos en misterios irresolubles. Toda operación crítica que puede fallar (parseo, API externa, I/O) debe loggear error estructurado con contexto suficiente para reproducir y diagnosticar.
+
+**Patrón reutilizable:**
+```ts
+catch (error) {
+  const errorMessage = error instanceof Error ? error.message : String(error)
+  const errorStack = error instanceof Error ? error.stack : undefined
+  
+  console.error('[Subsystem] Operation failed', {
+    context_id: relevantId,
+    context_type: relevantType,
+    error: errorMessage,
+    stack: errorStack,
+  })
+  
+  // Persistir error en DB si hay campo dedicado
+  await db.update({ error_field: errorStack ? `${errorMessage}\n${errorStack}` : errorMessage })
+  
+  // Propagar error si no es safe to swallow
+  throw error
+}
+```
+

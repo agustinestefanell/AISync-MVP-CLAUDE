@@ -32,8 +32,12 @@ export async function extractTextFromBuffer(
       const pdfParse = (await import('pdf-parse')) as unknown as (buf: Buffer) => Promise<PdfResult>
       const data = await pdfParse(buffer)
       return { text: data.text ?? null, supported: true }
-    } catch {
-      return { text: null, supported: true }
+    } catch (error) {
+      console.error('[Context Files] PDF text extraction error', {
+        extraction_error: error instanceof Error ? error.message : String(error),
+        stack:            error instanceof Error ? error.stack : undefined,
+      })
+      throw error
     }
   }
 
@@ -46,8 +50,12 @@ export async function extractTextFromBuffer(
       const mammoth = await import('mammoth')
       const result  = await mammoth.extractRawText({ buffer })
       return { text: result.value ?? null, supported: true }
-    } catch {
-      return { text: null, supported: true }
+    } catch (error) {
+      console.error('[Context Files] DOCX text extraction error', {
+        extraction_error: error instanceof Error ? error.message : String(error),
+        stack:            error instanceof Error ? error.stack : undefined,
+      })
+      throw error
     }
   }
 
