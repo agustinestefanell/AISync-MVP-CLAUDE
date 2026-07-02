@@ -172,6 +172,16 @@ function ContextSection({
   archiving:   string | null
   onArchive:   (id: string) => void
 }) {
+  function getScopeLabel(scope: string | null | undefined) {
+    if (!scope) return null
+    const labels: Record<string, string> = {
+      project: 'Project',
+      team:    'Team',
+      session: 'Session',
+    }
+    return labels[scope] ?? scope
+  }
+
   return (
     <div>
       <div className="mb-3">
@@ -183,43 +193,51 @@ function ContextSection({
         <p className="text-xs text-[var(--color-text-muted)] italic">No files in this scope.</p>
       ) : (
         <div className="border border-[var(--color-border-default)] rounded-xl overflow-hidden bg-[var(--color-surface)]">
-          {items.map((s, i) => (
-            <div
-              key={s.id}
-              className={`flex items-center gap-4 px-4 py-3 ${
-                i < items.length - 1 ? 'border-b border-[var(--color-border-default)]' : ''
-              }`}
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-[var(--color-text-primary)] truncate">{s.title}</p>
-                <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                  {s.file_type?.split('/').pop() ?? s.source_kind ?? '—'}
-                  {s.file_size_bytes != null && (
-                    <> · {(s.file_size_bytes / 1024).toFixed(1)} KB</>
-                  )}
-                  {' · '}
-                  {s.extracted_text_available ? (
-                    <span className="text-emerald-600">text extracted</span>
-                  ) : (
-                    <span className="text-[var(--color-text-muted)]">no text</span>
-                  )}
-                  {s.notes && <> · {s.notes}</>}
-                </p>
+          {items.map((s, i) => {
+            const scopeLabel = getScopeLabel(s.scope)
+            return (
+              <div
+                key={s.id}
+                className={`flex items-center gap-4 px-4 py-3 ${
+                  i < items.length - 1 ? 'border-b border-[var(--color-border-default)]' : ''
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-[var(--color-text-primary)] truncate">{s.title}</p>
+                  <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+                    {scopeLabel && (
+                      <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-100 text-indigo-700 mr-1">
+                        {scopeLabel}
+                      </span>
+                    )}
+                    {s.file_type?.split('/').pop() ?? s.source_kind ?? '—'}
+                    {s.file_size_bytes != null && (
+                      <> · {(s.file_size_bytes / 1024).toFixed(1)} KB</>
+                    )}
+                    {' · '}
+                    {s.extracted_text_available ? (
+                      <span className="text-emerald-600">text extracted</span>
+                    ) : (
+                      <span className="text-[var(--color-text-muted)]">no text</span>
+                    )}
+                    {s.notes && <> · {s.notes}</>}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] text-[var(--color-text-muted)]">
+                    {new Date(s.created_at).toLocaleDateString()}
+                  </span>
+                  <button
+                    onClick={() => onArchive(s.id)}
+                    disabled={archiving === s.id}
+                    className="text-[11px] text-[var(--color-text-muted)] hover:text-red-500 disabled:opacity-50 transition-colors px-2 py-1 rounded hover:bg-red-50"
+                  >
+                    {archiving === s.id ? 'Archiving…' : 'Archive'}
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[10px] text-[var(--color-text-muted)]">
-                  {new Date(s.created_at).toLocaleDateString()}
-                </span>
-                <button
-                  onClick={() => onArchive(s.id)}
-                  disabled={archiving === s.id}
-                  className="text-[11px] text-[var(--color-text-muted)] hover:text-red-500 disabled:opacity-50 transition-colors px-2 py-1 rounded hover:bg-red-50"
-                >
-                  {archiving === s.id ? 'Archiving…' : 'Archive'}
-                </button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

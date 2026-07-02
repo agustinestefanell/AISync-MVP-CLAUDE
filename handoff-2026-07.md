@@ -789,3 +789,74 @@ Ciclo completo Stage A → B → C cerrado:
 
 Estado final: ✅ Closed
 
+---
+
+## 2026-07-02 — Context Files Lote A: Modal/Page polish
+
+**Tipo:** Mini OE / UI polish / Context Files / Paridad modal-página  
+**Área:** Context Files / ContextFilePanel / ContextPageClient
+
+**Cambios realizados:**
+
+1. **Botón Cancel en modal Add Context File:**
+   - Agregado botón "Cancel" visible junto a "Upload"
+   - Reutiliza el mismo handler de cierre que la X existente
+   - No reemplaza la X, ambos coexisten
+
+2. **Botón Archive en lista Active in this context del modal:**
+   - Portado patrón existente de ContextPageClient.tsx línea 71
+   - UPDATE status='archived' vía Supabase client
+   - Archivo archivado desaparece de lista activa local
+   - Manejo de error con console.error + setError
+
+3. **Campo notes en modal:**
+   - Agregado notes a interfaz ContextSource del modal
+   - Render condicional: {s.notes && <> · {s.notes}</>}
+   - Preserva patrón existente de la página
+
+4. **Scope labels en modal y página:**
+   - Reutilizado campo scope ya existente en interfaces y SELECT
+   - Función getScopeLabel() mapea 'project'|'team'|'session' → 'Project'|'Team'|'Session'
+   - Badge visual: bg-indigo-100 text-indigo-700, size [9px]
+   - NO se amplió SELECT con team_id/session_id/project_id
+   - NO se infirió scope por IDs (evita errores con archivos heredados)
+
+**Limitación arquitectural — título + nombre de archivo:**
+- El schema NO tiene columna file_name separada
+- Campo title puede ser custom (usuario) o default (file.name del upload)
+- No existe forma de distinguir si title es custom o nombre original sin agregar columna original_filename
+- Decisión: mostrar title como display principal + metadata mejorada (file_type, size, extraction status, notes, scope)
+- Solución completa requiere migración futura para agregar original_filename (fuera de alcance de este lote)
+
+**Archivos modificados:**
+- src/components/workspace/ContextFilePanel.tsx
+- src/app/context/ContextPageClient.tsx
+- handoff-2026-07.md
+- PRODUCT_STATUS.md
+
+**Restricciones respetadas:**
+- ✅ No se creó endpoint DELETE/PATCH/nuevo
+- ✅ No se modificó schema ni migraciones
+- ✅ No se tocó RLS ni storage policies
+- ✅ No se modificó input type="file"
+- ✅ No se implementó reasignación de scope
+- ✅ No se implementó vista de archivados
+- ✅ No se implementó búsqueda/filtro/duplicados
+- ✅ No se tocó extracción PDF/DOCX
+- ✅ No se amplió SELECT con team_id/session_id/project_id
+- ✅ No se infirió scope por IDs
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings pre-existentes en CanvasViewport no relacionados)
+- ✅ npm run build: Exitoso
+- ⚠️ Validación visual: Pendiente — Claude Code no puede capturar screenshots del navegador
+
+**Estado:** ⚠️ **Partial** — Código implementado y build exitoso, requiere validación visual por Product Owner
+
+**Validación visual pendiente:**
+1. Modal "Add Context File" — confirmar Cancel visible, Archive por fila, notes visible, scope badges
+2. Página /context — confirmar scope badges, preserve Archive existente
+3. Checklist funcional completo (18 casos)
+
+**Commit:** Pendiente hasta validación visual del Product Owner
+

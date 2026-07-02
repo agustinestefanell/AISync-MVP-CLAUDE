@@ -11,6 +11,7 @@ interface ContextSource {
   file_type:                string | null
   file_size_bytes:          number | null
   extracted_text_available: boolean
+  notes:                    string | null
   created_at:               string
 }
 
@@ -43,6 +44,7 @@ export default function ContextFilePanel({
   const [uploading,   setUploading]   = useState(false)
   const [uploadDone,  setUploadDone]  = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [archiving,   setArchiving]   = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -122,6 +124,25 @@ export default function ContextFilePanel({
       setUploadError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
       setUploading(false)
+    }
+  }
+
+  async function archive(id: string) {
+    setArchiving(id)
+    try {
+      const { error: err } = await supabase
+        .from('context_sources')
+        .update({ status: 'archived', updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (err) throw err
+      // Remove from local state
+      setSessionSources(prev => prev.filter(s => s.id !== id))
+      setTeamSources(prev => prev.filter(s => s.id !== id))
+      setProjectSources(prev => prev.filter(s => s.id !== id))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Archive failed')
+    } finally {
+      setArchiving(null)
     }
   }
 
@@ -239,13 +260,22 @@ export default function ContextFilePanel({
                 </p>
               )}
 
-              <button
-                onClick={handleUpload}
-                disabled={!file || uploading}
-                className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
-              >
-                {uploading ? 'Uploading…' : 'Upload'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpload}
+                  disabled={!file || uploading}
+                  className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+                >
+                  {uploading ? 'Uploading…' : 'Upload'}
+                </button>
+              </div>
 
               <p className="text-[10px] text-gray-600">
                 Supported: TXT, MD, PDF, DOCX, CSV, JSON, HTML. Text is extracted automatically when possible.
@@ -270,16 +300,22 @@ export default function ContextFilePanel({
                     label="Session Context"
                     items={sessionSources}
                     emptyNote={!sessionId ? 'No session ID available' : 'None'}
+                    archiving={archiving}
+                    onArchive={archive}
                   />
                   <ContextSection
                     label="Inherited from Team"
                     items={teamSources}
                     emptyNote={!teamId ? 'No team ID available' : 'None'}
+                    archiving={archiving}
+                    onArchive={archive}
                   />
                   <ContextSection
                     label="Inherited from Project"
                     items={projectSources}
                     emptyNote={!projectId ? 'Open /context to manage project-scope files' : 'None'}
+                    archiving={archiving}
+                    onArchive={archive}
                   />
                 </>
               )}
@@ -293,27 +329,63 @@ export default function ContextFilePanel({
 }
 
 function ContextSection({
-  label, items, emptyNote,
-}: { label: string; items: ContextSource[]; emptyNote: string }) {
+  label, items, emptyNote, archiving, onArchive,
+}: {
+  label:     string
+  items:     ContextSource[]
+  emptyNote: string
+  archiving: string | null
+  onArchive: (id: string) => void
+}) {
+  function getScopeLabel(scope: string | null | undefined) {
+    if (!scope) return null
+    const labels: Record<string, string> = {
+      project: 'Project',
+      team:    'Team',
+      session: 'Session',
+    }
+    return labels[scope] ?? scope
+  }
+
   return (
     <div>
       <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
       {items.length === 0 ? (
         <p className="text-xs text-gray-600 italic">{emptyNote}</p>
-      ) : items.map(s => (
-        <div key={s.id} className="py-1.5 border-b border-gray-800/60">
-          <p className="text-xs text-[var(--color-text-primary)] truncate">{s.title}</p>
-          <p className="text-[10px] text-gray-500 mt-0.5">
-            {s.file_type?.split('/').pop() ?? s.source_kind ?? '—'}
-            {' · '}
-            {s.extracted_text_available ? (
-              <span className="text-emerald-500">text extracted</span>
-            ) : (
-              <span className="text-gray-600">no text</span>
-            )}
-          </p>
-        </div>
-      ))}
+      ) : items.map(s => {
+        const scopeLabel = getScopeLabel(s.scope)
+        return (
+          <div key={s.id} className="py-1.5 border-b border-gray-800/60">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-[var(--color-text-primary)] truncate">{s.title}</p>
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  {scopeLabel && (
+                    <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-100 text-indigo-700 mr-1">
+                      {scopeLabel}
+                    </span>
+                  )}
+                  {s.file_type?.split('/').pop() ?? s.source_kind ?? '—'}
+                  {' · '}
+                  {s.extracted_text_available ? (
+                    <span className="text-emerald-500">text extracted</span>
+                  ) : (
+                    <span className="text-gray-600">no text</span>
+                  )}
+                  {s.notes && <> · {s.notes}</>}
+                </p>
+              </div>
+              <button
+                onClick={() => onArchive(s.id)}
+                disabled={archiving === s.id}
+                className="text-[10px] text-gray-500 hover:text-red-500 disabled:opacity-50 transition-colors px-1.5 py-0.5 rounded hover:bg-red-50 shrink-0"
+              >
+                {archiving === s.id ? 'Archiving…' : 'Archive'}
+              </button>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
