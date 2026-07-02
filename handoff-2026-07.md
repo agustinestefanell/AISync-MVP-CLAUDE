@@ -64,6 +64,157 @@ Archivos de log acumulativos deben tener estrategia de rotación desde el diseñ
 
 ---
 
+## Sesión 2026-07-01 — Context Files — Stage B: Fix extracción PDF por binario canvas faltante
+
+**Fecha:** 2026-07-01  
+**Tipo:** Fix funcional / Runtime packaging  
+**Estado:** PARTIAL (implementado en rama, pendiente validación preview)  
+**Branch:** `fix/pdf-canvas-binary`  
+**Commit rama:** (pendiente)
+
+**Contexto:**
+Stage A (commit 03f4ffe) instrumentó logging y confirmó con logs reales de Vercel que la extracción PDF falla con `DOMMatrix is not defined`. Causa raíz: el binario nativo `@napi-rs/canvas-linux-x64-gnu` no se carga correctamente en runtime serverless de Vercel, a pesar de estar declarado en package-lock.json como dependencia opcional de pdfjs-dist.
+
+**Objetivo Stage B:**
+Corregir empaquetado runtime de @napi-rs/canvas sin tocar lógica de extracción de Stage A. Externalizar el paquete NAPI usando sintaxis válida para Next.js 14.2.35 y promover a dependencia directa exacta pineada.
+
+**Resultado Demo First:**
+- La demo (`C:\proyectos\AISync\MVP`) NO tiene `next.config.mjs` ni usa PDF parsing
+- No hay patrón equivalente para portar
+- Demo no modificada
+
+**Archivos revisados:**
+- `next.config.mjs` (vacío antes del cambio)
+- `package.json` (tenía pdf-parse como transitiva)
+- `package-lock.json` (ya tenía canvas-linux-x64-gnu declarado correctamente)
+- `src/lib/context/extractText.ts` (sin cambios, Stage A intacto)
+- `src/app/api/context/route.ts` (sin cambios, Stage A intacto)
+
+**Archivos tocados:**
+1. `next.config.mjs` (agregado experimental.serverComponentsExternalPackages)
+2. `package.json` (agregado @napi-rs/canvas@0.1.80 como dependencia directa)
+3. `package-lock.json` (actualizado automáticamente por npm)
+4. `handoff-2026-07.md` (este archivo)
+5. `PRODUCT_STATUS.md` (actualizado)
+6. `CodingWorkshop.md` (entrada #24 actualizada)
+
+**Cambios exactos realizados:**
+
+1. **next.config.mjs:**
+   ```js
+   const nextConfig = {
+     experimental: {
+       serverComponentsExternalPackages: ['@napi-rs/canvas'],
+     },
+   };
+   ```
+   **Razón:** En Next.js 14.2.35, la externalización server-side debe usar `experimental.serverComponentsExternalPackages`, NO `serverExternalPackages` de primer nivel (sintaxis de Next 15). Esto previene que Next bundlee incorrectamente el paquete NAPI y su binario nativo.
+
+2. **package.json:**
+   ```bash
+   npm install --save-exact @napi-rs/canvas@0.1.80
+   ```
+   Resultado: `"@napi-rs/canvas": "0.1.80"` (versión exacta, sin ^ ni ~)
+   
+   **Razón:** Promover de dependencia opcional/transitiva a directa exacta asegura que el build FALLE si no se instala (mejor que fallar en runtime). Versión 0.1.80 requerida por compatibilidad con pdfjs-dist (pide ^0.1.80, no 1.0.0).
+
+**Verificaciones automáticas:**
+- ✅ `experimental.serverComponentsExternalPackages` presente en next.config.mjs
+- ✅ `serverExternalPackages` ausente (correcto para Next 14)
+- ✅ `package.json` contiene `"@napi-rs/canvas": "0.1.80"` (exacto, sin rango semver)
+- ✅ `npm ls @napi-rs/canvas` resuelve 0.1.80 deduped
+- ✅ Validación node confirma pinning: `@napi-rs/canvas pinned OK: 0.1.80`
+- ✅ Sin diff en `extractText.ts` ni `route.ts` (Stage A intacto)
+- ✅ Build local exitoso (warnings preexistentes en CanvasViewport)
+
+**Restricciones respetadas:**
+- ✅ NO se tocó extractText.ts
+- ✅ NO se tocó route.ts
+- ✅ NO se tocó UI/UX
+- ✅ NO se modificaron parsers
+- ✅ NO se agregaron formatos nuevos
+- ✅ NO se tocó extracted_text_available ni extraction_error
+- ✅ NO se usó serverExternalPackages de primer nivel
+- ✅ NO se instaló @napi-rs/canvas@1.0.0 ni versión con rango semver
+
+**Estado actual:**
+- Branch `fix/pdf-canvas-binary` creada desde main actualizado
+- Cambios commiteados en rama (pendiente)
+- Pusheado a origin (pendiente)
+- Preview de Vercel (pendiente)
+- Validación Build Logs (pendiente)
+- Validación PDFs reales (pendiente)
+- Merge a main (pendiente validación preview exitosa)
+
+**Próximos pasos obligatorios:**
+1. Push de rama a origin
+2. Generar preview de Vercel desde rama
+3. Revisar Build Logs de preview buscando:
+   - Instalación correcta de @napi-rs/canvas@0.1.80
+   - Instalación correcta de @napi-rs/canvas-linux-x64-gnu
+   - Referencias a serverComponentsExternalPackages
+   - Ausencia de warnings críticos sobre canvas/napi-rs
+4. Subir `TdR_Agroecologia_DAUA_25_09_30.pdf` en preview
+5. Subir `Presupuesto_Nicolas_Cuadro_Manantiales_Maldonado.pdf` en preview
+6. Consultar `context_sources` y confirmar:
+   - `extracted_text_available = true` para ambos
+   - `extraction_error = null` para ambos
+7. Si ambos PDFs se extraen correctamente: mergear a main
+8. Si sigue fallando con `DOMMatrix`: aplicar intento intermedio con `experimental.outputFileTracingIncludes`
+
+**Intento intermedio (solo si preview falla con DOMMatrix):**
+Si después de aplicar `experimental.serverComponentsExternalPackages` y `@napi-rs/canvas@0.1.80` exacto, la preview sigue mostrando `DOMMatrix is not defined`, aplicar antes de escalar a `pdf.js standalone`:
+
+```js
+experimental: {
+  serverComponentsExternalPackages: ['@napi-rs/canvas'],
+  outputFileTracingIncludes: {
+    '/api/context': ['./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*'],
+  },
+},
+```
+
+**INTENTO INTERMEDIO APLICADO — 2026-07-01 ~20:15**
+
+**Evidencia sólida confirmada:** El intento base (solo `serverComponentsExternalPackages` + dependencia directa) NO fue suficiente.
+
+**Validación en preview con 3 uploads reales:**
+- **Upload 1:** 2026-07-01 20:01 → `DOMMatrix is not defined`
+- **Upload 2:** 2026-07-01 20:08 → `DOMMatrix is not defined`
+- **Upload 3:** 2026-07-01 20:12 (después de redeploy SIN caché) → `DOMMatrix is not defined`
+
+**Conclusión:** El redeploy forzado sin caché de build descartó la hipótesis de caché. El problema NO es de caché — es que el binario nativo `@napi-rs/canvas-linux-x64-gnu` no se está incluyendo en el bundle serverless de `/api/context`.
+
+**Cambio aplicado:**
+Agregado `experimental.outputFileTracingIncludes` en `next.config.mjs` para forzar inclusión explícita del binario nativo en el tracer de Next.js:
+
+```diff
+ experimental: {
+   serverComponentsExternalPackages: ['@napi-rs/canvas'],
++  outputFileTracingIncludes: {
++    '/api/context': ['./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*'],
++  },
+ },
+```
+
+**Ruta confirmada:** `/api/context` (confirmado contra `src/app/api/context/route.ts`)
+
+**Build local:** Exitoso
+
+**Commit:** (siguiente paso)
+
+**Próxima validación:** Nueva preview desde rama actualizada, repetir upload de PDFs reales
+
+**Riesgos pendientes:**
+- Preview podría fallar si Vercel tiene timeout/red/espacio insuficiente durante instalación del binario (32MB)
+- Función serverless con binario nativo tendrá cold start más lento (~2-5s adicionales, aceptable para Context Files)
+- Si persiste error después de intento intermedio con outputFileTracingIncludes, escalar a alternativa `pdf.js standalone` como último recurso
+
+**Lección clave:**
+En Next.js 14, paquetes NAPI server-side deben externalizarse con `experimental.serverComponentsExternalPackages`. Dependencias opcionales/transitivas no garantizan instalación del binario nativo en runtime serverless — promover a dependencia directa exacta pineada. Versión exacta sin rango semver previene incompatibilidades con peerDependencies de pdfjs-dist.
+
+---
+
 ## Sesión 2026-07-01 — Context Files — Stage A: Instrumentación de errores de extracción
 
 **Fecha:** 2026-07-01  
@@ -561,3 +712,44 @@ Un try/catch vacío que silencia errores (`catch { /* non-blocking */ }`) puede 
 
 ---
 
+
+## 2026-07-01 — Context Files PDF Extraction — Stage C: Fix de API correcta para pdf-parse v2
+
+**Contexto completo desde Stage A:**
+
+**Stage A (commit 03f4ffe):** Instrumentación de logging estructurado. Agregado campo extraction_error en context_sources (migración 045). Logs revelaron "DOMMatrix is not defined".
+
+**Stage B — Intento 1 (commit 7479b21):** experimental.serverComponentsExternalPackages + @napi-rs/canvas@0.1.80. Validación: 3 uploads fallidos — DOMMatrix persistió.
+
+**Stage B — Intento 2 (commit 93c89d7):** experimental.outputFileTracingIncludes. Falla confirmada tras redeploy sin caché.
+
+**Diagnóstico (commits 091363c y 896f48d):** Endpoint temporal confirmó binario SÍ presente. Problema NO era packaging sino API incorrecta.
+
+**Causa raíz confirmada:**
+pdf-parse v2.4.5 expone clase PDFParse con .getText() y .destroy(), requiere CanvasFactory desde pdf-parse/worker ANTES de PDFParse. El código usaba sintaxis v1 contra paquete v2.
+
+**Stage C — Fix de código:**
+- Imports: CanvasFactory from pdf-parse/worker (primero), PDFParse from pdf-parse
+- Instanciar: new PDFParse({ data: new Uint8Array(buffer), CanvasFactory })
+- Ejecutar: await parser.getText()
+- Destruir: await parser.destroy() en finally con try/catch interno
+- Preservar: { text, supported } return shape, logging Stage A, packaging Stage B, bloque DOCX
+
+**Validación local:**
+✅ npm run lint — OK
+✅ npm run build — Exitoso
+✅ Solo extractText.ts modificado
+
+**Pendiente:**
+⏳ Preview Vercel con PDFs reales + DOCX control
+⏳ Query SQL: extracted_text_available=true, extraction_error=null
+
+**Commit Stage C:** Fix PDF extraction with pdf-parse v2 API
+
+**Rama:** fix/pdf-canvas-binary
+
+**Merge a main:** Solo tras validación preview exitosa
+
+**Estado:** Fix implementado, build local OK, pendiente validación preview.
+
+---

@@ -1,5 +1,8 @@
 // Server-only — nunca importar desde client components.
 
+import { CanvasFactory } from 'pdf-parse/worker'
+import { PDFParse } from 'pdf-parse'
+
 export interface ExtractResult {
   text:      string | null
   supported: boolean
@@ -25,19 +28,35 @@ export async function extractTextFromBuffer(
     return { text: buffer.toString('utf-8'), supported: true }
   }
 
-  // PDF — pdf-parse (export = syntax — cast to callable)
+  // PDF — pdf-parse v2 with CanvasFactory
   if (type === 'application/pdf') {
+    let parser: PDFParse | null = null
+
     try {
-      type PdfResult = { text: string }
-      const pdfParse = (await import('pdf-parse')) as unknown as (buf: Buffer) => Promise<PdfResult>
-      const data = await pdfParse(buffer)
-      return { text: data.text ?? null, supported: true }
+      parser = new PDFParse({
+        data: new Uint8Array(buffer),
+        CanvasFactory,
+      })
+
+      const result = await parser.getText()
+
+      return { text: result.text ?? null, supported: true }
     } catch (error) {
       console.error('[Context Files] PDF text extraction error', {
         extraction_error: error instanceof Error ? error.message : String(error),
         stack:            error instanceof Error ? error.stack : undefined,
       })
       throw error
+    } finally {
+      if (parser) {
+        try {
+          await parser.destroy()
+        } catch (destroyError) {
+          console.error('[Context Files] PDFParse destroy() failed', {
+            error: destroyError instanceof Error ? destroyError.message : String(destroyError),
+          })
+        }
+      }
     }
   }
 

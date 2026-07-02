@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.95.1",
     "@dagrejs/dagre": "^3.0.0",
     "@google/generative-ai": "^0.24.1",
+    "@napi-rs/canvas": "0.1.80",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.3",
     "@tavily/core": "^0.7.5",
