@@ -1060,3 +1060,28 @@ Después de revisión del Product Owner, se detectó que el filtro de Status no 
 
 **Cambios netos del fix:** +5 líneas (lógica de filtro + dropdown dinámico)
 
+
+**AJUSTES POST-OE1 — Columna Agent oculta + Filtro Team:**
+
+Después de la implementación inicial, se aplicaron dos ajustes menores:
+
+**Ajuste 1 — Columna Agent oculta (lógica preservada):**
+- Removida columna "Agent" del header y filas de la tabla
+- Grid ajustado de 9 columnas a 8 columnas (2fr_1fr_1fr_1.5fr_1.5fr_1fr_1fr_auto)
+- Lógica de `agentLabel`, `getAgentRoleLabel()`, `sessionMap` y fetch a `agent_sessions` PRESERVADA en el código (prefijada con `_agentLabel` para evitar lint error)
+- Fácil de reactivar en el futuro simplemente agregando la columna de vuelta al grid
+- Razón: decisión de producto — columna Agent no aporta valor suficiente en tabla de alto nivel
+
+**Ajuste 2 — Filtro por Team:**
+- Agregado segundo dropdown "Team:" junto al filtro de Status
+- Opciones construidas dinámicamente desde valores reales: `distinctTeams` con type guard `(t): t is string => t != null`
+- Default: "All teams"
+- Filtro aplicado en memoria, combinado con filtro de Status (ambos filtros se aplican simultáneamente con lógica AND)
+- Archivos con scope='project' (sin team asociado, `teamName === null`) quedan visibles cuando filtro está en "All teams", ocultos cuando se selecciona un team específico
+
+**Validaciones post-ajustes:**
+- ✅ npm run lint: OK (fix de `_agentLabel` para suprimir warning de variable no usada)
+- ✅ npm run build: Exitoso
+
+**Cambios netos de los ajustes:** +8 líneas (filtro Team), -3 columnas renderizadas (Agent oculta), 0 líneas de lógica de Agent eliminadas
+

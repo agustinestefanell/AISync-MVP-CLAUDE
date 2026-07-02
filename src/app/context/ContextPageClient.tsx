@@ -126,17 +126,27 @@ export default function ContextPageClient({ pageName, userId }: Props) {
     }
   }
 
-  // Filter for status (default: active only)
+  // Filters (default: active status, all teams)
   const [statusFilter, setStatusFilter] = useState<string>('active')
+  const [teamFilter, setTeamFilter] = useState<string>('all')
 
-  // Build dynamic status options from real data
+  // Build dynamic filter options from real data
   const distinctStatuses = Array.from(new Set(sources.map(s => s.status).filter(Boolean)))
     .sort()
+  const distinctTeams = Array.from(
+    new Set(sources.map(s => s.teamName).filter((t): t is string => t != null))
+  ).sort()
 
-  // Apply filter in memory
-  const filteredSources = statusFilter === 'all'
-    ? sources
-    : sources.filter(s => s.status === statusFilter)
+  // Apply filters in memory (both status AND team must pass)
+  const filteredSources = sources.filter(s => {
+    // Status filter
+    const passesStatus = statusFilter === 'all' || s.status === statusFilter
+
+    // Team filter
+    const passesTeam = teamFilter === 'all' || s.teamName === teamFilter
+
+    return passesStatus && passesTeam
+  })
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
@@ -158,21 +168,41 @@ export default function ContextPageClient({ pageName, userId }: Props) {
             <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
           ) : (
             <>
-              {/* Status filter */}
-              <div className="mb-6 flex items-center gap-3">
-                <label className="text-xs font-medium text-[var(--color-text-secondary)]">Status:</label>
-                <select
-                  value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
-                  className="text-xs border border-[var(--color-border-default)] rounded px-2 py-1 bg-[var(--color-surface)] text-[var(--color-text-primary)]"
-                >
-                  {distinctStatuses.map(status => (
-                    <option key={status} value={status}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </option>
-                  ))}
-                  <option value="all">All</option>
-                </select>
+              {/* Filters */}
+              <div className="mb-6 flex items-center gap-6">
+                {/* Status filter */}
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-medium text-[var(--color-text-secondary)]">Status:</label>
+                  <select
+                    value={statusFilter}
+                    onChange={e => setStatusFilter(e.target.value)}
+                    className="text-xs border border-[var(--color-border-default)] rounded px-2 py-1 bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+                  >
+                    {distinctStatuses.map(status => (
+                      <option key={status} value={status}>
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </option>
+                    ))}
+                    <option value="all">All</option>
+                  </select>
+                </div>
+
+                {/* Team filter */}
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-medium text-[var(--color-text-secondary)]">Team:</label>
+                  <select
+                    value={teamFilter}
+                    onChange={e => setTeamFilter(e.target.value)}
+                    className="text-xs border border-[var(--color-border-default)] rounded px-2 py-1 bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+                  >
+                    <option value="all">All teams</option>
+                    {distinctTeams.map(team => (
+                      <option key={team} value={team}>
+                        {team}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Unified table */}
@@ -256,13 +286,12 @@ function UnifiedContextTable({
   return (
     <div className="border border-[var(--color-border-default)] rounded-xl overflow-hidden bg-[var(--color-surface)]">
       {/* Table header */}
-      <div className="grid grid-cols-[2fr_1fr_1fr_1.5fr_1.5fr_1.5fr_1fr_1fr_auto] gap-3 px-4 py-2 bg-gray-50 border-b border-[var(--color-border-default)] text-[10px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
+      <div className="grid grid-cols-[2fr_1fr_1fr_1.5fr_1.5fr_1fr_1fr_auto] gap-3 px-4 py-2 bg-gray-50 border-b border-[var(--color-border-default)] text-[10px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
         <div>File Name</div>
         <div>Type</div>
         <div>Size</div>
         <div>Team Location</div>
         <div>Project</div>
-        <div>Agent</div>
         <div>Scope</div>
         <div>Status</div>
         <div>Actions</div>
@@ -270,14 +299,15 @@ function UnifiedContextTable({
 
       {/* Table rows */}
       {sources.map((s, i) => {
-        const agentLabel = s.agentRole && s.agentProvider
+        // Agent logic preserved but not rendered (for future reactivation)
+        const _agentLabel = s.agentRole && s.agentProvider
           ? `${getAgentRoleLabel(s.agentRole)} (${s.agentProvider})`
           : null
 
         return (
           <div
             key={s.id}
-            className={`grid grid-cols-[2fr_1fr_1fr_1.5fr_1.5fr_1.5fr_1fr_1fr_auto] gap-3 items-center px-4 py-3 ${
+            className={`grid grid-cols-[2fr_1fr_1fr_1.5fr_1.5fr_1fr_1fr_auto] gap-3 items-center px-4 py-3 ${
               i < sources.length - 1 ? 'border-b border-[var(--color-border-default)]' : ''
             }`}
           >
@@ -314,10 +344,7 @@ function UnifiedContextTable({
               {s.projectName ?? '—'}
             </div>
 
-            {/* Agent */}
-            <div className="text-xs text-[var(--color-text-secondary)] truncate">
-              {s.scope === 'session' ? agentLabel ?? '—' : '—'}
-            </div>
+            {/* Agent column hidden — logic preserved above for future reactivation */}
 
             {/* Scope */}
             <div>
