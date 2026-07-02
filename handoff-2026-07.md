@@ -900,14 +900,21 @@ El modal de subida de Context Files ya no permite override manual de título. To
 - ✅ npm run lint: OK (warnings pre-existentes en CanvasViewport)
 - ✅ npm run build: Exitoso
 
-**Validación visual:** ⚠️ **Pendiente** — Claude Code no puede capturar screenshots del navegador
+**Validación visual:** ✅ **Confirmada por Product Owner con screenshot de producción**
 
-**Estado:** ⚠️ **Partial** — Código implementado y build exitoso, requiere validación visual por Product Owner
+**Fecha validación:** 2026-07-02  
+**URL validada:** ai-sync-mvp-claude.vercel.app
 
-**Validación visual pendiente:**
-1. Modal Add Context File — confirmar que NO aparece campo Title (optional)
-2. Subir archivo nuevo — confirmar que aparece en la lista con su nombre real de archivo
-3. Verificar que no hay forma de escribir título custom en el formulario
+**Evidencia verificada:**
+1. ✅ Modal "Add Context File" NO muestra campo "Title (optional)"
+2. ✅ Botones Cancel + Upload visibles y funcionales
+3. ✅ Scope badges (Team) visibles por archivo en lista "Active in this context"
+4. ✅ Notes visible cuando existe contenido
+5. ✅ Archive funcionando correctamente por fila
+6. ✅ Archivo subido aparece con nombre real del archivo (file.name)
+7. ✅ No hay forma de escribir título custom en el formulario
+
+**Estado:** ✅ **Closed** — Código implementado, build exitoso, validación visual confirmada en producción
 
 **Commit:** `7cf5f17` — polish: use filename as context file title
 
