@@ -860,3 +860,54 @@ Estado final: ✅ Closed
 
 **Commit:** Pendiente hasta validación visual del Product Owner
 
+---
+
+## 2026-07-02 — Context Files: Remover campo Title del modal de subida
+
+**Tipo:** Mini OE / UI simplification / Context Files  
+**Área:** ContextFilePanel / Add Context File modal
+
+**Decisión de producto:**
+El modal de subida de Context Files ya no permite override manual de título. Toda nueva subida usa el nombre real del archivo (`file.name`) como `title`.
+
+**Cambios realizados:**
+
+1. **Input Title (optional) eliminado:**
+   - Removido div completo del formulario (label + input)
+   - Estado local `formTitle` eliminado
+   - Handler `setFormTitle` eliminado de `resetForm()`
+
+2. **Payload de subida simplificado:**
+   - Antes: `fd.append('title', formTitle.trim() || file.name)`
+   - Ahora: `fd.append('title', file.name)`
+   - Garantiza que title = nombre real del archivo en nuevas subidas
+
+**Archivos modificados:**
+- src/components/workspace/ContextFilePanel.tsx (-15 líneas netas)
+- PRODUCT_STATUS.md
+- handoff-2026-07.md (esta entrada)
+
+**Restricciones respetadas:**
+- ✅ No se modificó schema ni columna title
+- ✅ No se crearon migraciones
+- ✅ No se tocaron archivos existentes con títulos custom
+- ✅ No se modificó /api/context
+- ✅ No se tocó RLS ni storage
+- ✅ No se tocó input type="file"
+- ✅ No se modificó render de archivos existentes en listas
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings pre-existentes en CanvasViewport)
+- ✅ npm run build: Exitoso
+
+**Validación visual:** ⚠️ **Pendiente** — Claude Code no puede capturar screenshots del navegador
+
+**Estado:** ⚠️ **Partial** — Código implementado y build exitoso, requiere validación visual por Product Owner
+
+**Validación visual pendiente:**
+1. Modal Add Context File — confirmar que NO aparece campo Title (optional)
+2. Subir archivo nuevo — confirmar que aparece en la lista con su nombre real de archivo
+3. Verificar que no hay forma de escribir título custom en el formulario
+
+**Commit:** `7cf5f17` — polish: use filename as context file title
+
