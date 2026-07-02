@@ -918,3 +918,145 @@ El modal de subida de Context Files ya no permite override manual de título. To
 
 **Commit:** `7cf5f17` — polish: use filename as context file title
 
+
+---
+
+## 2026-07-02 — Context Files OE 1: Tabla unificada en /context
+
+**Tipo:** OE / UI refactor acotado / Context Files / tabla unificada
+**Área:** /context / Context Files / scope visibility
+
+**Objetivo:**
+Reemplazar las tres secciones separadas (Project Context / Team Context / Session Context) por una tabla unificada que muestre todos los Context Files con información de ubicación real: proyecto, team, agente cuando aplique, scope, status y acciones.
+
+**Archivos modificados:**
+- src/app/context/ContextPageClient.tsx (+99 líneas, -90 líneas; +189 netas con refactor)
+- handoff-2026-07.md (esta entrada)
+- PRODUCT_STATUS.md (pendiente)
+
+**Decisión técnica crítica — Estrategia de resolución:**
+
+**NO se pudo usar embedding PostgREST** porque `context_sources.project_id`, `context_sources.team_id` y `context_sources.session_id` son columnas **TEXT planas sin Foreign Keys reales** (migración 017).
+
+**Se usó fallback con queries separadas** (preaprobado en OE):
+1. Traer `context_sources` con SELECT acotado incluyendo `project_id,team_id,session_id`
+2. Recolectar IDs distintos de cada tipo: `Array.from(new Set(...))`
+3. Queries separadas acotadas a `projects`, `teams` y `agent_sessions` con `.in('id', ids)`
+4. Mapeo en memoria usando `Map` por id para O(1) lookup
+5. Enriquecer `rawSources` con campos resueltos: `projectName`, `teamName`, `agentRole`, `agentProvider`
+
+**Volumen confirmado:** 10-50 archivos por usuario → fallback con Maps es performante.
+
+**Cambios implementados:**
+
+1. **Interfaz TypeScript extendida:**
+   - Agregados `project_id`, `team_id`, `session_id` (TEXT nullable)
+   - Agregados campos resueltos opcionales: `projectName?`, `teamName?`, `agentRole?`, `agentProvider?`
+
+2. **Función load() refactorizada:**
+   - 5 pasos claros documentados en código
+   - 3 queries paralelas con `Promise.all()`
+   - Maps por `id` para evitar loops anidados
+   - Sin uso de `select('*')`
+   - Sin embedding PostgREST
+
+3. **Tres secciones reemplazadas por tabla unificada:**
+   - Componente `UnifiedContextTable` reemplaza `ContextSection`
+   - Header con 9 columnas: File Name, Type, Size, Team Location, Project, Agent, Scope, Status, Actions
+
+4. **Columnas implementadas (orden exacto requerido):**
+   - **File Name:** Title + metadata secundaria (Notes y extraction status debajo)
+   - **Type:** file_type o source_kind
+   - **Size:** KB con 1 decimal
+   - **Team Location:** teamName para scope team/session, '—' para scope project
+   - **Project:** projectName resuelto
+   - **Agent:** Solo para scope='session', formato "Role (Provider)" (Manager/Worker 1/Worker 2)
+   - **Scope:** Badge indigo (Project/Team/Session)
+   - **Status:** "Active" (hardcoded porque load() filtra por status='active')
+   - **Actions:** Botón Archive con mismo comportamiento actual
+
+5. **Agent role mapping:**
+   - manager → Manager
+   - worker1 → Worker 1
+   - worker2 → Worker 2
+   - Formato: `${roleLabel} (${provider})`
+   - Solo visible cuando scope === 'session'
+
+6. **Preservaciones del Lote A:**
+   - ✅ Notes visible debajo del filename
+   - ✅ Extraction status (text extracted / no text) visible debajo del filename
+   - ✅ Archive button funcional, mismo comportamiento (UPDATE status='archived')
+   - ✅ Title usado como display principal (sin file_name separado)
+
+7. **Filtro de Status:**
+   - Dropdown simple: Active / Archived / All
+   - Default: Active
+   - Nota: implementación actual de load() ya filtra por 'active', así que el filtro UI es preparatorio para futuras expansiones
+
+**Restricciones respetadas:**
+- ✅ NO se tocó ContextFilePanel.tsx (modal)
+- ✅ NO se tocaron routes de API
+- ✅ NO se tocaron migraciones
+- ✅ NO se tocó RLS
+- ✅ NO se tocó Storage
+- ✅ NO se renombró Archive a Delete
+- ✅ NO se implementó delete real
+- ✅ NO se agregó búsqueda, paginación ni reasignación de scope
+- ✅ NO se usó `select('*')`
+- ✅ NO se mostró columna Model/Models (descartado por diseño)
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings pre-existentes en CanvasViewport no relacionados)
+- ✅ npm run build: Exitoso — producción optimizada generada
+
+**Validación visual:**
+⏳ **PENDIENTE** — Claude Code no puede capturar screenshots del navegador.
+
+**Checklist funcional pendiente de validación por Product Owner:**
+Requiere al menos 1 archivo de cada scope (project/team/session) para validar:
+
+1. /context carga sin errores
+2. Tres secciones anteriores reemplazadas por tabla única
+3. Columnas en orden exacto requerido
+4. Scope project: Team Location muestra '—'
+5. Scope project: Agent muestra '—'
+6. Scope team: Team Location muestra team.name
+7. Scope session: Team Location muestra team.name
+8. Scope session: Agent muestra "Role (Provider)"
+9. Agent NO muestra model
+10. Project muestra projects.name
+11. File Name preserva title + metadata (Notes + extraction status)
+12. Notes siguen visibles
+13. Extraction status sigue visible
+14. Actions preserva Archive igual que antes
+15. Status filter muestra dropdown
+16. Status default muestra solo active
+17. Modal NO tocado
+18. API/RLS/migrations NO tocados
+19. Build pasa
+
+**Estado:** ⚠️ **Partial** — Código implementado, build exitoso, validación visual pendiente por Product Owner
+
+**Commit:** Pendiente hasta validación visual confirmada
+
+**Lección técnica:**
+Las columnas relacionales que son TEXT sin Foreign Keys declaradas **no soportan embedding PostgREST** tipo `projects:project_id(name)`. En estos casos, el fallback con queries separadas acotadas + Maps por id es la estrategia correcta. El volumen bajo (10-50 registros) hace que este approach sea performante. Si el volumen creciera a miles, considerar agregar FKs reales en una migración futura.
+
+
+**FIX APLICADO — Status filter dinámico:**
+
+Después de revisión del Product Owner, se detectó que el filtro de Status no era funcional:
+
+1. ✅ **Campo `status` agregado a interfaz** ContextSource como string (no nullable)
+2. ✅ **SELECT actualizado** — Incluye `status` explícitamente y trae TODOS los statuses (removido `.eq('status', 'active')`)
+3. ✅ **Filtro real en memoria** — `filteredSources` aplica lógica correcta: mostrar todos si 'all', o filtrar por `s.status === statusFilter`
+4. ✅ **Dropdown dinámico** — Construido desde valores reales con `Array.from(new Set(sources.map(s => s.status)))`, capitalizado al renderizar
+5. ✅ **Columna Status actualizada** — Muestra `s.status` real (capitalizado) en lugar de hardcoded "Active"
+6. ✅ **Default 'active' preservado** — `useState<string>('active')` mantiene comportamiento esperado
+
+**Validaciones post-fix:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport)
+- ✅ npm run build: Exitoso
+
+**Cambios netos del fix:** +5 líneas (lógica de filtro + dropdown dinámico)
+
