@@ -38,7 +38,6 @@ export default function ContextFilePanel({
 
   // Upload form state
   const [file,        setFile]        = useState<File | null>(null)
-  const [formTitle,   setFormTitle]   = useState('')
   const [formNotes,   setFormNotes]   = useState('')
   const [scope,       setScope]       = useState<'team' | 'project' | 'session'>('team')
   const [uploading,   setUploading]   = useState(false)
@@ -81,7 +80,6 @@ export default function ContextFilePanel({
 
   function resetForm() {
     setFile(null)
-    setFormTitle('')
     setFormNotes('')
     setScope('team')
     setUploadDone(false)
@@ -97,7 +95,7 @@ export default function ContextFilePanel({
     try {
       const fd = new FormData()
       fd.append('file',        file)
-      fd.append('title',       formTitle.trim() || file.name)
+      fd.append('title',       file.name)
       fd.append('scope',       scope)
       fd.append('notes',       formNotes.trim())
       if (teamId)      fd.append('teamId',      teamId)
@@ -226,17 +224,6 @@ export default function ContextFilePanel({
                   {scope === 'team'    && 'Available to all agents in this team.'}
                   {scope === 'project' && 'Available across all teams in the project.'}
                 </p>
-              </div>
-
-              {/* Title */}
-              <div>
-                <label className="text-xs text-gray-400 mb-1.5 block">Title <span className="text-gray-600">(optional)</span></label>
-                <input
-                  value={formTitle}
-                  onChange={e => setFormTitle(e.target.value)}
-                  placeholder="Defaults to file name"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-gray-600 outline-none focus:border-[var(--color-border-focus)] transition-colors"
-                />
               </div>
 
               {/* Notes */}
