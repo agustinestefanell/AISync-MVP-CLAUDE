@@ -762,3 +762,30 @@ Razón: plataforma pre-lanzamiento sin usuarios reales, prioridad en velocidad d
 
 Validación real de los 2 PDFs (`TdR_Agroecologia_DAUA_25_09_30.pdf`, `Presupuesto_Nicolas_Cuadro_Manantiales_Maldonado.pdf`) + DOCX de control se hará directamente en producción después del deploy.
 
+
+**VALIDACIÓN EN PRODUCCIÓN — Stage C cerrado:**
+
+Fecha: 2026-07-02 02:05
+Commit en producción: 41bcd84
+
+Evidencia SQL de context_sources en producción:
+
+| title | extracted_text_available | extraction_error |
+|---|---|---|
+| CASA - ISOPANEL.pdf (application/pdf) | true | null |
+| CASA 1000 U$S por m2.docx | true | null |
+
+Resultado:
+✅ PDF extrae correctamente con API v2 — extracted_text_available=true, extraction_error=null
+✅ DOCX extrae correctamente sin regresión — extracted_text_available=true, extraction_error=null
+
+**Stage C confirmado funcionando en producción real.**
+
+Ciclo completo Stage A → B → C cerrado:
+- Stage A: Instrumentación reveló "DOMMatrix is not defined"
+- Stage B: Packaging correcto de @napi-rs/canvas (necesario pero no suficiente)
+- Stage C: Fix de API v1 → v2 (causa raíz)
+- Validación: Real en producción, ambos tipos de archivo confirmados
+
+Estado final: ✅ Closed
+

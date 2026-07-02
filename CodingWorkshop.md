@@ -1305,9 +1305,9 @@ Se corrigió el uso de la API de `pdf-parse` v2 en `src/lib/context/extractText.
 - ✅ Forma de retorno `{ text, supported }` preservada
 - ✅ Logging de Stage A preservado
 - ✅ Package.json, next.config.mjs no tocados
-- ⏳ **Pendiente:** Validación en preview de Vercel con PDFs reales + DOCX de control
+- ✅ **Validación en producción (2026-07-02 02:05):** PDF (CASA - ISOPANEL.pdf) extracted_text_available=true, extraction_error=null. DOCX (CASA 1000 U$S por m2.docx) extracted_text_available=true, extraction_error=null. Ambos confirmados funcionando en producción real.
 
-**Commit Stage C:** (pendiente — ver handoff-2026-07.md)
+**Commit Stage C:** bda5fd9 (rama), 41bcd84 (merge a main)
 
 **Lección metodológica ampliada:**
 Dos intentos de fix consecutivos atacaron la capa de configuración (Next.js/Vercel packaging) sin cuestionar si el código que consume la librería usaba la API correcta para la versión instalada. La instrumentación de Stage A y el diagnóstico del binario en Stage B confirmaron "qué" fallaba, pero no "por qué" a nivel de código — eso requirió investigación externa específica de la versión exacta de la librería, y luego verificación contra el filesystem real instalado (no contra ejemplos de documentación asumidos como válidos sin confirmar).
@@ -1315,11 +1315,11 @@ Dos intentos de fix consecutivos atacaron la capa de configuración (Next.js/Ver
 **Lección técnica ampliada:**
 Packaging correcto del binario nativo (Stage B) no alcanza si el código usa la API equivocada del parser instalado. En `pdf-parse` v2, el orden de imports (worker antes de main) y el uso explícito de `CanvasFactory` son parte funcional del fix, no solo mejoras de estilo. En runtime serverless, toda instancia de parser debe destruirse en `finally`, pero el cleanup no debe ocultar el error real de extracción (destroy tiene su propio try/catch). Al migrar una API interna, preservar la forma de retorno es obligatorio para evitar regresiones silenciosas.
 
-**Estado:** Fix implementado en rama `fix/pdf-canvas-binary`, build local exitoso. **Pendiente validación en preview de Vercel con PDFs reales antes de merge a main.**
+**Estado:** ✅ **Closed** — Fix implementado, mergeado a main (commit 41bcd84), validado en producción con evidencia SQL real. Ciclo completo Stage A → B → C cerrado.
 
 **Archivos involucrados:**
 - src/lib/context/extractText.ts (bloque PDF migrado a API v2, líneas 3-4 imports, líneas 31-61 bloque PDF completo)
 - node_modules/pdf-parse@2.4.5 (confirmado: exports "./worker" y clase PDFParse existen con tipos correctos)
 
-**Commits relacionados:** 03f4ffe (Stage A), 7479b21 y 93c89d7 (Stage B packaging), 091363c y 896f48d (diagnóstico temporal), (Stage C pendiente)
+**Commits relacionados:** 03f4ffe (Stage A), 7479b21 y 93c89d7 (Stage B packaging), 091363c y 896f48d (diagnóstico temporal), bda5fd9 (Stage C rama), 41bcd84 (merge a main)
 
