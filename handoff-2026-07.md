@@ -1085,3 +1085,23 @@ Después de la implementación inicial, se aplicaron dos ajustes menores:
 
 **Cambios netos de los ajustes:** +8 líneas (filtro Team), -3 columnas renderizadas (Agent oculta), 0 líneas de lógica de Agent eliminadas
 
+
+**VALIDACIÓN VISUAL CONFIRMADA — 2026-07-02:**
+
+Product Owner validó visualmente en producción (ai-sync-mvp-claude.vercel.app/context) con screenshot real.
+
+**Evidencia confirmada:**
+1. ✅ Tabla unificada con 8 columnas (sin columna Agent)
+2. ✅ Dropdown Status funcional (valor seleccionado: "Active")
+3. ✅ Dropdown Team funcional (valor seleccionado: "Prueba por la noche")
+4. ✅ Filtros combinados con lógica AND funcionando correctamente — solo se muestran filas que pertenecen al team seleccionado Y tienen status activo
+5. ✅ Notes preservadas de Lote A visibles debajo del filename
+6. ✅ Extraction status preservado de Lote A visible debajo del filename
+7. ✅ Archive button funcional con comportamiento intacto
+
+**Estado:** ✅ **CERRADA** — OE 1 completada exitosamente
+
+**Commits finales:**
+- e63564f: feat: unify context files table
+- 05e7eef: polish: hide Agent column, add Team filter to context table
+
