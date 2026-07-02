@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-07-01 (Context Files PDF extraction — Stage C: API fix implemented, build OK, pending preview validation)
+Last updated: 2026-07-01 (Context Files PDF extraction — Stage C: merged to main commit 41bcd84, pending production validation)
 
 ---
 
@@ -146,7 +146,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Add Context File | ✅ Closed | `src/components/workspace/AgentPanel.tsx` | Upload, Team, Session, and Project scopes functional. `projectId` now propagated from WorkspaceShell → AgentPanel → ContextFilePanel via `workspace.teams?.project_id`. Migration 017 applied in Supabase. |
 | Context Files extraction diagnostics — Stage A | ✅ Closed | Migration 045 + logging | Instrumented error capture: extraction_error field, logging in extractText.ts + route.ts. Revealed "DOMMatrix is not defined" in logs. See handoff-2026-07.md + CodingWorkshop #24. |
 | Context Files PDF extraction — Stage B | ✅ Closed | Commits 7479b21, 93c89d7 | Fixed runtime packaging: @napi-rs/canvas@0.1.80 + serverComponentsExternalPackages + outputFileTracingIncludes. Validated binario presente en build. Stage B necesario pero no suficiente — problema era API v1 vs v2, no packaging. See handoff-2026-07.md + CodingWorkshop #25. |
-| Context Files PDF extraction — Stage C | Partial | Branch fix/pdf-canvas-binary | **Fix de API:** Migrated extractText.ts to pdf-parse v2 API. Import CanvasFactory from pdf-parse/worker (before PDFParse), instantiate PDFParse class with data + CanvasFactory, call .getText(), destroy in finally. Preserved { text, supported } return shape, Stage A logging, Stage B packaging, DOCX block. Build local ✅ OK. **Pending:** Preview validation with real PDFs (TdR_Agroecologia_DAUA_25_09_30.pdf, Presupuesto_Nicolas_Cuadro_Manantiales_Maldonado.pdf) + DOCX control. Merge to main only after preview validation. See handoff-2026-07.md + CodingWorkshop #25. |
+| Context Files PDF extraction — Stage C | Merged to main — pending production validation | Commit 41bcd84 | **Fix de API:** Migrated extractText.ts to pdf-parse v2 API. Import CanvasFactory from pdf-parse/worker (before PDFParse), instantiate PDFParse class with data + CanvasFactory, call .getText(), destroy in finally. Preserved { text, supported } return shape, Stage A logging, Stage B packaging, DOCX block. Build local ✅ OK. **Merged to main by Product Owner override** (no preview validation — plataforma pre-lanzamiento, validación directa en producción). **Pending:** Real-world validation in production with PDFs (TdR_Agroecologia_DAUA_25_09_30.pdf, Presupuesto_Nicolas_Cuadro_Manantiales_Maldonado.pdf) + DOCX control. See handoff-2026-07.md + CodingWorkshop #25. |
 
 ---
 

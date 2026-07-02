@@ -753,3 +753,12 @@ pdf-parse v2.4.5 expone clase PDFParse con .getText() y .destroy(), requiere Can
 **Estado:** Fix implementado, build local OK, pendiente validación preview.
 
 ---
+
+**MERGE A MAIN — Override de validación preview:**
+
+Merge ejecutado: commit `41bcd84`
+Decisión del Product Owner: validar directamente en producción en lugar de preview.
+Razón: plataforma pre-lanzamiento sin usuarios reales, prioridad en velocidad de iteración sobre red de seguridad de preview.
+
+Validación real de los 2 PDFs (`TdR_Agroecologia_DAUA_25_09_30.pdf`, `Presupuesto_Nicolas_Cuadro_Manantiales_Maldonado.pdf`) + DOCX de control se hará directamente en producción después del deploy.
+
