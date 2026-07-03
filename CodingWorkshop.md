@@ -253,7 +253,7 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
 **Build:** ✅ Pasó sin errores (warnings pre-existentes en CanvasViewport.tsx no relacionados)
 
-**Lección:** 
+**Lección:**
 - Metadata de connection y metadata de team son entidades distintas que deben propagarse separadamente a través de la data flow
 - Server/client boundary: no se puede importar server utilities (createClient) en módulos compartidos que luego son usados por client components
 - Patrón correcto: fetch client-side en useEffect, build map, pass como parámetro a funciones sync
@@ -446,7 +446,7 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
   3. `workspace/[id]/page`: searchParams cambió a `prefill?: string`
   4. `WorkspaceClient` + `WorkspaceShell`: props cambió a `prefillMessage`, removido useEffect de autostart completo
   5. `AgentPanel`: agregado `initialInput?: string` prop + useEffect simple `if (initialInput) setInput(initialInput)`, removido triggerAutoSend completo
-  
+
   **Impacto:** -81 líneas (autostart + debug), +31 líneas (prefill) = **-50 líneas netas**
 
 - **Commit:** `e22ec23` — fix: use prefill input instead of autostart for onboarding initial message
@@ -584,7 +584,7 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
   actualización in-place pero sin prevenir duplicados) + reproducción del
   escenario de reconexión.
 
-- Solución final: Reemplazar .single() por 
+- Solución final: Reemplazar .single() por
   .order('updated_at', { ascending: false }).limit(1).maybeSingle()
   — toma siempre la fila más reciente, nunca lanza error por duplicados.
 
@@ -645,7 +645,7 @@ En flujos cross-account, identificar exactamente qué operaciones cruzan ownersh
 
 - **Proceso de diagnóstico:** Mini OE de solo lectura. Se confirmó que el payload del modal no incluye `type` (líneas 132-144 de EditTeamModal.tsx), que la API sobrescribe `type` incondicionalmente (línea 32 de `/api/teams/[id]/route.ts`), que el bug es preexistente a commit `e0040c3` (router.refresh solo lo expuso visualmente), y que múltiples superficies dependen de `team.type === 'isolated'`: workspace page SSR, WorkspaceShell, HumanChatPanel, agent-map, MapView, TreeView, EditTeamModal.
 
-- **Commits relacionados:** 
+- **Commits relacionados:**
   - `e0040c3` NO introdujo el bug — solo agregó `router.refresh()` que hizo visible inmediatamente el cambio de `type`, antes solo visible tras F5 manual. El bug es preexistente desde la implementación original de `PATCH /api/teams/[id]`.
   - Fix aplicado en commit siguiente — preserva `type = 'isolated'` al editar teams de Connected Teams.
 
@@ -848,6 +848,88 @@ El forward se guardaba correctamente, pero la vista del emisor quedaba desactual
 **Lección:**
 Toda funcionalidad que inserte mensajes humanos en `HumanChatPanel` debe considerar que **`broadcast: { self: false }` excluye al emisor del evento Realtime por diseño**. El emisor necesita actualización local explícita si debe ver su propio mensaje inmediatamente. No asumir que "el mensaje aparecerá via Realtime" — eso solo aplica al destinatario, no al emisor.
 
+---
+
+## #26 — Context Files: cleanup of legacy archived rows
+
+**Fecha:** 2026-07-03
+**Tipo:** OE / Cleanup administrativo / Refactor compartido / One-time migration script
+
+### Problema
+Después de reemplazar Archive por Delete real (OE 2), quedaron 7 filas legacy con `status='archived'` creadas por la semántica anterior del botón Archive.
+
+### Causa raíz
+El botón Archive anterior hacía soft-update a `archived`. Ese botón ya no existe (reemplazado por Delete real en OE 2) y no se crearán nuevas filas `archived`, pero las filas antiguas quedaron huérfanas respecto del nuevo flujo de Delete real.
+
+### Solución
+Se extrajo la lógica central de Delete real a una función compartida `deleteContextSource()` en `src/lib/context/deleteContextSource.ts`. El endpoint DELETE existente (`/api/context/[id]`) y el script one-time (`scripts/migrate-archived-to-deleted.mjs`) usan la misma función, evitando duplicación.
+
+**Función compartida:**
+- Admite dos modos: user mode (con `userId` → ownership check) y admin mode (sin `userId` → sin ownership check)
+- Preserva manejo de fallo parcial crítico de OE 2 (Storage borrado pero DB update falla)
+- Devuelve resultado estructurado con `errorType` discriminado
+- 225 líneas, zero copy-paste del endpoint original
+
+**Endpoint refactorizado:**
+- De 164 → 51 líneas (-113 líneas netas)
+- Comportamiento HTTP idéntico desde el cliente
+- Mantiene verificación de sesión y ownership
+- Seguridad no degradada
+
+**Script administrativo:**
+- Opera únicamente sobre 7 IDs explícitos confirmados por Product Owner (closed list, not dynamic)
+- **NO usa WHERE status='archived' dinámico** para decidir qué migrar
+- Preflight obligatorio: valida que existan exactamente 7 filas con `status='archived'` antes de procesar
+- Aborta batch completo si preflight falla (no procesamiento parcial)
+- Usa `createAdminClient()` justificado: corre como migración administrativa puntual sin sesión de usuario autenticada
+- Script preservado como registro histórico (no borrado después de ejecutar)
+
+### Ejecución
+**Comando:** `node --use-system-ca scripts/migrate-archived-to-deleted.mjs`
+
+**Resultado:**
+- Total procesado: 7 context_sources
+- ✅ Success: 7
+- ℹ️ Already deleted: 0
+- ❌ Errors: 0
+
+**Por cada fila:**
+- Storage deleted: ✅ true (objeto físico eliminado del bucket `context-files`)
+- DB updated: ✅ true (`status='deleted'`, `content_text=null`, `extracted_text_available=false`)
+- Audit logged: ✅ true (`event_type='context_file_deleted'` con metadata completa)
+
+### Seguridad
+El script usa `createAdminClient()` porque corre como migración administrativa puntual sin sesión de usuario autenticada. Esta justificación **no aplica** al endpoint vivo, que debe seguir validando sesión y ownership con cliente RLS normal.
+
+El endpoint DELETE vivo usa cliente RLS normal porque opera en nombre de un usuario autenticado — las storage policies existentes permiten DELETE cuando `auth.uid()` match con el owner del archivo.
+
+### Lección técnica
+Los cleanups batch deben operar sobre **listas cerradas** cuando el objetivo es migrar residuos legacy conocidos. Evitar queries dinámicas amplias (WHERE status='archived') previene que datos nuevos o inesperados entren en una operación destructiva.
+
+**Refactor a función compartida:**
+Cuando un endpoint y un script administrativo necesitan ejecutar la misma operación compleja (Storage + DB + audit_log + manejo de fallo parcial), extraer la lógica a una función compartida evita duplicación y asegura que ambos paths aplican exactamente el mismo comportamiento probado. La función debe admitir modos diferenciados (user vs admin) vía parámetros opcionales, no vía clientes distintos hardcoded.
+
+### Problemas de entorno resueltos
+**TypeScript execution bloqueado:**
+- `tsx` no instalado, npm registry con error de certificado SSL (UNABLE_TO_VERIFY_LEAF_SIGNATURE)
+- Solución: Versión `.mjs` con ES modules nativos + lógica inline (sin imports TypeScript)
+- Ejecutable con `node --use-system-ca` para resolver problemas de certificado SSL corporativo
+
+**Tradeoff aceptado:**
+La versión `.mjs` duplica lógica inline (no reutiliza imports TypeScript) para evitar dependencias externas y problemas de build. Es un script one-time administrativo — la duplicación es aceptable vs. agregar infraestructura de build compleja.
+
+### Archivos modificados
+- `src/lib/context/deleteContextSource.ts` (creado, 225 líneas)
+- `src/app/api/context/[id]/route.ts` (refactor, -113 líneas netas)
+- `scripts/migrate-archived-to-deleted.ts` (creado, 205 líneas — TypeScript original)
+- `scripts/migrate-archived-to-deleted.mjs` (creado, 443 líneas — ES modules ejecutable)
+
+### Build y validaciones
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport no relacionados)
+- ✅ npm run build: Exitoso
+- ✅ TypeScript: Sin errores
+- ⏳ Validación DB/audit_log/Storage: Queries SQL proporcionadas al Product Owner para confirmación manual
+
 **Patrón reutilizable:**
 ```typescript
 // 1. POST al endpoint y obtener mensaje insertado
@@ -915,7 +997,7 @@ CREATE POLICY "Invitee can insert messages in isolated workspace"
       SELECT ags.id
       FROM public.agent_sessions ags
       JOIN public.workspaces w ON w.id = ags.workspace_id
-      JOIN public.team_connections tc 
+      JOIN public.team_connections tc
         ON tc.scope_isolated_team_id = w.team_id
       WHERE tc.receiver_account_id = auth.uid()
         AND tc.status = 'active'
@@ -937,7 +1019,7 @@ Checklist obligatorio para cualquier feature multi-account:
 **Síntoma de alerta:**
 Si una migración agrega políticas de acceso compartido para 2-3 tablas pero el feature involucra 10+ tablas relacionadas, hay RLS gaps.
 
-**Patrón anti:** 
+**Patrón anti:**
 "Migración 028 arregló workspaces y agent_sessions, el resto debe funcionar por transitividad" ❌
 
 **Patrón correcto:**
@@ -1186,17 +1268,17 @@ Los fallos de extracción deben preservar mensaje real y stack trace antes de di
 catch (error) {
   const errorMessage = error instanceof Error ? error.message : String(error)
   const errorStack = error instanceof Error ? error.stack : undefined
-  
+
   console.error('[Subsystem] Operation failed', {
     context_id: relevantId,
     context_type: relevantType,
     error: errorMessage,
     stack: errorStack,
   })
-  
+
   // Persistir error en DB si hay campo dedicado
   await db.update({ error_field: errorStack ? `${errorMessage}\n${errorStack}` : errorMessage })
-  
+
   // Propagar error si no es safe to swallow
   throw error
 }
@@ -1227,8 +1309,8 @@ Se corrigió el empaquetado runtime de PDF extraction en Vercel mediante dos cam
 
 2. **package.json:** Promovido `@napi-rs/canvas` de dependencia opcional/transitiva a directa exacta mediante `npm install --save-exact @napi-rs/canvas@0.1.80`. Versión 0.1.80 requerida por compatibilidad con `pdfjs-dist` (pide `^0.1.80`, NO `1.0.0`). Sin rango semver (`^`, `~`) para evitar incompatibilidades.
 
-**Branch:** `fix/pdf-canvas-binary`  
-**Commit Stage B base:** 7479b21  
+**Branch:** `fix/pdf-canvas-binary`
+**Commit Stage B base:** 7479b21
 **Commit Stage B intento intermedio:** (siguiente)
 
 **Validación Stage B base — 2026-07-01:**
@@ -1329,8 +1411,8 @@ Packaging correcto del binario nativo (Stage B) no alcanza si el código usa la 
 
 ## #26 — Context Files: Delete real con manejo de fallo parcial crítico
 
-**Fecha:** 2026-07-02  
-**OE:** Context Files OE 2  
+**Fecha:** 2026-07-02
+**OE:** Context Files OE 2
 **Área:** DELETE endpoint / Storage cleanup / Audit log / Fallo parcial
 
 ### Problema
