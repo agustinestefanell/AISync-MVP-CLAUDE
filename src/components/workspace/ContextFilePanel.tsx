@@ -43,7 +43,8 @@ export default function ContextFilePanel({
   const [uploading,   setUploading]   = useState(false)
   const [uploadDone,  setUploadDone]  = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const [archiving,   setArchiving]   = useState<string | null>(null)
+  const [deleting,    setDeleting]    = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -125,22 +126,22 @@ export default function ContextFilePanel({
     }
   }
 
-  async function archive(id: string) {
-    setArchiving(id)
+  async function deleteContextFile(id: string) {
+    setDeleting(id)
+    setError(null)
     try {
-      const { error: err } = await supabase
-        .from('context_sources')
-        .update({ status: 'archived', updated_at: new Date().toISOString() })
-        .eq('id', id)
-      if (err) throw err
-      // Remove from local state
-      setSessionSources(prev => prev.filter(s => s.id !== id))
-      setTeamSources(prev => prev.filter(s => s.id !== id))
-      setProjectSources(prev => prev.filter(s => s.id !== id))
+      const res = await fetch(`/api/context/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Delete failed' }))
+        throw new Error(errData.error || 'Delete failed')
+      }
+      // Reload sources
+      await loadActiveSources()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Archive failed')
+      setError(e instanceof Error ? e.message : 'Delete failed')
     } finally {
-      setArchiving(null)
+      setDeleting(null)
+      setConfirmDeleteId(null)
     }
   }
 
@@ -287,22 +288,22 @@ export default function ContextFilePanel({
                     label="Session Context"
                     items={sessionSources}
                     emptyNote={!sessionId ? 'No session ID available' : 'None'}
-                    archiving={archiving}
-                    onArchive={archive}
+                    deleting={deleting}
+                    onDelete={(id) => setConfirmDeleteId(id)}
                   />
                   <ContextSection
                     label="Inherited from Team"
                     items={teamSources}
                     emptyNote={!teamId ? 'No team ID available' : 'None'}
-                    archiving={archiving}
-                    onArchive={archive}
+                    deleting={deleting}
+                    onDelete={(id) => setConfirmDeleteId(id)}
                   />
                   <ContextSection
                     label="Inherited from Project"
                     items={projectSources}
                     emptyNote={!projectId ? 'Open /context to manage project-scope files' : 'None'}
-                    archiving={archiving}
-                    onArchive={archive}
+                    deleting={deleting}
+                    onDelete={(id) => setConfirmDeleteId(id)}
                   />
                 </>
               )}
@@ -311,18 +312,49 @@ export default function ContextFilePanel({
 
         </div>
       </div>
+
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md mx-4 shadow-2xl">
+            <div className="px-6 py-5 border-b border-gray-200">
+              <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Delete file?</h3>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                Warning: The original file will be deleted from storage and cannot be recovered. AISync will keep only metadata and traceability records. This file will no longer be available as AI context. This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="text-xs px-4 py-2 rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmDeleteId) deleteContextFile(confirmDeleteId)
+                }}
+                className="text-xs px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function ContextSection({
-  label, items, emptyNote, archiving, onArchive,
+  label, items, emptyNote, deleting, onDelete,
 }: {
   label:     string
   items:     ContextSource[]
   emptyNote: string
-  archiving: string | null
-  onArchive: (id: string) => void
+  deleting:  string | null
+  onDelete:  (id: string) => void
 }) {
   function getScopeLabel(scope: string | null | undefined) {
     if (!scope) return null
@@ -363,11 +395,11 @@ function ContextSection({
                 </p>
               </div>
               <button
-                onClick={() => onArchive(s.id)}
-                disabled={archiving === s.id}
+                onClick={() => onDelete(s.id)}
+                disabled={deleting === s.id}
                 className="text-[10px] text-gray-500 hover:text-red-500 disabled:opacity-50 transition-colors px-1.5 py-0.5 rounded hover:bg-red-50 shrink-0"
               >
-                {archiving === s.id ? 'Archiving…' : 'Archive'}
+                {deleting === s.id ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>

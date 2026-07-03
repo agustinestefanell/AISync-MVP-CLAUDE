@@ -1323,3 +1323,69 @@ Packaging correcto del binario nativo (Stage B) no alcanza si el código usa la 
 
 **Commits relacionados:** 03f4ffe (Stage A), 7479b21 y 93c89d7 (Stage B packaging), 091363c y 896f48d (diagnóstico temporal), bda5fd9 (Stage C rama), 41bcd84 (merge a main)
 
+
+
+---
+
+## #26 — Context Files: Delete real con manejo de fallo parcial crítico
+
+**Fecha:** 2026-07-02  
+**OE:** Context Files OE 2  
+**Área:** DELETE endpoint / Storage cleanup / Audit log / Fallo parcial
+
+### Problema
+Context Files usaba Archive como soft-update a `status='archived'`. La decisión de producto pasó a requerir Delete real: eliminar el objeto físico de Storage, mantener metadata y trazabilidad en DB, e impedir que el archivo siga disponible como contexto de IA. El escenario de fallo parcial crítico (Storage borrado exitosamente pero DB update falla) debía ser manejado explícitamente con logging, audit trail y respuesta clara al cliente.
+
+### Causa raíz
+No existía endpoint de borrado de Storage. El constraint de `context_sources.status` solo permitía `active`/`archived`, por lo que se necesitaba ampliar a `deleted`. El escenario de fallo parcial (Storage borrado + DB update falla) no estaba contemplado en el diseño inicial.
+
+### Solución implementada
+
+**1. Migración 046:**
+- Ampliar constraint `context_sources_status_check` a `IN ('active', 'archived', 'deleted')`
+- Aplicada manualmente por Product Owner en Supabase SQL Editor, resultado "Success"
+- Archivo creado localmente para documentación y sincronización del repo
+
+**2. Endpoint DELETE /api/context/[id]:**
+- Verificación de sesión y ownership con cliente RLS normal (NO admin client)
+- Lectura de metadata antes de borrar (title, file_path, file_type, file_size_bytes, scope, status)
+- Borrado de Storage cuando `file_path` existe: `supabase.storage.from('context-files').remove([file_path])`
+- Handling de `file_path = null`: salta borrado Storage sin error
+- Update DB: `status='deleted'`, `content_text=null`, `extracted_text_available=false`, `updated_at=now()`
+- Audit log exitoso: `event_type='context_file_deleted'` con metadata completa
+- Respuesta idempotente si ya está `deleted`
+
+**3. Manejo de fallo parcial crítico:**
+Si Storage se borra exitosamente pero el update de DB falla:
+- Log crítico en servidor: `console.error('[Context Files] CRITICAL: storage object deleted but DB update failed')`
+- Intento de insertar `audit_log` con `event_type='context_file_delete_inconsistent'`
+- Metadata: `storage_deleted: true`, `db_update_failed: true`, `db_error`, `context_source_id`, `file_path`, `title`, etc.
+- Respuesta cliente: Error 500 con mensaje claro indicando inconsistencia
+- **No responder como éxito** si DB update falla
+
+**4. Frontend (página + modal):**
+- Archive reemplazado por Delete
+- Confirmación destructiva con texto exacto aprobado
+- Llamada directa a endpoint DELETE (NO soft-update desde frontend)
+- Estado visual para `status='deleted'`: "Deleted from storage" (no "no text" como fallo)
+
+**5. Exclusión de contexto de agentes:**
+`getContextSourcesForRuntime()` ya filtraba correctamente:
+- `.eq('status', 'active')` — deleted no pasa
+- `.eq('extracted_text_available', true)` — deleted no pasa
+- `.not('content_text', 'is', null)` — deleted no pasa
+- **No requirió cambios**
+
+### Decisión de seguridad
+Antes de usar `createAdminClient()`, se revisaron las policies reales del bucket `context-files`. Storage policy `context_files_delete` permite DELETE cuando `auth.uid()::text = (storage.foldername(name))[1]`. Cliente normal con sesión RLS es suficiente — admin client NO necesario.
+
+### Decisión de producto
+No se agrega columna `hash` en el MVP. La trazabilidad se conserva mediante `audit_log.metadata`. Restore NO se implementa porque el objeto físico se elimina — no es una función pendiente, es imposible por diseño salvo backup externo.
+
+### Validaciones
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport no relacionados)
+- ✅ npm run build: Exitoso
+- ⏳ Validación funcional con archivo real: Pendiente por Product Owner
+
+### Lección
+Un delete real debe tratar DB, Storage, UI y Audit Log como una sola operación de producto. El manejo de fallo parcial crítico (Storage borrado pero DB update falla) debe ser explícito, logueado como incidente crítico, registrado en audit_log y comunicado claramente al cliente — no puede ser silencioso. Si el objeto físico se elimina, restore no es una función pendiente — es imposible por diseño salvo que exista backup externo.

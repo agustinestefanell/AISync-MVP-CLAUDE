@@ -1105,3 +1105,116 @@ Product Owner validó visualmente en producción (ai-sync-mvp-claude.vercel.app/
 - e63564f: feat: unify context files table
 - 05e7eef: polish: hide Agent column, add Team filter to context table
 
+---
+
+## 2026-07-02 — Context Files OE 2: Delete real reemplaza Archive
+
+**Fecha:** 2026-07-02  
+**Tipo:** OE / Delete real / Storage + DB + Audit Log / Context Files  
+**Área:** Context Files / `/context` / modal / DELETE endpoint / Supabase Storage / audit_log  
+**Estado:** ⚠️ **Partial** — Código implementado, build exitoso, validación funcional pendiente por Product Owner
+
+**Archivos modificados:**
+- `supabase/migrations/046_allow_deleted_context_sources_status.sql` (nuevo - documentación de migración ya aplicada)
+- `src/app/api/context/[id]/route.ts` (nuevo endpoint DELETE)
+- `src/app/context/ContextPageClient.tsx` (Archive → Delete + confirmación)
+- `src/components/workspace/ContextFilePanel.tsx` (Archive → Delete + confirmación)
+- `handoff-2026-07.md` (esta entrada)
+- `PRODUCT_STATUS.md` (actualizado)
+- `CodingWorkshop.md` (entrada agregada)
+
+**Contexto:**
+Decisión de producto: Archive debe ser reemplazado por Delete real. El usuario debe poder eliminar físicamente el archivo de Storage, mantener metadata y trazabilidad en DB, e impedir que el archivo siga disponible como contexto de IA.
+
+**Objetivo:**
+- Borrar físicamente el objeto de Storage cuando existe `file_path`
+- Marcar `context_sources.status='deleted'`
+- Limpiar `content_text` y marcar `extracted_text_available=false`
+- Registrar `audit_log` con `event_type='context_file_deleted'`
+- Impedir que el archivo deleted quede disponible como contexto de IA
+- Mantener metadata y trazabilidad
+- Confirmación destructiva en UI con texto exacto aprobado
+
+**Cambios implementados:**
+
+**1. Migración 046 (ya aplicada en producción):**
+- Product Owner ejecutó SQL en Supabase SQL Editor el 2026-07-02
+- Resultado: "Success"
+- Constraint `context_sources_status_check` ahora acepta `'active'`, `'archived'`, `'deleted'`
+- Nombre del constraint inferido por convención PostgreSQL (CHECK inline sin nombre explícito en migración 017)
+- Archivo de migración creado localmente para documentación y sincronización del repo
+
+**2. Endpoint DELETE /api/context/[id]:**
+- Verificación de sesión con cliente RLS normal (401 sin sesión)
+- Verificación de ownership: SELECT con `user_id = auth.uid()` (403/404 si no pertenece)
+- Lectura de metadata antes de borrar: `title`, `file_path`, `file_type`, `file_size_bytes`, `scope`, `status`
+- Respuesta idempotente si ya está `deleted`
+- Borrado de Storage cuando `file_path` existe: `supabase.storage.from('context-files').remove([file_path])`
+- Handling de `file_path = null`: salta borrado Storage sin error
+- Update DB: `status='deleted'`, `content_text=null`, `extracted_text_available=false`, `updated_at=now()`
+- Audit log exitoso: `event_type='context_file_deleted'` con metadata completa
+- **Manejo de fallo parcial crítico:** Si Storage se borra pero DB update falla:
+  - Log crítico: `console.error('[Context Files] CRITICAL: storage object deleted but DB update failed')`
+  - Audit log inconsistencia: `event_type='context_file_delete_inconsistent'`
+  - Metadata: `storage_deleted: true`, `db_update_failed: true`, `db_error`, `context_source_id`, `file_path`, `title`, etc.
+  - Respuesta cliente: Error 500 con mensaje claro indicando inconsistencia
+- **Decisión storage client:** Cliente normal con sesión RLS — NO se usa admin client
+- **Justificación:** Storage policies existentes (migración 017) permiten DELETE cuando `auth.uid()::text = (storage.foldername(name))[1]`
+
+**3. Frontend página (/context):**
+- Botón "Archive" reemplazado por "Delete"
+- Función `archive()` reemplazada por `deleteContextFile()`
+- Llamada directa al endpoint: `fetch('/api/context/${id}', { method: 'DELETE' })`
+- **NO usa soft-update directo** desde frontend (prohibido por Sección 6 de la OE)
+- Modal de confirmación destructiva con texto exacto aprobado:
+  > "Warning: The original file will be deleted from storage and cannot be recovered. AISync will keep only metadata and traceability records. This file will no longer be available as AI context. This action cannot be undone."
+- Botones: Cancel (cierra sin acción) + Delete (rojo, destructivo)
+- Estado visual para `status='deleted'`: "Deleted from storage" (gray-500) — no muestra "no text" como si fuera fallo de extracción
+- Filtro Status: debe mostrar "Deleted" automáticamente cuando exista al menos una fila con ese status (pendiente validación)
+
+**4. Frontend modal (ContextFilePanel):**
+- Mismos cambios que página: Archive → Delete, confirmación destructiva, llamada a endpoint DELETE
+- Modal de confirmación con mismo texto exacto
+- Mismo handling de estado visual para deleted
+
+**5. Confirmación de exclusión de contexto de agentes:**
+- `getContextSourcesForRuntime()` en `src/lib/db/context.ts` líneas 165-167:
+  - `.eq('status', 'active')` — archivos deleted NO pasan
+  - `.eq('extracted_text_available', true)` — archivos deleted NO pasan
+  - `.not('content_text', 'is', null)` — archivos deleted NO pasan
+- Triple filtro garantiza que archivos deleted NO quedan disponibles como contexto de IA
+- Chat route (`/api/chat`) usa `getContextSourcesForRuntime()` línea 143
+- **No requirió cambios** — el filtro existente ya excluye deleted automáticamente
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport no relacionados)
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ✅ TypeScript: Sin errores
+
+**Validaciones funcionales pendientes (Sección 13 de la OE):**
+⏳ Setup: subir archivo prueba, confirmar en Storage, confirmar `context_sources.file_path`
+⏳ Delete: click Delete, confirm modal aparece, Cancel funciona, Delete ejecuta
+⏳ DB: `status='deleted'`, `content_text=null`, `extracted_text_available=false`, `updated_at` actualizado
+⏳ Storage: objeto físico borrado (verificación directa en bucket)
+⏳ Audit log: fila `context_file_deleted` con metadata
+⏳ AI context: archivo deleted NO aparece como contexto disponible para agentes
+⏳ UI: filtro Status muestra "Deleted", fila deleted no muestra "no text" como fallo
+⏳ Fallo parcial: Storage borrado + DB update falla (simulación si posible)
+
+**Alternativas descartadas:**
+- Usar admin client para borrar Storage: descartado — cliente normal con RLS es suficiente según policies existentes
+- Implementar restore: descartado — imposible por diseño, el objeto físico se elimina de Storage
+- Agregar columna hash: descartado — trazabilidad vía `audit_log.metadata` alcanza para MVP
+- Hard delete de fila DB: descartado — se preserva metadata para trazabilidad
+
+**Riesgos conocidos:**
+- Fallo parcial (Storage borrado + DB update falla): cubierto con log crítico + audit_log inconsistencia + respuesta error clara
+- Restore no es feature pendiente: es imposible por diseño porque el objeto físico se elimina
+- Filtro Status dinámico: depende de que exista al menos una fila `status='deleted'` para aparecer
+
+**Lección clave:**
+Un delete real debe tratar DB, Storage, UI y Audit Log como una sola operación de producto. Si el objeto físico se elimina, restore no es una función pendiente — es imposible por diseño salvo que exista backup externo. El manejo de fallo parcial crítico (Storage borrado pero DB update falla) debe ser explícito, logueado como incidente crítico, registrado en audit_log y comunicado claramente al cliente — no puede ser silencioso.
+
+**Próximo paso:**
+Validación funcional por Product Owner con archivo de prueba real en producción. Una vez confirmado PASS en todos los criterios de la Sección 13, actualizar estado a Closed y proceder con commit.
+

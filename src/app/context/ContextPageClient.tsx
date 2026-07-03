@@ -48,8 +48,9 @@ export default function ContextPageClient({ pageName, userId }: Props) {
   const [sources,   setSources]   = useState<ContextSource[]>([])
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState<string | null>(null)
-  const [archiving, setArchiving] = useState<string | null>(null)
+  const [deleting,  setDeleting]  = useState<string | null>(null)
   const [showGuide, setShowGuide] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -110,19 +111,22 @@ export default function ContextPageClient({ pageName, userId }: Props) {
 
   useEffect(() => { load() }, [load])
 
-  async function archive(id: string) {
-    setArchiving(id)
+  async function deleteContextFile(id: string) {
+    setDeleting(id)
+    setError(null)
     try {
-      const { error: err } = await supabase
-        .from('context_sources')
-        .update({ status: 'archived', updated_at: new Date().toISOString() })
-        .eq('id', id)
-      if (err) throw err
-      setSources(prev => prev.filter(s => s.id !== id))
+      const res = await fetch(`/api/context/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Delete failed' }))
+        throw new Error(errData.error || 'Delete failed')
+      }
+      // Reload to reflect deleted status
+      await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Archive failed')
+      setError(e instanceof Error ? e.message : 'Delete failed')
     } finally {
-      setArchiving(null)
+      setDeleting(null)
+      setConfirmDeleteId(null)
     }
   }
 
@@ -208,8 +212,8 @@ export default function ContextPageClient({ pageName, userId }: Props) {
               {/* Unified table */}
               <UnifiedContextTable
                 sources={filteredSources}
-                archiving={archiving}
-                onArchive={archive}
+                deleting={deleting}
+                onDelete={(id) => setConfirmDeleteId(id)}
               />
             </>
           )}
@@ -246,16 +250,47 @@ export default function ContextPageClient({ pageName, userId }: Props) {
           </div>
         </div>
       )}
+
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md mx-4 shadow-2xl">
+            <div className="px-6 py-5 border-b border-[var(--color-border-default)]">
+              <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Delete file?</h3>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                Warning: The original file will be deleted from storage and cannot be recovered. AISync will keep only metadata and traceability records. This file will no longer be available as AI context. This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-border-default)]">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="text-xs px-4 py-2 rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmDeleteId) deleteContextFile(confirmDeleteId)
+                }}
+                className="text-xs px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function UnifiedContextTable({
-  sources, archiving, onArchive,
+  sources, deleting, onDelete,
 }: {
   sources:   ContextSource[]
-  archiving: string | null
-  onArchive: (id: string) => void
+  deleting:  string | null
+  onDelete:  (id: string) => void
 }) {
   function getScopeLabel(scope: string | null | undefined) {
     if (!scope) return '—'
@@ -315,7 +350,9 @@ function UnifiedContextTable({
             <div className="min-w-0">
               <p className="text-sm text-[var(--color-text-primary)] truncate">{s.title}</p>
               <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 space-x-1">
-                {s.extracted_text_available ? (
+                {s.status === 'deleted' ? (
+                  <span className="text-gray-500">Deleted from storage</span>
+                ) : s.extracted_text_available ? (
                   <span className="text-emerald-600">text extracted</span>
                 ) : (
                   <span>no text</span>
@@ -361,11 +398,11 @@ function UnifiedContextTable({
             {/* Actions */}
             <div className="flex items-center justify-end">
               <button
-                onClick={() => onArchive(s.id)}
-                disabled={archiving === s.id}
+                onClick={() => onDelete(s.id)}
+                disabled={deleting === s.id}
                 className="text-[11px] text-[var(--color-text-muted)] hover:text-red-500 disabled:opacity-50 transition-colors px-2 py-1 rounded hover:bg-red-50"
               >
-                {archiving === s.id ? 'Archiving…' : 'Archive'}
+                {deleting === s.id ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>
