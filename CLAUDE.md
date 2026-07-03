@@ -124,7 +124,14 @@ Al finalizar cada OE, mini-OE o fix directo, ejecutar en orden:
 1. Diagnóstico: pwd, git branch, git status, git diff --stat
 2. Actualizar archivo de handoff activo (handoff-2026-07.md) — SIEMPRE
 3. Actualizar PRODUCT_STATUS.md — SIEMPRE
-4. Actualizar AISyncPlans.md — si hubo cambio de arquitectura/DB/API/patrón
+4. Evaluar AISyncPlans.md — responder estas preguntas antes de seguir:
+   - ¿Cambié alguna tabla, columna o migración de DB? → actualizar schema
+   - ¿Cambié o agregué alguna API route? → actualizar API routes
+   - ¿Cambié algún patrón técnico o convención del proyecto? → actualizar patrones
+   - ¿Creé o eliminé algún componente estructural? → actualizar árbol de componentes
+   - ¿Cambié providers, servicios externos o configuración global? → actualizar providers
+   Si la respuesta a cualquiera es SÍ → actualizar AISyncPlans.md antes del commit.
+   Si todas son NO → escribir explícitamente: "AISyncPlans.md: sin cambios — [motivo]"
 5. Actualizar DECISIONS.md — si hubo decisión técnica nueva
 6. Actualizar CodingWorkshop.md — si hubo bug o lección técnica
 7. Actualizar AUDIT_REPORT.md — si hubo hallazgo de seguridad

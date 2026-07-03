@@ -2,7 +2,7 @@
 
 Documento de referencia técnica para Workers nuevos o relevos. Basado en lectura directa del código activo, migraciones y handoff.md. No es documentación de marketing.
 
-Última actualización: 2026-05-28
+Última actualización: 2026-07-03
 
 **Documentación interna relacionada:**
 - `PromtsOperativos.md`: archivo de referencia operacional que centraliza los prompts vigentes de Claude Code y GPT OE Maker para sesiones de desarrollo y redacción de OEs.
@@ -615,6 +615,49 @@ export async function POST(request: Request) {
 
 ## 8. Patrones y convenciones del proyecto
 
+### 8.0 Patrón: Resolución de nombres sin PostgREST embedding
+
+**Contexto:** Tablas con columnas relacionales TEXT sin Foreign Keys reales (ej: `context_sources.project_id`, `context_sources.team_id`, `context_sources.session_id`) **no soportan PostgREST embedding** tipo `projects:project_id(name)`.
+
+**Solución:** Queries separadas acotadas + Map en memoria para O(1) lookup.
+
+**Aplicación en Context Files (`/context`):**
+
+1. **Traer `context_sources`** con SELECT acotado incluyendo `project_id`, `team_id`, `session_id`
+2. **Recolectar IDs distintos** de cada tipo:
+   ```typescript
+   const projectIds = Array.from(new Set(rawSources.map(s => s.project_id).filter((id): id is string => id != null)))
+   const teamIds = Array.from(new Set(rawSources.map(s => s.team_id).filter((id): id is string => id != null)))
+   const sessionIds = Array.from(new Set(rawSources.map(s => s.session_id).filter((id): id is string => id != null)))
+   ```
+3. **Queries separadas acotadas:**
+   ```typescript
+   const { data: projects } = await supabase.from('projects').select('id,name').in('id', projectIds)
+   const { data: teams } = await supabase.from('teams').select('id,name').in('id', teamIds)
+   const { data: sessions } = await supabase.from('agent_sessions').select('id,agent_role,provider').in('id', sessionIds)
+   ```
+4. **Map por id** para evitar loops anidados:
+   ```typescript
+   const projectMap = new Map(projects?.map(p => [p.id, p]) ?? [])
+   const teamMap = new Map(teams?.map(t => [t.id, t]) ?? [])
+   const sessionMap = new Map(sessions?.map(s => [s.id, s]) ?? [])
+   ```
+5. **Enriquecer `rawSources`** con campos resueltos:
+   ```typescript
+   const enriched = rawSources.map(s => ({
+     ...s,
+     projectName: s.project_id ? projectMap.get(s.project_id)?.name : undefined,
+     teamName: s.team_id ? teamMap.get(s.team_id)?.name : undefined,
+     agentRole: s.session_id ? sessionMap.get(s.session_id)?.agent_role : undefined,
+   }))
+   ```
+
+**Volumen confirmado:** 10-50 archivos por usuario → fallback con Maps es performante.
+
+**Razón:** Si el volumen creciera a miles, considerar agregar FKs reales en una migración futura para habilitar PostgREST embedding.
+
+**Referencia:** `handoff-2026-07.md` OE 1 Context Files tabla unificada
+
 ### 8.1 `createClient`
 
 Tres variantes:
@@ -747,6 +790,11 @@ Contrato `ToolExecutor`: `execute()` retorna `Promise<ToolExecutionResult>` con 
 | 019 | `019_saved_selections.sql` | saved_selections |
 | 020 | `020_fix_checkpoint_messages_rls.sql` | Fix RLS checkpoint_messages — filtro account_id correcto |
 | 021 | `021_session_attachments_and_tool_calls.sql` | session_attachments + session_tool_calls (trazabilidad efímera) |
+| 042 | `042_host_invitee_isolated_teams.sql` | team_connections: host_isolated_team_id + invitee_isolated_team_id (Connected Teams dos edificios) |
+| 043 | `043_remove_invitee_rls_policies.sql` | Eliminación de políticas RLS invitee redundantes |
+| 044 | `044_drop_scope_isolated_fields.sql` | Eliminación física de scope_isolated_team_id + scope_isolated_workspace_id + 3 políticas RLS legacy |
+| 045 | `045_add_extraction_error_field.sql` | context_sources: extraction_error (diagnóstico Context Files) |
+| 046 | `046_allow_deleted_context_sources_status.sql` | context_sources status CHECK: permite 'deleted' (Context Files delete real) |
 
 ### 10.2 Migraciones clave
 
@@ -762,7 +810,28 @@ Contrato `ToolExecutor`: `execute()` retorna `Promise<ToolExecutionResult>` con 
 
 Migraciones 016–020 aplicadas en Supabase Dashboard. Migración 021 pendiente de aplicar manualmente.
 
-### 10.4 Trazabilidad efímera de sesión — migración 021
+### 10.4 Connected Teams — Arquitectura de dos edificios separados
+
+**Estado:** Implementado y validado en producción (2026-06-30)
+
+**Decisión arquitectónica:** Connected Teams usa modelo de "dos edificios separados" — cada usuario (Host e Invitado) tiene su propio team, workspace y Manager en su propia cuenta. La conexión entre ambos es únicamente el chat humano (`human_messages`). **No existe lectura cruzada entre el Manager de un usuario y el del otro**.
+
+**Schema actual (migración 042):**
+- `team_connections.host_isolated_team_id` → team/workspace del Manager del Host
+- `team_connections.invitee_isolated_team_id` → team/workspace del Manager del Invitado
+- `team_connections.scope_isolated_team_id` → **campo legacy ELIMINADO en migración 044**
+- `team_connections.scope_isolated_workspace_id` → **campo legacy ELIMINADO en migración 044**
+
+**Políticas RLS legacy eliminadas (migración 044):**
+- `"Invitee can read isolated team"` en `teams` (eliminada)
+- `"Invitee can read isolated workspace"` en `workspaces` (eliminada)
+- `"Invitee can read isolated agent_sessions"` en `agent_sessions` (eliminada)
+
+**Justificación:** Con el modelo de dos edificios, cada usuario accede a sus propios recursos por ownership directo (`p.account_id = auth.uid()`), haciendo las políticas legacy completamente redundantes. Las políticas de ownership normales (migración 001) cubren correctamente a ambos usuarios.
+
+**Referencia:** `DECISIONS.md` 2026-06-26, `handoff-2026-07.md` Etapa 8c
+
+### 10.5 Trazabilidad efímera de sesión — migración 021
 
 `session_attachments` y `session_tool_calls` son tablas de trazabilidad efímera por sesión. Su ownership se valida por RLS mediante `agent_sessions → workspaces → teams → projects → account_id = auth.uid()`. `chat/route.ts` registra eventos de attachments y tool calls mediante inserts fire-and-forget (sin `await`, sin bloquear stream) en `session_attachments` y `session_tool_calls`. Además registra `attachment_uploaded` y `tool_call_executed` en `audit_log` para visibilidad en Audit Log. No se guarda base64 de archivos en DB — solo metadata. La integración desde AgentPanel y providers queda pendiente para OEs futuras.
 
@@ -791,6 +860,62 @@ La tabla `token_usage` será la base de persistencia para consumo de tokens por 
 ### Token usage UI — Fase 3
 
 El consumo de tokens del workspace activo se muestra como `rightBadge` opcional en el `TopRibbon`. `TopRibbon` recibe `rightBadge?: React.ReactNode` y lo renderiza en el lado derecho (junto a `rightInfo` si existe). `TokenUsageBadge` es un componente cliente (`'use client'`) que recibe `workspaceId` y consulta `token_usage` al montar filtrando por `workspace_id`. Los registros se agrupan por `provider|model` sumando tokens. Si no hay datos, el badge no se muestra. Click abre mini modal con tabla provider/model/In/Out/Total. Cierra con X o click afuera. El prop `rightBadge` es opcional — páginas que no lo pasen (Audit, Documentation, Teams) quedan sin cambios visuales. El badge no hace polling; dashboard avanzado de consumo es trabajo futuro.
+
+### Context Files — Delete real con Storage cleanup
+
+**Estado:** Implementado y validado en producción (2026-07-02)
+
+**Decisión:** Archive fue reemplazado por Delete real. El usuario puede eliminar físicamente el archivo de Storage, mantener metadata y trazabilidad en DB, e impedir que el archivo siga disponible como contexto de IA.
+
+**Migración 046:** `context_sources.status` acepta `'deleted'` además de `'active'` y `'archived'`. Constraint CHECK actualizado.
+
+**Migración 045:** `context_sources.extraction_error` (TEXT nullable) para diagnóstico de fallos de extracción.
+
+**Módulo compartido:** `src/lib/context/deleteContextSource.ts`
+- Función compartida de borrado real de Context Files
+- Centraliza lógica usada por DELETE `/api/context/[id]` (user mode con ownership check) y scripts administrativos (admin mode sin ownership check)
+- Pasos:
+  1. Leer metadata antes de borrar (verificar ownership si userId provisto)
+  2. Borrar objeto físico de Storage `context-files` si `file_path` existe
+  3. Update DB: `status='deleted'`, `content_text=null`, `extracted_text_available=false`, `updated_at=now()`
+  4. Insert audit_log event `context_file_deleted`
+  5. **Manejo de fallo parcial crítico:** Si Storage se borra pero DB update falla:
+     - Log crítico con metadata completa
+     - Audit log event `context_file_delete_inconsistent`
+     - Respuesta error 500 con mensaje claro
+
+**Filtro de contexto AI:** `getContextSourcesForRuntime()` filtra por `.eq('status', 'active')` + `.eq('extracted_text_available', true)` + `.not('content_text', 'is', null)`. Archivos deleted NO quedan disponibles como contexto de IA.
+
+**Restore:** No soportado por diseño porque el objeto físico de Storage se elimina.
+
+**Referencia:** `handoff-2026-07.md` OE 2 Context Files Delete real
+
+### Context Files — Extracción PDF con pdf-parse v2
+
+**Estado:** Implementado y validado en producción (2026-07-02)
+
+**Problema:** pdf-parse v2.4.5 cambió su API de función directa a clase `PDFParse` que requiere `CanvasFactory` importado desde `pdf-parse/worker`.
+
+**Solución:** `src/lib/context/extractText.ts` usa el patrón correcto para v2:
+
+```typescript
+import { CanvasFactory } from 'pdf-parse/worker'
+import { PDFParse } from 'pdf-parse'
+
+const parser = new PDFParse({
+  data: new Uint8Array(buffer),
+  CanvasFactory,
+})
+
+const result = await parser.getText()
+await parser.destroy()  // En finally con try/catch interno
+```
+
+**Packaging:** `@napi-rs/canvas@0.1.80` como dependencia directa exacta (versión requerida por pdfjs-dist peerDependencies). `next.config.mjs` externaliza con `experimental.serverComponentsExternalPackages: ['@napi-rs/canvas']`.
+
+**Migración 045:** Campo `extraction_error` captura mensajes de fallo reales con logging estructurado.
+
+**Referencia:** `handoff-2026-07.md` Context Files Stage C, `CodingWorkshop.md` entry #25
 
 ### Context Files — project inheritance
 
