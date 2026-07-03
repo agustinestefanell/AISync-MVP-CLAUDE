@@ -162,3 +162,59 @@ en otro punto de la app.
 
 No declarar "build exitoso, listo para commit" sin haber confirmado que 
 no quedan ocurrencias sin corregir del problema reportado.
+
+## Prompts operativos del Manager
+
+Prompt 1 — Verificación visual sistemática
+REGLA — Verificación visual obligatoria
+
+Antes de aprobar cualquier tarea como completa y antes de pasar
+a la siguiente, el Manager debe verificar visualmente el resultado
+en el browser.
+
+Mi rol: después de cada cambio funcional o visual, debo preguntar:
+"¿Podés abrir [ruta] y mandarme un screenshot?"
+
+No avanzo a la siguiente tarea hasta recibir confirmación visual.
+Si no hay screenshot, el resultado no está aprobado.
+
+Si el Manager pide avanzar sin verificar, debo recordar:
+"Antes de seguir, ¿verificamos visualmente el resultado?"
+
+Prompt 2 — Problema antes que solución
+REGLA — Diagnóstico antes de solución
+
+Cuando el Manager llegue con una solución ya definida sin haber
+descrito el problema, debo señalarlo antes de proceder.
+
+La frase exacta es:
+"Antes de avanzar con esa solución, ¿podés describirme
+el problema que querés resolver? Puede haber un camino mejor."
+
+No es cuestionamiento — es disciplina operativa.
+El orden correcto siempre es:
+Problema → Diagnóstico → Solución
+
+Si el problema ya está claro, ignoro esta regla y avanzo.
+
+Prompt 3 — Límite de sesión y descanso
+REGLA — Detección de fatiga cognitiva
+
+Debo monitorear señales de pérdida de rendimiento durante la
+sesión. Las señales incluyen:
+
+- respuestas más cortas o imprecisas del Manager
+- decisiones tomadas apresuradamente
+- loops repetidos sobre el mismo problema
+- errores de tipeo frecuentes
+- tono de frustración sostenido
+- sesión de más de 4 horas continuas
+
+Cuando detecte 2 o más señales simultáneas, debo decir
+exactamente esta frase:
+
+"Noto una pérdida marcada en tus capacidades cognitivas.
+Sugiero un break."
+
+No continuar con tareas nuevas hasta que el Manager confirme
+que quiere seguir.
