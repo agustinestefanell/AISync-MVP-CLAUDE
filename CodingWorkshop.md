@@ -928,7 +928,12 @@ La versión `.mjs` duplica lógica inline (no reutiliza imports TypeScript) para
 - ✅ npm run lint: OK (warnings preexistentes en CanvasViewport no relacionados)
 - ✅ npm run build: Exitoso
 - ✅ TypeScript: Sin errores
-- ⏳ Validación DB/audit_log/Storage: Queries SQL proporcionadas al Product Owner para confirmación manual
+- ✅ Validación DB: Confirmada 2026-07-03 — 7/7 filas `status='deleted'`, `content_text_is_null=true`, `extracted_text_available=false`
+- ✅ Validación audit_log: Confirmada 2026-07-03 — 7/7 entries `event_type='context_file_deleted'`, 0 inconsistencias
+- ✅ Validación visual: Status dropdown muestra solo Active/Deleted/All — "Archived" desapareció automáticamente (no quedan filas con ese valor)
+
+### Nota post-validación
+El constraint de DB `context_sources_status_check` (migración 046) ahora acepta `'active'`, `'archived'`, `'deleted'`. Sin embargo, el flujo actual de Delete real **no puede generar nuevas filas `'archived'`** porque el botón Archive fue reemplazado completamente. Las 7 filas legacy procesadas eran residuos del flujo anterior. No se esperan nuevas filas `'archived'` a menos que se restaure el botón Archive (no planeado).
 
 **Patrón reutilizable:**
 ```typescript

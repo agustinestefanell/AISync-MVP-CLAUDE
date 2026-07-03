@@ -1301,13 +1301,13 @@ d1e75a58-7db7-4db0-a831-f03bf5a77b23
 | 00ad02d6-... | Prueba distinta | ✅ true | ✅ true | ✅ true |
 | 091f096f-... | 2026-05-21_ONTILPLACK_Dom.pdf | ✅ true | ✅ true | ✅ true |
 
-**Validación:**
-- DB status deleted: ⏳ Pendiente confirmación Product Owner vía SQL query
-- content_text null: ⏳ Pendiente confirmación Product Owner vía SQL query
-- extracted_text_available false: ⏳ Pendiente confirmación Product Owner vía SQL query
-- audit_log: ⏳ Pendiente confirmación Product Owner — debe haber 7 filas `context_file_deleted`
-- Storage físico 1-2 casos: ⏳ Pendiente verificación manual en Supabase Storage bucket `context-files`
-- Inconsistencias: ✅ Ninguna (0 filas `context_file_delete_inconsistent`)
+**Validación (confirmada 2026-07-03):**
+- ✅ DB status deleted: Confirmado — 7/7 filas con `status='deleted'`
+- ✅ content_text null: Confirmado — 7/7 filas con `content_text_is_null=true`
+- ✅ extracted_text_available false: Confirmado — 7/7 filas con `extracted_text_available=false`
+- ✅ audit_log: Confirmado — 7 filas `context_file_deleted`, 0 filas `context_file_delete_inconsistent`
+- ✅ UI visual: Status dropdown muestra solo Active/Deleted/All — "Archived" desapareció automáticamente (no quedan filas con ese valor)
+- ✅ Inconsistencias: Ninguna
 
 **Restricciones respetadas:**
 - ✅ No se tocó RLS

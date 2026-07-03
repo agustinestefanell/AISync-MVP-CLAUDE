@@ -49,6 +49,9 @@ URL producción: https://ai-sync-mvp-claude.vercel.app
 - Mostrar resultado por bloque y esperar aprobación antes de continuar.
 - No tocar AISYNC-DEMO-V2 ni AISYNC-DEMO-MVP bajo ninguna circunstancia.
 - Un bloque a la vez. No avanzar sin aprobación explícita.
+- **Reportes largos:** Enviar en secciones cortas pegadas directamente en
+  el chat, NO en un solo bloque comprimido — Claude Chat no puede leer
+  bloques colapsados.
 
 ## Arquitectura core
 - 1 Account = 1 User = 1 Sovereign Cell
