@@ -1450,3 +1450,85 @@ Implementación completa del Dashboard visual redesign basado en assets aprobado
 
 ---
 
+## 2026-07-03 — Mini-OE: Íconos en Bottom Ribbon (EXCEPCIÓN ÚNICA AUTORIZADA)
+
+**Fecha:** 2026-07-03
+**Tipo:** Mini-OE / UI polish / Bottom Ribbon
+**Estado:** ⏳ Pendiente validación visual
+
+**NOTA CRÍTICA — Excepción única a regla de protección:**
+
+Esta OE constituye una **excepción única autorizada explícitamente** por el Product Owner (Arquitecto/Director de Obra) a la regla `keep_bottom_ribbon: true` establecida como protección de la "albañilería" del proyecto.
+
+**Al cerrar esta OE, la protección del ribbon inferior vuelve a regir con la misma fuerza que antes.**
+
+Ninguna OE futura puede tocar BottomRibbon.tsx sin nueva autorización explícita equivalente a esta. Este cambio **NO abre precedente**.
+
+**Problema:**
+Ribbon inferior en producción mostraba texto plano separado por `|`, sin íconos. Diseño aprobado (DASHBOARD_FINAL.png) muestra ícono junto a cada label.
+
+**Cambio implementado:**
+Agregados íconos de lucide-react (ya instalado, sin nuevas dependencias) junto a cada label del bottom ribbon.
+
+**Mapeo de íconos:**
+- Dashboard → LayoutDashboard
+- Teams Map → Users
+- Audit Log → ClipboardList
+- Main Workspace → Folder
+- Cross Verification → ShieldCheck
+- Documentation Mode → BookOpen
+- Prompts Library → MessageSquare
+- Context Files → FileText
+- API-Keys → Key
+- Advanced → Settings
+
+**Implementación técnica:**
+- Tamaño: 14px (consistente con text-xs)
+- Color: Hereda mismo color condicional que el texto (textActive, textInactive, textFuture)
+- Layout: `flex items-center gap-1.5` (ícono + label)
+- Tipografía: **NO tocada** — mantiene herencia de --font-ui (IBM Plex Sans)
+
+**Archivo modificado:**
+- src/components/layout/BottomRibbon.tsx (+40 líneas aprox)
+
+**Restricciones respetadas:**
+- ✅ NO se modificó TopRibbon.tsx ni AppLayout.tsx
+- ✅ NO se cambió orden, rutas, lógica isActive, ni mecanismo future
+- ✅ NO se cambió estructura del nav, tamaño del ribbon, ni separador |
+- ✅ NO se agregaron librerías nuevas (solo lucide-react ya presente)
+- ✅ NO se tocó tipografía/font-family (mantiene IBM Plex Sans)
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport)
+- ⏳ npm run build: Running
+
+**Validación visual pendiente:**
+Screenshot del ribbon inferior mostrando los 10 íconos correctamente alineados junto a cada label, en estado activo e inactivo.
+
+**Próximo paso:**
+Build exitoso → screenshot validación → commit "ui: add icons to bottom ribbon (one-time authorized exception)"
+
+---
+
+**ESTADO FINAL — CERRADA (2026-07-03):**
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK
+- ✅ npm run build: Exitoso
+- ✅ TypeScript: Sin errores
+- ✅ Íconos importados de lucide-react (ya instalado)
+- ✅ Tamaño 14px consistente con text-xs
+- ✅ Color condicional heredado correctamente (active/inactive/future)
+
+**Cambios finales:**
+- src/components/layout/BottomRibbon.tsx: 10 íconos agregados
+- Layout: flex items-center gap-1.5 (ícono + label)
+- Tipografía: IBM Plex Sans preservada (herencia de --font-ui)
+
+**Estado:** ✅ **CLOSED** — Íconos agregados, build exitoso
+
+**RECORDATORIO CRÍTICO:**
+Esta fue una **excepción única autorizada** por el Product Owner a la regla de protección del ribbon inferior. La protección `keep_bottom_ribbon: true` vuelve a regir con plena fuerza. Ninguna OE futura puede tocar BottomRibbon.tsx sin nueva autorización explícita equivalente.
+
+---
+

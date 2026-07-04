@@ -4,17 +4,29 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import PromptLibrary from '@/components/workspace/PromptLibrary'
+import {
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  Folder,
+  ShieldCheck,
+  BookOpen,
+  MessageSquare,
+  FileText,
+  Key,
+  Settings,
+} from 'lucide-react'
 
 const STATIC_NAV_ITEMS = [
-  { label: 'Dashboard',          href: '/',              match: 'exact',     future: false },
-  { label: 'Teams Map',          href: '/teams',         match: 'prefix',    future: false },
-  { label: 'Audit Log',          href: '/audit',         match: 'prefix',    future: false },
-  { label: 'Cross Verification', href: '#',              match: 'prefix',    future: true  },
-  { label: 'Documentation Mode', href: '/documentation', match: 'prefix',    future: false },
-  { label: 'Prompts Library',    href: '#',              match: 'prefix',    future: false },
-  { label: 'Context Files',      href: '/context',       match: 'prefix',    future: false },
-  { label: 'API-Keys',           href: '/settings',      match: 'prefix',    future: false },
-  { label: 'Advanced',           href: '#',              match: 'prefix',    future: true  },
+  { label: 'Dashboard',          href: '/',              match: 'exact',     future: false, icon: LayoutDashboard },
+  { label: 'Teams Map',          href: '/teams',         match: 'prefix',    future: false, icon: Users },
+  { label: 'Audit Log',          href: '/audit',         match: 'prefix',    future: false, icon: ClipboardList },
+  { label: 'Cross Verification', href: '#',              match: 'prefix',    future: true,  icon: ShieldCheck },
+  { label: 'Documentation Mode', href: '/documentation', match: 'prefix',    future: false, icon: BookOpen },
+  { label: 'Prompts Library',    href: '#',              match: 'prefix',    future: false, icon: MessageSquare },
+  { label: 'Context Files',      href: '/context',       match: 'prefix',    future: false, icon: FileText },
+  { label: 'API-Keys',           href: '/settings',      match: 'prefix',    future: false, icon: Key },
+  { label: 'Advanced',           href: '#',              match: 'prefix',    future: true,  icon: Settings },
 ] as const
 
 function isActive(pathname: string, href: string, match: string): boolean {
@@ -41,7 +53,7 @@ export default function BottomRibbon({ accentColor }: { accentColor?: string }) 
     STATIC_NAV_ITEMS[0],                                                            // Dashboard
     STATIC_NAV_ITEMS[1],                                                            // Teams Map
     STATIC_NAV_ITEMS[2],                                                            // Audit Log
-    { label: 'Main Workspace', href: workspaceHref, match: 'workspace', future: false } as const,
+    { label: 'Main Workspace', href: workspaceHref, match: 'workspace', future: false, icon: Folder } as const,
     ...STATIC_NAV_ITEMS.slice(3),                                                   // rest
   ]
 
@@ -69,38 +81,46 @@ export default function BottomRibbon({ accentColor }: { accentColor?: string }) 
         borderTop: colored ? '1px solid rgba(0,0,0,0.18)' : '1px solid rgb(31,41,55)',
       }}
     >
-      {NAV_ITEMS.map((item, i) => (
-        <div key={item.label} className="flex items-center">
-          {i > 0 && <span className="text-xs select-none" style={{ color: textSeparator }}>|</span>}
+      {NAV_ITEMS.map((item, i) => {
+        const Icon = item.icon
+        const iconSize = 14
 
-          {item.label === 'Prompts Library' ? (
-            <button
-              onClick={() => setShowPromptLibrary(true)}
-              className="text-xs px-3 transition-colors font-medium"
-              style={{ color: textInactive }}
-            >
-              {item.label}
-            </button>
-          ) : item.future ? (
-            <span className="relative group cursor-default text-xs px-3 select-none" style={{ color: textFuture }}>
-              {item.label}
-              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 bg-gray-700 text-gray-300 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                Coming soon
+        return (
+          <div key={item.label} className="flex items-center">
+            {i > 0 && <span className="text-xs select-none" style={{ color: textSeparator }}>|</span>}
+
+            {item.label === 'Prompts Library' ? (
+              <button
+                onClick={() => setShowPromptLibrary(true)}
+                className="flex items-center gap-1.5 text-xs px-3 transition-colors font-medium"
+                style={{ color: textInactive }}
+              >
+                <Icon size={iconSize} />
+                {item.label}
+              </button>
+            ) : item.future ? (
+              <span className="relative group cursor-default flex items-center gap-1.5 text-xs px-3 select-none" style={{ color: textFuture }}>
+                <Icon size={iconSize} />
+                {item.label}
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 bg-gray-700 text-gray-300 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  Coming soon
+                </span>
               </span>
-            </span>
-          ) : (
-            <Link
-              href={item.href}
-              className="text-xs px-3 transition-colors font-medium"
-              style={{
-                color: isActive(pathname, item.href, item.match) ? textActive : textInactive,
-              }}
-            >
-              {item.label}
-            </Link>
-          )}
-        </div>
-      ))}
+            ) : (
+              <Link
+                href={item.href}
+                className="flex items-center gap-1.5 text-xs px-3 transition-colors font-medium"
+                style={{
+                  color: isActive(pathname, item.href, item.match) ? textActive : textInactive,
+                }}
+              >
+                <Icon size={iconSize} />
+                {item.label}
+              </Link>
+            )}
+          </div>
+        )
+      })}
     </nav>
     </>
   )
