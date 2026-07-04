@@ -32,7 +32,7 @@ function getInitials(email: string, name?: string | null): string {
 
 function getAvatarColor(id: string): string {
   const colors = [
-    '#2F80ED', // blue
+    'var(--color-accent)', // blue (using brand token)
     '#8B5CF6', // purple
     '#1CB5A3', // teal
     '#F59E0B', // amber
@@ -269,7 +269,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
           </div>
           <button
             onClick={() => setShowForm(v => !v)}
-            className="bg-[#1F6BFF] hover:bg-[#114FC7] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+            className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
           >
             + New Project
           </button>
@@ -292,12 +292,12 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleCreate() }}
-              className="flex-1 bg-[#F8FBFF] border border-[#DDE6F1] rounded-lg px-4 py-2.5 text-sm text-[#0C1733] placeholder-[#8A97AA] outline-none focus:border-[#1F6BFF] transition-colors"
+              className="flex-1 bg-[#F8FBFF] border border-[#DDE6F1] rounded-lg px-4 py-2.5 text-sm text-[#0C1733] placeholder-[#8A97AA] outline-none focus:border-[var(--color-accent)] transition-colors"
             />
             <button
               onClick={handleCreate}
               disabled={!name.trim() || isPending}
-              className="bg-[#1F6BFF] hover:bg-[#114FC7] disabled:opacity-40 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+              className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-40 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
             >
               {isPending ? 'Creating…' : 'Create'}
             </button>
@@ -361,7 +361,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                           <h4 className="text-base font-semibold text-[#0C1733]">{project.name}</h4>
                           <div className="flex items-center gap-2">
                             {project.id === activeProjectId ? (
-                              <span className="text-xs font-medium text-[#2F80ED] bg-[#EAF3FF] px-3 py-1.5 rounded-full">
+                              <span className="text-xs font-medium text-[var(--color-accent)] bg-[var(--color-accent-soft)] px-3 py-1.5 rounded-full">
                                 Active Project
                               </span>
                             ) : (
@@ -369,7 +369,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setActiveProject(project.id) }}
                                 disabled={switchingProject === project.id}
-                                className="text-xs font-medium text-[#5C6B82] bg-[#F8FBFF] border border-[#DDE6F1] hover:text-[#1F6BFF] hover:border-[#1F6BFF] disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded-full transition-colors"
+                                className="text-xs font-medium text-[#5C6B82] bg-[#F8FBFF] border border-[#DDE6F1] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)] disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded-full transition-colors"
                               >
                                 {switchingProject === project.id ? 'Switching…' : 'Set as active'}
                               </button>
@@ -421,7 +421,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                           {project.teams.map((team, ti) => (
                             <div key={team.id} className={`space-y-3 ${ti > 0 ? 'pt-4 border-t border-[#DDE6F1]' : ''}`}>
                               <div className="flex items-center gap-3">
-                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#EAF3FF] text-[#1F6BFF] text-sm font-medium">
+                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent)] text-sm font-medium">
                                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
                                   </svg>
@@ -477,7 +477,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                                     </div>
                                     <Link
                                       href={`/workspace/${ws.id}`}
-                                      className="shrink-0 text-sm font-semibold bg-[#1F6BFF] hover:bg-[#114FC7] text-white px-4 py-2 rounded-lg transition-colors"
+                                      className="shrink-0 text-sm font-semibold bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-4 py-2 rounded-lg transition-colors"
                                       onClick={e => e.stopPropagation()}
                                     >
                                       Open →
@@ -563,7 +563,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                       )}
                       <span className={`inline-block mt-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full ${
                         c.direction === 'outgoing'
-                          ? 'text-[#2F80ED] bg-[#EAF3FF]'
+                          ? 'text-[var(--color-accent)] bg-[var(--color-accent-soft)]'
                           : 'text-[#8B5CF6] bg-[#F3EAFF]'
                       }`}>
                         {c.direction === 'outgoing' ? 'Host' : 'Invitee'}
@@ -577,7 +577,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                       <div className="relative flex-1">
                         <Link
                           href={workspaceId ? `/workspace/${workspaceId}` : '/teams'}
-                          className="block w-full text-center text-sm font-semibold bg-[#1F6BFF] hover:bg-[#114FC7] text-white px-4 py-2 rounded-lg transition-colors"
+                          className="block w-full text-center text-sm font-semibold bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-4 py-2 rounded-lg transition-colors"
                         >
                           Open →
                         </Link>

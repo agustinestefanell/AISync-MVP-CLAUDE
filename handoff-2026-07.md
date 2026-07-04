@@ -1532,3 +1532,65 @@ Esta fue una **excepción única autorizada** por el Product Owner a la regla de
 
 ---
 
+## 2026-07-03 — Mini-OE: Unificar color de botones del Dashboard con --color-accent
+
+**Fecha:** 2026-07-03
+**Tipo:** Mini-OE / UI token alignment / visual-only
+**Área:** Dashboard / ProjectList / design tokens
+
+**Problema:**
+El rediseño visual del Dashboard hardcodeó azules del spec JSON (#1F6BFF, #114FC7, #2F80ED, #EAF3FF), pero la app ya tiene definido el token oficial de marca `--color-accent: #1f4e79` usado en otras superficies (Documentation Mode, Top Ribbon).
+
+**Objetivo:**
+Reemplazar los azules hardcodeados por tokens oficiales sin modificar estructura, lógica ni otros archivos.
+
+**Archivo modificado:**
+- src/components/ProjectList.tsx (20 líneas modificadas, solo colores)
+
+**Tokens verificados (src/styles/tokens.css):**
+- --color-accent: #1f4e79
+- --color-accent-strong: #173c5e
+- --color-accent-soft: rgba(31, 78, 121, 0.12)
+
+**Mapeo de reemplazo:**
+- #1F6BFF → var(--color-accent) (azul principal)
+- #114FC7 → var(--color-accent-strong) (hover/estado fuerte)
+- #2F80ED → var(--color-accent) (badge Active Project text)
+- #EAF3FF → var(--color-accent-soft) (badge Active Project bg, ícono team bg)
+
+**Superficies actualizadas:**
+- Botón "+ New Project"
+- Botón "Create" en formulario
+- Input focus border en formulario
+- Badge "Active Project" (text + bg)
+- Badge "Set as active" (hover text + border)
+- Ícono team background (users group)
+- Botón "Open →" en workspaces
+- Badge "Host" en Connected Teams
+- Botón "Open →" en connections
+- Color de avatar en función getAvatarColor
+
+**Restricciones respetadas:**
+- ✅ tokens.css NO tocado
+- ✅ Solo ProjectList.tsx modificado
+- ✅ Estructura JSX NO modificada
+- ✅ Handlers NO modificados
+- ✅ Lógica NO modificada
+- ✅ Fetch/effects NO modificados
+- ✅ AppLayout NO tocado
+- ✅ API routes NO tocadas
+
+**Validaciones:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport)
+- ✅ npm run build: Exitoso
+- ✅ TypeScript: Sin errores
+- ✅ grep hex antiguos: 0 resultados (correcto)
+- ✅ git diff --check: Solo warnings CRLF (normal en Windows)
+- ✅ Solo cambió ProjectList.tsx (20 líneas)
+
+**Estado:** ✅ **CLOSED** — Tokens unificados, build exitoso
+
+**Beneficio:** Dashboard ahora usa el mismo sistema de tokens que el resto de la app, facilitando futuros cambios de marca y manteniendo consistencia visual.
+
+---
+
