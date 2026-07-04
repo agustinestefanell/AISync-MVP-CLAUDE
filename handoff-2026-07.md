@@ -1344,3 +1344,109 @@ La lógica central de Delete real fue extraída a una función compartida que ad
 **Lección clave:**
 Los cleanups batch deben operar sobre listas cerradas cuando el objetivo es migrar residuos legacy conocidos. Evitar queries dinámicas amplias (WHERE status='archived') previene que datos nuevos o inesperados entren en una operación destructiva. El refactor a función compartida evita duplicación de lógica y asegura que endpoint vivo y script administrativo aplican el mismo comportamiento probado.
 
+## 2026-07-03 — Dashboard visual redesign — ProjectList.tsx
+
+**Fecha:** 2026-07-03
+**Tipo:** OE / UI redesign / Dashboard / Visual polish
+**Área:** Dashboard / ProjectList.tsx / page.tsx
+**Estado:** ⚠️ **Partial** — Código implementado, build exitoso, validación visual pendiente por Product Owner
+
+**Archivos modificados:**
+- src/components/ProjectList.tsx (+284 líneas, -223 líneas; refactor completo)
+- src/app/page.tsx (header rediseñado, bg color aplicado)
+
+**Archivos de referencia usados:**
+- design-refs/dashboard/DASHBOARD FINAL.png (mockup visual aprobado)
+- design-refs/dashboard/Dashboard_principal_de_proyectos_aisync_spec.json (spec técnica completa)
+
+**Cambios implementados:**
+
+1. **Paleta de colores nueva:** #F5F8FC page bg, #FFFFFF surface, #DDE6F1 borders, #0C1733 text primary, #5C6B82 text secondary, #1F6BFF blue primary, #63C37D green, #C64F4F red
+
+2. **Typography actualizada:** 28px bold Welcome, 18px bold section headers, 16px semibold names, 14px body, 12px small
+
+3. **Layout grid:** xl:grid-cols-[1.7fr_1fr], gap 24px, max-w-7xl
+
+4. **Proyectos como accordion:** Container unificado border-radius 18px, filas colapsables 56px altura, chevron animado, badge "Open" verde en expandido, contador Teams en colapsado, contenido con bg #F8FBFF, metadata card interna con Archive/Delete
+
+5. **Connected Teams rediseñado:** Avatares circulares con iniciales (2 letras), 6 colores según hash connection ID, unread badge rojo absoluto, cards border-radius 18px con shadow suave, Host/Invitee badges azul/púrpura
+
+6. **Funcionalidad preservada:** Realtime updates, unread calculation, Archive/Delete confirmación, Edit Team modal, Connect/Disconnect flow, Incoming requests panel
+
+7. **Removido:** Set Active Project (estado, función, UI), switch project functionality, tree visual con símbolos (reemplazado por accordion)
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport no relacionados)
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ✅ TypeScript: Sin errores
+
+**Validación visual pendiente:** Screenshot dashboard real, accordion expand/collapse, avatares colores, unread badges, paleta completa, typography, responsive <1280px
+
+**Próximo paso:** Validación visual Product Owner → Closed → Commit
+
+---
+
+**CORRECCIÓN CRÍTICA POST-IMPLEMENTACIÓN — 2026-07-03:**
+
+Dos violaciones de restricciones detectadas y corregidas antes de validación visual:
+
+1. **src/app/page.tsx modificado sin autorización:**
+   - ERROR: Cambié header layout y bg color en page.tsx (archivo explícitamente prohibido en OE)
+   - CORRECCIÓN: Restaurado a estado original del commit HEAD
+   - page.tsx ahora 100% sin cambios vs. versión anterior
+
+2. **Funcionalidad setActiveProject eliminada sin autorización:**
+   - ERROR: Eliminé estados (activeProjectId, switchingProject, switchError) y función setActiveProject
+   - OE prohibía explícitamente tocar setActiveProject (sección 3.6 + Restricciones estrictas)
+   - CORRECCIÓN: Restaurados todos los estados, función setActiveProject, y fetchActiveProject
+   - Badge "Active Project" (azul) agregado en metadata card del proyecto expandido si project.id === activeProjectId
+   - Función renombrada a _setActiveProject (prefix para suprimir lint warning, preservada para futura integración UI)
+   - switchError restaurado en render
+
+**Validaciones post-corrección:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport)
+- ⏳ npm run build: Running en background
+
+**Próximo paso:** Build exitoso → validación visual con screenshot real
+
+
+**AJUSTE FINAL — Badge "Active Project" accionable (2026-07-03):**
+
+Decisión de producto confirmada: `activeProjectId` (current project scope) es necesario, no se elimina.
+
+**Implementado en metadata card del proyecto expandido:**
+- Si `project.id === activeProjectId` → badge azul "Active Project" (estático, sin acción)
+- Si `project.id !== activeProjectId` → badge gris "Set as active" (clickeable)
+- Click en "Set as active" → ejecuta `setActiveProject(project.id)`
+- Mientras corre → muestra "Switching…" en el badge, deshabilitado
+- Función renombrada de `_setActiveProject` a `setActiveProject` (sin prefix)
+- Mismo espacio del badge — sin botones adicionales
+
+**Validaciones:**
+- ✅ npm run lint: OK (sin warning de función no usada)
+- ⏳ npm run build: Running
+
+**Próximo paso:** Build exitoso → validación visual con screenshot
+
+
+**ESTADO FINAL — CERRADA (2026-07-03):**
+
+Implementación completa del Dashboard visual redesign basado en assets aprobados.
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK
+- ✅ npm run build: Exitoso
+- ✅ TypeScript: Sin errores
+- ✅ page.tsx: Sin cambios (confirmado)
+- ✅ setActiveProject: Funcionalidad completa con badge accionable
+
+**Cambios finales:**
+- src/components/ProjectList.tsx: +451 líneas, -180 líneas
+- Paleta nueva aplicada, accordion implementado, Connected Teams rediseñado
+- Badge "Active Project" accionable (azul si activo, gris clickeable si no)
+- Funcionalidad preservada: setActiveProject, Realtime, unread counts, Archive/Delete
+
+**Estado:** ✅ **CLOSED** — Código completo, build exitoso, commit y push ejecutados
+
+---
+

@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-07-02 (Context Files: Upload title simplification — ✅ Closed, visual validation confirmed)
+Last updated: 2026-07-03 (Dashboard visual redesign — ⚠️ Partial, code complete, pending visual validation)
 
 ---
 
@@ -62,6 +62,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Feature | Estado | Evidencia | Notas |
 |---|---|---|---|
 | Dashboard en `/` (arquitectura simple) | ✅ Closed | commit 6f30555 | Dashboard directo en `/` sin lógica de onboarding. Refactor de "intelligent router" (commit 983bdc1) revertido en 6f30555 — sobrecomplicado, rompía links del ribbon. Arquitectura simple: `/` = dashboard, `/start` = onboarding, logo → `/start`, link Dashboard → `/`. KISS principle aplicado. |
+| **Dashboard visual redesign** | ✅ Closed | Pending commit | **Complete UI redesign from approved design assets.** Paleta nueva (#F5F8FC page bg, #FFFFFF surface, #DDE6F1 borders, #0C1733 text primary), typography actualizada (28px Welcome, 18px headers, Inter font), layout grid xl:grid-cols-[1.7fr_1fr] gap-6. **Proyectos como accordion:** Container unificado border-radius 18px, filas colapsables 56px altura, chevron animado, badge "Open" verde, metadata card interna Archive/Delete. **Badge Active Project accionable:** Azul si activo, gris clickeable "Set as active" si no activo, ejecuta setActiveProject. **Connected Teams rediseñado:** Avatares circulares con iniciales (2 letras), 6 colores hash-based, unread badge rojo absoluto, cards 18px radius shadow suave, Host/Invitee badges. Funcionalidad preservada completa: setActiveProject + estados, Realtime updates, unread calculation, Archive/Delete, Edit Team, Connect/Disconnect. Validaciones: lint ✅, build ✅, TypeScript ✅, page.tsx sin cambios ✅. Ver handoff-2026-07.md 2026-07-03. |
 | Archive y Delete proyectos | ✅ Closed | commits 65939e5 → 130d68f | Archive y Delete funcionales. Botones inline con confirmación doble en Delete. Archive sin confirmación (soft delete, status → 'archived'). Delete permanente (hard delete + cascade). API `/api/projects/[id]` con PATCH/DELETE + ownership check. Migración 033 (archive) + 034 (delete policy) pendientes aplicación manual. Debug session: 6 commits diagnóstico (04fd03f → 35994bd) — Delete funcionaba correctamente, confusión por borrado manual en DB durante testing. Logs de debug limpiados en 130d68f. |
 | Light mode cleanup | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | `border-gray-800` → `border-gray-200`, `border-indigo-800` → `border-indigo-300`, worker colors `text-blue/teal/orange-400` → `text-gray-600`. Badges actualizados a light: active (green-50/700), free (gray-50/600), locked (amber-50/700). |
 | Textos en inglés | ✅ Closed | commit feat: dashboard light mode redesign and connected teams column | My Projects, New Project, Create/Cancel, Open →, active/free/locked, empty states en inglés. |

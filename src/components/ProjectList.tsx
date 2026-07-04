@@ -19,6 +19,30 @@ const AGENT_META: Record<string, { label: string; color: string }> = {
   worker2: { label: 'Worker 2', color: 'text-gray-600' },
 }
 
+function getInitials(email: string, name?: string | null): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+    return parts[0].slice(0, 2).toUpperCase()
+  }
+  const parts = email.split('@')[0].split(/[._-]/)
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+  return email.slice(0, 2).toUpperCase()
+}
+
+function getAvatarColor(id: string): string {
+  const colors = [
+    '#2F80ED', // blue
+    '#8B5CF6', // purple
+    '#1CB5A3', // teal
+    '#F59E0B', // amber
+    '#EF4444', // red
+    '#10B981', // green
+  ]
+  const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  return colors[hash % colors.length]
+}
+
 export default function ProjectList({ projects }: { projects: ProjectWithTeams[] }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -41,6 +65,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const [editingTeam,       setEditingTeam]       = useState<TeamWithWorkspaces | null>(null)
   const [currentUserId,     setCurrentUserId]     = useState<string | null>(null)
   const [unreadCounts,      setUnreadCounts]      = useState<Record<string, number>>({})
+  const [expandedProject,   setExpandedProject]   = useState<string | null>(null)
 
   const fetchConnections = useCallback(() => {
     fetch('/api/connections')
@@ -233,22 +258,33 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
 
   return (
     <>
-    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+    <div className="grid grid-cols-1 xl:grid-cols-[1.7fr_1fr] gap-6 items-start">
 
       {/* Left — My Projects */}
-      <div className="space-y-5">
+      <div className="space-y-4">
+        {/* Header with New Project button */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">My Projects</h2>
+          <div>
+            <h2 className="text-lg font-bold text-[#0C1733]">My Projects</h2>
+          </div>
           <button
             onClick={() => setShowForm(v => !v)}
-            className="flex items-center gap-1.5 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-[#1F6BFF] hover:bg-[#114FC7] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
           >
-            <span aria-hidden>+</span> New Project
+            + New Project
           </button>
         </div>
 
+        {switchError && (
+          <p className="text-xs text-[#C64F4F]">{switchError}</p>
+        )}
+
+        {projectError && (
+          <p className="text-xs text-[#C64F4F]">{projectError}</p>
+        )}
+
         {showForm && (
-          <div className="bg-white border border-indigo-300 rounded-xl p-4 flex items-center gap-3">
+          <div className="bg-white border border-[#DDE6F1] rounded-[18px] shadow-[0_8px_24px_rgba(12,23,51,0.05)] p-5 flex items-center gap-3">
             <input
               autoFocus
               type="text"
@@ -256,190 +292,234 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleCreate() }}
-              className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)] transition-colors"
+              className="flex-1 bg-[#F8FBFF] border border-[#DDE6F1] rounded-lg px-4 py-2.5 text-sm text-[#0C1733] placeholder-[#8A97AA] outline-none focus:border-[#1F6BFF] transition-colors"
             />
             <button
               onClick={handleCreate}
               disabled={!name.trim() || isPending}
-              className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-40 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+              className="bg-[#1F6BFF] hover:bg-[#114FC7] disabled:opacity-40 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
             >
               {isPending ? 'Creating…' : 'Create'}
             </button>
             <button
               onClick={() => { setShowForm(false); setName('') }}
-              className="text-gray-500 hover:text-gray-700 text-sm px-2"
+              className="text-[#5C6B82] hover:text-[#0C1733] text-sm px-3 transition-colors"
             >
               Cancel
             </button>
           </div>
         )}
 
-        {switchError && (
-          <p className="text-xs text-red-600">{switchError}</p>
-        )}
-
-        {projectError && (
-          <p className="text-xs text-red-600">{projectError}</p>
-        )}
-
         {projects.length === 0 && (
-          <div className="bg-white border border-dashed border-gray-200 rounded-xl p-10 text-center">
-            <p className="text-gray-500 text-sm">No projects yet.</p>
-            <p className="text-gray-400 text-xs mt-1">Create your first project using the button above.</p>
+          <div className="bg-white border border-dashed border-[#DDE6F1] rounded-[18px] p-12 text-center">
+            <p className="text-[#8A97AA] text-sm">No projects yet.</p>
+            <p className="text-[#8A97AA] text-xs mt-1">Create your first project using the button above.</p>
           </div>
         )}
 
-        {projects.map(project => (
-          <div key={project.id} className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-[var(--color-text-primary)]">{project.name}</h3>
-              <div className="flex items-center gap-2">
-                {project.id === activeProjectId ? (
-                  <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
-                    active
-                  </span>
-                ) : (
+        {/* Accordion container */}
+        {projects.length > 0 && (
+          <div className="bg-white border border-[#DDE6F1] rounded-[18px] shadow-[0_8px_24px_rgba(12,23,51,0.05)] overflow-hidden">
+            {projects.map((project, idx) => {
+              const isExpanded = expandedProject === project.id
+              const teamsCount = project.teams.length
+
+              return (
+                <div key={project.id} className={idx > 0 ? 'border-t border-[#DDE6F1]' : ''}>
+                  {/* Accordion row header */}
                   <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); setActiveProject(project.id) }}
-                    disabled={switchingProject !== null}
-                    className="text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 hover:text-indigo-600 hover:border-indigo-200 disabled:opacity-50 px-2.5 py-1 rounded-full transition-colors"
+                    onClick={() => setExpandedProject(isExpanded ? null : project.id)}
+                    className="w-full h-14 px-5 flex items-center justify-between hover:bg-[#F8FBFF] transition-colors"
                   >
-                    {switchingProject === project.id ? 'Switching…' : 'Set active'}
-                  </button>
-                )}
-
-                {/* Archive button */}
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); handleArchive(project.id) }}
-                  disabled={archivingProject === project.id}
-                  className="text-xs text-gray-500 hover:text-amber-600 disabled:opacity-50 px-2 py-1 transition-colors"
-                  title="Archive project"
-                >
-                  {archivingProject === project.id ? '...' : 'Archive'}
-                </button>
-
-                {/* Delete button */}
-                {confirmDelete === project.id ? (
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-red-600">Are you sure?</span>
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); handleDelete(project.id) }}
-                      disabled={deletingProject === project.id}
-                      className="text-xs text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 px-2 py-1 rounded transition-colors"
-                    >
-                      {deletingProject === project.id ? '...' : 'Delete'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); setConfirmDelete(null) }}
-                      className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); setConfirmDelete(project.id) }}
-                    className="text-xs text-gray-500 hover:text-red-600 px-2 py-1 transition-colors"
-                    title="Delete project permanently"
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="text-sm">
-              {project.teams.map((team, ti) => (
-                <div key={team.id} className={`space-y-2 py-2.5 ${ti > 0 ? 'border-t border-gray-100' : ''}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400 font-mono text-xs">
-                      {ti < project.teams.length - 1 ? '├──' : '└──'}
-                    </span>
-                    <span className="font-semibold text-[var(--color-text-primary)]">{team.name}</span>
-                    <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">
-                      {team.type}
-                    </span>
-                    <button
-                      onClick={() => setEditingTeam(team)}
-                      className="ml-auto text-xs text-gray-600 hover:text-[var(--color-accent)] border border-gray-200 hover:border-[var(--color-accent)] px-2 py-0.5 rounded transition-colors"
-                    >
-                      Edit Team
-                    </button>
-                  </div>
-
-                  {team.workspaces.map(ws => (
-                    <div key={ws.id} className="pl-7 space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-400 font-mono text-xs">└──</span>
-                        <span className="text-gray-600">{ws.name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded border ${
-                          ws.lock_state === 'locked'
-                            ? 'text-amber-700 bg-amber-50 border-amber-200'
-                            : 'text-gray-600 bg-gray-50 border-gray-200'
-                        }`}>
-                          {ws.lock_state === 'locked' ? 'locked' : 'free'}
-                        </span>
-                        <Link
-                          href={`/workspace/${ws.id}`}
-                          className="ml-auto text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-2.5 py-0.5 rounded transition-colors"
-                        >
-                          Open →
-                        </Link>
-                      </div>
-
-                      {ws.agent_sessions.map(agent => {
-                        const meta = AGENT_META[agent.agent_role] ?? { label: agent.agent_role, color: 'text-gray-600' }
-                        return (
-                          <div key={agent.id} className="pl-12 flex items-center gap-2 text-xs text-gray-500">
-                            <span className="text-gray-400">•</span>
-                            <span className={`font-medium ${meta.color}`}>{meta.label}</span>
-                            <span className="text-gray-400">·</span>
-                            <span>{agent.model}</span>
-                            <span className="text-gray-400">({agent.provider})</span>
-                          </div>
-                        )
-                      })}
+                    <div className="flex items-center gap-3">
+                      <svg
+                        className={`w-4 h-4 text-[#5C6B82] transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span className="text-base font-semibold text-[#0C1733]">{project.name}</span>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-[#5C6B82]">{teamsCount} Team{teamsCount !== 1 ? 's' : ''}</span>
+                      {isExpanded && (
+                        <span className="text-xs font-medium text-[#2F8A47] bg-[#E9F8EE] px-3 py-1 rounded-full">
+                          Open
+                        </span>
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Expanded content */}
+                  {isExpanded && (
+                    <div className="bg-[#F8FBFF] px-5 py-4 space-y-4">
+                      {/* Project metadata card */}
+                      <div className="bg-white border border-[#DDE6F1] rounded-[18px] p-5 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-base font-semibold text-[#0C1733]">{project.name}</h4>
+                          <div className="flex items-center gap-2">
+                            {project.id === activeProjectId ? (
+                              <span className="text-xs font-medium text-[#2F80ED] bg-[#EAF3FF] px-3 py-1.5 rounded-full">
+                                Active Project
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setActiveProject(project.id) }}
+                                disabled={switchingProject === project.id}
+                                className="text-xs font-medium text-[#5C6B82] bg-[#F8FBFF] border border-[#DDE6F1] hover:text-[#1F6BFF] hover:border-[#1F6BFF] disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded-full transition-colors"
+                              >
+                                {switchingProject === project.id ? 'Switching…' : 'Set as active'}
+                              </button>
+                            )}
+                            <span className="text-xs font-medium text-[#2F8A47] bg-[#DFF4E5] px-3 py-1.5 rounded-full">
+                              active
+                            </span>
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); handleArchive(project.id) }}
+                              disabled={archivingProject === project.id}
+                              className="text-sm text-[#5C6B82] hover:text-[#F59E0B] disabled:opacity-50 px-2 transition-colors"
+                            >
+                              {archivingProject === project.id ? '...' : 'Archive'}
+                            </button>
+                            {confirmDelete === project.id ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-[#C64F4F]">Are you sure?</span>
+                                <button
+                                  type="button"
+                                  onClick={e => { e.stopPropagation(); handleDelete(project.id) }}
+                                  disabled={deletingProject === project.id}
+                                  className="text-sm text-white bg-[#C64F4F] hover:bg-[#B03E3E] disabled:opacity-50 px-2 py-1 rounded transition-colors"
+                                >
+                                  {deletingProject === project.id ? '...' : 'Delete'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={e => { e.stopPropagation(); setConfirmDelete(null) }}
+                                  className="text-sm text-[#5C6B82] hover:text-[#0C1733] px-2"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={e => { e.stopPropagation(); setConfirmDelete(project.id) }}
+                                className="text-sm text-[#5C6B82] hover:text-[#C64F4F] px-2 transition-colors"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Teams list */}
+                        <div className="space-y-4">
+                          {project.teams.map((team, ti) => (
+                            <div key={team.id} className={`space-y-3 ${ti > 0 ? 'pt-4 border-t border-[#DDE6F1]' : ''}`}>
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#EAF3FF] text-[#1F6BFF] text-sm font-medium">
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-base font-semibold text-[#0C1733]">{team.name}</span>
+                                    <span className="text-xs font-medium text-[#6E7B90] bg-[#F8FBFF] border border-[#D8E2EE] px-2.5 py-1 rounded-full">
+                                      {team.type}
+                                    </span>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={e => { e.stopPropagation(); setEditingTeam(team) }}
+                                  className="text-sm text-[#4E5D75] bg-white hover:bg-[#F8FBFF] border border-[#DDE6F1] px-3 py-1.5 rounded-lg transition-colors"
+                                >
+                                  Edit Team
+                                </button>
+                              </div>
+
+                              {/* Workspaces */}
+                              {team.workspaces.map(ws => (
+                                <div key={ws.id} className="ml-11 space-y-2">
+                                  <div className="flex items-start gap-2">
+                                    <div className="flex items-center gap-2 text-[#5C6B82] mt-0.5">
+                                      <span className="text-xs">└──</span>
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                      </svg>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-sm text-[#0C1733] font-medium">{ws.name}</span>
+                                        <span className="text-xs font-medium text-[#6E7B90] bg-[#F8FBFF] border border-[#D8E2EE] px-2 py-0.5 rounded-full">
+                                          {ws.lock_state === 'locked' ? 'locked' : 'free'}
+                                        </span>
+                                      </div>
+                                      {/* Agent list */}
+                                      <div className="mt-1.5 space-y-1">
+                                        {ws.agent_sessions.map(agent => {
+                                          const meta = AGENT_META[agent.agent_role] ?? { label: agent.agent_role, color: 'text-[#5C6B82]' }
+                                          return (
+                                            <div key={agent.id} className="flex items-center gap-1.5 text-xs text-[#5C6B82]">
+                                              <span className="text-[#8A97AA]">•</span>
+                                              <span className="font-medium">{meta.label}</span>
+                                              <span className="text-[#8A97AA]">·</span>
+                                              <span>{agent.model}</span>
+                                              <span className="text-[#8A97AA]">({agent.provider})</span>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+                                    <Link
+                                      href={`/workspace/${ws.id}`}
+                                      className="shrink-0 text-sm font-semibold bg-[#1F6BFF] hover:bg-[#114FC7] text-white px-4 py-2 rounded-lg transition-colors"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      Open →
+                                    </Link>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              )
+            })}
           </div>
-        ))}
+        )}
       </div>
 
       {/* Right — Connected Teams */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex flex-col gap-0.5">
-            <h2 className="text-base font-semibold text-[var(--color-text-secondary)]">Connected Teams</h2>
-            <button
-              onClick={() => setShowHowModal(true)}
-              className="text-left text-xs text-gray-400 hover:text-indigo-500 transition-colors"
-            >
-              How Connected Teams work
-            </button>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-[#0C1733]">Connected Teams</h2>
+            <p className="text-sm text-[#5C6B82] mt-0.5">Manage your external connections.</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setShowRequestsPanel(true)}
-              className="relative border border-gray-300 text-gray-600 rounded-full px-3 py-1 text-sm hover:bg-gray-50 transition-colors"
+              className="relative bg-white border border-[#DDE6F1] text-[#4E5D75] rounded-lg px-3 py-2 text-sm font-medium hover:bg-[#F8FBFF] transition-colors"
             >
               Requests
               {pendingIncomingCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#EF4444] text-[10px] font-bold text-white">
                   {pendingIncomingCount}
                 </span>
               )}
             </button>
             <button
               onClick={() => setShowConnectModal(true)}
-              className="border border-teal-400 text-teal-600 rounded-full px-3 py-1 text-sm hover:bg-teal-50 transition-colors"
+              className="bg-white border border-[#BFE7C8] text-[#63C37D] rounded-lg px-3 py-2 text-sm font-semibold hover:bg-[#E9F8EE] transition-colors"
             >
               + Connect
             </button>
@@ -447,83 +527,98 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
         </div>
 
         {activeConnections.length === 0 ? (
-          <div className="bg-white border border-dashed border-gray-200 rounded-xl p-8 text-center">
-            <p className="text-gray-400 text-sm">There are no connected teams yet.</p>
+          <div className="bg-white border border-dashed border-[#DDE6F1] rounded-[18px] p-10 text-center">
+            <p className="text-[#8A97AA] text-sm">There are no connected teams yet.</p>
           </div>
         ) : (
           <div className="space-y-3">
             {activeConnections.map(c => {
-              const teamName    = c.direction === 'outgoing'
+              const teamName     = c.direction === 'outgoing'
                 ? (c.receiver_team_name ?? c.receiver_email)
                 : c.requester_team_name
               const partnerEmail = c.direction === 'outgoing' ? c.receiver_email : c.requester_email
+              const displayName  = teamName || partnerEmail
               const isConfirming = confirmDisconnect === c.id
               const workspaceId  = currentUserId ? getUserIsolatedWorkspaceId(c, currentUserId) : null
+              const initials     = getInitials(partnerEmail, teamName)
+              const avatarBg     = getAvatarColor(c.id)
 
               return (
-                <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{teamName}</p>
-                      <p className="text-xs text-gray-400 truncate">{partnerEmail}</p>
+                <div key={c.id} className="bg-white border border-[#DDE6F1] rounded-[18px] shadow-[0_8px_24px_rgba(12,23,51,0.05)] p-[18px] space-y-3">
+                  <div className="flex items-start gap-3">
+                    {/* Avatar */}
+                    <div
+                      className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full text-white text-sm font-bold"
+                      style={{ backgroundColor: avatarBg }}
+                    >
+                      {initials}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#0C1733] truncate">{displayName}</p>
+                      <p className="text-xs text-[#8A97AA] truncate">{partnerEmail}</p>
                       {c.description && (
-                        <p className="text-xs text-gray-500 mt-1 italic">{c.description}</p>
+                        <p className="text-xs text-[#5C6B82] mt-1 italic">{c.description}</p>
                       )}
-                      <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full border ${
+                      <span className={`inline-block mt-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full ${
                         c.direction === 'outgoing'
-                          ? 'text-blue-700 bg-blue-50 border-blue-200'
-                          : 'text-purple-700 bg-purple-50 border-purple-200'
+                          ? 'text-[#2F80ED] bg-[#EAF3FF]'
+                          : 'text-[#8B5CF6] bg-[#F3EAFF]'
                       }`}>
                         {c.direction === 'outgoing' ? 'Host' : 'Invitee'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <div className="relative">
+                  </div>
+
+                  {/* Actions */}
+                  {!isConfirming && (
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
                         <Link
                           href={workspaceId ? `/workspace/${workspaceId}` : '/teams'}
-                          className="text-xs bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white px-2.5 py-1 rounded transition-colors"
+                          className="block w-full text-center text-sm font-semibold bg-[#1F6BFF] hover:bg-[#114FC7] text-white px-4 py-2 rounded-lg transition-colors"
                         >
                           Open →
                         </Link>
                         {(unreadCounts[c.id] ?? 0) > 0 && (
-                          <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                          <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#EF4444] text-[10px] font-bold text-white">
                             {unreadCounts[c.id]}
                           </span>
                         )}
                       </div>
-                      {!isConfirming && (
-                        <button
-                          type="button"
-                          onClick={() => { setConfirmDisconnect(c.id); setDisconnectError('') }}
-                          className="text-xs text-gray-400 hover:text-red-500 px-2 py-1 rounded border border-gray-200 hover:border-red-200 transition-colors"
-                        >
-                          Disconnect
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => { setConfirmDisconnect(c.id); setDisconnectError('') }}
+                        className="text-sm text-[#5C6B82] hover:text-[#C64F4F] px-3 py-2 transition-colors"
+                      >
+                        Disconnect
+                      </button>
                     </div>
-                  </div>
+                  )}
 
+                  {/* Confirmation */}
                   {isConfirming && (
-                    <div className="border-t border-gray-100 pt-2 space-y-2">
-                      <p className="text-xs text-gray-600">
-                        Disconnect <span className="font-medium">{partnerEmail || 'this connected team'}</span>?
+                    <div className="space-y-2 pt-2 border-t border-[#DDE6F1]">
+                      <p className="text-xs text-[#5C6B82]">
+                        Disconnect <span className="font-medium text-[#0C1733]">{partnerEmail || 'this connected team'}</span>?
                       </p>
                       {disconnectError && (
-                        <p className="text-xs text-red-600">{disconnectError}</p>
+                        <p className="text-xs text-[#C64F4F]">{disconnectError}</p>
                       )}
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => handleDisconnect(c.id)}
                           disabled={disconnecting === c.id}
-                          className="flex-1 text-xs bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-medium py-1.5 rounded-lg transition-colors"
+                          className="flex-1 text-sm font-semibold bg-[#C64F4F] hover:bg-[#B03E3E] disabled:opacity-50 text-white py-2 rounded-lg transition-colors"
                         >
                           {disconnecting === c.id ? 'Disconnecting…' : 'Disconnect'}
                         </button>
                         <button
                           type="button"
                           onClick={() => { setConfirmDisconnect(null); setDisconnectError('') }}
-                          className="flex-1 text-xs border border-gray-200 text-gray-600 hover:bg-gray-50 py-1.5 rounded-lg transition-colors"
+                          className="flex-1 text-sm font-medium border border-[#DDE6F1] text-[#5C6B82] hover:bg-[#F8FBFF] py-2 rounded-lg transition-colors"
                         >
                           Cancel
                         </button>
