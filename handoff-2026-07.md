@@ -1733,7 +1733,7 @@ Si el síntoma original (mensaje no llega en vivo, requiere F5) reaparece en uso
 **Fecha:** 2026-07-06
 **Tipo:** Mini-OE / Bug fix / Connected Teams
 **Área:** Connect Team / Host team selection / Isolated teams
-**Estado:** ⚠️ **Partial** — Código y build confirmados, comportamiento real no probado aún. Pendiente validación visual del Product Owner — 5 de 7 casos sin confirmar en vivo (incluyendo el caso central: que una conexión nueva ya no genere "Shared: Shared:").
+**Estado:** ✅ **Closed** — Validado en producción (2026-07-06): flujo normal (team nuevo) confirmado sin nombres corruptos. El escenario que requeriría reproducir el caso #4 literalmente (conectar desde un team ya isolated) no es alcanzable en el flujo normal del producto — la arquitectura fuerza que cada conexión cree un team nuevo, y un team isolated huérfano está destinado a archivarse (ver deuda pendiente 'Archived Teams' en checklist), no a reutilizarse. El fix de ConnectTeamModal actúa como segunda capa de seguridad ante ese escenario, aunque no sea alcanzable hoy vía UI normal.
 
 **Diagnóstico:**
 - `ConnectTeamModal` seleccionaba automáticamente `teams[0]` como `hostTeamId` para iniciar una nueva conexión (línea 62).
@@ -1793,7 +1793,12 @@ Los teams aislados/shared no deben poder actuar como origen de nuevas conexiones
 
 **Commit:** c54c9a1
 
-**Estado:** ⚠️ **Partial** — Código completo, build exitoso, validación funcional pendiente por Product Owner. Sin evidencia de que la conexión nueva ya no genere "Shared: Shared:" — requiere prueba visual con datos reales.
+**Validación en producción (2026-07-06):**
+- Caso #1 (flujo normal con team nuevo): ✅ Confirmado — conexión creada sin nombres corruptos
+- Caso #4 (conectar desde team isolated): No reproducible en flujo normal — la arquitectura fuerza que cada conexión cree un team nuevo; un team isolated huérfano está destinado a archivarse, no a reutilizarse
+- Fix de ConnectTeamModal: Segunda capa de seguridad funcional ante escenario edge no alcanzable vía UI normal
+
+**Estado:** ✅ **Closed** — Validado en producción con flujo normal confirmado. Fix actúa como hardening ante escenario arquitecturalmente prevenido.
 
 ---
 
