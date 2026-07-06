@@ -1728,3 +1728,72 @@ Si el síntoma original (mensaje no llega en vivo, requiere F5) reaparece en uso
 
 ---
 
+## 2026-07-06 — ConnectTeamModal isolated team exclusion
+
+**Fecha:** 2026-07-06
+**Tipo:** Mini-OE / Bug fix / Connected Teams
+**Área:** Connect Team / Host team selection / Isolated teams
+**Estado:** ✅ **Closed** — Fix implementado, build exitoso, validación funcional pendiente
+
+**Diagnóstico:**
+- `ConnectTeamModal` seleccionaba automáticamente `teams[0]` como `hostTeamId` para iniciar una nueva conexión (línea 62).
+- No excluía teams con `type='isolated'`.
+- Si el primer team de la lista era un team isolated (generado por una conexión previa con nombre tipo "Shared: X ↔ Y"), una nueva conexión podía generar nombres corruptos tipo "Shared: Shared: X ↔ Y ↔ Z" y emails repetidos.
+- El bug no pertenece a Teams Map: el nombre corrupto se genera antes, durante el accept en el backend, basándose en `requester_team_name` que ya venía corrupto desde el modal.
+
+**Causa raíz:**
+La lógica de selección automática no filtraba teams por `type !== 'isolated'`. Teams aislados son teams creados específicamente para conexiones compartidas (arquitectura "dos edificios"), con nombres prefijados "Shared: ...". No deben poder actuar como origen de nuevas conexiones.
+
+**Cambio realizado:**
+- Se filtran teams elegibles con `teams.filter(t => t.type !== 'isolated')` antes de calcular `hostTeamId` (líneas 61-64).
+- Si no hay teams elegibles (`hostTeamId === ''`), se muestra error claro: "No eligible team available to connect from. Isolated (shared) teams cannot be used to start new connections."
+- El error reutiliza el mecanismo existente `setError()` y previene el submit.
+- No se tocó la lógica de accept en backend.
+- No se tocó Teams Map.
+- No se modificaron nombres corruptos legacy existentes en base de datos.
+
+**Alcance:**
+- Solo `src/components/teams/ConnectTeamModal.tsx` modificado (+5 líneas netas).
+- No se modificaron: `/api/connections`, Teams Map, migraciones, RLS, formulario del modal, selector visual de team.
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport no relacionados)
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ✅ TypeScript: Sin errores (validado durante build)
+- ❌ npm run typecheck: No existe en package.json
+
+**Validación funcional:**
+⏳ **Pendiente por Product Owner con datos reales:**
+
+| # | Caso | Validación |
+|---|---|---|
+| 1 | Usuario con solo teams normales | Sigue funcionando igual que antes |
+| 2 | Usuario cuyo primer team es `isolated`, pero tiene otros normales | Selecciona el primer team NO aislado |
+| 3 | Usuario con todos los teams `isolated` | Muestra error claro y no crashea |
+| 4 | Nueva conexión creada después del fix | El nombre resultante NO contiene "Shared: Shared:" |
+| 5 | Teams Map | No se tocó y no participa en la causa |
+| 6 | API accept | No se tocó |
+| 7 | Modal | Formulario y validaciones existentes siguen funcionando |
+
+**Restricciones respetadas:**
+- ✅ `/api/connections/**` no tocado
+- ✅ Accept backend no tocado
+- ✅ Teams Map no tocado
+- ✅ RLS no tocado
+- ✅ Migraciones no tocadas
+- ✅ Formulario no reescrito
+- ✅ Selector visual no agregado
+- ✅ Corrección retroactiva de nombres legacy no implementada
+
+**Nota de datos legacy:**
+Nombres corruptos existentes (tipo "Shared: Shared: ...") creados antes de este fix no se corrigen retroactivamente. Si aparecen teams con nombre duplicado en base de datos, requieren corrección manual de datos, no solo el fix de código.
+
+**Lección clave:**
+Los teams aislados/shared no deben poder actuar como origen de nuevas conexiones. El filtro debe aplicarse antes de la selección automática, no después. Si todos los teams son `isolated`, el modal debe fallar con error claro en lugar de intentar crear una conexión inválida.
+
+**Commit:** (pendiente)
+
+**Estado:** ✅ **Closed** — Código completo, build exitoso, validación funcional pendiente por Product Owner.
+
+---
+

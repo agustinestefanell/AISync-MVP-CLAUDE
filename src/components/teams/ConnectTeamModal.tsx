@@ -59,11 +59,16 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
   const [saving, setSaving] = useState(false)
 
   // Use first team automatically (no selector shown to user)
-  const hostTeamId = teams[0]?.id ?? ''
-  const hostTeam = teams.find(t => t.id === hostTeamId)
+  // Exclude isolated teams (shared teams from connections) — they cannot be used as host for new connections
+  const eligibleTeams = teams.filter(t => t.type !== 'isolated')
+  const hostTeamId = eligibleTeams[0]?.id ?? ''
+  const hostTeam = eligibleTeams.find(t => t.id === hostTeamId)
 
   async function handleSubmit() {
-    if (!hostTeamId) { setError('No team available. Please create a team first.'); return }
+    if (!hostTeamId) {
+      setError('No eligible team available to connect from. Isolated (shared) teams cannot be used to start new connections.')
+      return
+    }
     if (!receiverEmail.trim()) { setError('Enter the external account email.'); return }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receiverEmail.trim())) {
       setError('Invalid email.'); return

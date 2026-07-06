@@ -1504,3 +1504,43 @@ HumanChatPanel ahora programa reconexión con backoff progresivo 1s → 2s → 4
 **Lección:**
 Revisar los otros 2 usos de `postgres_changes` (TeamsClient.tsx, ProjectList.tsx) por la misma vulnerabilidad. Los comentarios de código que indican comportamiento automático deben ser validados contra implementación real — un comentario sin implementación es deuda técnica que genera falsa seguridad operativa.
 
+---
+
+## 2026-07-06 — ConnectTeamModal: isolated team auto-selected as host source
+
+**Problema:**
+ConnectTeamModal tomaba automáticamente `teams[0]` como `hostTeamId` para iniciar una nueva conexión. La selección no mostraba al usuario qué team estaba usando y no excluía teams con `type='isolated'`.
+
+**Causa raíz:**
+La lista `teams` no se filtraba por `type !== 'isolated'` antes de seleccionar el primer team. Teams isolated son teams generados por conexiones previas (arquitectura "dos edificios"), con nombres prefijados "Shared: X ↔ Y". Si un team isolated quedaba primero en la lista, el accept de una nueva conexión construía un nombre basado en un nombre ya prefijado con "Shared:", resultando en nombres corruptos como "Shared: Shared: X ↔ Y ↔ Z" y emails repetidos.
+
+**Consecuencia:**
+Se podían generar nombres corruptos que se grababan en base de datos durante el accept de la conexión (`PATCH /api/connections/[id]`), antes de que Teams Map renderizara nada. El bug no pertenece a Teams Map — el nombre corrupto se genera en el backend basándose en `requester_team_name` que ya venía corrupto desde el modal.
+
+**Proceso de solución:**
+1. Inspeccionó `ConnectTeamModal.tsx` línea 62: `const hostTeamId = teams[0]?.id ?? ''`
+2. Confirmó que `TeamWithWorkspaces extends Team` incluye campo `type: TeamType`
+3. Verificó que `TeamType = 'SAT' | 'MAT' | 'isolated'` en `types.ts`
+4. Confirmó que el componente padre (`ProjectList.tsx`) pasa `allTeams` sin filtrar
+5. Agregó filtro local `teams.filter(t => t.type !== 'isolated')` antes de calcular `hostTeamId`
+6. Actualizó mensaje de error para caso límite donde todos los teams son isolated
+
+**Solución final:**
+ConnectTeamModal ahora filtra teams elegibles con `const eligibleTeams = teams.filter(t => t.type !== 'isolated')` antes de seleccionar el primer team como `hostTeamId`. Si no hay teams elegibles (`eligibleTeams.length === 0`), muestra error claro: "No eligible team available to connect from. Isolated (shared) teams cannot be used to start new connections." El error previene el submit y reutiliza el mecanismo existente `setError()`.
+
+**Archivos modificados:**
+- `src/components/teams/ConnectTeamModal.tsx` (+5 líneas netas)
+
+**No modificados:**
+- `/api/connections/**` (accept backend)
+- Teams Map
+- RLS
+- Migraciones
+- Formulario del modal
+
+**Commit:**
+(hash pendiente)
+
+**Lección:**
+Los teams aislados/shared no deben poder actuar como origen de nuevas conexiones. El filtro debe aplicarse antes de la selección automática, no después. El nombre corrupto ya existente en teams viejos, previo a este fix, no se corrige retroactivamente — si aparece un team con nombre duplicado tipo "Shared: Shared: ...", requiere corrección manual de datos, no solo el fix de código. La validación de tipo de team es responsabilidad del componente que selecciona el team, no del backend que lo recibe.
+
