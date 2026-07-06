@@ -1839,11 +1839,11 @@ Sección secundaria agregada en algún momento para mostrar conexiones activas d
 - ✅ TypeScript validado implícitamente durante build
 
 **Validación funcional:**
-⏳ Pendiente por Product Owner — requiere datos reales de conexiones pending y active para validar casos 1-4. Dashboard y Teams Map confirmados no tocados por inspección de git diff.
+✅ Validado visualmente en producción (2026-07-06): modal con 1 solicitud pendiente muestra Accept/Reject correctamente; modal sin solicitudes muestra "No pending requests." limpio, sin restos de la sección eliminada. Dashboard y Teams Map confirmados no tocados por inspección de git diff.
 
-**Estado:** ⚠️ **Partial** — Código completo, build exitoso, validación funcional con datos reales pendiente por Product Owner.
+**Estado:** ✅ **Closed** — Código completo, build exitoso, validación visual en producción confirmada por Product Owner.
 
-**Commit:** (pendiente)
+**Commit:** 56a35d1
 
 **Lección:**
 Modales de gestión deben enfocarse en su propósito único (requests pending) sin duplicar vistas que ya existen mejor resueltas en otras superficies (Dashboard). Secciones secundarias que muestran información incompleta (solo incoming, no outgoing) pueden ser peores que ausencia total porque inducen interpretación incorrecta de completitud.
