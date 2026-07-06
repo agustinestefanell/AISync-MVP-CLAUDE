@@ -1502,7 +1502,9 @@ HumanChatPanel ahora programa reconexión con backoff progresivo 1s → 2s → 4
 (hash pendiente)
 
 **Lección:**
-Revisar los otros 2 usos de `postgres_changes` (TeamsClient.tsx, ProjectList.tsx) por la misma vulnerabilidad. Los comentarios de código que indican comportamiento automático deben ser validados contra implementación real — un comentario sin implementación es deuda técnica que genera falsa seguridad operativa.
+~~Revisar los otros 2 usos de `postgres_changes` (TeamsClient.tsx, ProjectList.tsx) por la misma vulnerabilidad.~~ Los comentarios de código que indican comportamiento automático deben ser validados contra implementación real — un comentario sin implementación es deuda técnica que genera falsa seguridad operativa.
+
+**Actualización 2026-07-06:** Se revisaron TeamsClient.tsx y ProjectList.tsx — ambos ya tienen mitigación propia mediante polling de respaldo cada 15 segundos ("Fallback polling every 15s in case realtime misses cross-account events"), a diferencia de HumanChatPanel.tsx que no tenía ningún mecanismo de respaldo. El impacto de un canal Realtime muerto en estos dos archivos es acotado (máximo 15s de demora, no requiere F5), por lo que no se requiere replicar el fix de reconexión ahí. Deuda pendiente cerrada por diagnóstico — no por implementación.
 
 ---
 

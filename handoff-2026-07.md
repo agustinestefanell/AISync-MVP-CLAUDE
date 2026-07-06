@@ -1635,7 +1635,9 @@ Se agregó reconexión automática con backoff progresivo dentro del useEffect d
 - Schema/migraciones NO tocados
 
 **Deuda pendiente:**
-Revisar TeamsClient.tsx y ProjectList.tsx por patrón similar de `postgres_changes` sin reconexión. Aplicar mismo patrón en OEs futuras separadas.
+~~Revisar TeamsClient.tsx y ProjectList.tsx por patrón similar de `postgres_changes` sin reconexión. Aplicar mismo patrón en OEs futuras separadas.~~
+
+**Actualización 2026-07-06:** Se revisaron TeamsClient.tsx y ProjectList.tsx — ambos ya tienen mitigación propia mediante polling de respaldo cada 15 segundos ("Fallback polling every 15s in case realtime misses cross-account events"), a diferencia de HumanChatPanel.tsx que no tenía ningún mecanismo de respaldo. El impacto de un canal Realtime muerto en estos dos archivos es acotado (máximo 15s de demora, no requiere F5), por lo que no se requiere replicar el fix de reconexión ahí. Deuda pendiente cerrada por diagnóstico — no por implementación.
 
 **Validaciones técnicas:**
 - npm run lint: OK (warnings preexistentes en CanvasViewport)
