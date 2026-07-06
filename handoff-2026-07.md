@@ -1594,3 +1594,58 @@ Reemplazar los azules hardcodeados por tokens oficiales sin modificar estructura
 
 ---
 
+## 2026-07-06 — HumanChatPanel Realtime reconnection
+
+**Fecha:** 2026-07-06
+**Tipo:** OE / Bug fix / Resiliencia de conexión
+**Área:** Connected Teams / Human Chat / Realtime
+
+**Diagnóstico:**
+El canal Realtime de HumanChatPanel no tenía reconexión real. Ante estados de error (CHANNEL_ERROR, TIMED_OUT, CLOSED) solo registraba logs console.error o console.warn. El comentario en línea 223 indicaba "will retry..." pero no existía retry implementado. Esto dejaba el canal muerto en silencio hasta que el usuario hiciera F5, navegara fuera/volviera, o el componente se desmontara/remontara.
+
+**Causa raíz:**
+Ausencia completa de lógica de reconexión tras fallo del canal Realtime. No era un bug puntual sino una capacidad de resiliencia nunca implementada, pese a que el código sugería falsamente su existencia mediante comentario.
+
+**Cambio realizado:**
+Se agregó reconexión automática con backoff progresivo dentro del useEffect de Realtime. Cambios específicos:
+
+- Creada función interna reutilizable `createAndSubscribeChannel()` que crea canal, subscribe y maneja callbacks
+- Backoff progresivo: 1s → 2s → 4s → 8s, tope 10s, sin límite máximo de reintentos
+- Estados que disparan reconexión: CHANNEL_ERROR, TIMED_OUT, CLOSED
+- SUBSCRIBED resetea contador de reconexión a 0
+- Cleanup limpia timeout activo (`clearTimeout`) y canal activo (`removeChannel`)
+- Protección con `isMounted` antes de reconectar para evitar reconexión post-desmontaje
+- Variables de estado añadidas: `reconnectAttempts`, `reconnectTimeout`, `currentChannel`
+
+**Preservaciones:**
+- Refetch post-SUBSCRIBED intacto (cierre de gap T0→T1)
+- Deduplicación de mensajes por ID intacta
+- Envío de mensajes intacto
+- Review & Forward intacto
+- Props del componente intactas
+- Lógica de scroll automático intacta
+- Logs de diagnóstico existentes preservados
+
+**Alcance:**
+- Solo modificado: `src/components/workspace/HumanChatPanel.tsx`
+- TeamsClient.tsx NO tocado
+- ProjectList.tsx NO tocado
+- API routes NO tocadas
+- RLS NO tocado
+- Schema/migraciones NO tocados
+
+**Deuda pendiente:**
+Revisar TeamsClient.tsx y ProjectList.tsx por patrón similar de `postgres_changes` sin reconexión. Aplicar mismo patrón en OEs futuras separadas.
+
+**Validaciones técnicas:**
+- npm run lint: OK (warnings preexistentes en CanvasViewport)
+- npm run build: Exitoso
+- TypeScript: Sin errores
+
+**Estado:** ✅ **Closed** — Reconexión implementada correctamente, pasa validaciones técnicas, no rompe flujo existente.
+
+**Lección:**
+Validar comentarios en código que indican comportamiento automático ("will retry"). Si no existe implementación real, el comentario es técnicamente deuda técnica que genera falsa seguridad.
+
+---
+

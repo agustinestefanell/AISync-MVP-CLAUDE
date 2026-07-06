@@ -122,59 +122,77 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
     setIsMounted(true)
   }, [])
 
-  // Realtime subscription
+  // Realtime subscription with automatic reconnection
   useEffect(() => {
     let isMounted = true
+    let reconnectAttempts = 0
+    let reconnectTimeout: NodeJS.Timeout | null = null
+    let currentChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null
+
     const mountTime = Date.now()
     console.log('[HumanChat] Mount time:', mountTime)
 
     const supabase = createClient()
-    const channel = supabase
-      .channel(`human-chat-${connectionId}`, {
-        config: {
-          broadcast: { self: false },
-          presence: { key: '' },
-        },
-      })
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'human_messages',
-          filter: `connection_id=eq.${connectionId}`,
-        },
-        (payload) => {
-          console.log('[HumanChat] Realtime INSERT received:', payload.new)
-          const newMessage = payload.new as HumanMessage
 
-          // Deduplicate: only add if message ID doesn't exist
-          setMessages((prev) => {
-            const exists = prev.some(m => m.id === newMessage.id)
-            if (exists) {
-              console.log('[HumanChat] Message already exists, skipping:', newMessage.id)
-              return prev
-            }
-            console.log('[HumanChat] Adding new message from Realtime:', newMessage.id)
-            return [...prev, newMessage]
-          })
+    // Reusable function to create and subscribe to channel
+    const createAndSubscribeChannel = () => {
+      // Remove old channel if exists
+      if (currentChannel) {
+        supabase.removeChannel(currentChannel)
+        currentChannel = null
+      }
 
-          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
-        }
+      const channel = supabase
+        .channel(`human-chat-${connectionId}`, {
+          config: {
+            broadcast: { self: false },
+            presence: { key: '' },
+          },
+        })
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'human_messages',
+            filter: `connection_id=eq.${connectionId}`,
+          },
+          (payload) => {
+            console.log('[HumanChat] Realtime INSERT received:', payload.new)
+            const newMessage = payload.new as HumanMessage
+
+            // Deduplicate: only add if message ID doesn't exist
+            setMessages((prev) => {
+              const exists = prev.some(m => m.id === newMessage.id)
+              if (exists) {
+                console.log('[HumanChat] Message already exists, skipping:', newMessage.id)
+                return prev
+              }
+              console.log('[HumanChat] Adding new message from Realtime:', newMessage.id)
+              return [...prev, newMessage]
+            })
+
+            setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+          }
+        )
+
+      currentChannel = channel
+
+      const subscribeStartTime = Date.now()
+      console.log(
+        '[HumanChat] Subscribe start time:',
+        subscribeStartTime,
+        'Elapsed since mount:',
+        subscribeStartTime - mountTime,
+        'ms'
       )
 
-    const subscribeStartTime = Date.now()
-    console.log(
-      '[HumanChat] Subscribe start time:',
-      subscribeStartTime,
-      'Elapsed since mount:',
-      subscribeStartTime - mountTime,
-      'ms'
-    )
-
-    channel.subscribe(async (status, err) => {
+      channel.subscribe(async (status, err) => {
         console.log('[HumanChat] Subscription status:', status, err)
         if (status === 'SUBSCRIBED') {
+          // Reset reconnection counter on successful subscribe
+          reconnectAttempts = 0
+
           const subscribedTime = Date.now()
           console.log('[HumanChat] Successfully subscribed to human_messages')
           console.log(
@@ -191,7 +209,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           // Refetch messages once to close the T0→T1 gap (SSR initial load → Realtime subscription)
           console.log('[HumanChat] Refetching messages to catch any inserted during subscription setup...')
           try {
-            const { data: refetchedMessages, error: refetchError } = await supabase
+            const { data: refetchedMessages, error: refetchError} = await supabase
               .from('human_messages')
               .select('*')
               .eq('connection_id', connectionId)
@@ -217,19 +235,59 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           } catch (err) {
             console.error('[HumanChat] Refetch exception:', err)
           }
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('[HumanChat] Channel error:', err)
-        } else if (status === 'TIMED_OUT') {
-          console.warn('[HumanChat] Subscription timed out, will retry...')
-        } else if (status === 'CLOSED') {
-          console.warn('[HumanChat] Channel closed')
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          // Log the error
+          if (status === 'CHANNEL_ERROR') {
+            console.error('[HumanChat] Channel error:', err)
+          } else if (status === 'TIMED_OUT') {
+            console.warn('[HumanChat] Subscription timed out')
+          } else if (status === 'CLOSED') {
+            console.warn('[HumanChat] Channel closed')
+          }
+
+          // Only reconnect if still mounted
+          if (!isMounted) {
+            console.log('[HumanChat] Component unmounted, skipping reconnection')
+            return
+          }
+
+          // Progressive backoff: 1s → 2s → 4s → 8s, capped at 10s
+          reconnectAttempts++
+          const baseDelay = 1000
+          const exponentialDelay = baseDelay * Math.pow(2, reconnectAttempts - 1)
+          const delay = Math.min(exponentialDelay, 10000)
+
+          console.log(`[HumanChat] Reconnecting, attempt ${reconnectAttempts} in ${delay}ms`)
+
+          // Schedule reconnection
+          reconnectTimeout = setTimeout(() => {
+            if (isMounted) {
+              console.log(`[HumanChat] Executing reconnection attempt ${reconnectAttempts}`)
+              createAndSubscribeChannel()
+            }
+          }, delay)
         }
       })
+    }
+
+    // Initial subscription
+    createAndSubscribeChannel()
 
     return () => {
       isMounted = false
       console.log('[HumanChat] Unsubscribing from channel')
-      supabase.removeChannel(channel)
+
+      // Clear any pending reconnection timeout
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout)
+        reconnectTimeout = null
+      }
+
+      // Remove current channel
+      if (currentChannel) {
+        supabase.removeChannel(currentChannel)
+        currentChannel = null
+      }
     }
   }, [connectionId])
 

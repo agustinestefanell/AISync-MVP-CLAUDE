@@ -1175,3 +1175,84 @@ const isConnectionNoLongerActive = !!(
 
 **Por qué lista explícita:**
 Connected Teams está cerca de cross-account access y RLS-sensitive behavior. Un futuro status (ej: `paused`, `suspended`) no debe activar banner, input disabling, o alterar shared-workspace behavior por accidente. Cualquier nuevo status requiere decisión explícita de producto/seguridad antes de mapearse a comportamiento UI.
+
+## Patrones técnicos — Realtime reconnection
+
+**Agregado:** 2026-07-06
+**Archivo de referencia:** `src/components/workspace/HumanChatPanel.tsx`
+
+### Patrón: Reconexión automática de canal Realtime con backoff progresivo
+
+**Contexto:**
+Los canales de Supabase Realtime pueden fallar con estados CHANNEL_ERROR, TIMED_OUT o CLOSED. Sin reconexión automática, el canal queda muerto hasta que el componente se desmonte/remonte o el usuario haga F5.
+
+**Implementación:**
+
+```typescript
+// Variables de estado en useEffect
+let isMounted = true
+let reconnectAttempts = 0
+let reconnectTimeout: NodeJS.Timeout | null = null
+let currentChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null
+
+// Función interna reutilizable
+const createAndSubscribeChannel = () => {
+  // Limpiar canal anterior
+  if (currentChannel) {
+    supabase.removeChannel(currentChannel)
+    currentChannel = null
+  }
+
+  const channel = supabase.channel('name').on(...).subscribe(async (status, err) => {
+    if (status === 'SUBSCRIBED') {
+      reconnectAttempts = 0  // Reset counter
+      // ... refetch logic ...
+    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+      if (!isMounted) return
+
+      reconnectAttempts++
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 10000)
+      
+      console.log(`Reconnecting, attempt ${reconnectAttempts} in ${delay}ms`)
+      
+      reconnectTimeout = setTimeout(() => {
+        if (isMounted) createAndSubscribeChannel()
+      }, delay)
+    }
+  })
+
+  currentChannel = channel
+}
+
+// Cleanup
+return () => {
+  isMounted = false
+  if (reconnectTimeout) clearTimeout(reconnectTimeout)
+  if (currentChannel) supabase.removeChannel(currentChannel)
+}
+```
+
+**Backoff:**
+- 1s → 2s → 4s → 8s, tope 10s
+- Sin límite máximo de reintentos
+
+**Estados que disparan reconexión:**
+- CHANNEL_ERROR
+- TIMED_OUT
+- CLOSED
+
+**Reset en SUBSCRIBED:**
+`reconnectAttempts = 0`
+
+**Cleanup obligatorio:**
+- Limpiar `reconnectTimeout` con `clearTimeout()`
+- Limpiar `currentChannel` con `removeChannel()`
+- Marcar `isMounted = false` para evitar reconexión post-desmontaje
+
+**Pendiente aplicar en:**
+- TeamsClient.tsx (postgres_changes sin reconexión)
+- ProjectList.tsx (postgres_changes sin reconexión)
+
+**Lección:**
+Comentarios como "will retry..." sin implementación real son deuda técnica que genera falsa seguridad.
+

@@ -1476,3 +1476,31 @@ No se agrega columna `hash` en el MVP. La trazabilidad se conserva mediante `aud
 
 ### Lección
 Un delete real debe tratar DB, Storage, UI y Audit Log como una sola operación de producto. El manejo de fallo parcial crítico (Storage borrado pero DB update falla) debe ser explícito, logueado como incidente crítico, registrado en audit_log y comunicado claramente al cliente — no puede ser silencioso. Si el objeto físico se elimina, restore no es una función pendiente — es imposible por diseño salvo que exista backup externo.
+
+## 2026-07-06 — Realtime channel sin reconexión real (falso "will retry")
+
+**Problema:**
+HumanChatPanel dependía de Supabase Realtime para recibir mensajes de Human Chat, pero ante CHANNEL_ERROR, TIMED_OUT o CLOSED solo registraba logs. No había reconexión real pese a comentario "will retry...".
+
+**Causa raíz:**
+El código tenía comentario indicando que el canal reintentaría (línea 223: `'Subscription timed out, will retry...'`), pero no existía ninguna lógica de retry, backoff, recreación del canal ni limpieza coordinada.
+
+**Consecuencia:**
+El canal podía quedar muerto en silencio hasta que el usuario hiciera F5, navegara fuera y volviera, o el componente se desmontara/remontara. Bug aleatorio difícil de reproducir en testing aislado.
+
+**Proceso de solución:**
+1. Inspeccionó el useEffect de Realtime completo
+2. Localizó callback de `subscribe()` y confirmó estados sin manejo real
+3. Extrajo lógica de creación/suscripción a función interna reutilizable `createAndSubscribeChannel()`
+4. Agregó reconexión automática ante CHANNEL_ERROR, TIMED_OUT y CLOSED con backoff progresivo
+5. Implementó cleanup de timeout y canal en return del useEffect
+
+**Solución final:**
+HumanChatPanel ahora programa reconexión con backoff progresivo 1s → 2s → 4s → 8s, tope 10s, sin límite máximo de intentos. Al reconectar exitosamente con SUBSCRIBED, resetea contador a 0. El cleanup limpia `reconnectTimeout` con `clearTimeout()` y `currentChannel` con `removeChannel()` para evitar fugas de memoria y reconexiones post-desmontaje.
+
+**Commit:**
+(hash pendiente)
+
+**Lección:**
+Revisar los otros 2 usos de `postgres_changes` (TeamsClient.tsx, ProjectList.tsx) por la misma vulnerabilidad. Los comentarios de código que indican comportamiento automático deben ser validados contra implementación real — un comentario sin implementación es deuda técnica que genera falsa seguridad operativa.
+
