@@ -1733,7 +1733,7 @@ Si el síntoma original (mensaje no llega en vivo, requiere F5) reaparece en uso
 **Fecha:** 2026-07-06
 **Tipo:** Mini-OE / Bug fix / Connected Teams
 **Área:** Connect Team / Host team selection / Isolated teams
-**Estado:** ✅ **Closed** — Fix implementado, build exitoso, validación funcional pendiente
+**Estado:** ⚠️ **Partial** — Código y build confirmados, comportamiento real no probado aún. Pendiente validación visual del Product Owner — 5 de 7 casos sin confirmar en vivo (incluyendo el caso central: que una conexión nueva ya no genere "Shared: Shared:").
 
 **Diagnóstico:**
 - `ConnectTeamModal` seleccionaba automáticamente `teams[0]` como `hostTeamId` para iniciar una nueva conexión (línea 62).
@@ -1791,9 +1791,9 @@ Nombres corruptos existentes (tipo "Shared: Shared: ...") creados antes de este 
 **Lección clave:**
 Los teams aislados/shared no deben poder actuar como origen de nuevas conexiones. El filtro debe aplicarse antes de la selección automática, no después. Si todos los teams son `isolated`, el modal debe fallar con error claro en lugar de intentar crear una conexión inválida.
 
-**Commit:** (pendiente)
+**Commit:** c54c9a1
 
-**Estado:** ✅ **Closed** — Código completo, build exitoso, validación funcional pendiente por Product Owner.
+**Estado:** ⚠️ **Partial** — Código completo, build exitoso, validación funcional pendiente por Product Owner. Sin evidencia de que la conexión nueva ya no genere "Shared: Shared:" — requiere prueba visual con datos reales.
 
 ---
 
