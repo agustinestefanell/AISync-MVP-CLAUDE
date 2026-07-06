@@ -1649,3 +1649,82 @@ Validar comentarios en código que indican comportamiento automático ("will ret
 
 ---
 
+## 2026-07-06 — Connected Teams: conexiones legacy sin isolated team IDs (huérfanas entre arquitecturas)
+
+**Fecha:** 2026-07-06
+**Tipo:** Diagnóstico / Data quality / Housekeeping
+**Área:** Connected Teams / team_connections / isolated teams
+**Estado:** ✅ **Closed** — Diagnóstico confirmado, solución aplicada para data de test
+
+**Problema:**
+Conexiones de Connected Teams aceptadas antes de la migración 042 (arquitectura "dos edificios") pueden tener `host_isolated_team_id` e `invitee_isolated_team_id` en NULL. Al clickear "Open" desde el Dashboard, el botón cae al fallback y redirige a Teams Map en vez de abrir el workspace correcto — síntoma que parece "no encontró el team".
+
+**Causa raíz:**
+La lógica que crea los isolated teams (`PATCH /api/connections/[id]`, acción `accept`) solo corre en el momento de aceptar una conexión NUEVA. Conexiones aceptadas bajo la arquitectura anterior (`scope_isolated_team_id`, eliminado en migración 044) nunca fueron migradas retroactivamente — quedaron sin ningún team asociado, ni viejo ni nuevo.
+
+**Consecuencia:**
+El botón "Open" de Connected Teams en el Dashboard cae a `/teams` (Teams Map) en vez de abrir el workspace, para cualquier conexión con ambos IDs en NULL.
+
+**Proceso de diagnóstico:**
+Confirmado por lectura de código (FK real en migración 042, lógica de `getUserIsolatedWorkspaceId` correcta) + verificación directa en Supabase SQL Editor de los valores NULL en conexiones viejas. No requirió reproducción en vivo.
+
+**Solución aplicada (temporal, no automatizada):**
+Recrear manualmente la conexión afectada (Disconnect + Connect de nuevo) para que pase por la lógica de accept vigente y genere los isolated team IDs correctamente.
+
+**Archivos involucrados:**
+- `src/lib/db/connections.ts` (función `getUserIsolatedWorkspaceId` verificada correcta)
+- `src/components/ProjectList.tsx` (botón "Open" que consume el helper)
+- `supabase/migrations/042_two_buildings.sql` (introdujo FKs nuevos)
+- `supabase/migrations/044_drop_scope_isolated_fields.sql` (eliminó campo viejo)
+
+**Commit:**
+N/A (no requirió cambio de código, era data de test)
+
+**Lección:**
+Si esto reaparece con usuarios reales en producción (no solo data de test), no alcanza con "recrear la conexión" — se necesita un script de backfill de una sola vez que identifique conexiones activas con `host_isolated_team_id`/`invitee_isolated_team_id` NULL y les cree los isolated teams retroactivamente, siguiendo el patrón ya establecido de scripts administrativos (ej. `migrate-archived-to-deleted.ts`: lista cerrada de IDs, preflight, confirmación explícita del Manager antes de ejecutar).
+
+**Query de diagnóstico rápido para verificar si hay conexiones afectadas:**
+```sql
+SELECT id, requester_email, receiver_email, status,
+       host_isolated_team_id, invitee_isolated_team_id
+FROM team_connections
+WHERE status = 'active'
+  AND (host_isolated_team_id IS NULL OR invitee_isolated_team_id IS NULL);
+```
+
+**Estado:** ✅ **Closed** — Data de test corregida manualmente, patrón de backfill documentado para escenario futuro.
+
+---
+
+## 2026-07-06 — Verificación inconclusa del fix de reconexión Realtime (HumanChatPanel)
+
+**Fecha:** 2026-07-06
+**Tipo:** Testing / Validación / Realtime
+**Área:** Connected Teams / Human Chat / Reconexión automática
+**Estado:** ⚠️ **Inconcluso** — Fix implementado (commit d949bce), pero validación no logró reproducir condiciones de fallo
+
+**Contexto:**
+Tras implementar reconexión automática con backoff en el canal Realtime de HumanChatPanel (commit d949bce), se intentó validar con DevTools (Network → Offline → No throttling) mientras se enviaban mensajes desde otra cuenta.
+
+**Resultado de la prueba:**
+El chat siguió recibiendo mensajes en vivo sin necesidad de F5 (señal positiva), pero los logs específicos de reconexión (`[HumanChat] Reconnecting, attempt...`) nunca aparecieron en consola — sí apareció un "Network error" en el chat al enviar en offline, que es comportamiento esperado.
+
+**Interpretación:**
+El corte de red simulado por DevTools probablemente no duró lo suficiente para que Supabase Realtime disparara `CHANNEL_ERROR`/`TIMED_OUT`/`CLOSED` — el socket se recuperó a un nivel más bajo antes de que la lógica de reconexión entrara en acción. No hay evidencia de que el fix esté roto, pero tampoco confirmación directa de que la reconexión se haya activado.
+
+**Decisión:**
+Cerrar la validación como inconclusa. El código de reconexión está implementado correctamente (revisión técnica confirmada en OE original), pero las condiciones de fallo son aleatorias y difíciles de reproducir artificialmente.
+
+**Archivos involucrados:**
+- `src/components/workspace/HumanChatPanel.tsx` (reconexión con backoff implementada)
+
+**Commit relacionado:**
+- d949bce: fix: add automatic reconnection to Realtime channel in HumanChatPanel
+
+**Lección:**
+Si el síntoma original (mensaje no llega en vivo, requiere F5) reaparece en uso real, revisar la consola del receptor en el momento exacto del fallo — es una prueba más confiable que simular con DevTools, dado que el bug original es aleatorio y depende de condiciones reales de red que son difíciles de reproducir artificialmente.
+
+**Estado:** ⚠️ **Inconcluso pero cerrado** — Fix implementado y técnicamente correcto. Pendiente observación en condiciones reales de fallo si el síntoma original reaparece en producción.
+
+---
+
