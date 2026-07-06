@@ -1804,3 +1804,49 @@ Los teams aislados/shared no deben poder actuar como origen de nuevas conexiones
 
 ---
 
+## 2026-07-06 — IncomingRequestsPanel active connections cleanup
+
+**Fecha:** 2026-07-06
+**Tipo:** Mini-OE / UI cleanup / Connected Teams
+**Área:** Connected Teams / Requests Modal / IncomingRequestsPanel
+
+**Diagnóstico:**
+- IncomingRequestsPanel mostraba solicitudes pendientes Y también una sección "Active connections (incoming)".
+- La sección active era redundante porque Dashboard / Connected Teams ya muestra conexiones activas con mejor jerarquía visual (avatares, badges Host/Invitee) y acciones (Open, Disconnect).
+- La sección active era incompleta porque solo mostraba `direction='incoming'`, excluyendo conexiones activas iniciadas por el usuario como outgoing.
+- Esto podía inducir a interpretar que la lista de activas era completa, cuando no lo era.
+
+**Causa raíz:**
+Sección secundaria agregada en algún momento para mostrar conexiones activas dentro de un modal cuyo propósito real es gestionar solicitudes pendientes. Duplicaba funcionalidad mejor resuelta en Dashboard y mostraba vista incompleta por filtrar solo `direction === 'incoming'`.
+
+**Cambio realizado:**
+- Se eliminó la variable `active` (línea 30).
+- Se eliminó el bloque JSX "Active connections (incoming)" (líneas 158-173).
+- El estado vacío ahora depende solo de `pending.length === 0` (línea 92).
+- No se modificó `pending`.
+- No se modificó Accept/Reject.
+- No se modificó Dashboard.
+- No se modificó Teams Map fuera del panel.
+- No se modificó `/api/connections`.
+
+**Archivo funcional tocado:**
+- src/components/teams/IncomingRequestsPanel.tsx (-18 líneas netas)
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport)
+- ❌ npm run typecheck: No existe en package.json
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ✅ TypeScript validado implícitamente durante build
+
+**Validación funcional:**
+⏳ Pendiente por Product Owner — requiere datos reales de conexiones pending y active para validar casos 1-4. Dashboard y Teams Map confirmados no tocados por inspección de git diff.
+
+**Estado:** ⚠️ **Partial** — Código completo, build exitoso, validación funcional con datos reales pendiente por Product Owner.
+
+**Commit:** (pendiente)
+
+**Lección:**
+Modales de gestión deben enfocarse en su propósito único (requests pending) sin duplicar vistas que ya existen mejor resueltas en otras superficies (Dashboard). Secciones secundarias que muestran información incompleta (solo incoming, no outgoing) pueden ser peores que ausencia total porque inducen interpretación incorrecta de completitud.
+
+---
+

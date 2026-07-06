@@ -27,7 +27,6 @@ export default function IncomingRequestsPanel({
   onRejected,
 }: IncomingRequestsPanelProps) {
   const pending = connections.filter(c => c.status === 'pending' && c.direction === 'incoming')
-  const active  = connections.filter(c => c.status === 'active'  && c.direction === 'incoming')
 
   const [acceptingId, setAcceptingId]   = useState<string | null>(null)
   const [loading, setLoading]           = useState<string | null>(null)
@@ -89,7 +88,7 @@ export default function IncomingRequestsPanel({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-          {pending.length === 0 && active.length === 0 && (
+          {pending.length === 0 && (
             <p className="text-center text-gray-600 text-sm py-8">No pending requests.</p>
           )}
 
@@ -154,23 +153,6 @@ export default function IncomingRequestsPanel({
               )}
             </div>
           ))}
-
-          {active.length > 0 && (
-            <div className="pt-2">
-              <p className="text-xs font-medium text-gray-500 mb-2">Active connections (incoming)</p>
-              {active.map(conn => (
-                <div key={conn.id} className="flex items-center gap-3 bg-gray-50/40 border border-gray-200 rounded-xl px-4 py-3">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-600 truncate">{conn.requester_email}</p>
-                    <p className="text-xs text-gray-500">
-                      {conn.requester_team_name} ↔ {conn.receiver_team_name}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>
