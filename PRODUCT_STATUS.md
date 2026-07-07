@@ -198,7 +198,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Título triplicado en workspace compartido | Bug detectado ("SHARED: SHARED: SHARED...") no diagnosticado ni corregido |
 | Botón "Today" en Audit Log | No funciona (pospuesto) |
 | **FEATURES DISCUTIDAS NO IMPLEMENTADAS** | |
-| Web Search default ON + alerta visual | ✅ **RESUELTO DE OTRA FORMA** — Propuesta original (default ON + alerta visual roja cuando OFF) fue descartada. Implementación final (2026-07-07): Web Search permanece en default OFF, pero el botón OFF ahora es visualmente llamativo (ámbar con pulse) para que el usuario lo encuentre cuando el AI le indica activarlo. ON queda neutro. Ver entrada en Tools / Web Search. |
+| Web Search default ON + alerta visual | ✅ **RESUELTO DE OTRA FORMA** — Propuesta original (default ON + alerta visual roja cuando OFF) fue descartada. Implementación final (2026-07-07): Web Search permanece en default OFF, pero el botón OFF ahora es visualmente distintivo (fondo negro, texto blanco, palabra ON/OFF en negrita) para que el usuario lo encuentre cuando el AI le indica activarlo. ON queda neutro. Primera versión con ámbar+pulse fue reemplazada por diseño más sobrio. Validado visualmente en las tres columnas del workspace. Commit 1af4c0a. |
 | **REALTIME GAPS** | |
 | WorkspaceShell chat humano | ✅ **RESUELTO** — Race condition T0→T1 (SSR → Realtime mount) mitigado con refetch incremental post-SUBSCRIBED. HumanChatPanel ahora refetchea mensajes cuando canal confirma `SUBSCRIBED`, mergeando con estado local vía dedup por `message.id`. Sin polling continuo. Commit pendiente 2026-06-23. |
 | OE B.1/B.2 | Realtime general + buildOtherPanelsSnapshot cross-cell siguen diferidos |

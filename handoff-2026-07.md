@@ -1940,9 +1940,12 @@ Reemplazar estilo ámbar pulsante por diseño sobrio:
 - ✅ Se eliminó completamente `animate-pulse` y clases ámbar
 - ✅ Se usó `bg-black` de Tailwind (negro puro estándar)
 
-**Estado:** ✅ **Ready for validation** — Código completo, build exitoso, pendiente screenshot en ambos estados (ON/OFF) para verificar estilo sobrio negro/blanco con negrita.
+**Validación visual:**
+✅ **Confirmada por Product Owner (2026-07-07):** Estilo negro/blanco con negrita en ON/OFF se ve correcto en las tres columnas del workspace (Manager, Worker 1, Worker 2). Fondo negro sólido, texto blanco, palabra ON/OFF en negrita funcionando como esperado.
 
-**Commit:** (pendiente - requiere validación visual previa)
+**Estado:** ✅ **CLOSED** — Código completo, build exitoso, validado visualmente en producción.
+
+**Commit:** 1af4c0a — fix: replace amber pulse with black/white bold emphasis on Web search OFF button
 
 **Decisión técnica:**
 El énfasis visual excesivo (ámbar + pulse) puede ser contraproducente en UI profesional. Un diseño más sobrio (negro sólido + negrita selectiva) mantiene la jerarquía visual sin caer en efectos tipo neón. La negrita aplicada solo a ON/OFF permite diferenciar el estado sin duplicar información de color.
