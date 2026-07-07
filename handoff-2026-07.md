@@ -1890,3 +1890,69 @@ Cuando el AI guía al usuario a activar una funcionalidad, el control correspond
 
 ---
 
+
+## 2026-07-07 — Web Search OFF button visual refinement
+
+**Fecha:** 2026-07-07
+**Tipo:** Mini-fix / UI polish / Visual correction
+**Área:** Workspace / AgentPanel / Web Search toggle
+
+**Contexto:**
+La implementación anterior (commit cb6e9b0) aplicó estilo ámbar + `animate-pulse` al estado OFF del botón Web Search para hacerlo más visible. Este estilo resultó demasiado llamativo/tipo neón y no gustó al Product Owner.
+
+**Cambio realizado:**
+Reemplazar estilo ámbar pulsante por diseño sobrio:
+- **Fondo OFF:** `bg-black` (negro sólido)
+- **Texto OFF:** `text-white` (blanco en ambas partes del label)
+- **Énfasis interno:** Solo la palabra "OFF" en negrita (`font-bold`), resto del texto en peso normal
+- **Estado ON:** Sin cambios (sigue neutral con `text-[var(--color-text-muted)]`)
+- Se eliminó completamente `animate-pulse` y todas las clases de ámbar
+
+**Implementación:**
+```tsx
+// Antes (línea 512):
+: 'bg-amber-500 text-white border-transparent animate-pulse'
+
+// Después (línea 512):
+: 'bg-black text-white border-transparent'
+
+// Texto del botón ahora usa JSX fragment con negrita condicional (líneas 516-521):
+{webSearchEnabled ? (
+  <>Web search: <span className="font-bold">ON</span></>
+) : (
+  <>Web search: <span className="font-bold">OFF</span></>
+)}
+```
+
+**Archivo funcional tocado:**
+- src/components/workspace/AgentPanel.tsx (líneas 509-521: clases condicionales + estructura del texto del botón)
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport)
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ✅ git diff --stat: Solo AgentPanel.tsx modificado (+8 líneas, -2 líneas)
+
+**Restricciones respetadas:**
+- ❌ No se tocó `useState`
+- ❌ No se tocó handler `onClick`
+- ❌ No se agregaron librerías
+- ❌ No se tocaron otros archivos
+- ✅ Se eliminó completamente `animate-pulse` y clases ámbar
+- ✅ Se usó `bg-black` de Tailwind (negro puro estándar)
+
+**Estado:** ✅ **Ready for validation** — Código completo, build exitoso, pendiente screenshot en ambos estados (ON/OFF) para verificar estilo sobrio negro/blanco con negrita.
+
+**Commit:** (pendiente - requiere validación visual previa)
+
+**Decisión técnica:**
+El énfasis visual excesivo (ámbar + pulse) puede ser contraproducente en UI profesional. Un diseño más sobrio (negro sólido + negrita selectiva) mantiene la jerarquía visual sin caer en efectos tipo neón. La negrita aplicada solo a ON/OFF permite diferenciar el estado sin duplicar información de color.
+
+**Alternativas descartadas:**
+- Mantener `animate-pulse` con otro color: rechazado porque el problema era la animación misma, no solo el color ámbar
+- Aplicar negrita a todo el texto del botón: rechazado porque el énfasis debe estar en el estado (ON/OFF), no en "Web search:"
+- Usar tokens de color custom: innecesario, `bg-black` de Tailwind es exactamente lo requerido
+
+**Riesgos conocidos:**
+Ninguno. Es cambio cosmético aislado sin impacto en lógica funcional.
+
+---

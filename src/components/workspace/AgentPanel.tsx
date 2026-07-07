@@ -509,11 +509,15 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                     className={`ml-2 text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
                       webSearchEnabled
                         ? 'text-[var(--color-text-muted)] border-[var(--color-border-default)]'
-                        : 'bg-amber-500 text-white border-transparent animate-pulse'
+                        : 'bg-black text-white border-transparent'
                     }`}
                     title="Toggle web search"
                   >
-                    {webSearchEnabled ? 'Web search: ON' : 'Web search: OFF'}
+                    {webSearchEnabled ? (
+                      <>Web search: <span className="font-bold">ON</span></>
+                    ) : (
+                      <>Web search: <span className="font-bold">OFF</span></>
+                    )}
                   </button>
                 </div>
                 {session.description && (
