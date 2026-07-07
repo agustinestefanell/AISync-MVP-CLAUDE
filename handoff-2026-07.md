@@ -1850,3 +1850,43 @@ Modales de gestión deben enfocarse en su propósito único (requests pending) s
 
 ---
 
+## 2026-07-07 — Web Search OFF visual emphasis
+
+**Fecha:** 2026-07-07
+**Tipo:** Mini-OE / UI polish / Visual emphasis
+**Área:** Workspace / AgentPanel / Web Search toggle
+
+**Diagnóstico:**
+- El botón `Web search: OFF` era demasiado discreto (texto muted, borde default).
+- El usuario podía no encontrarlo fácilmente cuando el AI le indicaba activarlo.
+- Se descartó cambiar el default a ON — Web Search debe seguir iniciando en OFF.
+- El AI ya está prompteado para guiar al usuario a activar Web Search cuando hace falta una búsqueda.
+
+**Cambio realizado:**
+- Web Search sigue iniciando en OFF (`useState(false)` sin cambios).
+- Se modificó solo el estilo condicional del botón (líneas 509-512).
+- **OFF ahora es visualmente llamativo:** `bg-amber-500 text-white border-transparent animate-pulse`
+- **ON queda neutro/discreto:** `text-[var(--color-text-muted)] border-[var(--color-border-default)]`
+- No se tocó handler, texto del botón, payload ni lógica de envío.
+
+**Archivo funcional tocado:**
+- src/components/workspace/AgentPanel.tsx (solo clases condicionales del botón)
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport)
+- ❌ npm run typecheck: No existe en package.json
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ✅ TypeScript validado implícitamente durante build
+
+**Validación funcional:**
+⏳ Pendiente por Product Owner — requiere verificar visualmente que OFF es llamativo (ámbar pulsante) y ON es neutro (texto muted).
+
+**Estado:** ⚠️ **Partial** — Código completo, build exitoso, validación visual pendiente por Product Owner.
+
+**Commit:** (pendiente)
+
+**Lección:**
+Cuando el AI guía al usuario a activar una funcionalidad, el control correspondiente debe destacarse visualmente en su estado inactivo para facilitar que el usuario lo encuentre rápidamente. Invertir el énfasis visual (inactivo llamativo, activo neutro) puede ser más efectivo que cambiar el default de comportamiento.
+
+---
+

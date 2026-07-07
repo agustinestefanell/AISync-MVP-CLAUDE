@@ -198,7 +198,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Título triplicado en workspace compartido | Bug detectado ("SHARED: SHARED: SHARED...") no diagnosticado ni corregido |
 | Botón "Today" en Audit Log | No funciona (pospuesto) |
 | **FEATURES DISCUTIDAS NO IMPLEMENTADAS** | |
-| Web Search default ON + alerta visual | Propuesta discutida 2026-06-22 pero NO implementada — default ON + alerta visual roja cuando OFF. Quedó registrado como pendiente. |
+| Web Search default ON + alerta visual | ✅ **RESUELTO DE OTRA FORMA** — Propuesta original (default ON + alerta visual roja cuando OFF) fue descartada. Implementación final (2026-07-07): Web Search permanece en default OFF, pero el botón OFF ahora es visualmente llamativo (ámbar con pulse) para que el usuario lo encuentre cuando el AI le indica activarlo. ON queda neutro. Ver entrada en Tools / Web Search. |
 | **REALTIME GAPS** | |
 | WorkspaceShell chat humano | ✅ **RESUELTO** — Race condition T0→T1 (SSR → Realtime mount) mitigado con refetch incremental post-SUBSCRIBED. HumanChatPanel ahora refetchea mensajes cuando canal confirma `SUBSCRIBED`, mergeando con estado local vía dedup por `message.id`. Sin polling continuo. Commit pendiente 2026-06-23. |
 | OE B.1/B.2 | Realtime general + buildOtherPanelsSnapshot cross-cell siguen diferidos |
@@ -339,7 +339,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | OpenAI `complete()` | ✅ Closed | `openai.ts` — function tools, filtra `tc.type === 'function'` |
 | Google `complete()` | ✅ Closed | `google.ts` — `functionDeclarations`, `functionCalls()`, `randomUUID()` |
 | Tool loop en `chat/route.ts` | ✅ Closed | Una ronda: `complete()` → execute tool → `stream()` final |
-| Web Search toggle en AgentPanel | ✅ Closed | `AgentPanel.tsx` — badge clicable, envía `webSearchEnabled` |
+| Web Search toggle en AgentPanel | ✅ Closed | `AgentPanel.tsx` — badge clicable, envía `webSearchEnabled`. **Visual emphasis (2026-07-07):** Web Search still defaults to OFF. The OFF state is now visually prominent (amber background with pulse animation) so users can find the toggle when the AI instructs them to enable search. ON state remains visually neutral. No behavior, payload or persistence changes were introduced. |
 | Runtime Tavily con API key real | Pending | Agregar `TAVILY_API_KEY` en Vercel Dashboard |
 | Tool loop multi-ronda | Deferred | Post-MVP |
 | Web search traceability + sources | ✅ Closed | `session_tool_calls.sources` persiste trazabilidad. `audit_log.metadata.sources` alimenta render determinista del panel lateral. Links clickeables en Audit Log. |

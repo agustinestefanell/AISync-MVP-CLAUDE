@@ -508,8 +508,8 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                     onClick={() => setWebSearchEnabled(prev => !prev)}
                     className={`ml-2 text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
                       webSearchEnabled
-                        ? 'bg-[var(--color-accent,#0ea5e9)] text-white border-transparent'
-                        : 'text-[var(--color-text-muted)] border-[var(--color-border-default)]'
+                        ? 'text-[var(--color-text-muted)] border-[var(--color-border-default)]'
+                        : 'bg-amber-500 text-white border-transparent animate-pulse'
                     }`}
                     title="Toggle web search"
                   >
