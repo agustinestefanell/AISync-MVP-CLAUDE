@@ -517,6 +517,11 @@ Excepciones (ownership directo por `user_id = auth.uid()`):
 - `handoff_packages`
 - `saved_selections`
 
+**Lección RLS crítica (migración 047 — 2026-07-07):**
+RLS requiere políticas explícitas para cada operación DML (SELECT, INSERT, UPDATE, DELETE). Tener SELECT+INSERT no implica tener UPDATE. Features que actualizan filas existentes deben auditar políticas UPDATE además de SELECT/INSERT, incluso si el UPDATE ocurre desde el mismo código que hizo el INSERT. El bloqueo por RLS es silencioso desde la perspectiva de la aplicación — Supabase ignora el UPDATE sin lanzar error visible en logs del servidor.
+
+**Caso real:** `messages` tenía SELECT+INSERT desde migración 002, pero Attachment AI Summary (que actualiza `attachment_metadata.ai_summary` post-INSERT) falló silenciosamente hasta agregar política `messages_update` en migración 047.
+
 ### 5.4 Migraciones aplicadas vs pendientes
 
 Ver sección 10.
@@ -797,6 +802,7 @@ Contrato `ToolExecutor`: `execute()` retorna `Promise<ToolExecutionResult>` con 
 | 044 | `044_drop_scope_isolated_fields.sql` | Eliminación física de scope_isolated_team_id + scope_isolated_workspace_id + 3 políticas RLS legacy |
 | 045 | `045_add_extraction_error_field.sql` | context_sources: extraction_error (diagnóstico Context Files) |
 | 046 | `046_allow_deleted_context_sources_status.sql` | context_sources status CHECK: permite 'deleted' (Context Files delete real) |
+| 047 | `047_add_messages_update_policy.sql` | messages: política UPDATE faltante (requerida por Attachment AI Summary para persistir `attachment_metadata.ai_summary`) |
 
 ### 10.2 Migraciones clave
 

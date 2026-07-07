@@ -91,10 +91,10 @@
 - **Políticas:**
   - SELECT: ✅ `"messages_select"` (migración 002) — ownership via `agent_sessions → workspaces → teams → projects.account_id`
   - INSERT: ✅ `"messages_insert"` (migración 002) — ownership via `agent_sessions → workspaces → teams → projects.account_id`
-  - UPDATE: ❌ Falta
+  - UPDATE: ✅ `"messages_update"` (migración 047 — 2026-07-07) — ownership via `agent_sessions → workspaces → teams → projects.account_id` + WITH CHECK
   - DELETE: ❌ Falta
-- **Nivel de riesgo:** ⚠️ **MEDIO** — mensajes de chat no se editan/eliminan en flujo normal, pero UPDATE/DELETE deberían existir para operaciones de limpieza o corrección
-- **Comentario:** Políticas Invitee redundantes eliminadas en migración 043. UPDATE/DELETE no implementados porque mensajes son append-only en diseño actual.
+- **Nivel de riesgo:** ✅ **BAJO** — UPDATE agregado para soportar Attachment AI Summary (`attachment_metadata.ai_summary`). DELETE sigue sin implementarse porque mensajes son append-only.
+- **Comentario:** Políticas Invitee redundantes eliminadas en migración 043. UPDATE agregado en migración 047 después de detectar que Attachment AI Summary requería persistir `attachment_metadata.ai_summary` y estaba siendo bloqueado por RLS. DELETE no necesario por diseño append-only actual.
 
 ---
 
@@ -326,7 +326,7 @@
 4. **session_tool_calls** — falta UPDATE/DELETE — sin endpoints activos hoy, append-only por ahora
 
 **Otras tablas medio riesgo:**
-5. **messages** — falta UPDATE/DELETE — append-only por diseño
+5. **~~messages~~** — ~~falta UPDATE/DELETE~~ — **✅ UPDATE agregado en migración 047** (requerido por Attachment AI Summary). DELETE sigue sin policy (append-only por diseño).
 6. **prompt_library** — falta DELETE — feature pendiente
 7. **prompt_assignments** — falta DELETE — unassign sin policy
 8. **human_messages** — falta UPDATE/DELETE — append-only por diseño

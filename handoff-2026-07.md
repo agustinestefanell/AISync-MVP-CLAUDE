@@ -2177,3 +2177,114 @@ En operaciones fire-and-forget que procesan múltiples items en paralelo, NUNCA 
 ✅ Falso positivo en logs ("actualización exitosa" pero del mensaje incorrecto)
 
 ---
+
+## 2026-07-07 — messages UPDATE RLS policy for attachment AI summary
+
+**Fecha:** 2026-07-07
+**Tipo:** Fix / RLS / Seguridad de escritura / Missing policy
+**Área:** Supabase / RLS / messages table / Attachment AI Summary
+
+**Diagnóstico:**
+La tabla `messages`, creada originalmente en la migración `002`, tenía políticas RLS para `SELECT` e `INSERT`, pero **no tenía política de `UPDATE`**.
+
+Esto no se manifestó hasta la Mini-OE de Attachment AI Summary (commits c32e9c1 y 09fa3d2), que necesita actualizar un mensaje ya insertado para guardar:
+```
+messages.attachment_metadata.ai_summary
+```
+
+**Evidencia real en producción:**
+- ✅ `audit_log` recibió evento `attachment_summary_generated` correctamente (INSERT permitido en audit_log)
+- ❌ `messages.attachment_metadata.ai_summary` nunca apareció en Table Editor
+- **Causa confirmada:** La escritura del UPDATE fue bloqueada por RLS debido a la ausencia de política `messages_update`
+
+**Por qué audit_log sí funcionó:**
+`audit_log` solo necesita INSERT, y esa política existe. El problema era exclusivo de `messages`, que necesitaba UPDATE pero no tenía la política.
+
+**Por qué messages.attachment_metadata no funcionó:**
+`generateAttachmentSummaries` ejecuta:
+```typescript
+await supabase
+  .from('messages')
+  .update({ attachment_metadata: enrichedMetadata })
+  .eq('id', msg.messageId)
+```
+
+Sin política `messages_update`, Supabase bloqueó silenciosamente el UPDATE por RLS, sin error visible en logs de aplicación (comportamiento esperado de RLS).
+
+**Cambio realizado:**
+Se agregó migración `047_add_messages_update_policy.sql` con política `messages_update` que replica la cadena de ownership de `messages_select` y `messages_insert`:
+
+```sql
+messages.session_id → agent_sessions → workspaces → teams → projects.account_id = auth.uid()
+```
+
+La política incluye:
+- `USING`: Permite UPDATE solo si el usuario es propietario (mismo ownership chain)
+- `WITH CHECK`: Valida que el estado nuevo de la fila también cumpla ownership (previene escalación de privilegios)
+
+**Archivos tocados:**
+- `supabase/migrations/047_add_messages_update_policy.sql` (nuevo, +39 líneas)
+
+**Archivos NO tocados:**
+- `src/app/api/messages/route.ts` (no tocado — el bug era RLS, no lógica de aplicación)
+- `generateAttachmentSummaries` (no tocado — lógica correcta)
+- Otras tablas (no tocadas)
+- Otras políticas (no tocadas)
+- Código de aplicación (no tocado)
+
+**Restricciones respetadas:**
+- ✅ No se ejecutó `supabase db push`
+- ✅ No se tocó código de aplicación
+- ✅ No se tocó `generateAttachmentSummaries`
+- ✅ No se modificaron otras políticas
+- ✅ Solo una migración nueva con una sola política UPDATE
+- ✅ No se agregó DELETE ni otros permisos
+
+**Validación:**
+⏳ **PENDIENTE** — Requiere ejecución manual por Product Owner:
+
+1. **Ejecutar SQL en Supabase SQL Editor:**
+   - Abrir `supabase/migrations/047_add_messages_update_policy.sql`
+   - Copiar SQL completo
+   - Ejecutar en Supabase Dashboard → SQL Editor
+   - Confirmar "Success"
+
+2. **Repetir prueba de adjunto:**
+   - Subir archivo PDF o DOCX junto con mensaje al Manager
+   - Esperar respuesta del AI
+
+3. **Verificar en Supabase Table Editor:**
+   - Tabla `messages`
+   - Buscar mensaje recién enviado
+   - Verificar que columna `attachment_metadata` contiene campo `ai_summary` con resumen generado
+
+4. **Verificar audit_log:**
+   - Confirmar evento `attachment_summary_generated` sigue insertándose
+
+**Estado:** ⚠️ **Partial** — Migración creada y lista para ejecutar, pendiente validación en producción por Product Owner. La feature Attachment AI Summary tampoco puede marcarse Closed hasta que esta validación confirme que `ai_summary` persiste correctamente.
+
+**Commit:** (pendiente validación)
+
+**Lección clave:**
+RLS requiere políticas explícitas para cada operación DML. Tener SELECT+INSERT no implica tener UPDATE. Features que actualizan filas existentes deben auditar políticas UPDATE además de SELECT/INSERT, incluso si el UPDATE ocurre desde el mismo código que hizo el INSERT. El bloqueo por RLS es silencioso desde la perspectiva de la aplicación — Supabase simplemente ignora el UPDATE sin lanzar error visible en logs del servidor.
+
+**Alternativas descartadas:**
+- Modificar `generateAttachmentSummaries` para hacer INSERT de nueva fila en lugar de UPDATE: descartado porque rompe el modelo de datos (un mensaje debe tener una sola fila)
+- Desactivar RLS en `messages`: descartado porque elimina capa crítica de seguridad
+- Usar service role key para el UPDATE: descartado porque evade RLS en lugar de corregir la política faltante
+
+**Riesgos conocidos antes del fix:**
+- UPDATE bloqueado silenciosamente
+- audit_log creaba falsa sensación de éxito (evento insertado sin datos en messages)
+- Sin error visible en aplicación
+- Debugging difícil sin conocimiento profundo de RLS
+
+**Riesgos eliminados con el fix:**
+✅ UPDATE ahora permitido para mensajes propios
+✅ `attachment_metadata.ai_summary` puede persistirse
+✅ Feature Attachment AI Summary puede completarse
+
+**Próximo paso obligatorio:**
+Product Owner debe ejecutar SQL manualmente en Supabase y validar visualmente que `ai_summary` aparece en `messages.attachment_metadata` después de subir un adjunto.
+
+---
