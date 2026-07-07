@@ -14,12 +14,12 @@
 **Tablas con gaps de cobertura:** 17
 
 **Tablas de alto riesgo con gaps:**
-- `audit_log` — falta UPDATE, DELETE
-- `token_usage` — falta UPDATE, DELETE
-- `session_attachments` — falta UPDATE, DELETE
-- `session_tool_calls` — falta UPDATE, DELETE
-- `checkpoint_messages` — falta UPDATE, DELETE (pendiente según PRODUCT_STATUS.md)
-- `checkpoints` — falta UPDATE, DELETE (pendiente según PRODUCT_STATUS.md)
+- `audit_log` — falta UPDATE, DELETE (**correcto por diseño** — append-only inmutable)
+- `token_usage` — falta UPDATE, DELETE (**correcto por diseño** — billing append-only)
+- `session_attachments` — falta UPDATE, DELETE (**sin endpoints activos** — append-only por ahora)
+- `session_tool_calls` — falta UPDATE, DELETE (**sin endpoints activos** — append-only por ahora)
+- `checkpoint_messages` — falta UPDATE, DELETE (**sin endpoints activos** — append-only por ahora)
+- `checkpoints` — falta UPDATE, DELETE (**sin endpoints activos** — pendiente feature "Delete Version")
 
 ---
 
@@ -105,8 +105,9 @@
   - INSERT: ✅ `"checkpoints_insert"` (migración 003) — ownership via `workspaces → teams → projects.account_id`
   - UPDATE: ❌ Falta
   - DELETE: ❌ Falta
-- **Nivel de riesgo:** 🔴 **ALTO** — tabla de content plane crítica, cruza cuentas en Connected Teams
+- **Nivel de riesgo:** ⚠️ **MEDIO** — gaps no activos hoy (ver re-evaluación)
 - **Comentario:** Marcado como pendiente en PRODUCT_STATUS.md (RLS Connected Teams audit). Políticas Invitee agregadas en migración 041, eliminadas en migración 043 tras arquitectura "dos edificios".
+- **Re-evaluación 2026-07-06 (Director Técnico + Product Owner):** Se confirmó por lectura de código que `/api/checkpoint/[id]/route.ts` solo implementa GET. No existe hoy ningún endpoint activo de DELETE/PATCH/PUT que dependa de las políticas faltantes. Conclusión: no es vulnerabilidad activa hoy — es hueco preventivo de cara a features futuras que aún no existen (ej. futuro "Delete Version" de checkpoints). Prioridad bajada de "Alto — antes de usuarios reales" a "Documentar como append-only por ahora — agregar política recién cuando se construya la primera feature real que la necesite".
 
 ---
 
@@ -117,8 +118,9 @@
   - INSERT: ✅ `"checkpoint_messages_insert"` (migración 003) — ownership via `checkpoints → workspaces → teams → projects.account_id`
   - UPDATE: ❌ Falta
   - DELETE: ❌ Falta
-- **Nivel de riesgo:** 🔴 **ALTO** — tabla de content plane crítica, cruza cuentas en Connected Teams
+- **Nivel de riesgo:** ⚠️ **MEDIO** — gaps no activos hoy (ver re-evaluación)
 - **Comentario:** Marcado como pendiente en PRODUCT_STATUS.md (RLS Connected Teams audit). SELECT corregida en migración 020 (SEC-003 fix). Políticas Invitee agregadas en migración 041, eliminadas en migración 043.
+- **Re-evaluación 2026-07-06 (Director Técnico + Product Owner):** Se confirmó por lectura de código que no existe hoy ningún endpoint activo de DELETE/PATCH/PUT que dependa de las políticas faltantes. checkpoint_messages se escribe una vez vía `/api/checkpoint` POST, sin modificación posterior. Conclusión: no es vulnerabilidad activa hoy — es hueco preventivo de cara a features futuras que aún no existen. Prioridad bajada de "Alto — antes de usuarios reales" a "Documentar como append-only por ahora — agregar política recién cuando se construya la primera feature real que la necesite".
 
 ---
 
@@ -265,8 +267,9 @@
   - INSERT: ✅ `"session_attachments_insert"` (migración 021) — ownership via `agent_sessions → workspaces → teams → projects.account_id`
   - UPDATE: ❌ Falta
   - DELETE: ❌ Falta
-- **Nivel de riesgo:** 🔴 **ALTO** — tabla de trazabilidad crítica, cruza cuentas en Connected Teams
+- **Nivel de riesgo:** ⚠️ **MEDIO** — gaps no activos hoy (ver re-evaluación)
 - **Comentario:** Marcado como pendiente en PRODUCT_STATUS.md (RLS Connected Teams audit). UPDATE/DELETE no implementados.
+- **Re-evaluación 2026-07-06 (Director Técnico + Product Owner):** Se confirmó por lectura de código que session_attachments solo se escribe una vez vía POST fire-and-forget en `/api/chat/route.ts`, sin ningún endpoint de modificación posterior. No existe hoy ningún endpoint activo de DELETE/PATCH/PUT que dependa de las políticas faltantes. Conclusión: no es vulnerabilidad activa hoy — es hueco preventivo de cara a features futuras que aún no existen. Prioridad bajada de "Alto — antes de usuarios reales" a "Documentar como append-only por ahora — agregar política recién cuando se construya la primera feature real que la necesite".
 
 ---
 
@@ -277,8 +280,9 @@
   - INSERT: ✅ `"session_tool_calls_insert"` (migración 021) — ownership via `agent_sessions → workspaces → teams → projects.account_id`
   - UPDATE: ❌ Falta
   - DELETE: ❌ Falta
-- **Nivel de riesgo:** 🔴 **ALTO** — tabla de trazabilidad crítica, cruza cuentas en Connected Teams
+- **Nivel de riesgo:** ⚠️ **MEDIO** — gaps no activos hoy (ver re-evaluación)
 - **Comentario:** Marcado como pendiente en PRODUCT_STATUS.md (RLS Connected Teams audit). UPDATE/DELETE no implementados.
+- **Re-evaluación 2026-07-06 (Director Técnico + Product Owner):** Se confirmó por lectura de código que session_tool_calls solo se escribe una vez vía POST fire-and-forget en `/api/chat/route.ts`, sin ningún endpoint de modificación posterior. No existe hoy ningún endpoint activo de DELETE/PATCH/PUT que dependa de las políticas faltantes. Conclusión: no es vulnerabilidad activa hoy — es hueco preventivo de cara a features futuras que aún no existen. Prioridad bajada de "Alto — antes de usuarios reales" a "Documentar como append-only por ahora — agregar política recién cuando se construya la primera feature real que la necesite".
 
 ---
 
@@ -308,22 +312,25 @@
 
 ## Análisis de riesgo por nivel
 
-### 🔴 Alto riesgo (6 tablas con gaps críticos)
+### 🔴 Alto riesgo (2 tablas con gaps correctos por diseño)
 
-1. **checkpoints** — falta UPDATE/DELETE — content plane, cruza cuentas
-2. **checkpoint_messages** — falta UPDATE/DELETE — content plane, cruza cuentas
-3. **audit_log** — falta UPDATE/DELETE — **CORRECTO POR DISEÑO** (append-only inmutable)
-4. **token_usage** — falta UPDATE/DELETE — **CORRECTO POR DISEÑO** (billing append-only)
-5. **session_attachments** — falta UPDATE/DELETE — trazabilidad crítica
-6. **session_tool_calls** — falta UPDATE/DELETE — trazabilidad crítica
+1. **audit_log** — falta UPDATE/DELETE — **CORRECTO POR DISEÑO** (append-only inmutable)
+2. **token_usage** — falta UPDATE/DELETE — **CORRECTO POR DISEÑO** (billing append-only)
 
-### ⚠️ Medio riesgo (4 tablas con gaps no críticos)
+### ⚠️ Medio riesgo (10 tablas con gaps no activos hoy)
 
-1. **messages** — falta UPDATE/DELETE — append-only por diseño
-2. **prompt_library** — falta DELETE — feature pendiente
-3. **prompt_assignments** — falta DELETE — unassign sin policy
-4. **human_messages** — falta UPDATE/DELETE — append-only por diseño
-5. **accounts** — falta INSERT/UPDATE/DELETE — manejo vía Supabase Auth
+**Re-evaluadas y bajadas de prioridad (2026-07-06):**
+1. **checkpoints** — falta UPDATE/DELETE — sin endpoints activos hoy, append-only por ahora
+2. **checkpoint_messages** — falta UPDATE/DELETE — sin endpoints activos hoy, append-only por ahora
+3. **session_attachments** — falta UPDATE/DELETE — sin endpoints activos hoy, append-only por ahora
+4. **session_tool_calls** — falta UPDATE/DELETE — sin endpoints activos hoy, append-only por ahora
+
+**Otras tablas medio riesgo:**
+5. **messages** — falta UPDATE/DELETE — append-only por diseño
+6. **prompt_library** — falta DELETE — feature pendiente
+7. **prompt_assignments** — falta DELETE — unassign sin policy
+8. **human_messages** — falta UPDATE/DELETE — append-only por diseño
+9. **accounts** — falta INSERT/UPDATE/DELETE — manejo vía Supabase Auth
 
 ### ✅ Bajo riesgo (15 tablas con cobertura completa)
 
@@ -333,26 +340,32 @@ Todas las demás tablas tienen cobertura RLS completa para sus operaciones reque
 
 ## Recomendaciones prioritarias
 
-### Prioridad 1 — Implementar antes de usuarios reales
+### ✅ Prioridad 1 — Ya resuelto (re-evaluación 2026-07-06)
+
+**Tablas previamente marcadas como "Alto riesgo — implementar antes de usuarios reales":**
+- `checkpoints`, `checkpoint_messages`, `session_attachments`, `session_tool_calls`
+
+**Re-evaluación:** Se confirmó por lectura de código (Director Técnico + Product Owner) que ninguna de estas 4 tablas tiene hoy un endpoint activo de DELETE/PATCH/PUT que dependa de las políticas faltantes. Son huecos preventivos de cara a features futuras que aún no existen (ej. futuro "Delete Version" de checkpoints). **No son vulnerabilidades activas hoy.**
+
+**Decisión:** Prioridad bajada a "Documentar como append-only por ahora — agregar política recién cuando se construya la primera feature real que la necesite".
+
+### Prioridad 2 — Post-MVP (cuando se implemente feature correspondiente)
 
 1. **checkpoints + checkpoint_messages UPDATE/DELETE:**
-   - Agregar políticas con mismo patrón de ownership que SELECT/INSERT
-   - Crítico para Connected Teams — invitees deben poder editar/eliminar sus propios checkpoints en workspace compartido
+   - Agregar políticas cuando se construya feature "Delete Version" o edición de checkpoints
+   - Usar mismo patrón de ownership que SELECT/INSERT existente
 
 2. **session_attachments + session_tool_calls UPDATE/DELETE:**
-   - Evaluar si UPDATE/DELETE son necesarias arquitecturalmente
-   - Si no: documentar explícitamente que son append-only y cerrar gap como "correcto por diseño"
-   - Si sí: implementar políticas con ownership via agent_sessions chain
+   - Agregar políticas cuando se construya feature de edición/eliminación de attachments o tool calls
+   - Documentar explícitamente que son append-only hasta entonces
 
-### Prioridad 2 — Post-MVP
-
-1. **prompt_library DELETE:**
+3. **prompt_library DELETE:**
    - Implementar cuando feature de eliminación de prompts se agregue a UI
 
-2. **prompt_assignments DELETE:**
+4. **prompt_assignments DELETE:**
    - Corregir discrepancia: unassign existe en UI pero falta policy RLS
 
-### Prioridad 3 — Documentar como correcto
+### Prioridad 3 — Documentar como correcto por diseño
 
 1. **audit_log** — documentar explícitamente que UPDATE/DELETE ausentes por diseño (inmutabilidad)
 2. **token_usage** — documentar explícitamente que UPDATE/DELETE ausentes por diseño (billing integrity)
