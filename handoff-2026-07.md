@@ -1959,3 +1959,128 @@ El énfasis visual excesivo (ámbar + pulse) puede ser contraproducente en UI pr
 Ninguno. Es cambio cosmético aislado sin impacto en lógica funcional.
 
 ---
+
+## 2026-07-07 — Chat attachments AI summary + audit_log enrichment
+
+**Fecha:** 2026-07-07
+**Tipo:** Feature / Message attachments / AI summary / Audit log enrichment
+**Área:** Chat / Message attachments / attachment_metadata / audit_log
+
+**Contexto:**
+Los adjuntos de chat ya se envían al AI para que lo analice y responda al usuario. Esa comprensión del archivo no quedaba persistida de forma estructurada. La información se perdía al terminar la respuesta.
+
+**Objetivo:**
+Capturar y persistir un resumen corto y estructurado del adjunto asociado al mensaje, sin bloquear la respuesta principal del chat.
+
+**Decisión arquitectural:**
+- NO modificar `/api/chat` (streaming intacto)
+- Agregar lógica en `/api/messages` (punto donde se guardan mensajes con attachment_metadata)
+- Generar resumen AI de forma asíncrona (fire-and-forget) cuando se guarda un mensaje con adjuntos
+- Actualizar `attachment_metadata` con el resumen generado
+- Insertar nuevo evento `audit_log` tipo `attachment_summary_generated` (NO actualizar el `attachment_uploaded` existente para evitar race conditions)
+
+**Cambio realizado:**
+1. Se agregó función `generateAttachmentSummaries()` en `/api/messages/route.ts` que:
+   - Extrae texto del adjunto usando helper existente `extractTextFromBuffer` (no duplica lógica)
+   - Genera resumen corto (2-4 líneas) usando el mismo provider/modelo del agente
+   - Actualiza `messages.attachment_metadata` con campo `ai_summary` retrocompatible
+   - Inserta evento `audit_log` tipo `attachment_summary_generated` con metadata completa
+   - Degradación graceful: si falla, el mensaje se guarda igual y el error queda logueado
+
+2. Formato de `ai_summary` en `attachment_metadata`:
+```json
+{
+  "status": "available",
+  "summary": "Resumen corto del adjunto en 2-4 líneas.",
+  "generated_at": "2026-07-07T00:00:00.000Z",
+  "provider": "anthropic",
+  "model": "claude-...",
+  "source": "chat_attachment"
+}
+```
+
+Si falla:
+```json
+{
+  "status": "unavailable",
+  "error": "reason",
+  "generated_at": "2026-07-07T00:00:00.000Z",
+  "provider": "...",
+  "model": "...",
+  "source": "chat_attachment"
+}
+```
+
+3. Evento `audit_log` nuevo: `attachment_summary_generated` con metadata:
+```json
+{
+  "filename": "...",
+  "mime_type": "...",
+  "attachment_type": "image|document",
+  "provider": "...",
+  "model": "...",
+  "attachment_summary": { ... }
+}
+```
+
+**Archivos tocados:**
+- src/app/api/messages/route.ts (+195 líneas — función generateAttachmentSummaries + imports)
+
+**Archivos NO tocados:**
+- src/app/api/chat/route.ts (streaming intacto)
+- Context Files (no tocado)
+- Checkpoints (no tocados)
+- Migraciones (no creadas)
+- RLS (no tocado)
+- Schema (no tocado)
+- Storage (no tocado)
+- UI (no tocada)
+
+**Restricciones respetadas:**
+- ✅ No bloquea la respuesta principal del chat
+- ✅ Fire-and-forget sin await en POST handler
+- ✅ Reutiliza helper extractTextFromBuffer existente (no duplica lógica)
+- ✅ Usa mismo provider/modelo del agente (no agrega dependencias)
+- ✅ attachment_metadata retrocompatible (solo agrega campo ai_summary)
+- ✅ audit_log attachment_uploaded no tocado (evento nuevo attachment_summary_generated)
+- ✅ No contamina respuesta visible al usuario
+- ✅ Degradación graceful si falla resumen
+- ✅ No implementa borrado a 8 horas (fuera de alcance)
+- ✅ No agrega dependencias/librerías nuevas
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport no relacionados)
+- ❌ npm run typecheck: No existe en package.json
+- ✅ npm run build: Exitoso — producción optimizada generada
+
+**Validación funcional:**
+⏳ **PENDIENTE** — Requiere validación real del Product Owner con adjunto subido y verificación de:
+1. Mensaje con adjunto se envía sin demora perceptible
+2. `attachment_metadata` del mensaje contiene `ai_summary` con resumen generado
+3. `audit_log` contiene evento `attachment_summary_generated` con metadata completa
+4. Archivo no soportado o fallo de resumen no rompe el envío del mensaje
+5. Fallo graceful: metadata queda retrocompatible con `status: 'unavailable'`
+6. Mensaje sin adjunto sigue funcionando igual
+7. Context Files no fue tocado
+8. Checkpoints no fueron tocados
+
+**Estado:** ⚠️ **Partial** — Código completo, build exitoso, pendiente validación funcional real del Product Owner con al menos un caso de subida de adjunto con resumen generado correctamente.
+
+**Commit:** (pendiente validación funcional)
+
+**Lección clave:**
+Cuando el flujo principal usa streaming, agregar metadata enriquecida requiere fire-and-forget en el punto de persistencia (no en el punto de streaming). Insertar un evento nuevo de audit_log es más seguro que actualizar uno existente sin ID disponible. La extracción de texto debe reutilizar helpers existentes para evitar duplicación y mantener consistencia con Context Files.
+
+**Alternativas descartadas:**
+- Modificar `/api/chat` para enriquecer audit_log existente: descartado porque el streaming no debe bloquearse y no hay ID del audit_log para actualizar después
+- Usar proveedor/modelo distinto: descartado para no agregar infraestructura nueva
+- Actualizar audit_log attachment_uploaded existente: descartado por riesgo de race conditions sin ID disponible
+
+**Riesgos conocidos:**
+- Fire-and-forget en serverless puede fallar silenciosamente si el runtime se apaga antes de completar (aceptable para MVP — metadata no crítica)
+- Matching de mensaje para actualizar attachment_metadata por content+session_id+timestamp puede fallar si hay duplicados exactos (edge case muy raro)
+
+**Próximo paso:**
+Validación funcional por Product Owner con archivo de prueba real en producción. Una vez confirmado PASS, actualizar estado a Closed y proceder con commit.
+
+---

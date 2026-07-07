@@ -279,6 +279,8 @@ AgentPanel (forwardRef → AgentPanelHandle)
 
 **Auto-respond on forward**: `appendUserMessage` delega a `sendPrompt(content)` cuando `autoRespond=true` (default). `sendPrompt` maneja inserción de mensajes + API call — NO llamar los dos en secuencia para evitar duplicación. El delay de 50ms respeta el ciclo de estado de React. `autoRespond=false` mantiene el comportamiento original de solo insertar sin enviar. Cada panel muestra indicador `Auto-respond: ON` en el header. La función real es `sendPrompt(content: string)` — no existe `handleSend` en `AgentPanel`.
 
+**Message attachments AI summary (2026-07-07)**: Cuando un mensaje con adjuntos se guarda vía `/api/messages`, se genera un resumen AI del adjunto de forma fire-and-forget (no bloqueante). El resumen se agrega a `messages.attachment_metadata` con campo retrocompatible `ai_summary: { status, summary?, error?, generated_at, provider, model, source }`. Se usa el helper existente `extractTextFromBuffer` de Context Files para extraer texto. La generación del resumen reutiliza el mismo provider/modelo del agente. Si falla, el mensaje se guarda igual con `status: 'unavailable'`. Se inserta evento `audit_log` tipo `attachment_summary_generated` con metadata completa. NO actualiza el evento `attachment_uploaded` existente (evita race conditions).
+
 **Handle imperativo** (`AgentPanelHandle`):
 - `getLastAssistantMessage()` — último mensaje del asistente
 - `appendUserMessage(content)` — inyectar mensaje de usuario
@@ -536,7 +538,7 @@ Ver sección 10.
 | DELETE | `/api/connections/[id]` | team_connections | Session |
 | GET/POST | `/api/context` | context_sources | Session |
 | POST | `/api/handoff-package` | handoff_packages | Session |
-| POST | `/api/messages` | messages | Session |
+| POST | `/api/messages` | messages, audit_log (attachment_summary_generated) | Session — fire-and-forget AI summary generation for attachments |
 | POST | `/api/save-selection` | saved_selections, audit_log | Session |
 | GET/POST/DELETE | `/api/settings/keys` | user_api_keys | Session |
 | GET/POST/DELETE | `/api/settings/providers` | user_custom_providers | Session |

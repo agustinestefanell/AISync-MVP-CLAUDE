@@ -325,6 +325,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | AgentPanel UI — clip button + chips + drag & drop | ✅ Closed | `AgentPanel.tsx` — input file oculto, chips removibles, drag & drop |
 | AgentPanel — sendPrompt guard fix | ✅ Closed | `AgentPanel.tsx` — `(!content && !atts.length)` permite envío solo-adjunto |
 | Attachment traceability | ✅ Closed | Migración 021 + 022 aplicadas. `session_attachments` + `audit_log` events via `Promise.allSettled`. `attachment_metadata jsonb` en `messages`. Chips de adjunto visibles post-reload. |
+| Attachment AI summary (2026-07-07) | ⚠️ **Partial** | Message attachments now generate a short AI summary (2-4 lines) after being saved. The summary is stored in `attachment_metadata.ai_summary` and logged as `attachment_summary_generated` audit event. Fire-and-forget execution (non-blocking). Uses same provider/model as agent. Reuses `extractTextFromBuffer` helper from Context Files. Graceful degradation if summary fails. Attachment deletion after 8 hours remains pending for future OE. **Pending:** Functional validation by Product Owner with real attachment upload. |
 
 ---
 
