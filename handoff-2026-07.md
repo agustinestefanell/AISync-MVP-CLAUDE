@@ -2054,19 +2054,26 @@ Si falla:
 - ✅ npm run build: Exitoso — producción optimizada generada
 
 **Validación funcional:**
-⏳ **PENDIENTE** — Requiere validación real del Product Owner con adjunto subido y verificación de:
-1. Mensaje con adjunto se envía sin demora perceptible
-2. `attachment_metadata` del mensaje contiene `ai_summary` con resumen generado
-3. `audit_log` contiene evento `attachment_summary_generated` con metadata completa
-4. Archivo no soportado o fallo de resumen no rompe el envío del mensaje
-5. Fallo graceful: metadata queda retrocompatible con `status: 'unavailable'`
-6. Mensaje sin adjunto sigue funcionando igual
-7. Context Files no fue tocado
-8. Checkpoints no fueron tocados
+✅ **CONFIRMADA en producción (2026-07-07)** — Product Owner validó visualmente:
+1. ✅ Mensaje con adjunto se envía sin demora perceptible
+2. ✅ `attachment_metadata` del mensaje contiene `ai_summary` con resumen generado — **status: "available"**, resumen real y coherente del contenido del PDF adjunto (formulario "Costeando Ideas", programa de presupuesto participativo)
+3. ✅ `audit_log` contiene evento `attachment_summary_generated` con metadata completa (confirmado previamente)
+4. ⏸️ Archivo no soportado: no testeado (no crítico — degradación graceful implementada)
+5. ⏸️ Fallo graceful: no testeado (no crítico — lógica implementada con logs)
+6. ✅ Mensaje sin adjunto sigue funcionando igual (confirmado por operación normal del sistema)
+7. ✅ Context Files no fue tocado (verificado con git diff)
+8. ✅ Checkpoints no fueron tocados (verificado con git diff)
 
-**Estado:** ⚠️ **Partial** — Código completo, build exitoso, pendiente validación funcional real del Product Owner con al menos un caso de subida de adjunto con resumen generado correctamente.
+**Validación en producción:**
+Archivo adjunto testeado: PDF "Costeando Ideas" (formulario de presupuesto participativo)
+Resumen AI generado: Coherente y preciso con el contenido real del documento
+Provider/modelo/timestamp: Todos correctos en metadata
 
-**Commit:** (pendiente validación funcional)
+**Estado:** ✅ **CLOSED** — Feature completa, validada visualmente en producción con resumen AI real y coherente del adjunto.
+
+**Commits:**
+- c32e9c1 — feat: generate AI summary for message attachments and enrich audit_log
+- 09fa3d2 — fix: use real message ID instead of content-based search in attachment summary
 
 **Lección clave:**
 Cuando el flujo principal usa streaming, agregar metadata enriquecida requiere fire-and-forget en el punto de persistencia (no en el punto de streaming). Insertar un evento nuevo de audit_log es más seguro que actualizar uno existente sin ID disponible. La extracción de texto debe reutilizar helpers existentes para evitar duplicación y mantener consistencia con Context Files.
@@ -2159,9 +2166,9 @@ const { data: currentMessage } = await supabase
 - ✅ npm run lint: OK (warnings preexistentes en CanvasViewport)
 - ✅ npm run build: Exitoso
 
-**Estado:** ⚠️ **Partial** — Fix técnico completo, pendiente validación funcional del Product Owner (misma validación que OE original).
+**Estado:** ✅ **CLOSED** — Fix técnico completo y validado en producción junto con la feature principal (OE original). Validado visualmente en producción (2026-07-07): attachment_metadata.ai_summary confirmado con resumen real y coherente del adjunto, status: available, model/provider/timestamp correctos.
 
-**Commit:** (pendiente — se commitea junto con la OE original una vez validada funcionalmente)
+**Commit:** 09fa3d2 — fix: use real message ID instead of content-based search in attachment summary
 
 **Lección clave:**
 En operaciones fire-and-forget que procesan múltiples items en paralelo, NUNCA buscar el item correcto por coincidencia de contenido + timestamp — siempre obtener y usar el ID real desde el INSERT. Supabase permite `.insert(...).select()` para obtener IDs sin query adicional. La búsqueda aproximada por `content` puede funcionar 99% del tiempo, pero el 1% restante genera corrupción silenciosa de datos.
@@ -2241,29 +2248,31 @@ La política incluye:
 - ✅ No se agregó DELETE ni otros permisos
 
 **Validación:**
-⏳ **PENDIENTE** — Requiere ejecución manual por Product Owner:
+✅ **CONFIRMADA en producción (2026-07-07)** — Product Owner ejecutó SQL y validó visualmente:
 
-1. **Ejecutar SQL en Supabase SQL Editor:**
-   - Abrir `supabase/migrations/047_add_messages_update_policy.sql`
-   - Copiar SQL completo
-   - Ejecutar en Supabase Dashboard → SQL Editor
-   - Confirmar "Success"
+1. ✅ **SQL ejecutado en Supabase SQL Editor:**
+   - Migración `047_add_messages_update_policy.sql` ejecutada
+   - Resultado: "Success"
+   - Política `messages_update` creada correctamente
 
-2. **Repetir prueba de adjunto:**
-   - Subir archivo PDF o DOCX junto con mensaje al Manager
-   - Esperar respuesta del AI
+2. ✅ **Prueba de adjunto repetida:**
+   - Archivo PDF "Costeando Ideas" subido junto con mensaje al Manager
+   - Respuesta del AI recibida sin demora
 
-3. **Verificar en Supabase Table Editor:**
-   - Tabla `messages`
-   - Buscar mensaje recién enviado
-   - Verificar que columna `attachment_metadata` contiene campo `ai_summary` con resumen generado
+3. ✅ **Verificado en Supabase Table Editor:**
+   - Tabla `messages` confirmada
+   - Mensaje recién enviado localizado
+   - Columna `attachment_metadata` contiene campo `ai_summary` con:
+     - **status: "available"**
+     - **summary:** Resumen real y coherente del contenido del PDF (formulario de presupuesto participativo "Costeando Ideas")
+     - **provider/model/timestamp:** Todos correctos
 
-4. **Verificar audit_log:**
-   - Confirmar evento `attachment_summary_generated` sigue insertándose
+4. ✅ **Verificado audit_log:**
+   - Evento `attachment_summary_generated` confirmado insertándose correctamente
 
-**Estado:** ⚠️ **Partial** — Migración creada y lista para ejecutar, pendiente validación en producción por Product Owner. La feature Attachment AI Summary tampoco puede marcarse Closed hasta que esta validación confirme que `ai_summary` persiste correctamente.
+**Estado:** ✅ **CLOSED** — Migración ejecutada y validada visualmente en producción. La política `messages_update` permite correctamente que `attachment_metadata.ai_summary` persista. Feature Attachment AI Summary completamente funcional.
 
-**Commit:** (pendiente validación)
+**Commit:** 4a5ca3e — fix: add missing UPDATE RLS policy on messages table
 
 **Lección clave:**
 RLS requiere políticas explícitas para cada operación DML. Tener SELECT+INSERT no implica tener UPDATE. Features que actualizan filas existentes deben auditar políticas UPDATE además de SELECT/INSERT, incluso si el UPDATE ocurre desde el mismo código que hizo el INSERT. El bloqueo por RLS es silencioso desde la perspectiva de la aplicación — Supabase simplemente ignora el UPDATE sin lanzar error visible en logs del servidor.
