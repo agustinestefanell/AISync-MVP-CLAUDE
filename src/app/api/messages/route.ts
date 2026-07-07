@@ -19,21 +19,34 @@ export async function POST(req: Request) {
     }[]
   }
 
-  const { error } = await supabase.from('messages').insert(
-    messages.map(m => ({
-      session_id:          sessionId,
-      role:                m.role,
-      content:             m.content,
-      attachment_metadata: m.attachments?.length
-        ? m.attachments.map(a => ({ name: a.name ?? '', media_type: a.media_type, type: a.type }))
-        : null,
-    }))
-  )
+  // Insert and get back IDs
+  const { data: insertedMessages, error } = await supabase
+    .from('messages')
+    .insert(
+      messages.map(m => ({
+        session_id:          sessionId,
+        role:                m.role,
+        content:             m.content,
+        attachment_metadata: m.attachments?.length
+          ? m.attachments.map(a => ({ name: a.name ?? '', media_type: a.media_type, type: a.type }))
+          : null,
+      }))
+    )
+    .select('id, role, attachment_metadata')
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
 
   // Fire-and-forget: generar resumen AI de adjuntos
-  const userMessagesWithAttachments = messages.filter(m => m.role === 'user' && m.attachments?.length)
+  // Map original messages with their inserted DB IDs
+  const messagesWithIds = messages.map((msg, index) => ({
+    ...msg,
+    messageId: insertedMessages?.[index]?.id ?? null,
+  }))
+
+  const userMessagesWithAttachments = messagesWithIds.filter(
+    m => m.role === 'user' && m.attachments?.length && m.messageId
+  )
+
   if (userMessagesWithAttachments.length > 0) {
     // No await — fire-and-forget para no bloquear respuesta
     generateAttachmentSummaries(supabase, user.id, sessionId, userMessagesWithAttachments).catch(err => {
@@ -70,6 +83,7 @@ async function generateAttachmentSummaries(
   userMessages: Array<{
     role: 'user' | 'assistant'
     content: string
+    messageId: string | null
     attachments?: { name?: string; media_type: string; type: 'image' | 'document'; data?: string }[]
   }>
 ) {
@@ -180,15 +194,19 @@ async function generateAttachmentSummaries(
             source: 'chat_attachment',
           }
 
+          // Usar ID real del mensaje insertado (no búsqueda aproximada)
+          if (!msg.messageId) {
+            console.error('[messages] generateAttachmentSummaries: messageId missing', {
+              filename: att.name,
+            })
+            continue
+          }
+
           // Obtener attachment_metadata actual del mensaje para no sobrescribirlo
           const { data: currentMessage } = await supabase
             .from('messages')
-            .select('id, attachment_metadata')
-            .eq('session_id', sessionId)
-            .eq('role', 'user')
-            .eq('content', msg.content)
-            .order('created_at', { ascending: false })
-            .limit(1)
+            .select('attachment_metadata')
+            .eq('id', msg.messageId)
             .single()
 
           if (currentMessage) {
@@ -210,7 +228,7 @@ async function generateAttachmentSummaries(
             await supabase
               .from('messages')
               .update({ attachment_metadata: enrichedMetadata })
-              .eq('id', currentMessage.id)
+              .eq('id', msg.messageId)
           }
 
           // Insertar evento audit_log attachment_summary_generated

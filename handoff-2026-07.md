@@ -2084,3 +2084,96 @@ Cuando el flujo principal usa streaming, agregar metadata enriquecida requiere f
 Validación funcional por Product Owner con archivo de prueba real en producción. Una vez confirmado PASS, actualizar estado a Closed y proceder con commit.
 
 ---
+
+## 2026-07-07 — Chat attachments AI summary — Fix: eliminar búsqueda aproximada, usar ID real
+
+**Fecha:** 2026-07-07
+**Tipo:** Fix técnico / Eliminación de antipatrón / Chat attachments
+**Área:** /api/messages / generateAttachmentSummaries
+
+**Contexto:**
+Inmediatamente después del primer commit (c32e9c1), el Product Owner detectó un antipatrón crítico: la función `generateAttachmentSummaries` buscaba el mensaje insertado por coincidencia de `session_id + role + content + order by created_at desc limit 1` para actualizarlo con el resumen AI.
+
+**Riesgo identificado:**
+Bajo ejecución fire-and-forget en paralelo, si dos mensajes con texto idéntico se insertan con pocos segundos de diferencia, la tarea de resumen del mensaje más viejo puede terminar de procesar después de que el mensaje más nuevo ya exista. En ese momento, "el más reciente" ya no es el mensaje correcto para esa tarea. Riesgo: actualizar el mensaje equivocado.
+
+**Causa raíz:**
+El INSERT original (línea 22) NO usaba `.select()` para obtener los IDs de las filas insertadas. Sin esos IDs, no había forma de actualizar el mensaje correcto sin búsqueda aproximada.
+
+**Cambio realizado:**
+1. **INSERT con `.select()`:** Agregado `.select('id, role, attachment_metadata')` al INSERT para obtener IDs reales de cada fila insertada
+2. **Mapeo mensaje → ID:** Mapeo de mensajes originales con sus IDs correspondientes antes de filtrar por adjuntos
+3. **Firma de función actualizada:** `generateAttachmentSummaries` ahora recibe `messageId: string | null` en cada mensaje
+4. **Eliminada búsqueda aproximada:** Reemplazado bloque completo de `.eq('session_id').eq('role').eq('content').order('created_at', { ascending: false }).limit(1)` por `.eq('id', msg.messageId)` directo
+5. **Guard contra messageId null:** Si `messageId` es null, se loggea error y se salta ese adjunto (no rompe el flujo)
+
+**Código antes (antipatrón):**
+```typescript
+const { error } = await supabase.from('messages').insert(...)
+// ...
+const { data: currentMessage } = await supabase
+  .from('messages')
+  .select('id, attachment_metadata')
+  .eq('session_id', sessionId)
+  .eq('role', 'user')
+  .eq('content', msg.content)  // ← búsqueda aproximada
+  .order('created_at', { ascending: false })
+  .limit(1)
+  .single()
+```
+
+**Código después (fix):**
+```typescript
+const { data: insertedMessages, error } = await supabase
+  .from('messages')
+  .insert(...)
+  .select('id, role, attachment_metadata')  // ← IDs reales
+
+const messagesWithIds = messages.map((msg, index) => ({
+  ...msg,
+  messageId: insertedMessages?.[index]?.id ?? null,  // ← mapeo directo
+}))
+// ...
+if (!msg.messageId) {
+  console.error('[messages] generateAttachmentSummaries: messageId missing', ...)
+  continue  // ← guard sin romper
+}
+
+const { data: currentMessage } = await supabase
+  .from('messages')
+  .select('attachment_metadata')
+  .eq('id', msg.messageId)  // ← actualización directa por ID
+  .single()
+```
+
+**Archivos tocados:**
+- src/app/api/messages/route.ts (refactor +15 líneas netas — no es código nuevo, es eliminación de antipatrón)
+
+**Restricciones respetadas:**
+- ✅ No se tocaron otros archivos
+- ✅ Build exitoso
+- ✅ Lógica de resumen AI intacta
+- ✅ Fire-and-forget preservado
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport)
+- ✅ npm run build: Exitoso
+
+**Estado:** ⚠️ **Partial** — Fix técnico completo, pendiente validación funcional del Product Owner (misma validación que OE original).
+
+**Commit:** (pendiente — se commitea junto con la OE original una vez validada funcionalmente)
+
+**Lección clave:**
+En operaciones fire-and-forget que procesan múltiples items en paralelo, NUNCA buscar el item correcto por coincidencia de contenido + timestamp — siempre obtener y usar el ID real desde el INSERT. Supabase permite `.insert(...).select()` para obtener IDs sin query adicional. La búsqueda aproximada por `content` puede funcionar 99% del tiempo, pero el 1% restante genera corrupción silenciosa de datos.
+
+**Alternativas descartadas:**
+- Mantener búsqueda aproximada con `order by created_at + limit 1`: descartado porque no elimina el riesgo bajo ejecución paralela
+- Agregar timestamp único al payload del frontend: descartado porque agrega complejidad innecesaria cuando el ID real está disponible
+- Serializar procesamiento de adjuntos: descartado porque degrada performance sin razón
+
+**Riesgos eliminados:**
+✅ Race condition en actualización de attachment_metadata
+✅ Corrupción silenciosa al actualizar mensaje equivocado
+✅ Falso positivo en logs ("actualización exitosa" pero del mensaje incorrecto)
+
+---
