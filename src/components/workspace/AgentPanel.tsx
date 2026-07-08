@@ -667,6 +667,11 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                             <span>{att.name || att.media_type || 'File attached'}</span>
                           </div>
                         ))}
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div className="mt-1 text-[9px] opacity-50 italic">
+                            File content is analyzed but not stored — only metadata and AI summary are kept (see Audit Log / Doc Mode).
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

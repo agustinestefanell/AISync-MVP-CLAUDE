@@ -2297,3 +2297,87 @@ RLS requiere políticas explícitas para cada operación DML. Tener SELECT+INSER
 Product Owner debe ejecutar SQL manualmente en Supabase y validar visualmente que `ai_summary` aparece en `messages.attachment_metadata` después de subir un adjunto.
 
 ---
+
+## 2026-07-08 — Attachment transparency text below chip
+
+**Fecha:** 2026-07-08
+**Tipo:** Mini-OE / UI copy / Transparencia de adjuntos
+**Área:** Workspace / AgentPanel / Chat attachments
+**Estado:** ⚠️ **Partial** — Código implementado, build exitoso, validación visual pendiente
+
+**Archivos modificados:**
+- src/components/workspace/AgentPanel.tsx (+4 líneas)
+- handoff-2026-07.md (esta entrada)
+- PRODUCT_STATUS.md (actualizado)
+
+**Contexto:**
+El texto originalmente planeado "This file will be erased after 8hs" fue descartado porque no refleja la realidad técnica actual confirmada en OE B: los adjuntos de chat no se almacenan como archivo físico persistente. El contenido se analiza en el flujo del mensaje, pero no queda guardado como archivo. Lo que persiste es metadata y el resumen generado por AI.
+
+**Objetivo:**
+Agregar un texto pequeño, honesto y no alarmante debajo del chip de adjunto, una sola vez por mensaje, explicando que el contenido del archivo se analiza pero no se guarda, y que solo persisten metadata y resumen AI.
+
+**Cambio realizado:**
+- Se agregó texto de transparencia debajo del bloque de chips de adjunto (líneas 670-674 de AgentPanel.tsx)
+- El texto aparece una sola vez por mensaje con adjuntos (condicional: `msg.attachments && msg.attachments.length > 0`)
+- No se modificó el chip existente (líneas 665-668 preservadas sin cambios)
+- No se modificó lógica de subida, attachment_metadata, audit_log, backend ni storage
+
+**Texto agregado:**
+```tsx
+{msg.attachments && msg.attachments.length > 0 && (
+  <div className="mt-1 text-[9px] opacity-50 italic">
+    File content is analyzed but not stored — only metadata and AI summary are kept (see Audit Log / Doc Mode).
+  </div>
+)}
+```
+
+**Ubicación exacta:**
+Inmediatamente después del `.map()` que renderiza los chips de adjunto (línea 669) y antes del cierre del contenedor padre (línea 675).
+
+**Restricciones respetadas:**
+- ✅ No se modificó lógica de attachments
+- ✅ No se modificó lógica de subida
+- ✅ No se modificó attachment_metadata
+- ✅ No se modificó audit_log
+- ✅ No se modificó generación de AI summary
+- ✅ No se modificó el chip existente
+- ✅ No se agregaron links funcionales a Audit Log / Doc Mode
+- ✅ No se agregó navegación
+- ✅ El texto no se repite por adjunto (una sola vez por mensaje)
+- ✅ El texto descartado "This file will be erased after 8hs" no aparece
+- ✅ No se tocaron otros archivos funcionales
+- ✅ No se tocó backend, Supabase, tokens.css
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings pre-existentes en CanvasViewport no relacionados)
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ⏳ npm run typecheck: No existe como script (no bloqueante)
+
+**Validación funcional pendiente (requiere screenshot del Product Owner):**
+
+| # | Caso | Resultado esperado | Validado |
+|---|---|---|---|
+| 1 | Mensaje con un adjunto | Chip + texto de transparencia debajo, una sola vez | ⏳ |
+| 2 | Mensaje con múltiples adjuntos | Chips de cada adjunto + texto una sola vez | ⏳ |
+| 3 | Mensaje sin adjuntos | Sin texto nuevo | ⏳ |
+| 4 | Chip existente | Se ve igual que antes | ⏳ |
+| 5 | Lógica de adjuntos | Sin cambios | ✅ Confirmado en código |
+| 6 | Texto descartado 8hs | No aparece | ✅ Confirmado en código |
+
+**Estado:** ⚠️ **Partial** — Código implementado y build exitoso, pero requiere validación visual del Product Owner con screenshot antes de marcar como Closed.
+
+**Commit:** Pendiente hasta validación visual
+
+**Alternativas descartadas:**
+- Usar el texto "This file will be erased after 8hs": descartado porque no refleja la realidad técnica (los adjuntos no se almacenan como archivo físico)
+- Agregar links funcionales a Audit Log / Doc Mode: descartado porque aumenta complejidad y está fuera de alcance de Mini-OE
+- Repetir el texto por cada adjunto: descartado porque genera ruido visual innecesario
+- Mostrar el texto en mensajes sin adjuntos: descartado porque no es relevante
+
+**Riesgos conocidos:**
+- Ninguno — cambio acotado a render visual, sin modificaciones funcionales
+
+**Lección clave:**
+Los textos de transparencia deben reflejar la realidad técnica del sistema. Un texto que sugiere un comportamiento futuro ("será borrado") cuando el comportamiento real es distinto (no se almacena) genera confusión y erosiona confianza. La transparencia efectiva es honesta sobre el presente, no especulativa sobre el futuro.
+
+---
