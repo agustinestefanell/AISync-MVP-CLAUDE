@@ -2303,7 +2303,7 @@ Product Owner debe ejecutar SQL manualmente en Supabase y validar visualmente qu
 **Fecha:** 2026-07-08
 **Tipo:** Mini-OE / UI copy / Transparencia de adjuntos
 **Área:** Workspace / AgentPanel / Chat attachments
-**Estado:** ⚠️ **Partial** — Código implementado, build exitoso, validación visual pendiente
+**Estado:** ✅ **CLOSED** — Validado visualmente en producción (2026-07-08)
 
 **Archivos modificados:**
 - src/components/workspace/AgentPanel.tsx (+4 líneas)
@@ -2353,20 +2353,22 @@ Inmediatamente después del `.map()` que renderiza los chips de adjunto (línea 
 - ✅ npm run build: Exitoso — producción optimizada generada
 - ⏳ npm run typecheck: No existe como script (no bloqueante)
 
-**Validación funcional pendiente (requiere screenshot del Product Owner):**
+**Validación funcional:**
 
 | # | Caso | Resultado esperado | Validado |
 |---|---|---|---|
-| 1 | Mensaje con un adjunto | Chip + texto de transparencia debajo, una sola vez | ⏳ |
-| 2 | Mensaje con múltiples adjuntos | Chips de cada adjunto + texto una sola vez | ⏳ |
-| 3 | Mensaje sin adjuntos | Sin texto nuevo | ⏳ |
-| 4 | Chip existente | Se ve igual que antes | ⏳ |
+| 1 | Mensaje con un adjunto | Chip + texto de transparencia debajo, una sola vez | ✅ Confirmado visualmente por PO |
+| 2 | Mensaje con múltiples adjuntos | Chips de cada adjunto + texto una sola vez | ✅ Confirmado visualmente por PO |
+| 3 | Mensaje sin adjuntos | Sin texto nuevo | ✅ Confirmado visualmente por PO |
+| 4 | Chip existente | Se ve igual que antes | ✅ Confirmado visualmente por PO |
 | 5 | Lógica de adjuntos | Sin cambios | ✅ Confirmado en código |
 | 6 | Texto descartado 8hs | No aparece | ✅ Confirmado en código |
 
-**Estado:** ⚠️ **Partial** — Código implementado y build exitoso, pero requiere validación visual del Product Owner con screenshot antes de marcar como Closed.
+**Validación visual:** ✅ **CONFIRMADA en producción (2026-07-08)** — Product Owner validó visualmente: chip del archivo y texto de transparencia aparecen correctamente, una sola vez por mensaje con adjuntos, con el estilo esperado.
 
-**Commit:** Pendiente hasta validación visual
+**Commits:**
+- cba1695 — feat: add honest transparency text below attachment chip
+- (pendiente) — docs: close attachment transparency text as visually validated
 
 **Alternativas descartadas:**
 - Usar el texto "This file will be erased after 8hs": descartado porque no refleja la realidad técnica (los adjuntos no se almacenan como archivo físico)
