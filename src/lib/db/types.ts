@@ -41,6 +41,7 @@ export interface AgentSession {
   config: Record<string, unknown> | null
   description: string | null
   created_at: string
+  web_search_enabled?: boolean
 }
 
 export interface Checkpoint {

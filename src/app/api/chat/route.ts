@@ -83,22 +83,24 @@ export async function POST(req: Request) {
     }
   }
 
-  // ── Capa 2: Web search availability instruction (solo si webSearchEnabled) ────
-  const webSearchInstructionParts: ChatMessage[] = []
-  if (webSearchEnabled) {
-    webSearchInstructionParts.push(
-      {
-        role: 'user',
-        content:
-          'Web search access is a hard external switch controlled by the user for security reasons you cannot see. ' +
-          'Its state may change between messages in this same conversation. ' +
-          'It is currently ENABLED for this message. ' +
-          'Never assume it is unavailable based on what you said in earlier turns — if the tool is offered to you now, use it whenever the user\'s request needs current, factual, or up-to-date information. ' +
-          'Do not decline to search just because you previously said you could not.',
-      },
-      { role: 'assistant', content: 'Understood.' },
-    )
-  }
+  // ── Capa: Runtime Grounding Layer (siempre presente) ────────────────────────
+  const now = new Date()
+  const runtimeGroundingParts: ChatMessage[] = [
+    {
+      role: 'user',
+      content:
+        `RUNTIME CONTEXT (authoritative — always overrides anything you inferred from earlier turns in this conversation):\n` +
+        `- current_datetime_utc: ${now.toISOString()}\n` +
+        `- web_search_available_right_now: ${webSearchEnabled ? 'YES' : 'NO'}\n\n` +
+        `Rules:\n` +
+        `1. The web search availability state above reflects THIS message only. It may have changed since earlier turns — never assume it is still what it was before. If it says YES, use the tool whenever the request needs current, factual, or potentially outdated information. If it says NO, say so honestly instead of guessing.\n` +
+        `2. Never format a response as if it came from real search results (with source citations, URLs, or "according to X") unless you actually invoked the web search tool in this same turn and are using its real returned content. If you lack current information and cannot search, say so plainly — do not fabricate sources or repackage older training knowledge as if it were current.\n` +
+        `3. The verification requirement applies to the specific claim being made, not to its general subject area. A specific claim that could plausibly have changed, been revised, or been updated since your training — a recent discovery, a statistic, a current status, an event — requires verification regardless of whether the broader topic (science, history, etc.) seems generally stable. Do not assume an entire subject area is exempt from verification just because it feels foundational or well-established.\n` +
+        `4. When uncertain, prefer saying "I don't know" or "I cannot verify this" over producing a plausible-sounding guess presented as fact.\n` +
+        `5. Whenever the user asks for information that would require an internet search and web_search_available_right_now is NO, you must tell the user plainly that you cannot access that information right now, and instruct them to click the button at the top of the chat and change it from "Web search: OFF" to "Web search: ON" to enable it.`,
+    },
+    { role: 'assistant', content: 'Understood.' },
+  ]
 
   // ── Capa 3: Team system prompt from Supabase (tolerant — table may not have team_id column yet) ──
   const teamPromptParts: ChatMessage[] = []
@@ -200,10 +202,10 @@ export async function POST(req: Request) {
     }
   }
 
-  // ── Assemble final message array (order: role → web search instruction → team → prompt library → context files → snapshot → history) ──
+  // ── Assemble final message array (order: role → runtime grounding → team → prompt library → context files → snapshot → history) ──
   const messages: ChatMessage[] = [
     ...rolePromptParts,
-    ...webSearchInstructionParts,
+    ...runtimeGroundingParts,
     ...teamPromptParts,
     ...promptLibraryParts,
     ...contextFilesParts,

@@ -6,6 +6,7 @@ import type { AgentSession, Message } from '@/lib/db/types'
 import type { ChatMessage, ChatAttachment } from '@/lib/providers/types'
 import PromptLibrary from './PromptLibrary'
 import ContextFilePanel from './ContextFilePanel'
+import { createClient } from '@/lib/supabase/client'
 
 // ── Role configuration ───────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, {
@@ -129,6 +130,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     forwardTargets, onForward, onCreateHandoff, onSaveVersion, onOpenSaveSelection,
     teamId, projectId, teamType, getOtherPanelsSnapshot, initialInput,
   }, ref) => {
+    const supabase = createClient()
     const role         = ROLE_CONFIG[session.agent_role] ?? DEFAULT_ROLE
     const guidePrompts = GUIDE_PROMPTS[session.agent_role] ?? GUIDE_PROMPTS.worker1
 
@@ -150,7 +152,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     const [showRefreshConfirm, setShowRefreshConfirm]   = useState(false)
     const [copiedIndex, setCopiedIndex]                 = useState<number | null>(null)
     const [autoRespond]                                 = useState(true)
-    const [webSearchEnabled, setWebSearchEnabled]       = useState(false)
+    const [webSearchEnabled, setWebSearchEnabled]       = useState(session.web_search_enabled ?? true)
     const [showPromptLibrary,    setShowPromptLibrary]    = useState(false)
     const [showContextFilePanel, setShowContextFilePanel] = useState(false)
     const [apiMessages, setApiMessages]               = useState<ChatMessage[]>(
@@ -505,7 +507,16 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                   )}
                   <button
                     type="button"
-                    onClick={() => setWebSearchEnabled(prev => !prev)}
+                    onClick={() => {
+                      const newValue = !webSearchEnabled
+                      setWebSearchEnabled(newValue)
+                      // Persist to DB (fire-and-forget)
+                      supabase
+                        .from('agent_sessions')
+                        .update({ web_search_enabled: newValue })
+                        .eq('id', session.id)
+                        .then(() => {})
+                    }}
                     className={`ml-2 text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
                       webSearchEnabled
                         ? 'text-[var(--color-text-muted)] border-[var(--color-border-default)]'
