@@ -345,6 +345,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Runtime Tavily con API key real | Pending | Agregar `TAVILY_API_KEY` en Vercel Dashboard |
 | Tool loop multi-ronda | Deferred | Post-MVP |
 | Web search traceability + sources | ✅ Closed | `session_tool_calls.sources` persiste trazabilidad. `audit_log.metadata.sources` alimenta render determinista del panel lateral. Links clickeables en Audit Log. |
+| Web Search availability prompt layer (2026-07-08) | ⚠️ **Partial** | Added a conditional prompt layer when webSearchEnabled is true. The layer tells the model that Web Search is currently available for this message and that it must not rely on prior turns where it said search was unavailable. This addresses conversational consistency bias after the user toggles Web Search ON mid-conversation. The layer is inserted early in the prompt composition (after Role, before Team/Prompt Library) for high priority. Tool definition, tool loop and toggle behavior were not changed. Functional validation pending with Product Owner. |
 
 ---
 

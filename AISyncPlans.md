@@ -1264,3 +1264,72 @@ return () => {
 **Lección:**
 Comentarios como "will retry..." sin implementación real son deuda técnica que genera falsa seguridad.
 
+
+---
+
+### Patrón arquitectural — Conditional tool availability prompt layer
+
+**Contexto:**
+Cuando una herramienta externa (ej: Web Search) cambia de estado ON/OFF mid-conversación, el modelo puede priorizar consistencia conversacional con sus propias respuestas anteriores en vez de reevaluar la disponibilidad actual de la herramienta.
+
+**Problema:**
+Si el modelo dijo en un turno anterior "no tengo acceso a internet" cuando Web Search estaba OFF, y luego el usuario activa Web Search y repite el mismo pedido, el modelo tiende a sostener la negación previa en lugar de usar la herramienta ahora disponible.
+
+**Solución:**
+Agregar una capa condicional de system prompt que se activa solo cuando la herramienta está habilitada (`webSearchEnabled === true`).
+
+**Patrón implementado (Web Search como caso inicial):**
+
+```ts
+// ── Capa 2: Web search availability instruction (solo si webSearchEnabled) ────
+const webSearchInstructionParts: ChatMessage[] = []
+
+if (webSearchEnabled) {
+  webSearchInstructionParts.push(
+    {
+      role: 'user',
+      content:
+        'Web search access is a hard external switch controlled by the user for security reasons you cannot see. ' +
+        'Its state may change between messages in this same conversation. ' +
+        'It is currently ENABLED for this message. ' +
+        'Never assume it is unavailable based on what you said in earlier turns — if the tool is offered to you now, use it whenever the user\'s request needs current, factual, or up-to-date information. ' +
+        'Do not decline to search just because you previously said you could not.',
+    },
+    { role: 'assistant', content: 'Understood.' },
+  )
+}
+
+// Insertar en el array final con alta prioridad
+const messages: ChatMessage[] = [
+  ...rolePromptParts,
+  ...webSearchInstructionParts,  // ← Alta prioridad, después de Role
+  ...teamPromptParts,
+  ...promptLibraryParts,
+  // ...
+]
+```
+
+**Reglas del patrón:**
+
+1. **Condicional estricto:** La capa solo se activa cuando la herramienta está habilitada (no cuando está OFF).
+2. **Alta prioridad:** Insertar temprano en el array de messages (después de Role, antes de capas más específicas).
+3. **Patrón "Understood.":** Seguir el patrón existente de capas: user instruction + assistant "Understood."
+4. **Instrucción explícita:** Informar que el estado puede cambiar mid-conversación y que el modelo debe reevaluar en vez de asumir indisponibilidad por turnos anteriores.
+5. **Criterio operativo preservado:** La instrucción debe preservar el criterio de cuándo usar la herramienta (ej: "when the user's request needs current, factual, or up-to-date information").
+6. **No forzar uso:** No usar `tool_choice` ni forzar la herramienta — solo clarificar disponibilidad.
+
+**No modificar:**
+- Tool definition de la herramienta
+- Tool loop
+- Capas existentes (Role, Team, Prompt Library)
+- Frontend / toggle / payload
+
+**Caso inicial:**
+Web Search (src/app/api/chat/route.ts, 2026-07-08)
+
+**Extensibilidad:**
+El patrón puede aplicarse a otras herramientas externas con estado ON/OFF controlado por el usuario si se detecta el mismo sesgo de consistencia conversacional.
+
+**Lección arquitectónica:**
+Los modelos de lenguaje priorizan consistencia narrativa. Cuando una herramienta externa cambia de estado mid-conversación, el modelo necesita instrucción explícita para reevaluar la disponibilidad actual en lugar de sostener una negación previa. La capa de prompt debe ser condicional, tener alta prioridad, y preservar el criterio operativo sin forzar uso innecesario.
+

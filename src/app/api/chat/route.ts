@@ -83,6 +83,23 @@ export async function POST(req: Request) {
     }
   }
 
+  // ── Capa 2: Web search availability instruction (solo si webSearchEnabled) ────
+  const webSearchInstructionParts: ChatMessage[] = []
+  if (webSearchEnabled) {
+    webSearchInstructionParts.push(
+      {
+        role: 'user',
+        content:
+          'Web search access is a hard external switch controlled by the user for security reasons you cannot see. ' +
+          'Its state may change between messages in this same conversation. ' +
+          'It is currently ENABLED for this message. ' +
+          'Never assume it is unavailable based on what you said in earlier turns — if the tool is offered to you now, use it whenever the user\'s request needs current, factual, or up-to-date information. ' +
+          'Do not decline to search just because you previously said you could not.',
+      },
+      { role: 'assistant', content: 'Understood.' },
+    )
+  }
+
   // ── Capa 3: Team system prompt from Supabase (tolerant — table may not have team_id column yet) ──
   const teamPromptParts: ChatMessage[] = []
   if (team_id) {
@@ -183,9 +200,10 @@ export async function POST(req: Request) {
     }
   }
 
-  // ── Assemble final message array (order: role → team → prompt library → context files → snapshot → history) ──
+  // ── Assemble final message array (order: role → web search instruction → team → prompt library → context files → snapshot → history) ──
   const messages: ChatMessage[] = [
     ...rolePromptParts,
+    ...webSearchInstructionParts,
     ...teamPromptParts,
     ...promptLibraryParts,
     ...contextFilesParts,

@@ -2383,3 +2383,127 @@ Inmediatamente después del `.map()` que renderiza los chips de adjunto (línea 
 Los textos de transparencia deben reflejar la realidad técnica del sistema. Un texto que sugiere un comportamiento futuro ("será borrado") cuando el comportamiento real es distinto (no se almacena) genera confusión y erosiona confianza. La transparencia efectiva es honesta sobre el presente, no especulativa sobre el futuro.
 
 ---
+
+## 2026-07-08 — Conditional Web Search availability prompt layer
+
+**Fecha:** 2026-07-08
+**Tipo:** Mini-OE / Prompt layer / Web Search reliability
+**Área:** Chat API / System prompt composition / Web Search
+**Estado:** ⚠️ **Partial** — Código implementado, build exitoso, validación funcional pendiente
+
+**Archivos modificados:**
+- src/app/api/chat/route.ts (+17 líneas)
+- handoff-2026-07.md (esta entrada)
+- PRODUCT_STATUS.md (actualizado)
+- AISyncPlans.md (actualizado)
+
+**Contexto y decisión de producto:**
+Diagnóstico confirmado: cuando el usuario prende Web Search después de que el AI dijo en un turno anterior "no tengo acceso" con el toggle en OFF, el modelo tiende a mantenerse consistente con su propia respuesta previa en vez de reevaluar la disponibilidad actual de la herramienta.
+
+Decisión del Product Owner: El toggle ON/OFF debe tratarse como una barrera externa física, ajena al criterio del agente. No es algo que el agente "decide" tener o no tener.
+
+**Diagnóstico:**
+- **Sesgo de consistencia conversacional:** El modelo recibe el historial completo de conversación, incluyendo su propia respuesta anterior negando acceso a internet. Al repetir el usuario el pedido después de activar Web Search, el modelo puede priorizar consistencia narrativa con lo dicho antes en vez de reevaluar la disponibilidad real actual de la herramienta.
+- **Barrera externa física:** El toggle ON/OFF debe tratarse como una barrera externa física controlada por el usuario por razones de seguridad, no como un criterio interno del agente.
+- **Causa:** El modelo no distingue automáticamente entre "no tengo acceso porque la herramienta está deshabilitada" vs "no tengo acceso porque dije anteriormente que no lo tenía".
+
+**Objetivo:**
+Agregar una nueva capa condicional de system prompt, siguiendo el patrón existente de capas del archivo, que se active únicamente cuando `webSearchEnabled === true`.
+
+**Cambio realizado:**
+- Se agregó nueva capa `webSearchInstructionParts` en src/app/api/chat/route.ts (líneas ~87-101)
+- La capa se activa solo cuando `webSearchEnabled === true` (condicional estricto)
+- La capa informa que Web Search está ENABLED para el mensaje actual
+- La capa instruye al modelo a no asumir indisponibilidad por turnos anteriores
+- La capa mantiene el criterio: buscar cuando el pedido requiere información current, factual o up-to-date
+- La capa se inserta en el array final de messages con alta prioridad: después de Role, antes de Team/Prompt Library/Context Files
+- No se modificó Web Search tool definition (webSearchTool.definition)
+- No se modificó tool loop (líneas 286-294)
+- No se forzó tool_choice
+- No se modificaron capas existentes (Role, Team, Prompt Library)
+
+**Texto de la capa agregada:**
+```ts
+const webSearchInstructionParts: ChatMessage[] = []
+if (webSearchEnabled) {
+  webSearchInstructionParts.push(
+    {
+      role: 'user',
+      content:
+        'Web search access is a hard external switch controlled by the user for security reasons you cannot see. ' +
+        'Its state may change between messages in this same conversation. ' +
+        'It is currently ENABLED for this message. ' +
+        'Never assume it is unavailable based on what you said in earlier turns — if the tool is offered to you now, use it whenever the user\'s request needs current, factual, or up-to-date information. ' +
+        'Do not decline to search just because you previously said you could not.',
+    },
+    { role: 'assistant', content: 'Understood.' },
+  )
+}
+```
+
+**Orden final de capas en messages array:**
+```ts
+const messages: ChatMessage[] = [
+  ...rolePromptParts,              // Capa 1: Role
+  ...webSearchInstructionParts,    // Capa 2: Web Search availability (nueva, condicional)
+  ...teamPromptParts,              // Capa 3: Team
+  ...promptLibraryParts,           // Capa: Prompt Library
+  ...contextFilesParts,            // Capa: Context Files
+  ...snapshotParts,                // Capa: Other panels snapshot
+  ...rawMessages,                  // Historia de conversación
+]
+```
+
+**Restricciones respetadas:**
+- ✅ No se modificó rolePromptParts
+- ✅ No se modificó teamPromptParts
+- ✅ No se modificó promptLibraryParts
+- ✅ No se modificó webSearchTool.definition
+- ✅ No se modificó tool loop
+- ✅ No se forzó tool_choice
+- ✅ No se modificó frontend
+- ✅ No se modificó AgentPanel
+- ✅ No se tocó el toggle ON/OFF
+- ✅ No se modificó payload
+- ✅ No se modificaron providers
+- ✅ La capa solo aparece cuando webSearchEnabled === true
+- ✅ No se tocaron DB, RLS ni migraciones
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings pre-existentes en CanvasViewport no relacionados)
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ⏳ npm run typecheck: No existe como script (no bloqueante)
+
+**Validación funcional pendiente (requiere prueba manual del Product Owner):**
+
+| # | Caso | Resultado esperado | Validado |
+|---|---|---|---|
+| 1 | Web Search OFF + pedido de info actual | AI responde igual que antes, sin capa nueva | ⏳ |
+| 2 | Web Search ON + primer mensaje pidiendo info actual | AI busca correctamente | ⏳ |
+| 3 | Web Search OFF → AI dice "no tengo acceso" → usuario prende ON → repite mismo pedido | AI ahora sí busca, sin repetir la negación anterior | ⏳ **CRÍTICO** |
+| 4 | Mensaje trivial "hola" con Web Search ON | AI no busca innecesariamente | ⏳ |
+| 5 | Prompt Library / Role / Team | Siguen activos y sin alteraciones | ✅ Confirmado en código |
+| 6 | Tool loop | Sigue funcionando igual | ✅ Confirmado en código |
+| 7 | webSearchEnabled false | No incluye la nueva capa | ✅ Confirmado en código |
+
+**Estado:** ⚠️ **Partial** — Código implementado y build exitoso, pero requiere validación funcional del Product Owner.
+
+**Criterio de cierre:**
+No marcar Closed sin que el Product Owner repita manualmente el escenario #3 (OFF → negación → ON → repetición) con Anthropic y confirme que ahora busca correctamente.
+
+**Commit:** Pendiente hasta validación funcional
+
+**Alternativas descartadas:**
+- Forzar tool_choice cuando webSearchEnabled: descartado porque forzaría búsquedas innecesarias en mensajes triviales
+- Modificar webSearchTool.definition: descartado porque el problema no es la definición de la herramienta sino la interpretación del modelo
+- Agregar la capa cuando webSearchEnabled es false: descartado porque no hay necesidad de instruir al modelo sobre una herramienta deshabilitada
+- Ubicar la capa después de Team/Prompt Library: descartado porque necesita alta prioridad para que el modelo la procese temprano
+
+**Riesgos conocidos:**
+- Si la instrucción es demasiado fuerte, podría forzar búsquedas innecesarias en mensajes triviales (mitigado con "whenever the user's request needs current, factual, or up-to-date information")
+- Si la capa tiene baja prioridad, podría ser ignorada por capas posteriores más específicas (mitigado con ubicación temprana, después de Role)
+
+**Lección clave:**
+Los modelos de lenguaje priorizan consistencia conversacional. Cuando una herramienta externa cambia de estado mid-conversación, el modelo necesita instrucción explícita para reevaluar la disponibilidad actual en lugar de sostener una negación previa. La capa de prompt debe ser condicional (solo cuando la herramienta está habilitada), tener alta prioridad, y preservar el criterio operativo (usar la herramienta cuando el pedido lo requiere, no forzar uso innecesario).
+
+---
