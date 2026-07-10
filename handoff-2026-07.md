@@ -2681,9 +2681,14 @@ const MODEL_MAP: Record<string, string> = {
 - No existe CHECK constraint sobre `agent_sessions.model` (confirmado en migrations/001_hierarchy.sql línea 36)
 - Etiquetas antiguas persistidas en DB seguirán funcionando gracias a MODEL_MAP
 
-**Estado:** ✅ **Closed** — Cambios aplicados correctamente, build exitoso, compatibilidad preservada
+**Validación en producción (2026-07-10):**
+Sesiones existentes con etiquetas legacy confirmadas funcionando correctamente tras la actualización del MODEL_MAP:
+- ✅ Sesión con "Claude 3.5 Sonnet" → respondió con normalidad
+- ✅ Sesión con "GPT-4o" → respondió con normalidad
 
-**Commit:** (ejecutado en esta sesión)
+**Estado:** ✅ **Closed** — Cambios aplicados correctamente, build exitoso, compatibilidad preservada, validado en producción con sesiones reales
+
+**Commit:** 8e68846
 
 **Lección clave:**
 Los MODEL_MAP no deben eliminar etiquetas legacy porque `agent_sessions.model` persiste etiquetas visibles que pueden estar guardadas en sesiones existentes. Actualizar una redirección existente (ej: cambiar el target de "Claude 3.5 Sonnet" de 4-5 a 4-6) es seguro. Agregar nuevas etiquetas (ej: "GPT-5.5") es seguro. Eliminar una etiqueta existente rompería sesiones guardadas con esa etiqueta. El patrón de compatibilidad etiqueta visible → ID real debe preservarse.
