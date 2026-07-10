@@ -2932,21 +2932,30 @@ Los 21 agentes originales con Groq ya fueron migrados a OpenAI/GPT-5.5 (OE anter
 - ✅ TypeScript: Sin errores
 - ✅ git diff --check: Solo warnings CRLF normales en Windows
 
-**Validación funcional pendiente:**
+**Validación funcional completada:**
 
 | # | Caso | Resultado |
 |---|---|---|
-| 1 | Add Team sin Groq | ⏳ Pendiente validación visual |
-| 2 | Anthropic latest en Add Team | ⏳ Pendiente — debe mostrar solo `Claude Sonnet 4.6` |
-| 3 | OpenAI latest en Add Team | ⏳ Pendiente — debe mostrar solo `GPT-5.5` |
-| 4 | Google latest en Add Team | ⏳ Pendiente — debe mostrar solo `Gemini 3.5 Flash` |
-| 5 | Edit Team agente Groq de prueba | ⏳ **CRÍTICO** — pendiente validación visual PO |
-| 6 | Guardar agente Groq sin cambio forzado | ⏳ **CRÍTICO** — pendiente validación visual PO |
-| 7 | Edit Team agente Claude legacy | ⏳ Pendiente — debe preservar valor + marcar "(legacy)" |
-| 8 | Cambiar agente legacy a Anthropic latest | ⏳ Pendiente — debe guardar `Claude Sonnet 4.6` |
-| 9 | ApiKeysManager sin Groq | ⏳ Pendiente validación visual |
-| 10 | MODEL_MAP no tocado | ✅ Confirmado |
-| 11 | Groq runtime no tocado | ✅ Confirmado |
+| 1 | Add Team sin Groq | ✅ **PASS** — Groq no aparece en opciones |
+| 2 | Anthropic latest en Add Team | ✅ **PASS** — Solo muestra `Claude Sonnet 4.6` |
+| 3 | OpenAI latest en Add Team | ✅ **PASS** — Solo muestra `GPT-5.5` |
+| 4 | Google latest en Add Team | ✅ **PASS** — Solo muestra `Gemini 3.5 Flash` |
+| 5 | Edit Team agente Groq de prueba | ✅ **PASS** — Modal abre sin romperse, Groq visible y seleccionado |
+| 6 | Guardar agente Groq sin cambio forzado | ✅ **PASS** — No fuerza cambio, preserva Groq |
+| 7 | Edit Team agente Claude legacy | ✅ **PASS** — Manager muestra `Claude 3.5 Sonnet (legacy)` |
+| 8 | Cambiar agente legacy a Anthropic latest | ⏳ No probado (no crítico) |
+| 9 | ApiKeysManager sin Groq | ✅ **PASS** — Groq no aparece como opción |
+| 10 | MODEL_MAP no tocado | ✅ **PASS** — Confirmado |
+| 11 | Groq runtime no tocado | ✅ **PASS** — Confirmado |
+
+**Validación visual en producción (2026-07-10):**
+Product Owner confirmó:
+- ✅ Edit Team abre sin romperse con agente Groq de prueba existente
+- ✅ Provider select muestra "Groq" correctamente seleccionado (sin label "(legacy)" porque Groq no está en CLOUD_PROVIDERS)
+- ✅ Manager muestra "Claude 3.5 Sonnet (legacy)" — confirmando fallback funciona para etiquetas legacy de otros proveedores
+- ✅ Teams Map funciona con normalidad
+- ✅ Workspace real funciona con normalidad
+- ✅ No se forzaron cambios automáticos en ningún agente
 
 **Alternativas descartadas:**
 - Eliminar runtime Groq: descartado — puede haber agentes puntuales con Groq creados manualmente
@@ -2958,10 +2967,10 @@ Los 21 agentes originales con Groq ya fueron migrados a OpenAI/GPT-5.5 (OE anter
 - Usuario puede editar agente legacy y guardarlo con provider/model legacy preservado (esperado, no es bug)
 
 **Lección clave:**
-Retirar un provider de UI de selección nueva no equivale a eliminar soporte runtime ni datos existentes. El patrón correcto es: (1) reducir opciones nuevas visibles, (2) implementar fallback genérico para preservar valores legacy existentes sin forzar cambios, (3) no tocar MODEL_MAP ni runtime providers, (4) validar caso crítico con agente legacy antes de cerrar.
+Retirar un provider de UI de selección nueva no equivale a eliminar soporte runtime ni datos existentes. El patrón correcto es: (1) reducir opciones nuevas visibles, (2) implementar fallback genérico para preservar valores legacy existentes sin forzar cambios, (3) no tocar MODEL_MAP ni runtime providers, (4) validar caso crítico con agente legacy antes de cerrar. El fallback genérico debe aplicar a cualquier valor no listado (provider o model), no solo al provider específico que se está retirando de UI.
 
-**Estado:** ⚠️ **Partial** — Código implementado, build exitoso. Pendiente validación visual casos #5 y #6 (Edit Team con agente Groq de prueba existente) por Product Owner antes de cerrar.
+**Estado:** ✅ **Closed** — Código implementado, build exitoso, validado visualmente en producción con agentes Groq y legacy de otros proveedores.
 
-**Commits:** (pendiente — se hará después de validación visual PO)
+**Commits:** dc6d3de (UI cleanup), pending (validación confirmada)
 
 ---
