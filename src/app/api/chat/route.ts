@@ -11,7 +11,6 @@ import type { ChatMessage } from '@/lib/providers/types'
 import type { ToolResult } from '@/lib/tools'
 import { AnthropicProvider } from '@/lib/providers/anthropic'
 import { OpenAIProvider }   from '@/lib/providers/openai'
-import { GroqProvider }     from '@/lib/providers/groq'
 import { GoogleProvider }   from '@/lib/providers/google'
 import type { TokenUsage } from '@/lib/tools/types'
 
@@ -281,7 +280,6 @@ export async function POST(req: Request) {
     const providerInstance = getProvider(provider, { apiKey: resolved.apiKey })
     const anthropicProvider = provider === 'Anthropic' ? providerInstance as AnthropicProvider : null
     const openaiProvider    = provider === 'OpenAI'    ? providerInstance as OpenAIProvider    : null
-    const groqProvider      = provider === 'Groq'      ? providerInstance as GroqProvider      : null
     const googleProvider    = provider === 'Google'    ? providerInstance as GoogleProvider    : null
 
     const persistUsage = async (usage: TokenUsage, captureMethod: string) => {
@@ -380,8 +378,6 @@ export async function POST(req: Request) {
           ? await anthropicProvider.stream(messagesWithToolResults, model, streamUsageOpts)
           : openaiProvider
           ? await openaiProvider.stream(messagesWithToolResults, model, streamUsageOpts)
-          : groqProvider
-          ? await groqProvider.stream(messagesWithToolResults, model, streamUsageOpts)
           : googleProvider
           ? await googleProvider.stream(messagesWithToolResults, model, streamUsageOpts)
           : await providerInstance.stream(messagesWithToolResults, model)
@@ -404,8 +400,6 @@ export async function POST(req: Request) {
       ? await anthropicProvider.stream(messages, model, streamUsageOpts)
       : openaiProvider
       ? await openaiProvider.stream(messages, model, streamUsageOpts)
-      : groqProvider
-      ? await groqProvider.stream(messages, model, streamUsageOpts)
       : googleProvider
       ? await googleProvider.stream(messages, model, streamUsageOpts)
       : await providerInstance.stream(messages, model)

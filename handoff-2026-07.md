@@ -2974,3 +2974,120 @@ Retirar un provider de UI de selección nueva no equivale a eliminar soporte run
 **Commits:** dc6d3de (UI cleanup), pending (validación confirmada)
 
 ---
+
+## 2026-07-10 — Mini-OE A: Groq functional provider support removed
+
+**Fecha:** 2026-07-10
+**Tipo:** Mini-OE / Provider removal / Core cleanup
+**Área:** Providers / Chat API / Onboarding / API key requirement
+
+**Diagnóstico:**
+
+Ya no existe ningún `agent_session` en producción con `provider='Groq'`:
+- Los 21 agentes originales fueron migrados a `OpenAI` / `GPT-5.5` (commits 9581871, 7ef3c2d)
+- El agente de prueba Groq restante fue eliminado manualmente por el Product Owner
+- Groq ya fue removido de UI visible (modales Add/Edit Team, API Keys page) en commit dc6d3de
+
+**Decisión Product Owner:**
+Retirar Groq como proveedor funcional completo.
+
+**Alcance:**
+Esta Mini-OE A cubre código core funcional únicamente. Limpieza cosmética (badges, labels visuales) queda pendiente para Mini-OE B.
+
+**Cambios realizados:**
+
+1. **src/lib/providers/groq.ts — eliminado completo:**
+   - Archivo eliminado con `git rm`
+   - Clase `GroqProvider` removida del sistema
+   - MODEL_MAP de Groq removido
+
+2. **src/lib/providers/index.ts:**
+   - Import `GroqProvider` removido (línea 5)
+   - Entrada factory `Groq: (c) => new GroqProvider(...)` removida (línea 16)
+   - Registry ahora solo incluye: Anthropic, OpenAI, Google, IA Local
+
+3. **src/lib/providers/resolveApiKey.ts:**
+   - `'Groq'` removido de `KNOWN_PROVIDERS` set (línea 6)
+   - KNOWN_PROVIDERS ahora: `['Anthropic', 'OpenAI', 'Google', 'IA Local']`
+
+4. **src/app/api/chat/route.ts:**
+   - Import `GroqProvider` removido (línea 14)
+   - Declaración `groqProvider` removida (línea 284)
+   - Rama ternaria tool loop `groqProvider ? await groqProvider.stream(...)` removida (líneas 383-384)
+   - Rama ternaria direct stream `groqProvider ? await groqProvider.stream(...)` removida (líneas 407-408)
+   - Tool loop ahora: Anthropic → OpenAI → Google → fallback genérico
+   - Direct stream ahora: Anthropic → OpenAI → Google → fallback genérico
+
+5. **src/app/api/onboarding/start/route.ts:**
+   - Rama `defaultProvider === 'Groq'` removida (líneas 65-66)
+   - Fallback implícito al default general (`'claude-3-5-sonnet-20241022'`) preservado
+   - Si `defaultProvider` llega como `'Groq'` desde cliente con estado cacheado, cae al ternario final
+   - **Fallback onboarding:** No fue necesario agregar fallback adicional — la cadena de ternarios ya termina en default general seguro
+
+6. **src/components/onboarding/ApiKeyRequiredModal.tsx:**
+   - Objeto Groq removido del array `providers` (líneas 12-15)
+   - Modal ahora muestra solo: Google, Anthropic, OpenAI
+
+**Archivos NO tocados (explícitamente fuera de alcance):**
+
+- `src/app/api/settings/providers/route.ts` — `RESERVED` set con Groq (decisión pendiente para Mini-OE B)
+- `src/components/sm/SMPanel.tsx` — MODEL_MAP cosmético
+- `src/components/teams/map/AgentCard.tsx` — color map cosmético
+- `src/components/teams/TeamNode.tsx` — color map cosmético
+- `src/components/teams/TeamsClient.tsx` — descripción de texto
+- `src/components/workspace/AgentPanel.tsx` — warning de attachments
+- `src/components/workspace/TokenUsageBadge.tsx` — display name
+- No se modificó MODEL_MAP de otros proveedores
+- No se tocaron migraciones/RLS/DB
+- No se tocó `agent_sessions`
+
+**Validaciones técnicas:**
+
+✅ `npm run lint` — OK (solo warnings preexistentes en CanvasViewport no relacionados)
+✅ `npm run build` — Exitoso, producción optimizada generada
+✅ TypeScript — Sin errores
+✅ `grep GroqProvider/groqProvider` — 0 resultados (sin referencias funcionales rotas)
+✅ `grep './groq'` — 0 resultados
+✅ `grep Groq` en src — Solo referencias cosméticas confirmadas (fuera de alcance Mini-OE A)
+
+**Validación funcional:**
+
+⏳ **PENDIENTE** — Requiere validación con chat real usando proveedor existente:
+1. Onboarding de cuenta nueva con API key Anthropic/OpenAI/Google
+2. Chat con Anthropic existente sin errores
+3. Chat con OpenAI existente sin errores
+4. Chat con Google existente sin errores
+5. ApiKeyRequiredModal ya no lista Groq
+6. Tool loop (Web Search) funcionando con Anthropic/OpenAI/Google
+
+**Cambios netos:**
+
+```text
+src/lib/providers/groq.ts                         | DELETED (67 lines)
+src/lib/providers/index.ts                        | -2 lines (import + factory)
+src/lib/providers/resolveApiKey.ts                | -1 line ('Groq' from set)
+src/app/api/chat/route.ts                         | -6 lines (import + declaración + 2 ramas ternarias)
+src/app/api/onboarding/start/route.ts             | -2 lines (rama Groq)
+src/components/onboarding/ApiKeyRequiredModal.tsx | -5 lines (objeto Groq)
+```
+
+**Pendiente para Mini-OE B:**
+
+- Limpieza cosmética de referencias visuales en:
+  * TeamsClient.tsx (descripción texto)
+  * AgentCard.tsx (color map)
+  * TeamNode.tsx (color map)
+  * AgentPanel.tsx (warning attachments)
+  * TokenUsageBadge.tsx (display name)
+  * SMPanel.tsx (MODEL_MAP)
+- Decisión sobre `RESERVED` set en `settings/providers/route.ts`
+
+**Lección clave:**
+
+Retirar un provider funcional completo requiere cambios coordinados en 6 superficies: (1) archivo clase provider, (2) factory registry, (3) KNOWN_PROVIDERS, (4) chat API tool loop + direct stream, (5) onboarding default model, (6) ApiKeyRequiredModal. La búsqueda exhaustiva con grep antes de empezar es crítica para detectar todas las dependencias. Las referencias cosméticas/visuales pueden mantenerse separadas en una segunda fase de limpieza.
+
+**Estado:** ⚠️ **Partial** — Código implementado, build exitoso, pendiente validación funcional con chat real en proveedor existente
+
+**Commit:** Pendiente hasta validación funcional confirmada
+
+---

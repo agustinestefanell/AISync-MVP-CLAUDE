@@ -9,11 +9,6 @@ interface Props {
 
 const providers = [
   {
-    name: 'Groq',
-    description: 'Free, fast',
-    link: 'https://console.groq.com',
-  },
-  {
     name: 'Google',
     description: 'Free tier',
     link: 'https://aistudio.google.com',

@@ -196,8 +196,14 @@ Registry en `index.ts`:
 Anthropic  → AnthropicProvider
 OpenAI     → OpenAIProvider
 Google     → GoogleProvider
-Groq       → GroqProvider (OpenAI-compatible, baseURL: api.groq.com/openai/v1)
 IA Local   → LocalProvider (Ollama/LM Studio compatible)
+
+**Provider retirement (2026-07-10):**
+Groq fue removido como provider funcional. Ya no existe `GroqProvider` ni soporte runtime.
+Motivo: Groq dio de baja llama-3.3-70b-versatile (único modelo usado en AISync).
+Los 21 agent_sessions que usaban Groq fueron migrados a OpenAI/GPT-5.5.
+Groq removido de: factory registry, KNOWN_PROVIDERS, chat API, onboarding, ApiKeyRequiredModal.
+Referencias cosméticas en badges/labels pendientes de limpieza en Mini-OE B.
 ```
 
 Función de acceso: `getProvider(name: string, config: ProviderConfig): ChatProvider`
@@ -591,10 +597,10 @@ export async function POST(request: Request) {
 
 | Provider | Modelos configurados |
 |---|---|
-| Anthropic | Claude Sonnet, Claude 3 Haiku, Claude 3 Opus |
-| OpenAI | GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo |
-| Google | Gemini 2.5 Flash, Gemini 1.5 Pro |
-| Groq | Llama 3.3 70B, Llama 3.1 8B, Mixtral 8x7B, Gemma2 9B |
+| Anthropic | Claude Sonnet 4.6, Claude 3 Haiku, Claude 3 Opus |
+| OpenAI | GPT-5.5, GPT-4o, GPT-4o Mini, GPT-4 Turbo, o1, o3 Mini |
+| Google | Gemini 3.5 Flash, Gemini 1.5 Pro |
+| ~~Groq~~ | ~~REMOVED (2026-07-10)~~ |
 | IA Local | Cualquier modelo Ollama/LM Studio vía endpoint configurable |
 
 ### 7.2 Selección de provider/model
@@ -747,23 +753,23 @@ Los route handlers que leen datos protegidos por RLS deben distinguir explícita
 
 ### 9.6 Providers / streaming
 
-El streaming en `/api/chat/route.ts` usa `ReadableStream`. No agregar `await` en el loop de lectura. No modificar el orden de ensamblado del prompt (capas 1→2→3→4→snapshot→history). Groq usa el SDK de OpenAI con `baseURL` cambiada — no es un error.
+El streaming en `/api/chat/route.ts` usa `ReadableStream`. No agregar `await` en el loop de lectura. No modificar el orden de ensamblado del prompt (capas 1→2→3→4→snapshot→history).
 
-`ChatMessage` soporta `attachments` opcionales (`ChatAttachment[]`) como base multimodal. Anthropic transforma mensajes `user` con attachments en content blocks de imagen/documento (`Anthropic.MessageParam[]`) antes de llamar al SDK; mensajes sin attachments conservan `content: string`. Otros providers (OpenAI, Google, Groq, local) quedan sin cambios hasta OEs específicas.
+`ChatMessage` soporta `attachments` opcionales (`ChatAttachment[]`) como base multimodal. Anthropic transforma mensajes `user` con attachments en content blocks de imagen/documento (`Anthropic.MessageParam[]`) antes de llamar al SDK; mensajes sin attachments conservan `content: string`. Otros providers (OpenAI, Google, local) quedan sin cambios hasta OEs específicas.
 
 `AgentPanel` soporta selección local de imágenes/PDF como `ChatAttachment`, conversión base64 con `FileReader` y envío mediante `sendPrompt(content, atts)`. El parámetro `atts` es opcional con default `[]` — callers secundarios (`appendUserMessage`, guide prompts) conservan compatibilidad. Los adjuntos se muestran como chips removibles sobre el compositor y se limpian después del envío.
 
-OpenAI transforma `ChatMessage.attachments` de tipo image en content parts `image_url` con base64. PDFs/documentos no se envían por `image_url`; requieren Files API en OE futura. Groq no soporta visión/adjuntos — el provider sanitiza los mensajes antes de llamar a la API enviando solo `role` y `content`; si el mensaje era solo adjunto, usa `[file attached — vision not supported by Groq]` como fallback. AgentPanel muestra warning informativo al adjuntar con Groq.
+OpenAI transforma `ChatMessage.attachments` de tipo image en content parts `image_url` con base64. PDFs/documentos no se envían por `image_url`; requieren Files API en OE futura.
 
 Google Gemini usa `inlineData` para attachments del mensaje actual, incluyendo imágenes y PDFs (`application/pdf`). Los attachments históricos no se reenvían en MVP y quedan como limitación documentada.
 
 ### 9.7 Tools / Tool Registry
 
-`src/lib/tools/` es el registry independiente de providers. Las tools, como `web_search`, deben poder ser usadas por cualquier provider sin acoplarse a OpenAI, Anthropic, Google o Groq. Tavily requiere `TAVILY_API_KEY` en entorno local y Vercel Dashboard. El registry expone `toolRegistry: Record<string, ToolExecutor>` y `getTool(name)`.
+`src/lib/tools/` es el registry independiente de providers. Las tools, como `web_search`, deben poder ser usadas por cualquier provider sin acoplarse a OpenAI, Anthropic o Google. Tavily requiere `TAVILY_API_KEY` en entorno local y Vercel Dashboard. El registry expone `toolRegistry: Record<string, ToolExecutor>` y `getTool(name)`.
 
 OpenAI y Google soportan `ChatProvider.complete()` para tool use. OpenAI usa function tools (`tool_calls`, filtrando por `tc.type === 'function'`); Google usa `functionDeclarations` y `functionCalls()` con IDs generados por `randomUUID`. La ejecución real de tools permanece centralizada en `chat/route.ts`.
 
-Tool loop inicial: `chat/route.ts` usa `provider.complete()` no-streaming para detectar tool calls cuando `webSearchEnabled` está activo, ejecuta tools desde `toolRegistry`, inyecta resultados como mensaje compatible y luego continúa con `provider.stream()`. El flujo sin tools permanece intacto. `ChatProvider.complete?` es opcional — OpenAI, Google y Groq no lo implementan todavía.
+Tool loop inicial: `chat/route.ts` usa `provider.complete()` no-streaming para detectar tool calls cuando `webSearchEnabled` está activo, ejecuta tools desde `toolRegistry`, inyecta resultados como mensaje compatible y luego continúa con `provider.stream()`. El flujo sin tools permanece intacto. `ChatProvider.complete?` es opcional.
 
 Contrato `ToolExecutor`: `execute()` retorna `Promise<ToolExecutionResult>` con `{ content: string, sources?: ToolSource[] }`. `content` alimenta el flujo actual del modelo. `sources` (`{ title, url }`) se persiste en `session_tool_calls.sources jsonb` desde `chat/route.ts`. `web-search.ts` extrae sources de Tavily, filtrando URLs no válidas y deduplicando. El panel lateral del Audit Log lee `event.metadata.sources` directamente — las sources se guardan como snapshot en `audit_log.metadata` al insertar el evento `tool_call_executed`. `session_tool_calls.sources` mantiene la traza del tool call; `audit_log.metadata.sources` alimenta el panel sin fetch secundario ni matching temporal.
 
@@ -853,7 +859,7 @@ Migraciones 016–020 aplicadas en Supabase Dashboard. Migración 021 pendiente 
 
 ### Token usage multi-provider
 
-AISync normaliza usage de todos los providers en `TokenUsage` con `input_tokens`/`output_tokens`. OpenAI y Groq convierten `prompt_tokens`/`completion_tokens` (capturado del último chunk con `stream_options: { include_usage: true }`). Gemini convierte `usageMetadata.promptTokenCount`/`candidatesTokenCount` (obtenido de `result.response` post-stream o de `response.usageMetadata` en complete). Todos reportan mediante `onUsage`; `chat/route.ts` persiste con `persistUsage` reutilizado.
+AISync normaliza usage de todos los providers en `TokenUsage` con `input_tokens`/`output_tokens`. OpenAI convierte `prompt_tokens`/`completion_tokens` (capturado del último chunk con `stream_options: { include_usage: true }`). Gemini convierte `usageMetadata.promptTokenCount`/`candidatesTokenCount` (obtenido de `result.response` post-stream o de `response.usageMetadata` en complete). Todos reportan mediante `onUsage`; `chat/route.ts` persiste con `persistUsage` reutilizado.
 
 ### Token usage capture pattern
 
