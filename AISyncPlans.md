@@ -1384,3 +1384,79 @@ Mantener en observación si Anthropic vuelve a mezclar memoria de entrenamiento 
 **Lección arquitectónica:**
 Ejecutar Web Search no garantiza que el modelo use los resultados como autoridad. Los modelos pueden mezclar resultados reales con memoria de entrenamiento sin distinción explícita. Las reglas de source-fidelity deben instruir no solo cuándo buscar, sino cómo tratar los resultados recuperados: como autoridad exclusiva para claims actuales/verificables, no como una fuente más entre varias. La separación entre "lo que la fuente dice" y "lo que yo infiero" debe ser explícita.
 
+---
+
+## MODEL_MAP / Provider routing — Compatibility pattern (2026-07-10)
+
+**Arquitectura:**
+- `agent_sessions.model` persiste **etiquetas visibles** (ej: "Claude 3.5 Sonnet", "GPT-4o"), no necesariamente IDs reales de API
+- `MODEL_MAP` en cada provider traduce etiqueta visible → ID real de API en runtime
+- No existe CHECK constraint sobre `agent_sessions.model` (confirmado en migrations/001_hierarchy.sql línea 36: `model text not null`)
+- Etiquetas antiguas persistidas en sesiones existentes deben seguir funcionando
+
+**Regla crítica de compatibilidad:**
+Las etiquetas existentes **no deben eliminarse** del MODEL_MAP porque pueden estar persistidas en sesiones reales en producción.
+
+Operaciones seguras:
+- ✅ **Actualizar redirección existente:** Cambiar el target de una etiqueta legacy (ej: "Claude 3.5 Sonnet" de `claude-sonnet-4-5` a `claude-sonnet-4-6`)
+- ✅ **Agregar nueva etiqueta:** Agregar una etiqueta nueva que antes no existía (ej: "GPT-5.5" → `gpt-5.5`, "Claude Sonnet 4.6" → `claude-sonnet-4-6`)
+
+Operaciones **inseguras:**
+- ❌ **Eliminar etiqueta existente:** Rompe sesiones guardadas con esa etiqueta (quedarían sin resolución de modelo)
+
+**Estado actual (2026-07-10):**
+
+**Anthropic:**
+```ts
+const MODEL_MAP: Record<string, string> = {
+  'Claude Sonnet':     'claude-sonnet-4-6',     // actualizado de 4-5
+  'Claude 3.5 Sonnet': 'claude-sonnet-4-6',     // actualizado de 4-5
+  'Claude 3.7 Sonnet': 'claude-sonnet-4-6',     // actualizado de 4-5
+  'Claude Sonnet 4.6': 'claude-sonnet-4-6',     // nueva etiqueta agregada
+  'Claude 3 Haiku':    'claude-3-haiku-20240307',  // intacto
+  'Claude 3 Opus':     'claude-3-opus-20240229',   // intacto
+}
+```
+
+**OpenAI:**
+```ts
+const MODEL_MAP: Record<string, string> = {
+  'GPT-5.5':     'gpt-5.5',         // nueva etiqueta agregada
+  'GPT-4o':      'gpt-4o',          // intacto (sin redirect — preserva comportamiento)
+  'GPT-4o Mini': 'gpt-4o-mini',     // intacto
+  'GPT-4 Turbo': 'gpt-4-turbo',     // intacto
+  'o1':          'o1',              // intacto
+  'o3 Mini':     'o3-mini',         // intacto
+}
+```
+
+**Google:**
+```ts
+const MODEL_MAP: Record<string, string> = {
+  'Gemini 3.5 Flash':  'gemini-3.5-flash',
+  'Gemini 2.5 Flash':  'gemini-2.5-flash',
+  // Legacy mappings (deprecated models redirect to 3.5)
+  'Gemini 2.0 Flash':  'gemini-3.5-flash',
+  'Gemini 2.0':        'gemini-3.5-flash',
+  'Gemini 1.5 Pro':    'gemini-3.5-flash',
+  'Gemini 1.5 Flash':  'gemini-3.5-flash',
+}
+```
+(No modificado en OE 2026-07-10 — ya estaba correcto)
+
+**Groq:**
+Fuera de alcance en OE 2026-07-10 — queda para Subtarea 2 o futura OE separada.
+
+**Add/Edit Team modals:**
+Fuera de alcance en OE 2026-07-10 — opciones de modelo en modales quedan para Subtarea 2.
+
+**Evaluación AISyncPlans.md (5 preguntas obligatorias):**
+1. ¿Cambié alguna tabla, columna o migración de DB? → **No** → Sin cambios DB/schema
+2. ¿Cambié o agregué alguna API route? → **No** → Sin cambios API routes
+3. ¿Cambié algún patrón técnico o convención del proyecto? → **Sí** → Documentado patrón MODEL_MAP como compatibilidad etiqueta→ID
+4. ¿Creé o eliminé algún componente estructural? → **No** → Sin cambios árbol de componentes
+5. ¿Cambié providers, servicios externos o configuración global? → **Sí** → Documentada actualización de model routing para Anthropic/OpenAI
+
+**Lección arquitectónica:**
+El patrón de etiqueta visible → ID real permite que las opciones de modelo mostradas en UI sean legibles para usuarios (ej: "Claude 3.5 Sonnet") mientras que el código real de API puede cambiar por versiones. Este desacoplamiento protege sesiones existentes cuando se actualizan modelos — las etiquetas legacy pueden redirigirse a nuevas versiones sin romper sesiones guardadas. La regla crítica: nunca eliminar una etiqueta del MODEL_MAP sin verificar que no existen sesiones persistidas con esa etiqueta en producción.
+

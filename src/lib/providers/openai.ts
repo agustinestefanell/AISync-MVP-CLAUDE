@@ -4,6 +4,7 @@ import type { ToolCall, ToolDefinition } from '@/lib/tools'
 import type { TokenUsage, StreamOptions } from '@/lib/tools/types'
 
 const MODEL_MAP: Record<string, string> = {
+  'GPT-5.5':     'gpt-5.5',
   'GPT-4o':      'gpt-4o',
   'GPT-4o Mini': 'gpt-4o-mini',
   'GPT-4 Turbo': 'gpt-4-turbo',

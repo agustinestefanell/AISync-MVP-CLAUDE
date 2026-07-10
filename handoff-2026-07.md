@@ -2603,3 +2603,89 @@ Mantener en observación si Anthropic vuelve a mezclar memoria de entrenamiento 
 Ejecutar Web Search no garantiza que el modelo use los resultados como autoridad. Los modelos pueden mezclar resultados reales con memoria de entrenamiento sin distinción explícita. Las reglas de source-fidelity deben instruir no solo cuándo buscar, sino cómo tratar los resultados recuperados: como autoridad exclusiva para claims actuales/verificables, no como una fuente más entre varias. La separación entre "lo que la fuente dice" y "lo que yo infiero" debe ser explícita.
 
 ---
+
+## 2026-07-10 — Anthropic/OpenAI MODEL_MAP update to latest versions
+
+**Fecha:** 2026-07-10
+**Tipo:** Mini-OE / Providers / Model routing
+**Área:** AI Providers / Anthropic / OpenAI / MODEL_MAP
+**Estado:** ✅ **Closed** — MODEL_MAP actualizado correctamente, build exitoso, compatibilidad con sesiones existentes preservada
+
+**Archivos modificados:**
+- src/lib/providers/anthropic.ts (+7 líneas, -3 líneas = +4 netas)
+- src/lib/providers/openai.ts (+1 línea)
+- handoff-2026-07.md (esta entrada)
+- PRODUCT_STATUS.md (actualizado)
+- AISyncPlans.md (actualizado)
+
+**Diagnóstico:**
+- Anthropic mantenía redirects legacy de Sonnet (Claude Sonnet, Claude 3.5 Sonnet, Claude 3.7 Sonnet), pero apuntaban a `claude-sonnet-4-5`
+- Se detectó que la versión más reciente disponible es `claude-sonnet-4-6`
+- OpenAI no tenía entrada para GPT-5.5
+- Google ya estaba correcto con patrón de legacy mappings documentado (no se tocó)
+- Groq queda fuera de alcance para Subtarea 2 o futura OE separada
+
+**Cambio realizado:**
+
+**Anthropic MODEL_MAP actualizado:**
+```ts
+const MODEL_MAP: Record<string, string> = {
+  'Claude Sonnet':     'claude-sonnet-4-6',     // actualizado de 4-5
+  'Claude 3.5 Sonnet': 'claude-sonnet-4-6',     // actualizado de 4-5
+  'Claude 3.7 Sonnet': 'claude-sonnet-4-6',     // actualizado de 4-5
+  'Claude Sonnet 4.6': 'claude-sonnet-4-6',     // nueva etiqueta agregada
+  'Claude 3 Haiku':    'claude-3-haiku-20240307',  // intacto
+  'Claude 3 Opus':     'claude-3-opus-20240229',   // intacto
+}
+```
+
+**OpenAI MODEL_MAP actualizado:**
+```ts
+const MODEL_MAP: Record<string, string> = {
+  'GPT-5.5':     'gpt-5.5',         // nueva etiqueta agregada
+  'GPT-4o':      'gpt-4o',          // intacto
+  'GPT-4o Mini': 'gpt-4o-mini',     // intacto
+  'GPT-4 Turbo': 'gpt-4-turbo',     // intacto
+  'o1':          'o1',              // intacto
+  'o3 Mini':     'o3-mini',         // intacto
+}
+```
+
+**Decisiones técnicas:**
+- Ninguna etiqueta legacy fue eliminada (preserva compatibilidad con sesiones existentes)
+- Sesiones guardadas con "Claude 3.5 Sonnet", "Claude 3.7 Sonnet" o "Claude Sonnet" seguirán funcionando y ahora resolverán a `claude-sonnet-4-6`
+- Sesiones guardadas con "GPT-4o", "GPT-4o Mini", etc. siguen resolviendo exactamente al mismo modelo (no se redirigieron)
+- AddTeamModal y EditTeamModal NO se tocaron en esta OE (quedan para Subtarea 2)
+- Google y Groq NO se tocaron
+
+**Restricciones respetadas:**
+- ✅ No se eliminaron etiquetas existentes del MODEL_MAP
+- ✅ google.ts no tocado
+- ✅ groq.ts no tocado
+- ✅ AddTeamModal.tsx no tocado
+- ✅ EditTeamModal.tsx no tocado
+- ✅ Migraciones no tocadas
+- ✅ RLS no tocado
+- ✅ Datos existentes en agent_sessions no migrados
+- ✅ Solo anthropic.ts y openai.ts modificados como archivos funcionales
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport no relacionados)
+- ✅ npm run typecheck: No existe como script (reportado)
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ✅ git diff --check: Solo warnings CRLF normales en Windows
+
+**Patrón de compatibilidad confirmado:**
+- `agent_sessions.model` guarda etiqueta visible (ej: "Claude 3.5 Sonnet"), no ID real de API
+- `MODEL_MAP` traduce etiqueta → ID real en runtime (ej: "Claude 3.5 Sonnet" → "claude-sonnet-4-6")
+- No existe CHECK constraint sobre `agent_sessions.model` (confirmado en migrations/001_hierarchy.sql línea 36)
+- Etiquetas antiguas persistidas en DB seguirán funcionando gracias a MODEL_MAP
+
+**Estado:** ✅ **Closed** — Cambios aplicados correctamente, build exitoso, compatibilidad preservada
+
+**Commit:** (ejecutado en esta sesión)
+
+**Lección clave:**
+Los MODEL_MAP no deben eliminar etiquetas legacy porque `agent_sessions.model` persiste etiquetas visibles que pueden estar guardadas en sesiones existentes. Actualizar una redirección existente (ej: cambiar el target de "Claude 3.5 Sonnet" de 4-5 a 4-6) es seguro. Agregar nuevas etiquetas (ej: "GPT-5.5") es seguro. Eliminar una etiqueta existente rompería sesiones guardadas con esa etiqueta. El patrón de compatibilidad etiqueta visible → ID real debe preservarse.
+
+---

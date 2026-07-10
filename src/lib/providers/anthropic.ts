@@ -4,9 +4,10 @@ import type { ToolCall, ToolDefinition } from '@/lib/tools'
 import type { TokenUsage, StreamOptions } from '@/lib/tools/types'
 
 const MODEL_MAP: Record<string, string> = {
-  'Claude Sonnet':     'claude-sonnet-4-5',
-  'Claude 3.5 Sonnet': 'claude-sonnet-4-5',
-  'Claude 3.7 Sonnet': 'claude-sonnet-4-5',
+  'Claude Sonnet':     'claude-sonnet-4-6',
+  'Claude 3.5 Sonnet': 'claude-sonnet-4-6',
+  'Claude 3.7 Sonnet': 'claude-sonnet-4-6',
+  'Claude Sonnet 4.6': 'claude-sonnet-4-6',
   'Claude 3 Haiku':    'claude-3-haiku-20240307',
   'Claude 3 Opus':     'claude-3-opus-20240229',
 }
