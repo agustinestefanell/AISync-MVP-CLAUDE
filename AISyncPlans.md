@@ -1541,9 +1541,11 @@ npx tsx scripts/nombre-del-script.ts
    - Storage físico borrado + audit_log registrado
    - Patrón base: lista cerrada + preflight + admin client + shared logic (`deleteContextSource`)
 
-2. **Groq agents → OpenAI GPT-5.5** (2026-07-10 — pending execution):
+2. **Groq agents → OpenAI GPT-5.5** (2026-07-10 — executed successfully):
    - 21 agent_sessions con `provider='Groq'`, `model='llama-3.3-70b-versatile'`
    - Destino: `provider='OpenAI'`, `model='GPT-5.5'`
    - Patrón extendido: lista cerrada + preflight + gate textual + admin client + verificación posterior
-   - **Estado:** Script creado y versionado, ejecución pendiente confirmación Product Owner
+   - **Resultado:** Preflight ✅ (21/21), Confirmación ✅, UPDATE ✅ (21/21), Verificación ✅ (21/21)
+   - **Scripts versionados:** `.ts` (original) + `.mjs` (ejecutable, con .env.local inline)
+   - **Pendiente:** Validación producción (probar agentes, query Supabase)
 

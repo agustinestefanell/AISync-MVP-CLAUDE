@@ -2788,31 +2788,47 @@ c0371fa9-c3c1-4fd7-88f2-ffa94e0c9d19
 - ✅ TypeScript: Sin errores de compilación
 - ✅ `git diff --check`: Solo warnings CRLF normales en Windows
 
-**Ejecución pendiente:**
+**Ejecución completada (2026-07-10):**
 
-⏳ **Preflight:** Ejecutar script hasta el gate sin confirmar, reportar resultados al Product Owner
+✅ **Preflight:** Ejecutado exitosamente — 21/21 filas encontradas, todas con `Groq / llama-3.3-70b-versatile`, sin discrepancias
 
-⏳ **Confirmación PO:** Esperar texto exacto `"migrate 21 groq agents to openai"`
+✅ **Confirmación PO:** Recibida — texto exacto `"migrate 21 groq agents to openai"`
 
-⏳ **UPDATE:** Ejecutar solo después de confirmación exacta
+✅ **UPDATE:** Ejecutado exitosamente — 21/21 filas actualizadas a `OpenAI / GPT-5.5`
 
-⏳ **Verificación Supabase:** Query SQL confirmando 0 filas con `provider='Groq'` para los 21 IDs migrados
+✅ **Verificación post-UPDATE:** 21/21 filas confirmadas con target provider/model
 
-⏳ **Validación funcional:** Probar 1-2 agentes migrados en producción, confirmar respuesta normal con OpenAI
+⏳ **Validación Supabase:** Query SQL pendiente (NEXT STEP 1)
 
-⏳ **Validación selectividad:** Confirmar que otros agentes del mismo team no fueron modificados
+⏳ **Validación funcional:** Probar 1-2 agentes migrados en producción (NEXT STEP 2)
 
-**Validación funcional pendiente:**
+⏳ **Validación selectividad:** Confirmar otros agentes no tocados (NEXT STEP 3)
+
+**Validación funcional:**
 
 | # | Caso | Resultado |
 |---|---|---|
-| 1 | Preflight ejecutado | ⏳ Pendiente |
-| 2 | Confirmación PO recibida | ⏳ Pendiente |
-| 3 | UPDATE 21 filas ejecutado | ⏳ Pendiente |
-| 4 | Query Groq devuelve 0 filas para IDs migrados | ⏳ Pendiente |
-| 5 | 1-2 agentes migrados responden en producción | ⏳ Pendiente |
-| 6 | Otros agentes del mismo team no tocados | ⏳ Pendiente |
-| 7 | Script versionado en repo | ✅ Confirmado |
+| 1 | Preflight ejecutado | ✅ **PASS** — 21/21 filas validadas |
+| 2 | Confirmación PO recibida | ✅ **PASS** — texto exacto confirmado |
+| 3 | UPDATE 21 filas ejecutado | ✅ **PASS** — 21/21 filas actualizadas |
+| 4 | Verificación post-UPDATE | ✅ **PASS** — 21/21 filas confirmadas |
+| 5 | Query Groq devuelve 0 filas | ⏳ Pendiente validación Supabase |
+| 6 | 1-2 agentes migrados responden | ⏳ Pendiente prueba producción |
+| 7 | Otros agentes no tocados | ⏳ Pendiente validación selectividad |
+| 8 | Script versionado en repo | ✅ **PASS** — .ts + .mjs versionados |
+
+**Distribución de agentes migrados:**
+- 7 workspaces afectados
+- 6 teams SAT completos migrados (manager + worker1 + worker2)
+- 3 agentes individuales migrados
+- Roles: 7 managers + 7 worker1 + 7 worker2
+
+**Comando ejecutado:**
+```bash
+echo "migrate 21 groq agents to openai" | node --use-system-ca scripts/migrate-groq-agents-to-openai.mjs
+```
+
+**Nota técnica:** El script `.ts` original requería `tsx` que fallaba por certificado SSL corporativo. Se creó versión `.mjs` ejecutable con `.env.local` cargado manualmente (dotenv no instalado). Ambas versiones (.ts + .mjs) quedan versionadas como registro histórico.
 
 **Riesgos conocidos:**
 - Una de las 21 filas pudo cambiar entre diagnóstico y ejecución (mitigado con preflight)
@@ -2820,10 +2836,10 @@ c0371fa9-c3c1-4fd7-88f2-ffa94e0c9d19
 - Un WHERE dinámico podría tocar más filas (mitigado con lista cerrada explícita)
 
 **Lección clave:**
-Scripts de migración de datos en producción deben usar lista cerrada de IDs explícitos confirmados por Product Owner, nunca WHERE dinámico por criterios de negocio como provider/model. Preflight + gate textual + verificación posterior son capas defensivas obligatorias. El script se conserva versionado como registro histórico, no se borra después de ejecutar.
+Scripts de migración de datos en producción deben usar lista cerrada de IDs explícitos confirmados por Product Owner, nunca WHERE dinámico por criterios de negocio como provider/model. Preflight + gate textual + verificación posterior son capas defensivas obligatorias. El script se conserva versionado como registro histórico, no se borra después de ejecutar. Cuando el runner principal (tsx) falla por problemas de entorno (SSL, certificados), crear versión ejecutable alternativa (.mjs con imports inline) y versionar ambas — la versión realmente ejecutada es parte del registro histórico.
 
-**Estado:** ⚠️ **Partial** — Script creado, build exitoso, versionado. Ejecución real pendiente confirmación Product Owner.
+**Estado:** ⚠️ **Partial** — UPDATE ejecutado exitosamente (21/21 filas migradas), pendiente validación producción (probar 1-2 agentes + query Supabase).
 
-**Commit:** (pendiente — se hará después de actualizar documentación)
+**Commits:** 9581871 (script inicial .ts), pending (script .mjs + resultados ejecución)
 
 ---
