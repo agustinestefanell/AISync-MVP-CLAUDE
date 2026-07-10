@@ -26,13 +26,6 @@ const CLOUD_PROVIDERS = [
     bg: 'bg-[var(--color-surface)]',
     hint: 'Google AI Studio API key',
   },
-  {
-    name: 'Groq',
-    color: 'text-amber-600',
-    border: 'border-[var(--color-border-default)]',
-    bg: 'bg-[var(--color-surface)]',
-    hint: 'Get your API key at console.groq.com',
-  },
 ]
 
 interface SavedKey {

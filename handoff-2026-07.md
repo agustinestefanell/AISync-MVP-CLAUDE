@@ -2840,6 +2840,128 @@ Scripts de migración de datos en producción deben usar lista cerrada de IDs ex
 
 **Estado:** ⚠️ **Partial** — UPDATE ejecutado exitosamente (21/21 filas migradas), pendiente validación producción (probar 1-2 agentes + query Supabase).
 
-**Commits:** 9581871 (script inicial .ts), pending (script .mjs + resultados ejecución)
+**Commits:** 9581871 (script inicial .ts), 7ef3c2d (script .mjs + resultados ejecución)
+
+---
+
+## 2026-07-10 — Team modals and API Keys latest providers only, Groq removed from UI
+
+**Fecha:** 2026-07-10
+**Tipo:** Mini-OE / UI options cleanup / Providers
+**Área:** Teams / AddTeamModal / EditTeamModal / ApiKeysManager
+**Estado:** ⚠️ **Partial** — Cambios implementados, build exitoso, pendiente validación visual caso Groq legacy
+
+**Archivos modificados:**
+- src/components/teams/AddTeamModal.tsx (-7 líneas, +4 líneas = -3 netas)
+- src/components/teams/EditTeamModal.tsx (+20 líneas, -5 líneas = +15 netas)
+- src/components/settings/ApiKeysManager.tsx (-7 líneas Groq block)
+- handoff-2026-07.md (esta entrada)
+- PRODUCT_STATUS.md (actualizado)
+- AISyncPlans.md (actualizado)
+
+**Contexto:**
+Los 21 agentes originales con Groq ya fueron migrados a OpenAI/GPT-5.5 (OE anterior, commit 7ef3c2d). Puede seguir existiendo algún agente puntual con provider/model no listado (ej: agente de prueba Groq creado manualmente). Esta OE limpia opciones visibles nuevas en UI, no elimina runtime Groq ni datos existentes. Riesgo crítico identificado: Edit Team con valor legacy no listado no debe romper ni forzar cambios automáticos no solicitados.
+
+**Cambios realizados:**
+
+**1. AddTeamModal.tsx:**
+- `CLOUD_PROVIDERS` reducido a `['Anthropic', 'OpenAI', 'Google']`
+- Groq eliminado
+- Defaults actualizados a últimas versiones:
+  - Anthropic: `'Claude Sonnet 4.6'` (antes: `'Claude 3.5 Sonnet'`)
+  - OpenAI: `'GPT-5.5'` (antes: `'GPT-4o'`)
+  - Google: `'Gemini 3.5 Flash'` (intacto)
+- Groq default eliminado
+
+**2. EditTeamModal.tsx:**
+- `CLOUD_PROVIDERS` reducido a `['Anthropic', 'OpenAI', 'Google']`
+- Groq eliminado
+- Model arrays reducidos a solo latest por provider:
+  - Anthropic: `['Claude Sonnet 4.6']` (antes: `['Claude 3.5 Sonnet', 'Claude 3 Opus']`)
+  - OpenAI: `['GPT-5.5']` (antes: `['GPT-4o', 'GPT-4 Turbo']`)
+  - Google: `['Gemini 3.5 Flash']` (antes: `['Gemini 3.5 Flash', 'Gemini 2.5 Flash']`)
+- Groq models array eliminado
+- **Fallback genérico legacy agregado:**
+  ```ts
+  const providerIsLegacy = cloud && !(CLOUD_PROVIDERS as readonly string[]).includes(a.provider)
+  const modelIsLegacy = cloud && a.provider in MODELS && !MODELS[a.provider as CloudProvider].includes(a.model)
+
+  // Provider select: si providerIsLegacy, agregar option adicional con label "(legacy)"
+  // Model select: si modelIsLegacy, agregar option adicional con label "(legacy)"
+  ```
+- Comportamiento del fallback:
+  - Preserva provider/model actual guardado en DB aunque no esté en opciones nuevas
+  - Marca visualmente como "(legacy)" si no está en CLOUD_PROVIDERS/MODELS
+  - No fuerza cambio de provider/model al abrir modal
+  - No fuerza cambio de provider/model al guardar si usuario no tocó ese campo
+  - Funciona para Groq
+  - Funciona para modelos legacy de Anthropic/OpenAI/Google (ej: Claude 3.5 Sonnet, GPT-4o, etc)
+
+**3. ApiKeysManager.tsx:**
+- Groq eliminado del array `CLOUD_PROVIDERS`
+- Objeto Groq completo removido (líneas 29-35 antes del cambio):
+  ```ts
+  {
+    name: 'Groq',
+    color: 'text-amber-600',
+    border: 'border-[var(--color-border-default)]',
+    bg: 'bg-[var(--color-surface)]',
+    hint: 'Get your API key at console.groq.com',
+  }
+  ```
+- Groq ya no aparece como opción para configurar API keys en Settings
+
+**Restricciones respetadas:**
+- ✅ MODEL_MAP no tocado
+- ✅ groq.ts no tocado
+- ✅ openai.ts no tocado
+- ✅ anthropic.ts no tocado
+- ✅ google.ts no tocado
+- ✅ agent_sessions no tocado
+- ✅ migraciones no tocadas
+- ✅ RLS no tocado
+- ✅ API routes no tocadas
+- ✅ Solo 3 archivos funcionales modificados (AddTeamModal, EditTeamModal, ApiKeysManager)
+- ✅ No migración de datos
+- ✅ No cambio forzado en sesiones existentes
+- ✅ API keys existentes no borradas (backend no modificado)
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport no relacionados)
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ✅ TypeScript: Sin errores
+- ✅ git diff --check: Solo warnings CRLF normales en Windows
+
+**Validación funcional pendiente:**
+
+| # | Caso | Resultado |
+|---|---|---|
+| 1 | Add Team sin Groq | ⏳ Pendiente validación visual |
+| 2 | Anthropic latest en Add Team | ⏳ Pendiente — debe mostrar solo `Claude Sonnet 4.6` |
+| 3 | OpenAI latest en Add Team | ⏳ Pendiente — debe mostrar solo `GPT-5.5` |
+| 4 | Google latest en Add Team | ⏳ Pendiente — debe mostrar solo `Gemini 3.5 Flash` |
+| 5 | Edit Team agente Groq de prueba | ⏳ **CRÍTICO** — pendiente validación visual PO |
+| 6 | Guardar agente Groq sin cambio forzado | ⏳ **CRÍTICO** — pendiente validación visual PO |
+| 7 | Edit Team agente Claude legacy | ⏳ Pendiente — debe preservar valor + marcar "(legacy)" |
+| 8 | Cambiar agente legacy a Anthropic latest | ⏳ Pendiente — debe guardar `Claude Sonnet 4.6` |
+| 9 | ApiKeysManager sin Groq | ⏳ Pendiente validación visual |
+| 10 | MODEL_MAP no tocado | ✅ Confirmado |
+| 11 | Groq runtime no tocado | ✅ Confirmado |
+
+**Alternativas descartadas:**
+- Eliminar runtime Groq: descartado — puede haber agentes puntuales con Groq creados manualmente
+- Forzar migración de todos los agentes legacy: descartado — solo UI cleanup, sin migración de datos
+- Solo ocultar Groq sin fallback: descartado — rompería edición de agentes existentes Groq
+
+**Riesgos conocidos:**
+- Si existe agente con Groq y el fallback falla, modal podría romperse (mitigado con fallback genérico)
+- Usuario puede editar agente legacy y guardarlo con provider/model legacy preservado (esperado, no es bug)
+
+**Lección clave:**
+Retirar un provider de UI de selección nueva no equivale a eliminar soporte runtime ni datos existentes. El patrón correcto es: (1) reducir opciones nuevas visibles, (2) implementar fallback genérico para preservar valores legacy existentes sin forzar cambios, (3) no tocar MODEL_MAP ni runtime providers, (4) validar caso crítico con agente legacy antes de cerrar.
+
+**Estado:** ⚠️ **Partial** — Código implementado, build exitoso. Pendiente validación visual casos #5 y #6 (Edit Team con agente Groq de prueba existente) por Product Owner antes de cerrar.
+
+**Commits:** (pendiente — se hará después de validación visual PO)
 
 ---

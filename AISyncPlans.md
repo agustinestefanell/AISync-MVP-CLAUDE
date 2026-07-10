@@ -1445,10 +1445,8 @@ const MODEL_MAP: Record<string, string> = {
 (No modificado en OE 2026-07-10 — ya estaba correcto)
 
 **Groq:**
-Fuera de alcance en OE 2026-07-10 — queda para Subtarea 2 o futura OE separada.
-
-**Add/Edit Team modals:**
-Fuera de alcance en OE 2026-07-10 — opciones de modelo en modales quedan para Subtarea 2.
+Removido de opciones visibles nuevas en AddTeamModal, EditTeamModal y ApiKeysManager (Mini-OE 2026-07-10).
+Runtime Groq (groq.ts) no modificado — permanece disponible para compatibilidad con sesiones existentes o legacy.
 
 **Evaluación AISyncPlans.md (5 preguntas obligatorias):**
 1. ¿Cambié alguna tabla, columna o migración de DB? → **No** → Sin cambios DB/schema
@@ -1459,6 +1457,26 @@ Fuera de alcance en OE 2026-07-10 — opciones de modelo en modales quedan para 
 
 **Lección arquitectónica:**
 El patrón de etiqueta visible → ID real permite que las opciones de modelo mostradas en UI sean legibles para usuarios (ej: "Claude 3.5 Sonnet") mientras que el código real de API puede cambiar por versiones. Este desacoplamiento protege sesiones existentes cuando se actualizan modelos — las etiquetas legacy pueden redirigirse a nuevas versiones sin romper sesiones guardadas. La regla crítica: nunca eliminar una etiqueta del MODEL_MAP sin verificar que no existen sesiones persistidas con esa etiqueta en producción.
+
+**Provider/model selection UI (AddTeamModal, EditTeamModal, ApiKeysManager):**
+
+Actualizado 2026-07-10 para mostrar solo latest visible labels:
+- **Anthropic:** Claude Sonnet 4.6
+- **OpenAI:** GPT-5.5
+- **Google:** Gemini 3.5 Flash
+
+**Groq:** Removido de opciones visibles nuevas en UI de selección y configuración de API keys. Runtime Groq (groq.ts) NO eliminado — permanece para compatibilidad con sesiones existentes o legacy.
+
+**Patrón de fallback legacy en EditTeamModal:**
+- Separación estricta entre UI de selección nueva, runtime provider support y valores legacy persistidos.
+- EditTeamModal implementa fallback genérico que preserva provider/model actual aunque no esté en opciones visibles nuevas.
+- Si `a.provider` no está en `CLOUD_PROVIDERS`, agrega option adicional con label `(legacy)`.
+- Si `a.model` no está en `MODELS[provider]`, agrega option adicional con label `(legacy)`.
+- Fallback aplica a cualquier provider/model no listado, no solo Groq.
+- No fuerza cambios de provider/model al abrir modal ni al guardar si usuario no tocó esos campos.
+- Funciona para: Groq, Claude 3.5 Sonnet, GPT-4o, Claude 3 Opus, GPT-4 Turbo, Gemini 2.5 Flash, etc.
+
+**Regla:** Retirar un provider de UI de selección no equivale a eliminar soporte runtime. El runtime permanece funcional para sesiones existentes. La UI nueva solo muestra latest options simplificadas.
 
 ---
 

@@ -5,14 +5,13 @@ import { useRouter } from 'next/navigation'
 import type { TeamWithWorkspaces, AgentSession } from '@/lib/db/types'
 import AddTeamModal from './AddTeamModal'
 
-const CLOUD_PROVIDERS = ['Anthropic', 'OpenAI', 'Google', 'Groq'] as const
+const CLOUD_PROVIDERS = ['Anthropic', 'OpenAI', 'Google'] as const
 type CloudProvider = typeof CLOUD_PROVIDERS[number]
 
 const MODELS: Record<CloudProvider, string[]> = {
-  Anthropic: ['Claude 3.5 Sonnet', 'Claude 3 Opus'],
-  OpenAI:    ['GPT-4o', 'GPT-4 Turbo'],
-  Google:    ['Gemini 3.5 Flash', 'Gemini 2.5 Flash'],
-  Groq:      ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768'],
+  Anthropic: ['Claude Sonnet 4.6'],
+  OpenAI:    ['GPT-5.5'],
+  Google:    ['Gemini 3.5 Flash'],
 }
 
 const AGENT_LABEL: Record<string, string> = {
@@ -259,6 +258,11 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                 {agents.map((a, i) => {
                   const local = isLocal(a.provider)
                   const cloud = isCloud(a.provider)
+
+                  // Fallback genérico: preservar provider/model actual aunque no esté en opciones nuevas
+                  const providerIsLegacy = cloud && !(CLOUD_PROVIDERS as readonly string[]).includes(a.provider)
+                  const modelIsLegacy = cloud && a.provider in MODELS && !MODELS[a.provider as CloudProvider].includes(a.model)
+
                   return (
                     <div key={a.id} className="bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] rounded-lg px-3 py-3 space-y-2">
                       <p className="text-xs font-semibold text-[var(--color-text-secondary)]">{AGENT_LABEL[a.role] ?? a.role}</p>
@@ -267,6 +271,9 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                         onChange={e => setAgentField(i, { provider: e.target.value })}
                         className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
                       >
+                        {providerIsLegacy && (
+                          <option value={a.provider}>{a.provider} (legacy)</option>
+                        )}
                         <optgroup label="Cloud">
                           {CLOUD_PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
                         </optgroup>
@@ -285,6 +292,9 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
                           onChange={e => setAgentField(i, { model: e.target.value })}
                           className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
                         >
+                          {modelIsLegacy && (
+                            <option value={a.model}>{a.model} (legacy)</option>
+                          )}
                           {MODELS[a.provider as CloudProvider].map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
                       ) : (
