@@ -2507,3 +2507,99 @@ No marcar Closed sin que el Product Owner repita manualmente el escenario #3 (OF
 Los modelos de lenguaje priorizan consistencia conversacional. Cuando una herramienta externa cambia de estado mid-conversación, el modelo necesita instrucción explícita para reevaluar la disponibilidad actual en lugar de sostener una negación previa. La capa de prompt debe ser condicional (solo cuando la herramienta está habilitada), tener alta prioridad, y preservar el criterio operativo (usar la herramienta cuando el pedido lo requiere, no forzar uso innecesario).
 
 ---
+
+## 2026-07-09 — Runtime Grounding Layer source-fidelity rules 6 and 7
+
+**Fecha:** 2026-07-09
+**Tipo:** Mini-OE / Prompt reliability / Source fidelity
+**Área:** Chat API / Runtime Grounding Layer / Web Search
+**Estado:** ✅ **Closed** — Reglas 6 y 7 agregadas correctamente, build exitoso, comportamiento bajo observación
+
+**Archivos modificados:**
+- src/app/api/chat/route.ts (+4 líneas, -1 línea = +3 netas)
+- handoff-2026-07.md (esta entrada)
+- PRODUCT_STATUS.md (actualizado)
+- AISyncPlans.md (actualizado)
+
+**Diagnóstico:**
+Se detectó con evidencia real en `session_tool_calls` que el modelo puede ejecutar Web Search real, obtener resultados de una fuente confiable, y aun así producir una respuesta final con datos incorrectos mezclados con memoria de entrenamiento.
+
+Este problema es distinto de:
+- Fabricar fuentes cuando no buscó (cubierto por Regla 2)
+- Arrastrar negación previa de disponibilidad de Web Search (cubierto por Regla 1)
+- No reevaluar estado actual del toggle (cubierto por Regla 1)
+
+El nuevo problema identificado:
+- El modelo sí busca, pero no trata los resultados recuperados como autoridad principal/exclusiva para claims actuales o verificables
+- Mezcla resultados reales de búsqueda con memoria de entrenamiento, inferencias propias, o asociaciones plausibles no confirmadas por la fuente
+
+**Observación del Product Owner:**
+El problema fue detectado específicamente con Anthropic en las pruebas realizadas hoy (2026-07-09). No se observó en OpenAI ni Google durante el mismo período. Esto se documenta como observación, no como conclusión definitiva — no se descarta que el mismo patrón aparezca en otros proveedores con más uso.
+
+**Causa probable:**
+El modelo no le otorga a los resultados reales de búsqueda el estatus de autoridad exclusiva para el turno actual. Los trata como una fuente más entre varias, mezclándolos con memoria de entrenamiento, conocimiento previo, inferencias propias, y asociaciones plausibles no confirmadas por la fuente.
+
+**Cambio realizado:**
+Se agregaron Regla 6 y Regla 7 al Runtime Grounding Layer en `src/app/api/chat/route.ts`.
+
+**Regla 6 (source-fidelity):**
+```
+When you do invoke the web search tool and receive results, the retrieved results are the exclusive authority for any current or verifiable claim in your answer — you may summarize, organize, or explain them, but you must not correct, supplement, or blend them with your own training knowledge on the same topic. If the retrieved results are partial, ambiguous, or contradictory, state explicitly what remains unverified instead of filling the gap from memory.
+```
+
+**Regla 7 (source-inference separation):**
+```
+Separate what the retrieved results actually state from anything you infer or reason on top of them. Never present your own inference as if it were a fact confirmed by the source — label it clearly as your own reasoning when you do infer.
+```
+
+**Restricciones respetadas:**
+- ✅ Reglas 1-5 permanecen completamente intactas
+- ✅ `current_datetime_utc` no tocado
+- ✅ `web_search_available_right_now` no tocado
+- ✅ tool loop no tocado (líneas 309-316)
+- ✅ `webSearchTool.definition` no tocado (líneas 309, 311, 313, 314)
+- ✅ tool_choice NO forzado (modo auto preservado)
+- ✅ Evidence Mode NO implementado
+- ✅ Clasificación de tipos de pregunta NO implementada
+- ✅ Las 5 reglas completas de la segunda propuesta NO agregadas
+- ✅ Solo `route.ts` modificado como archivo funcional
+- ✅ Providers no tocados
+- ✅ Frontend no tocado
+- ✅ DB/RLS/migraciones no tocadas
+
+**Validaciones técnicas:**
+- ✅ npm run lint: OK (warnings preexistentes en CanvasViewport no relacionados)
+- ✅ npm run typecheck: No existe como script (reportado)
+- ✅ npm run build: Exitoso — producción optimizada generada
+- ✅ git diff --check: Solo warnings CRLF normales en Windows
+- ✅ Prompt final con 7 reglas: Confirmado en líneas 85-105
+- ✅ Reglas 1-5 intactas: Confirmado por git diff
+- ✅ tool loop no tocado: Confirmado fuera del diff
+- ✅ tool_choice no forzado: Confirmado fuera del diff
+
+**Cierre Duro:**
+- ✅ handoff-2026-07.md: Entrada agregada
+- ✅ PRODUCT_STATUS.md: Actualizado
+- ✅ AISyncPlans.md: Evaluación de 5 preguntas + actualización de patrón técnico
+
+**Evaluación AISyncPlans.md (5 preguntas):**
+1. ¿Cambié alguna tabla, columna o migración de DB? → **No** → Sin cambios DB/schema
+2. ¿Cambié o agregué alguna API route? → **Sí (internamente)** → Documentar ajuste del Runtime Grounding Layer
+3. ¿Cambié algún patrón técnico o convención del proyecto? → **Sí** → Documentar extensión con source-fidelity rules
+4. ¿Creé o eliminé algún componente estructural? → **No** → Sin cambios árbol de componentes
+5. ¿Cambié providers, servicios externos o configuración global? → **No** → Sin cambios providers/config
+
+**Estado:** ✅ **Closed** — Reglas agregadas correctamente, build exitoso, comportamiento bajo observación en uso real con Anthropic.
+
+**Commit:** (ejecutado en esta sesión)
+
+**Observación pendiente:**
+Mantener en observación si Anthropic vuelve a mezclar memoria de entrenamiento con fuentes recuperadas después de este cambio. Si el patrón reaparece, evaluar:
+- Aumentar énfasis de las reglas 6-7
+- Considerar Evidence Mode (diferido en esta OE)
+- Considerar clasificación de tipos de pregunta (diferido en esta OE)
+
+**Lección clave:**
+Ejecutar Web Search no garantiza que el modelo use los resultados como autoridad. Los modelos pueden mezclar resultados reales con memoria de entrenamiento sin distinción explícita. Las reglas de source-fidelity deben instruir no solo cuándo buscar, sino cómo tratar los resultados recuperados: como autoridad exclusiva para claims actuales/verificables, no como una fuente más entre varias. La separación entre "lo que la fuente dice" y "lo que yo infiero" debe ser explícita.
+
+---

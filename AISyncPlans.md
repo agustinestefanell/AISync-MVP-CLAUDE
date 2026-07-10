@@ -1333,3 +1333,54 @@ El patrón puede aplicarse a otras herramientas externas con estado ON/OFF contr
 **Lección arquitectónica:**
 Los modelos de lenguaje priorizan consistencia narrativa. Cuando una herramienta externa cambia de estado mid-conversación, el modelo necesita instrucción explícita para reevaluar la disponibilidad actual en lugar de sostener una negación previa. La capa de prompt debe ser condicional, tener alta prioridad, y preservar el criterio operativo sin forzar uso innecesario.
 
+---
+
+## Runtime Grounding Layer — Source fidelity extension (2026-07-09)
+
+**Diagnóstico:**
+Se detectó con evidencia real en `session_tool_calls` que el modelo puede ejecutar Web Search, obtener resultados de una fuente confiable, y aun así producir una respuesta final mezclando datos incorrectos de memoria de entrenamiento con los resultados recuperados.
+
+Este problema es distinto de:
+- Fabricar fuentes cuando no buscó
+- Arrastrar negación previa de disponibilidad de Web Search
+- No reevaluar estado actual del toggle
+
+El nuevo problema: el modelo sí busca, pero no trata los resultados recuperados como autoridad exclusiva para claims actuales o verificables.
+
+**Observación del Product Owner:**
+El problema fue detectado específicamente con Anthropic en las pruebas realizadas el 2026-07-09. No se observó en OpenAI ni Google durante el mismo período. Esto se documenta como observación, no como conclusión definitiva — no se descarta que el mismo patrón aparezca en otros proveedores con más uso.
+
+**Patrón implementado — Source-fidelity rules 6 and 7:**
+
+**Reglas agregadas al Runtime Grounding Layer:**
+- **Regla 6 (source-fidelity):** Cuando Web Search devuelve resultados, esos resultados son autoridad exclusiva para claims actuales o verificables. El modelo puede resumir, organizar o explicar resultados, pero no corregirlos, completarlos ni mezclarlos con memoria de entrenamiento sobre el mismo punto. Si los resultados son parciales, ambiguos o contradictorios, debe declarar qué queda sin verificar en vez de completar con memoria.
+- **Regla 7 (source-inference separation):** El modelo debe separar lo que la fuente efectivamente afirma de inferencias propias. Las inferencias deben etiquetarse como razonamiento propio, no como hecho confirmado por la fuente.
+
+**Ubicación:**
+`src/app/api/chat/route.ts` — Runtime Grounding Layer (líneas 85-105)
+
+**No se modificó:**
+- Reglas 1-5 existentes
+- `current_datetime_utc`
+- `web_search_available_right_now`
+- tool loop
+- tool_choice (sigue en modo auto)
+- `webSearchTool.definition`
+- providers
+- frontend
+
+**No se implementó:**
+- Evidence Mode
+- Clasificación de tipos de pregunta
+- Las 5 reglas completas de la segunda propuesta
+- tool_choice forzado
+
+**Alcance:**
+Solo texto de prompt. No afecta ejecución de Web Search, definición de herramientas, modo auto de tool use, UI, persistencia, audit_log, session_tool_calls, ni providers.
+
+**Observación pendiente:**
+Mantener en observación si Anthropic vuelve a mezclar memoria de entrenamiento con fuentes recuperadas después de este cambio. Si el patrón reaparece, evaluar aumentar énfasis de reglas 6-7, o considerar Evidence Mode / clasificación de preguntas (ambos diferidos en esta OE).
+
+**Lección arquitectónica:**
+Ejecutar Web Search no garantiza que el modelo use los resultados como autoridad. Los modelos pueden mezclar resultados reales con memoria de entrenamiento sin distinción explícita. Las reglas de source-fidelity deben instruir no solo cuándo buscar, sino cómo tratar los resultados recuperados: como autoridad exclusiva para claims actuales/verificables, no como una fuente más entre varias. La separación entre "lo que la fuente dice" y "lo que yo infiero" debe ser explícita.
+
