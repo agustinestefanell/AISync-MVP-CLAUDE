@@ -2694,3 +2694,136 @@ Sesiones existentes con etiquetas legacy confirmadas funcionando correctamente t
 Los MODEL_MAP no deben eliminar etiquetas legacy porque `agent_sessions.model` persiste etiquetas visibles que pueden estar guardadas en sesiones existentes. Actualizar una redirección existente (ej: cambiar el target de "Claude 3.5 Sonnet" de 4-5 a 4-6) es seguro. Agregar nuevas etiquetas (ej: "GPT-5.5") es seguro. Eliminar una etiqueta existente rompería sesiones guardadas con esa etiqueta. El patrón de compatibilidad etiqueta visible → ID real debe preservarse.
 
 ---
+
+## 2026-07-10 — One-time Groq agent_sessions migration to OpenAI GPT-5.5
+
+**Fecha:** 2026-07-10
+**Tipo:** Mini-OE / Script one-time / Migración controlada de datos
+**Área:** Agent Sessions / Providers / Groq → OpenAI
+**Estado:** ⚠️ **Partial** — Script creado y versionado, preflight pendiente, UPDATE pendiente confirmación PO
+
+**Archivos modificados:**
+- scripts/migrate-groq-agents-to-openai.ts (nuevo, 10135 bytes, 321 líneas)
+- handoff-2026-07.md (esta entrada)
+- PRODUCT_STATUS.md (actualizado)
+- AISyncPlans.md (actualizado)
+
+**Diagnóstico:**
+- Se confirmaron 21 agent_sessions con `provider='Groq'` y `model='llama-3.3-70b-versatile'`
+- La decisión de producto fue migrar únicamente esos 21 agentes puntuales a `OpenAI / GPT-5.5`
+- **No se migran otros agentes del mismo team** — solo los IDs explícitos
+- **No se toca MODEL_MAP** — solo operación de datos
+- **No se toca groq.ts** — runtime provider intacto
+- **No se toca schema/RLS** — solo UPDATE de filas existentes
+- **No se tocan modales** — AddTeamModal/EditTeamModal quedan para Subtarea 2
+- Se sigue el patrón de `scripts/migrate-archived-to-deleted.ts` + gate textual obligatorio
+
+**Cambio realizado:**
+
+**Script creado:** `scripts/migrate-groq-agents-to-openai.ts`
+
+Características del script:
+- **Lista cerrada de 21 IDs explícitos** (no WHERE dinámico por provider como criterio único)
+- **Preflight obligatorio** antes de cualquier UPDATE:
+  - Valida que existan exactamente 21 filas
+  - Valida que todas tengan `provider='Groq'` y `model='llama-3.3-70b-versatile'`
+  - Lista IDs faltantes si el count no coincide
+  - Lista filas que no coincidan con provider/model esperado
+  - Aborta con `process.exit(1)` si cualquier validación falla
+- **Gate textual obligatorio** con confirmación exacta:
+  - Texto requerido: `"migrate 21 groq agents to openai"`
+  - Si no coincide exactamente: abort sin cambios
+- **UPDATE defensivo**:
+  - `.update({ provider: 'OpenAI', model: 'GPT-5.5' })`
+  - `.in('id', AGENT_SESSION_IDS)` — lista cerrada
+  - `.eq('provider', 'Groq')` — filtro defensivo adicional
+  - `.eq('model', 'llama-3.3-70b-versatile')` — filtro defensivo adicional
+- **Verificación posterior**:
+  - Re-lee las 21 filas
+  - Confirma que todas tengan `provider='OpenAI'` y `model='GPT-5.5'`
+  - Aborta si hay discrepancias
+- **Summary detallado** con contadores y NEXT STEPS sugeridos
+- **Script conservado** como registro histórico (agregado con `git add -f` porque `.gitignore` ignora `scripts/`)
+
+**Lista cerrada de IDs (21):**
+```
+d513fdae-1f73-4114-b5a8-b364c079476b
+fc95a0c8-c974-4866-a627-63c1a5043080
+b4206c28-616f-4e55-883b-0cc31e074e5a
+c1f7f5b4-ad57-45d1-9380-5307c5aa545e
+a34e521a-8329-4841-8b6d-b108850f9b5b
+bda9ab61-09ed-4623-b7e0-4a23c35b7ee2
+ae136ca9-33be-4cba-a8c7-cca914b942e7
+5f7d48be-2ec3-40e7-a436-522ea1d06bcb
+a1d077eb-4bd8-4353-9796-298ae87e4785
+21ae61da-3997-465b-8a77-4afbcbd9f940
+22112057-3a70-4597-ab64-3e3e33b7e59c
+a08cf9d1-b8cf-41e0-aa9d-ad4b97c032f9
+9773c0e4-1cac-4d3a-ae5e-9173f484a469
+7880e86c-6b49-47d5-bf60-744e2c13ee8d
+9f10b7eb-8522-4924-acf7-cacc66f2d9a4
+5f48ede8-d5e3-496f-b6e7-c8e8e62d9d0d
+e9640125-3d98-4099-af5e-85b157225c38
+70706bd7-d7f8-459f-9e1a-622c9a016614
+c0371fa9-c3c1-4fd7-88f2-ffa94e0c9d19
+9f61479b-c19f-48d5-adeb-0fd5422c37a6
+30c27551-61ce-41a1-a66d-4b05db970efd
+```
+
+**Restricciones respetadas:**
+- ✅ No WHERE dinámico `provider='Groq'` como criterio único del UPDATE
+- ✅ No filas fuera de la lista cerrada de 21 IDs
+- ✅ No MODEL_MAP modificado
+- ✅ No modales modificados (AddTeamModal/EditTeamModal)
+- ✅ No groq.ts modificado
+- ✅ No openai.ts modificado
+- ✅ No schema modificado
+- ✅ No RLS modificado
+- ✅ Script conservado como registro histórico
+- ✅ Solo script y documentación modificados
+
+**Validaciones técnicas:**
+- ✅ `npm run lint`: OK (warnings preexistentes en CanvasViewport no relacionados)
+- ✅ `npm run build`: Exitoso — producción optimizada generada
+- ✅ TypeScript: Sin errores de compilación
+- ✅ `git diff --check`: Solo warnings CRLF normales en Windows
+
+**Ejecución pendiente:**
+
+⏳ **Preflight:** Ejecutar script hasta el gate sin confirmar, reportar resultados al Product Owner
+
+⏳ **Confirmación PO:** Esperar texto exacto `"migrate 21 groq agents to openai"`
+
+⏳ **UPDATE:** Ejecutar solo después de confirmación exacta
+
+⏳ **Verificación Supabase:** Query SQL confirmando 0 filas con `provider='Groq'` para los 21 IDs migrados
+
+⏳ **Validación funcional:** Probar 1-2 agentes migrados en producción, confirmar respuesta normal con OpenAI
+
+⏳ **Validación selectividad:** Confirmar que otros agentes del mismo team no fueron modificados
+
+**Validación funcional pendiente:**
+
+| # | Caso | Resultado |
+|---|---|---|
+| 1 | Preflight ejecutado | ⏳ Pendiente |
+| 2 | Confirmación PO recibida | ⏳ Pendiente |
+| 3 | UPDATE 21 filas ejecutado | ⏳ Pendiente |
+| 4 | Query Groq devuelve 0 filas para IDs migrados | ⏳ Pendiente |
+| 5 | 1-2 agentes migrados responden en producción | ⏳ Pendiente |
+| 6 | Otros agentes del mismo team no tocados | ⏳ Pendiente |
+| 7 | Script versionado en repo | ✅ Confirmado |
+
+**Riesgos conocidos:**
+- Una de las 21 filas pudo cambiar entre diagnóstico y ejecución (mitigado con preflight)
+- Ejecutar sin confirmación podría modificar producción accidentalmente (mitigado con gate textual)
+- Un WHERE dinámico podría tocar más filas (mitigado con lista cerrada explícita)
+
+**Lección clave:**
+Scripts de migración de datos en producción deben usar lista cerrada de IDs explícitos confirmados por Product Owner, nunca WHERE dinámico por criterios de negocio como provider/model. Preflight + gate textual + verificación posterior son capas defensivas obligatorias. El script se conserva versionado como registro histórico, no se borra después de ejecutar.
+
+**Estado:** ⚠️ **Partial** — Script creado, build exitoso, versionado. Ejecución real pendiente confirmación Product Owner.
+
+**Commit:** (pendiente — se hará después de actualizar documentación)
+
+---

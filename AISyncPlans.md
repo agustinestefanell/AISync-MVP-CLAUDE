@@ -1460,3 +1460,90 @@ Fuera de alcance en OE 2026-07-10 — opciones de modelo en modales quedan para 
 **Lección arquitectónica:**
 El patrón de etiqueta visible → ID real permite que las opciones de modelo mostradas en UI sean legibles para usuarios (ej: "Claude 3.5 Sonnet") mientras que el código real de API puede cambiar por versiones. Este desacoplamiento protege sesiones existentes cuando se actualizan modelos — las etiquetas legacy pueden redirigirse a nuevas versiones sin romper sesiones guardadas. La regla crítica: nunca eliminar una etiqueta del MODEL_MAP sin verificar que no existen sesiones persistidas con esa etiqueta en producción.
 
+---
+
+## 13. Scripts de migración one-time
+
+### 13.1 Patrón de scripts administrativos
+
+Scripts one-time para operaciones administrativas de migración de datos en producción siguen un patrón estricto documentado en:
+- `scripts/migrate-archived-to-deleted.ts` (Context Files archived → deleted)
+- `scripts/migrate-groq-agents-to-openai.ts` (Groq agents → OpenAI GPT-5.5)
+
+**Características obligatorias:**
+
+1. **Lista cerrada de IDs explícitos** (no WHERE dinámico por criterios de negocio):
+   ```ts
+   const TARGET_IDS = [
+     'uuid-1',
+     'uuid-2',
+     // ... confirmados por Product Owner
+   ] as const
+   ```
+
+2. **Cliente admin con justificación**:
+   ```ts
+   import { createAdminClient } from '../src/lib/supabase/admin'
+   // Runs without authenticated user session
+   const adminClient = createAdminClient()
+   ```
+
+3. **Preflight obligatorio** antes de cualquier write:
+   - Confirmar que existen exactamente N filas esperadas
+   - Confirmar que todas cumplen criterios esperados (provider/model/status/etc)
+   - Listar IDs faltantes si count no coincide
+   - Listar filas con valores inesperados
+   - Abortar con `process.exit(1)` si cualquier validación falla
+
+4. **Gate de confirmación textual** (para migraciones con alto impacto):
+   ```ts
+   import * as readline from 'readline'
+   // Prompt: Type exactly "[texto específico]" to continue
+   // Si no coincide exactamente: abort sin cambios
+   ```
+
+5. **UPDATE/operación defensiva**:
+   - Lista explícita: `.in('id', TARGET_IDS)`
+   - Filtros adicionales defensivos: `.eq('provider', EXPECTED_VALUE)`
+   - Nunca WHERE dinámico como criterio único
+
+6. **Verificación posterior**:
+   - Re-leer las N filas modificadas
+   - Confirmar que todas tienen valores target esperados
+   - Abortar si hay discrepancias
+
+7. **Summary detallado**:
+   - Total esperado / encontrado / actualizado / verificado
+   - NEXT STEPS sugeridos (queries SQL, validación UI, etc)
+
+8. **Conservación histórica**:
+   - Script queda versionado en repo (no se borra después de ejecutar)
+   - `.gitignore` ignora `scripts/` — agregar con `git add -f <script.ts>`
+
+**Runner:**
+```bash
+npx tsx scripts/nombre-del-script.ts
+```
+
+(tsx@^4.8.1 en package-lock.json)
+
+**Prohibido:**
+- Usar WHERE dinámico por criterios de negocio (provider, status, etc) como filtro único del UPDATE
+- Ejecutar UPDATE sin preflight
+- Ejecutar UPDATE sin gate de confirmación en migraciones de alto impacto
+- Modificar filas fuera de la lista cerrada de IDs
+- Borrar script después de ejecutar
+
+**Migraciones ejecutadas:**
+
+1. **Context Files archived → deleted** (2026-07-03):
+   - 7 filas legacy con `status='archived'` migradas a `status='deleted'`
+   - Storage físico borrado + audit_log registrado
+   - Patrón base: lista cerrada + preflight + admin client + shared logic (`deleteContextSource`)
+
+2. **Groq agents → OpenAI GPT-5.5** (2026-07-10 — pending execution):
+   - 21 agent_sessions con `provider='Groq'`, `model='llama-3.3-70b-versatile'`
+   - Destino: `provider='OpenAI'`, `model='GPT-5.5'`
+   - Patrón extendido: lista cerrada + preflight + gate textual + admin client + verificación posterior
+   - **Estado:** Script creado y versionado, ejecución pendiente confirmación Product Owner
+
