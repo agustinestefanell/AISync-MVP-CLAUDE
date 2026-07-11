@@ -345,6 +345,10 @@ Función `renderAssistantMessage`: detecta nombres de checkpoints en las respues
 
 ### 4.1 Props contracts clave
 
+**Markdown rendering in chat messages (2026-07-11):**
+
+AgentPanel y HumanChatPanel renderizan mensajes con Markdown usando `react-markdown@^10.1.0` + `remark-gfm@^4.0.1`. Soporta: tablas estilo GitHub, negritas, cursivas, listas, code inline/block, blockquotes. NO usa `rehype-raw` ni `dangerouslySetInnerHTML` — HTML crudo no se ejecuta (crítico para Connected Teams donde mensajes pueden venir de otra cuenta). Components explícitos con clases Tailwind (sin `@tailwindcss/typography`). copyMessage preserva `msg.content` original. Bundle impact: /workspace/[id] First Load JS aumentó de 20.1 kB a 63.8 kB (+43.7 kB — aceptable para MVP).
+
 **WorkspaceShell → AgentPanel**:
 
 | Prop | Tipo | Descripción |

@@ -3091,3 +3091,119 @@ Retirar un provider funcional completo requiere cambios coordinados en 6 superfi
 **Commit:** Pendiente hasta validación funcional confirmada
 
 ---
+
+## 2026-07-11 — Markdown rendering in AgentPanel and HumanChatPanel
+
+**Fecha:** 2026-07-11
+**Tipo:** Mini-OE / UI rendering / Markdown support
+**Área:** Workspace / AgentPanel / HumanChatPanel / Chat messages
+
+**Diagnóstico:**
+
+AgentPanel y HumanChatPanel renderizaban mensajes como texto plano con `whitespace-pre-wrap`. La sintaxis Markdown aparecía cruda y visible (tablas, negritas, listas mostraban caracteres `|`, `**`, `-` sin interpretar).
+
+**Decisión de producto:**
+- Usar `react-markdown` + `remark-gfm` para soportar Markdown y tablas estilo GitHub
+- NO usar `rehype-raw` ni `dangerouslySetInnerHTML` por seguridad
+- Razón crítica: HumanChatPanel puede mostrar contenido escrito por otra cuenta de usuario en Connected Teams — el renderizador no debe ejecutar HTML crudo
+
+**Cambios realizados:**
+
+1. **Dependencias agregadas:**
+   - `react-markdown@^10.1.0`
+   - `remark-gfm@^4.0.1`
+   - Instaladas con `npm install --save`
+
+2. **AgentPanel.tsx (línea 676 → 677-722):**
+   - Agregado import `ReactMarkdown` y `remarkGfm`
+   - Reemplazado `<div className="whitespace-pre-wrap select-text pr-4">{msg.content}</div>`
+   - Por `<ReactMarkdown remarkPlugins={[remarkGfm]} components={{...}}>{msg.content}</ReactMarkdown>`
+   - Components explícitos con clases Tailwind para: p, strong, em, ul, ol, li, table, thead, th, td, code, blockquote
+   - Sin uso de `@tailwindcss/typography` (no está instalado)
+   - copyMessage NO fue modificado — sigue copiando `msg.content` original
+
+3. **HumanChatPanel.tsx (líneas 495-497 → 496-541):**
+   - Agregado import `ReactMarkdown` y `remarkGfm`
+   - Reemplazado `<p className="text-sm text-gray-900 whitespace-pre-wrap break-words">{message.content}</p>`
+   - Por mismo patrón `<ReactMarkdown>` con components explícitos
+   - Sin rehype-raw, sin dangerouslySetInnerHTML
+   - Connected Teams sigue siendo seguro para contenido de otra cuenta
+
+**Componentes Markdown renderizados:**
+- Párrafos con spacing (`mb-2 last:mb-0`)
+- **Negrita** (`font-semibold`)
+- *Cursiva* (`italic`)
+- Listas desordenadas/ordenadas (`list-disc`, `list-decimal`, `pl-5`)
+- Tablas con bordes (`border-collapse`, `border-gray-300`, header con `bg-gray-50`)
+- Code inline (`bg-gray-100`, `px-1 py-0.5`, `rounded`)
+- Code blocks (`block bg-gray-100 p-2 rounded overflow-x-auto`)
+- Blockquotes (`border-l-2 border-gray-300 pl-3 italic`)
+
+**Archivos NO modificados:**
+- Lógica de envío de mensajes
+- Historial
+- Tool loop
+- Providers
+- API routes
+- DB/RLS
+- copyMessage (preservado)
+- Connected Teams Realtime
+- Adjuntos
+
+**Validaciones técnicas:**
+
+✅ `npm run lint` — OK (warnings preexistentes en CanvasViewport no relacionados)
+✅ `npm run build` — Exitoso
+✅ `grep rehype-raw/dangerouslySetInnerHTML` — 0 resultados (seguridad confirmada)
+✅ `grep ReactMarkdown` — Confirmado en AgentPanel y HumanChatPanel
+✅ copyMessage preservado — sigue copiando `msg.content` original, no HTML
+
+**Impacto bundle:**
+First Load JS de `/workspace/[id]` aumentó de 20.1 kB a 63.8 kB (+43.7 kB debido a react-markdown). Considerado aceptable para MVP.
+
+**Validación funcional:**
+
+⏳ **PENDIENTE** — Requiere validación visual por Product Owner:
+
+| # | Caso | Resultado |
+|---|---|---|
+| 1 | AI responde con tabla Markdown | Pendiente screenshot |
+| 2 | AI responde con negrita | Pendiente screenshot |
+| 3 | AI responde con lista | Pendiente |
+| 4 | Copiar mensaje con botón | Pendiente verificar copia Markdown original |
+| 5 | Mensaje humano en HumanChatPanel con Markdown | Pendiente |
+| 6 | Mensaje con asterisco suelto | Pendiente |
+| 7 | Mensaje manual con `<script>` o HTML | Pendiente verificar no ejecuta |
+| 8 | Mensajes existentes sin Markdown | Pendiente |
+| 9 | Adjuntos en AgentPanel | Pendiente |
+| 10 | Connected Teams HumanChatPanel | Pendiente |
+
+**Criterio de cierre:**
+No marcar Closed sin screenshot del Product Owner mostrando:
+- Una tabla Markdown renderizada correctamente
+- Texto en negrita renderizado correctamente
+
+**Restricciones respetadas:**
+- ✅ NO se agregó rehype-raw
+- ✅ NO se usó dangerouslySetInnerHTML
+- ✅ NO se modificó copyMessage para copiar HTML
+- ✅ NO se modificó lógica de envío
+- ✅ NO se modificó historial
+- ✅ NO se modificaron providers
+- ✅ NO se modificó backend
+- ✅ NO se tocaron archivos fuera de los autorizados
+
+**Lección clave:**
+
+Para renderizar Markdown en chats de forma segura:
+1. Usar `react-markdown` + `remark-gfm` sin `rehype-raw`
+2. Definir components explícitos con clases Tailwind cuando no hay `@tailwindcss/typography`
+3. Preservar contenido original para copy/export (no copiar HTML renderizado)
+4. Validar especialmente en contextos con contenido de múltiples usuarios (Connected Teams)
+5. El aumento de bundle (~44 KB) es el costo aceptable de Markdown completo con tablas
+
+**Estado:** ⚠️ **Partial** — Código implementado, build exitoso, pendiente validación visual con screenshot de tabla y negrita
+
+**Commit:** Pendiente hasta validación visual confirmada por Product Owner
+
+---
