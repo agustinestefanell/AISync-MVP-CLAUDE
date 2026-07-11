@@ -3202,8 +3202,18 @@ Para renderizar Markdown en chats de forma segura:
 4. Validar especialmente en contextos con contenido de múltiples usuarios (Connected Teams)
 5. El aumento de bundle (~44 KB) es el costo aceptable de Markdown completo con tablas
 
-**Estado:** ⚠️ **Partial** — Código implementado, build exitoso, pendiente validación visual con screenshot de tabla y negrita
+**Validación visual en producción:**
 
-**Commit:** Pendiente hasta validación visual confirmada por Product Owner
+✅ **Confirmada por Product Owner — 2026-07-11**
+
+Validado en ai-sync-mvp-claude.vercel.app con AgentPanel:
+- ✅ Tabla comparativa renderizada correctamente (bordes, encabezados, alineación visual)
+- ✅ Texto en **negrita** renderizado correctamente
+- ✅ Lista renderizada correctamente
+- ✅ Reglas de fidelidad a la fuente (Runtime Grounding Layer, reglas 6-7) siguen funcionando correctamente junto con el nuevo renderizado Markdown
+
+**Estado:** ✅ **Closed** — Código implementado, build exitoso, validado visualmente en producción
+
+**Commit:** de21877 (implementación), docs: close Markdown rendering as visually validated (cierre)
 
 ---
