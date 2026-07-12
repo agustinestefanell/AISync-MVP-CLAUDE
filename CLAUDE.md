@@ -11,12 +11,14 @@ Claude Code DEBE actualizar el archivo de handoff activo con:
 4. Alternativas descartadas y por qué se descartaron
 5. Riesgos conocidos o deuda técnica generada
 
-**Archivo activo:** `handoff-2026-07.md` (desde 2026-06-30)
-**Archivos anteriores:** `handoff.md` (cerrado, 576KB, histórico)
+**Archivo activo:** `handoff-2026-07-b.md` (desde 2026-07-12)
+**Archivos anteriores:** 
+- `handoff-archive-2026-07-a.md` (cerrado 2026-07-12, 168KB)
+- `handoff.md` (cerrado 2026-06-30, 576KB, histórico)
 
 **Regla de rotación:** Cuando el archivo activo alcance ~400KB, crear
-`handoff-YYYY-MM.md` nuevo, cerrar el anterior con nota de continuidad,
-y actualizar esta referencia en CLAUDE.md.
+archivo nuevo con sufijo secuencial (`handoff-YYYY-MM-c.md`, etc.), 
+cerrar el anterior con nota de continuidad, y actualizar esta referencia en CLAUDE.md.
 
 Sin esta actualización, la OE NO está cerrada.
 
@@ -122,7 +124,7 @@ PROMPT DE CIERRE DURO OBLIGATORIO
 Al finalizar cada OE, mini-OE o fix directo, ejecutar en orden:
 
 1. Diagnóstico: pwd, git branch, git status, git diff --stat
-2. Actualizar archivo de handoff activo (handoff-2026-07.md) — SIEMPRE
+2. Actualizar archivo de handoff activo (handoff-2026-07-b.md) — SIEMPRE
 3. Actualizar PRODUCT_STATUS.md — SIEMPRE
 4. Evaluar AISyncPlans.md — responder estas preguntas antes de seguir:
    - ¿Cambié alguna tabla, columna o migración de DB? → actualizar schema

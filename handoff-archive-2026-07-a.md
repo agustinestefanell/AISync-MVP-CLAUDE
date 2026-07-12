@@ -3327,3 +3327,8 @@ Partial — código completo, build exitoso, pendiente screenshot PO con grilla 
 
 **Lección clave:**
 Reemplazo canvas→grilla requiere: eliminar deps zoom sin romper handlers, transformar lista plana parent_id→estructura agrupada, derivar datos tipos anidados correctamente, deprecar imports sin usarlos activamente, validar tipos contra esquema real, usar Array.from(map.entries()) para iterar Map, separar color estructural de badge semántico.
+
+
+---
+
+ARCHIVED 2026-07-12 — see handoff-2026-07-b.md for continuation
