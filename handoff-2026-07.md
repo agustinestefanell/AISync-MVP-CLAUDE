@@ -3217,3 +3217,113 @@ Validado en ai-sync-mvp-claude.vercel.app con AgentPanel:
 **Commit:** de21877 (implementación), docs: close Markdown rendering as visually validated (cierre)
 
 ---
+
+
+---
+
+## Sesión 2026-07-12 — Teams Map rebuilt as project grid layout
+
+**Fecha:** 2026-07-12
+**Tipo:** OE / UI reconstruction / Teams Map
+**Área:** Teams / MapView / TeamsClient / Project Grid Layout
+
+**Diagnóstico previo:**
+Se confirmó en Mini-OE de solo lectura previa que:
+- CanvasViewport real: `src/components/teams/map/CanvasViewport.tsx`
+- CanvasViewport huérfano: `src/components/teams/CanvasViewport.tsx` (candidato a limpieza futura)
+- `team.color: string | null` ya existe en DB/tipo — sin migración
+- provider/model se derivan del manager session en `workspaces[0].agent_sessions`
+- Subteams no vienen anidados — se identifican por `parent_id` en lista plana
+- zoomIn/zoomOut/zoomReset (3 estados + 3 botones) quedan obsoletos con nuevo diseño sin canvas
+- Toggle Map/Tree vive en `TeamsClient.tsx` líneas ~392-408 — se oculta sin borrar TreeView
+
+**Decisión de producto:**
+Reconstruir Teams Map desde cero como grilla CSS flexible organizada por proyecto. NO replicar coordenadas absolutas del JSON de referencia visual. El JSON sirve como referencia semántica y paleta de colores, no como layout absoluto.
+
+**Cambios realizados:**
+
+1. **src/lib/teams/deriveTeamColor.ts (nuevo):**
+   - `deriveLighterColor(hexColor, lightenAmount)`: Deriva tono más claro mezclando con blanco (RGB)
+   - `getFallbackTeamColor(seed)`: Genera color determinístico desde paleta de 8 colores si `team.color` es null
+   - Regla de color:
+     - `team.color` manda (si existe)
+     - Subteam usa `deriveLighterColor(parentColor, 0.4)`
+     - Si `team.color === null`, usa fallback por hash de `team.id`
+
+2. **src/components/teams/MapView.tsx (reescrito completo):**
+   - Arquitectura anterior eliminada: CanvasViewport, pan/zoom, posiciones absolutas, buildTreeLayout, connectors SVG L-shaped, canvas fijo width/height
+   - Arquitectura nueva: Grilla CSS responsive `grid-cols-1 xl:grid-cols-2 auto-rows-min`
+   - Agrupación por proyecto: Lista plana de teams → Map(projectId, teams[]) → ProjectGroup[]
+   - Subteams por parent_id: Teams con `parent_id === null` = main teams; resto = subteams, adjuntados a su padre
+   - Provider/model derivación: managerSession desde agent_sessions.find(s => s.agent_role === 'manager')
+   - Contadores: Team (workspaces/sessions/workers), Proyecto (totalTeams/totalSessions/totalWorkers)
+   - Color team: Borde izquierdo 4px con team.color (derivado o fallback)
+   - Color subteam: Borde izquierdo 3px con tono derivado más claro
+   - SAT/MAT: Badge textual (teal/purple), NO define color estructural
+   - Isolated teams: Badge negro "Shared", descripción de conexión como nombre si existe
+   - Connect Team box: Preservado al final de la grilla como card dashed
+   - Props eliminadas: zoomInSignal, zoomOutSignal, resetSignal, externalConnections
+   - Props preservadas: teams, projectId, activeProjectId, connectedTeamIds, teamCodes, onEdit, onConnect
+
+3. **src/components/teams/TeamsClient.tsx:**
+   - Eliminados: type ViewMode, view state, zoom states, toggle Map/Tree, botones zoom, render condicional, derivación externalConnections
+   - Preservados: Fetch, handlers CRUD/conexiones, modales, ribbons, contadores, ExternalConnection interface (para TreeView deprecated)
+   - TreeView import comentado con nota de deprecación
+   - MapView render directo sin condicional
+
+**Archivos modificados:**
+- src/lib/teams/deriveTeamColor.ts (creado)
+- src/components/teams/MapView.tsx (reescrito completo)
+- src/components/teams/TeamsClient.tsx (eliminados zoom/toggle)
+
+**Archivos NO tocados:**
+- CanvasViewport activo/huérfano (no modificados)
+- TreeView.tsx (deprecado, preservado, no modificado)
+- TeamNode/AgentCard/TeamAgentCard (no usados en nuevo MapView)
+- types.ts, migraciones, RLS, modales (sin cambios)
+
+**Validaciones técnicas:**
+- npm run lint: OK (solo warnings preexistentes)
+- npm run build: Exitoso
+- TypeScript: Sin errores
+- grep verificaciones: CanvasViewport/zoom ausentes en MapView/TeamsClient
+- TreeView comentado, no importado activamente
+
+**Validación funcional:**
+PENDIENTE — Requiere screenshot PO mostrando:
+1. Grilla sin canvas/zoom
+2. Proyectos con contenedores y métricas
+3. Teams con colores distintos (borde izquierdo)
+4. Subteam tono derivado más claro
+5. SAT/MAT badge textual
+6. Contadores correctos
+7. Open/Edit/Add/Connect funcionando
+8. Toggle Map/Tree ausente
+9. Responsive sin scroll horizontal
+10. CanvasViewport/TreeView archivos preservados
+
+**Restricciones respetadas:**
+- TreeView NO borrado
+- CanvasViewport NO tocado
+- types.ts NO tocado
+- Migraciones/RLS NO tocadas
+- JSON coordenadas absolutas NO replicadas
+
+**Decisiones técnicas:**
+1. Transformación inline en useMemo (no helper separado por claridad)
+2. Derivación color con mezcla RGB 40% lighten para subteams
+3. Palette 8 colores determinística por hash team.id
+4. project_id desde workspace.teams.project_id (no workspace.project_id)
+5. Subteams solo 1 nivel (no recursivo)
+6. isolated teams metadata desde /api/connections
+
+**Pendientes futuras Mini-OEs:**
+- Limpieza CanvasViewport huérfano
+- Decisión TreeView: reactivar o eliminar
+- Evaluar TeamNode/AgentCard/TeamAgentCard (posible uso en TreeView)
+
+**Estado:**
+Partial — código completo, build exitoso, pendiente screenshot PO con grilla completa, colores, subteams.
+
+**Lección clave:**
+Reemplazo canvas→grilla requiere: eliminar deps zoom sin romper handlers, transformar lista plana parent_id→estructura agrupada, derivar datos tipos anidados correctamente, deprecar imports sin usarlos activamente, validar tipos contra esquema real, usar Array.from(map.entries()) para iterar Map, separar color estructural de badge semántico.

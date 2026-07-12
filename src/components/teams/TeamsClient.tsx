@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
-import TreeView from './TreeView'
+// TreeView deprecated — preserved for potential future reactivation.
+// See handoff entry for Teams Map grid reconstruction.
+// import TreeView from './TreeView'
 import AddTeamModal from './AddTeamModal'
 import EditTeamModal from './EditTeamModal'
 import ConnectTeamModal, { type Connection } from './ConnectTeamModal'
@@ -28,8 +30,6 @@ Use this page when you want to understand how the system is organized, check how
 In practical terms, Teams Map makes the structure of AISync visible. It reminds you that AISync is not only a chat interface. It is a structured work system.`
 
 const MapView = dynamic(() => import('./MapView'), { ssr: false })
-
-type ViewMode = 'map' | 'tree'
 
 export interface ExternalConnection {
   connectionId: string
@@ -148,14 +148,10 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   const router = useRouter()
   const [teams, setTeams]             = useState<TeamWithWorkspaces[]>(initialTeams)
   const [connections, setConnections] = useState<Connection[]>([])
-  const [view, setView]               = useState<ViewMode>('map')
   const [showAdd, setShowAdd]         = useState(false)
   const [showConnect, setShowConnect] = useState(false)
   const [showIncoming, setShowIncoming] = useState(false)
   const [editingTeam, setEditingTeam] = useState<TeamWithWorkspaces | null>(null)
-  const [zoomIn, setZoomIn]   = useState(0)
-  const [zoomOut, setZoomOut] = useState(0)
-  const [zoomReset, setZoomReset] = useState(0)
   const [showMainGuide,        setShowMainGuide]        = useState(false)
   const [showSatMatGuide,      setShowSatMatGuide]      = useState(false)
   const [showCreateTeamsGuide, setShowCreateTeamsGuide] = useState(false)
@@ -269,27 +265,6 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
       .filter((id): id is string => !!id)
   )
 
-  // External teams to render as separate nodes in map / tree
-  const externalConnections: ExternalConnection[] = connections
-    .filter(c => c.status === 'active')
-    .map(c => c.direction === 'outgoing'
-      ? {
-          connectionId:     c.id,
-          myTeamId:         c.requester_team_id,
-          externalTeamId:   c.receiver_team_id,
-          externalTeamName: c.receiver_team_name ?? '—',
-          externalEmail:    c.receiver_email,
-        }
-      : {
-          connectionId:     c.id,
-          myTeamId:         c.receiver_team_id ?? '',
-          externalTeamId:   c.requester_team_id,
-          externalTeamName: c.requester_team_name,
-          externalEmail:    c.requester_email,
-        }
-    )
-    .filter(ec => !!ec.myTeamId)
-
   const incomingPending = connections.filter(
     c => c.direction === 'incoming' && c.status === 'pending'
   ).length
@@ -389,51 +364,12 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
         <div className="ml-auto flex items-center gap-2 shrink-0">
           <div className="flex flex-wrap items-center justify-end gap-2">
 
-            {/* Map / Tree toggle */}
-            <div
-              className="flex rounded-full border p-1"
-              style={{ borderColor: 'rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.86)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72)' }}
-            >
-              {(['map', 'tree'] as ViewMode[]).map(mode => (
-                <button
-                  key={mode}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                    view === mode ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:text-neutral-900'
-                  }`}
-                  onClick={() => setView(mode)}
-                >
-                  {mode === 'map' ? 'Map' : 'Tree'}
-                </button>
-              ))}
-            </div>
-
             {/* Teams / Workers count */}
             <div
               className="rounded-[10px] border px-3 py-2 text-xs text-neutral-700"
               style={{ borderColor: 'rgba(15,23,42,0.10)', background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(244,247,250,0.95) 100%)' }}
             >
               Teams {teams.length} / Workers {workerCount}
-            </div>
-
-            {/* Zoom buttons */}
-            <div
-              className="flex items-center gap-1 rounded-full border p-1"
-              style={{ borderColor: 'rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.86)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72)' }}
-            >
-              <button
-                className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
-                title="Zoom In"
-                onClick={() => setZoomIn(n => n + 1)}
-              >+</button>
-              <button
-                className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
-                title="Zoom Out"
-                onClick={() => setZoomOut(n => n + 1)}
-              >−</button>
-              <button
-                className="h-8 rounded-full px-3 text-xs text-neutral-700 hover:bg-neutral-100"
-                onClick={() => setZoomReset(n => n + 1)}
-              >Reset</button>
             </div>
 
             {/* Requests */}
@@ -470,37 +406,18 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
 
       {/* Main view */}
       <div className="flex-1 min-h-0 relative">
-        {view === 'map' ? (
-          <MapView
-            teams={sortedTeams}
-            projectId={projectId}
-            activeProjectId={projectId}
-            connectedTeamIds={connectedTeamIds}
-            externalConnections={externalConnections}
-            teamCodes={teamCodes}
-            zoomInSignal={zoomIn}
-            zoomOutSignal={zoomOut}
-            resetSignal={zoomReset}
-            onEdit={teamId => {
-              const team = teams.find(t => t.id === teamId)
-              if (team) setEditingTeam(team)
-            }}
-            onConnect={() => setShowConnect(true)}
-          />
-        ) : (
-          <TreeView
-            teams={sortedTeams}
-            connectedTeamIds={connectedTeamIds}
-            externalConnections={externalConnections}
-            teamCodes={teamCodes}
-            onEdit={t => setEditingTeam(t)}
-            onDelete={t => setEditingTeam(t)}
-            onConnect={() => setShowConnect(true)}
-            zoomInSignal={zoomIn}
-            zoomOutSignal={zoomOut}
-            resetSignal={zoomReset}
-          />
-        )}
+        <MapView
+          teams={sortedTeams}
+          projectId={projectId}
+          activeProjectId={projectId}
+          connectedTeamIds={connectedTeamIds}
+          teamCodes={teamCodes}
+          onEdit={teamId => {
+            const team = teams.find(t => t.id === teamId)
+            if (team) setEditingTeam(team)
+          }}
+          onConnect={() => setShowConnect(true)}
+        />
       </div>
 
       {/* Modals */}

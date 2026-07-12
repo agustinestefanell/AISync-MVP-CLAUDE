@@ -1,87 +1,97 @@
 'use client'
 
-import { useMemo, useState, useEffect }     from 'react'
-import CanvasViewport  from './map/CanvasViewport'
-import TeamAgentCard   from './map/TeamAgentCard'
-import { deriveAgentNodesFromTeams }        from '@/lib/db/agent-map'
-import { agentNodesToMapNodes }             from '@/lib/map/buildAgentLayout'
-import {
-  buildTreeLayout,
-  MAP_CANVAS_PADDING_X,
-  MAP_CANVAS_PADDING_Y,
-  GAP_BETWEEN_ROOT_TREES,
-  type TreeLayoutPlacement,
-  type TreeLayoutConnector,
-} from '@/lib/map/buildTreeLayout'
-import type { TeamWithWorkspaces }  from '@/lib/db/types'
-import type { ExternalConnection }  from './TeamsClient'
-import type { MapAgentNode }        from '@/lib/map/buildAgentLayout'
-import type { ProjectNodeType } from '@/lib/teams/getProjectColor'
+import { useMemo, useState, useEffect } from 'react'
+import type { TeamWithWorkspaces } from '@/lib/db/types'
+import { deriveLighterColor, getFallbackTeamColor } from '@/lib/teams/deriveTeamColor'
 
 interface MapViewProps {
-  teams:               TeamWithWorkspaces[]
-  projectId:           string
-  activeProjectId:     string
-  connectedTeamIds:    Set<string>
-  externalConnections: ExternalConnection[]
-  teamCodes?:          Record<string, string>
-  onEdit:              (teamId: string) => void
-  onConnect:           () => void
-  zoomInSignal?:       number
-  zoomOutSignal?:      number
-  resetSignal?:        number
+  teams: TeamWithWorkspaces[]
+  projectId: string
+  activeProjectId: string
+  connectedTeamIds: Set<string>
+  teamCodes?: Record<string, string>
+  onEdit: (teamId: string) => void
+  onConnect: () => void
 }
 
-const CONNECT_TEAM_GAP    = 84
-const CONNECT_TEAM_WIDTH  = 300
-const CONNECT_TEAM_HEIGHT = 179
+interface EnrichedTeam {
+  team: TeamWithWorkspaces
+  provider: string
+  model: string
+  mode: 'SAT' | 'MAT'
+  color: string
+  workspaces: number
+  sessions: number
+  workers: number
+  code?: string
+  subteams: EnrichedTeam[]
+}
 
-function ConnectTeamBox({ onConnect }: { onConnect: () => void }) {
-  return (
-    <button
-      type="button"
-      data-pan-block="true"
-      className="flex h-full w-full flex-col items-center justify-center rounded-[22px] border-2 border-dashed px-6 py-6 text-center transition-colors hover:border-neutral-500 hover:bg-white/90"
-      style={{
-        borderColor: 'rgba(100,116,139,0.45)',
-        background:  'linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(241,245,249,0.92) 100%)',
-        boxShadow:   'inset 0 1px 0 rgba(255,255,255,0.78), 0 12px 24px rgba(15,23,42,0.05)',
-      }}
-      onPointerDown={e => e.stopPropagation()}
-      onMouseDown={e => e.stopPropagation()}
-      onClick={e => { e.preventDefault(); e.stopPropagation(); onConnect() }}
-    >
-      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-neutral-400 bg-white/85 text-[28px] font-semibold leading-none text-neutral-700">
-        +
-      </div>
-      <div className="mt-4 text-[14px] font-semibold text-neutral-900">Connect Team</div>
-      <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-neutral-500">Link External User</div>
-    </button>
+interface ProjectGroup {
+  projectId: string
+  projectName: string
+  teams: EnrichedTeam[]
+  totalTeams: number
+  totalSessions: number
+  totalWorkers: number
+}
+
+function enrichTeam(
+  team: TeamWithWorkspaces,
+  teamCodes: Record<string, string> | undefined,
+  parentColor?: string
+): EnrichedTeam {
+  // Derive provider/model from manager session
+  const managerSession = team.workspaces?.[0]?.agent_sessions?.find(
+    (session) => session.agent_role === 'manager'
   )
-}
 
-function getSubtreeNodes(rootId: string, all: MapAgentNode[]): MapAgentNode[] {
-  const ids   = new Set<string>()
-  const queue = [rootId]
-  while (queue.length) {
-    const id = queue.shift()!
-    ids.add(id)
-    for (const n of all) if (n.parentId === id) queue.push(n.id)
+  const provider = managerSession?.provider ?? 'Unknown'
+  const model = managerSession?.model ?? 'Unknown'
+
+  // Calculate metrics
+  const workspaces = team.workspaces?.length ?? 0
+  const sessions = team.workspaces?.reduce((sum, ws) => sum + (ws.agent_sessions?.length ?? 0), 0) ?? 0
+  const workers = team.workspaces?.reduce(
+    (sum, ws) => sum + (ws.agent_sessions?.filter(s => s.agent_role?.includes('worker')).length ?? 0),
+    0
+  ) ?? 0
+
+  // Determine color
+  let color: string
+  if (parentColor) {
+    // Subteam: derive lighter tone from parent
+    color = deriveLighterColor(parentColor, 0.4)
+  } else if (team.color) {
+    // Team has own color
+    color = team.color
+  } else {
+    // Fallback: deterministic from team.id
+    color = getFallbackTeamColor(team.id)
   }
-  return all.filter(n => ids.has(n.id))
+
+  return {
+    team,
+    provider,
+    model,
+    mode: team.type === 'SAT' || team.type === 'MAT' ? team.type : 'SAT',
+    color,
+    workspaces,
+    sessions,
+    workers,
+    code: teamCodes?.[team.id],
+    subteams: [], // Populated separately
+  }
 }
 
 export default function MapView({
   teams,
   activeProjectId,
-  connectedTeamIds,
   teamCodes,
   onEdit,
   onConnect,
-  zoomInSignal,
-  zoomOutSignal,
-  resetSignal,
 }: MapViewProps) {
+  // Fetch connection metadata for isolated teams
   const [connectionMap, setConnectionMap] = useState<Record<string, { description: string | null; color: string | null }>>({})
 
   useEffect(() => {
@@ -104,7 +114,6 @@ export default function MapView({
         const map: Record<string, { description: string | null; color: string | null }> = {}
         for (const conn of connections) {
           if (conn.status === 'active') {
-            // Determine the correct team ID based on direction
             const teamId = conn.direction === 'outgoing'
               ? conn.host_isolated_team_id
               : conn.invitee_isolated_team_id
@@ -122,70 +131,59 @@ export default function MapView({
       .catch(() => setConnectionMap({}))
   }, [teams])
 
-  const agentNodes = useMemo(() => deriveAgentNodesFromTeams(teams, connectionMap), [teams, connectionMap])
-
-  const mapNodes   = useMemo(
-    () => agentNodesToMapNodes(agentNodes, connectedTeamIds),
-    [agentNodes, connectedTeamIds],
-  )
-
-  const roots = useMemo(() => mapNodes.filter(n => n.parentId === null), [mapNodes])
-
-  const nodeTypeMap = useMemo((): Map<string, ProjectNodeType> => {
-    const map   = new Map<string, ProjectNodeType>()
-    const gmIds = new Set(mapNodes.filter(n => n.type === 'general_manager').map(n => n.id))
-    for (const n of mapNodes) {
-      if (n.type === 'general_manager')  map.set(n.id, 'gm')
-      else if (n.type === 'worker')      map.set(n.id, 'worker')
-      else map.set(n.id, gmIds.has(n.parentId ?? '') ? 'team' : 'subteam')
-    }
-    return map
-  }, [mapNodes])
-
-  // Build layout for all root trees, accumulate into flat lists with X offset
-  const { allPlacements, allConnectors, totalWidth, totalHeight, connectTeamLeft } = useMemo(() => {
-    if (!roots.length) {
-      return { allPlacements: [], allConnectors: [], totalWidth: 0, totalHeight: 0, connectTeamLeft: 0 }
+  // Build project groups with teams and subteams
+  const projectGroups = useMemo((): ProjectGroup[] => {
+    // Group teams by project_id
+    const grouped = new Map<string, TeamWithWorkspaces[]>()
+    for (const team of teams) {
+      const pid = team.workspaces?.[0]?.teams?.project_id ?? 'unknown'
+      if (!grouped.has(pid)) grouped.set(pid, [])
+      grouped.get(pid)!.push(team)
     }
 
-    type PlacementExt = TreeLayoutPlacement & { projectId: string }
-    type ConnectorExt = TreeLayoutConnector & { projectId: string }
+    // Transform each project group
+    const groups: ProjectGroup[] = []
+    for (const [projectId, projectTeams] of Array.from(grouped.entries())) {
+      // Separate main teams (parent_id === null) and subteams
+      const mainTeams = projectTeams.filter(t => !t.parent_id)
+      const subteamsList = projectTeams.filter(t => t.parent_id)
 
-    const placements: PlacementExt[] = []
-    const connectors: ConnectorExt[] = []
-    let   xOffset   = 0
-    let   maxHeight = 0
+      // Enrich main teams
+      const enrichedMainTeams = mainTeams.map(t => enrichTeam(t, teamCodes))
 
-    for (const root of roots) {
-      const subtree = getSubtreeNodes(root.id, mapNodes)
-      const layout  = buildTreeLayout(root, subtree)
-
-      for (const p of layout.placements) {
-        placements.push({ ...p, x: p.x + xOffset, centerX: p.centerX + xOffset, projectId: root.projectId })
-      }
-      for (const c of layout.connectors) {
-        connectors.push({ ...c, fromX: c.fromX + xOffset, toX: c.toX + xOffset, projectId: root.projectId })
+      // Attach subteams to their parents
+      for (const enrichedTeam of enrichedMainTeams) {
+        const childSubteams = subteamsList.filter(st => st.parent_id === enrichedTeam.team.id)
+        enrichedTeam.subteams = childSubteams.map(st => enrichTeam(st, teamCodes, enrichedTeam.color))
       }
 
-      xOffset   += layout.width + GAP_BETWEEN_ROOT_TREES
-      maxHeight  = Math.max(maxHeight, layout.height)
+      // Calculate project-level metrics
+      const allEnriched = [...enrichedMainTeams, ...enrichedMainTeams.flatMap(t => t.subteams)]
+      const totalTeams = allEnriched.length
+      const totalSessions = allEnriched.reduce((sum, t) => sum + t.sessions, 0)
+      const totalWorkers = allEnriched.reduce((sum, t) => sum + t.workers, 0)
+
+      // Project name fallback
+      const projectName = `Project ${projectId.slice(0, 8)}`
+
+      groups.push({
+        projectId,
+        projectName,
+        teams: enrichedMainTeams,
+        totalTeams,
+        totalSessions,
+        totalWorkers,
+      })
     }
 
-    const baseWidth = xOffset - GAP_BETWEEN_ROOT_TREES + 2 * MAP_CANVAS_PADDING_X
-    return {
-      allPlacements:   placements,
-      allConnectors:   connectors,
-      totalWidth:      baseWidth + CONNECT_TEAM_GAP + CONNECT_TEAM_WIDTH,
-      totalHeight:     maxHeight + 2 * MAP_CANVAS_PADDING_Y,
-      connectTeamLeft: baseWidth - MAP_CANVAS_PADDING_X + CONNECT_TEAM_GAP,
-    }
-  }, [roots, mapNodes])
+    return groups
+  }, [teams, teamCodes])
 
-  if (!roots.length) {
+  if (projectGroups.length === 0 || projectGroups.every(g => g.teams.length === 0)) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center">
-        <p className="text-sm" style={{ color: '#64748b' }}>No agents in this project yet.</p>
-        <p className="text-xs mt-1" style={{ color: '#94a3b8' }}>
+        <p className="text-sm text-slate-500">No teams in this project yet.</p>
+        <p className="text-xs mt-1 text-slate-400">
           Add teams with workspaces and agents to see the map.
         </p>
       </div>
@@ -193,89 +191,262 @@ export default function MapView({
   }
 
   return (
-    <div className="w-full h-full">
-      <CanvasViewport
-        initialZoom={1}
-        minZoom={0.05}
-        maxZoom={1.12}
-        fitFloor={0.5}
-        alignTopOnFit
-        contentWidthClass="inline-flex w-max flex-col items-center"
-        zoomInSignal={zoomInSignal}
-        zoomOutSignal={zoomOutSignal}
-        resetSignal={resetSignal}
-      >
-        <div
-          className="relative"
-          style={{ width: `${totalWidth}px`, height: `${totalHeight}px` }}
-        >
-          {/* L-shaped connectors */}
-          <svg
-            className="pointer-events-none absolute inset-0 overflow-visible"
-            width={totalWidth}
-            height={totalHeight}
-            viewBox={`0 0 ${totalWidth} ${totalHeight}`}
-            aria-hidden="true"
-          >
-            {allConnectors.map((c, i) => {
-              const fx   = c.fromX + MAP_CANVAS_PADDING_X
-              const fy   = c.fromY + MAP_CANVAS_PADDING_Y
-              const tx   = c.toX   + MAP_CANVAS_PADDING_X
-              const ty   = c.toY   + MAP_CANVAS_PADDING_Y
-              const midY = fy + (ty - fy) / 2
-              const d    = `M ${fx} ${fy} V ${midY} H ${tx} V ${ty}`
-              return (
-                <path
-                  key={i}
-                  d={d}
-                  fill="none"
-                  stroke="rgba(51,65,85,0.62)"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  opacity={c.projectId === activeProjectId ? 1 : 0.4}
-                />
-              )
-            })}
-          </svg>
+    <div className="w-full h-full overflow-auto p-6 bg-slate-50">
+      <div className="grid gap-4 grid-cols-1 xl:grid-cols-2 auto-rows-min">
+        {projectGroups.map(project => (
+          <ProjectContainer
+            key={project.projectId}
+            project={project}
+            activeProjectId={activeProjectId}
+            connectionMap={connectionMap}
+            onEdit={onEdit}
+          />
+        ))}
 
-          {/* Agent cards */}
-          {allPlacements.map(p => (
-            <div
-              key={p.node.id}
-              className="absolute"
+        {/* Connect Team box */}
+        <div
+          className="flex flex-col items-center justify-center rounded-[22px] border-2 border-dashed p-6 text-center transition-colors hover:border-slate-500 hover:bg-white/90 cursor-pointer min-h-[200px]"
+          style={{
+            borderColor: 'rgba(100,116,139,0.45)',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(241,245,249,0.92) 100%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.78), 0 12px 24px rgba(15,23,42,0.05)',
+          }}
+          onClick={onConnect}
+        >
+          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-slate-400 bg-white/85 text-[28px] font-semibold leading-none text-slate-700">
+            +
+          </div>
+          <div className="mt-4 text-[14px] font-semibold text-slate-900">Connect Team</div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-500">Link External User</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProjectContainer({
+  project,
+  activeProjectId,
+  connectionMap,
+  onEdit,
+}: {
+  project: ProjectGroup
+  activeProjectId: string
+  connectionMap: Record<string, { description: string | null; color: string | null }>
+  onEdit: (teamId: string) => void
+}) {
+  const isActive = project.projectId === activeProjectId
+
+  return (
+    <section
+      className="rounded-2xl border p-5 transition-opacity"
+      style={{
+        borderColor: '#BED7F7',
+        background: '#FBFDFF',
+        boxShadow: '0 2px 8px rgba(15,23,42,0.08)',
+        opacity: isActive ? 1 : 0.6,
+      }}
+    >
+      {/* Project header */}
+      <div className="mb-4 border-b pb-3" style={{ borderColor: '#D9E2EC' }}>
+        <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: '#10233D' }}>
+          {project.projectName}
+        </h3>
+        <div className="mt-2 flex gap-4 text-xs" style={{ color: '#64748B' }}>
+          <span>Teams: {project.totalTeams}</span>
+          <span>Sessions: {project.totalSessions}</span>
+          <span>Workers: {project.totalWorkers}</span>
+        </div>
+      </div>
+
+      {/* Teams grid */}
+      <div className="grid gap-3 grid-cols-1">
+        {project.teams.map(enrichedTeam => (
+          <TeamCardWithSubteams
+            key={enrichedTeam.team.id}
+            enrichedTeam={enrichedTeam}
+            connectionMap={connectionMap}
+            onEdit={onEdit}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function TeamCardWithSubteams({
+  enrichedTeam,
+  connectionMap,
+  onEdit,
+}: {
+  enrichedTeam: EnrichedTeam
+  connectionMap: Record<string, { description: string | null; color: string | null }>
+  onEdit: (teamId: string) => void
+}) {
+  const { team, provider, model, mode, color, workspaces, sessions, workers, code, subteams } = enrichedTeam
+  const workspace = team.workspaces?.[0] ?? null
+  const isIsolated = team.type === 'isolated'
+  const conn = isIsolated ? connectionMap[team.id] : null
+
+  return (
+    <div>
+      {/* Main team card */}
+      <div
+        className="rounded-xl border bg-white p-4 transition-shadow hover:shadow-md"
+        style={{
+          borderLeft: `4px solid ${color}`,
+          borderTop: '1px solid rgba(0,0,0,0.08)',
+          borderRight: '1px solid rgba(0,0,0,0.08)',
+          borderBottom: '1px solid rgba(0,0,0,0.08)',
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            {/* Team code + name */}
+            <div className="flex items-center gap-2 mb-2">
+              {code && (
+                <span className="text-xs font-mono text-slate-500 shrink-0">
+                  {code}
+                </span>
+              )}
+              <h4 className="text-sm font-semibold text-slate-900 truncate">
+                {conn?.description || team.name}
+              </h4>
+            </div>
+
+            {/* Provider + Model */}
+            <div className="flex items-center gap-2 mb-2 text-xs text-slate-600">
+              <span className="font-medium">{provider}</span>
+              <span className="text-slate-400">·</span>
+              <span>{model}</span>
+            </div>
+
+            {/* Metrics */}
+            <div className="flex gap-3 text-xs text-slate-500">
+              <span>W: {workspaces}</span>
+              <span>S: {sessions}</span>
+              <span>Workers: {workers}</span>
+            </div>
+          </div>
+
+          {/* SAT/MAT badge + Actions */}
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <span
+              className="text-xs font-semibold px-2 py-1 rounded"
               style={{
-                left:    `${p.x    + MAP_CANVAS_PADDING_X}px`,
-                top:     `${p.topY + MAP_CANVAS_PADDING_Y}px`,
-                width:   `${p.width}px`,
-                height:  `${p.height}px`,
-                opacity: p.projectId === activeProjectId ? 1 : 0.4,
+                color: mode === 'SAT' ? '#0f766e' : '#7c3aed',
+                background: mode === 'SAT' ? 'rgba(15,118,110,0.10)' : 'rgba(124,58,237,0.10)',
+                border: `1px solid ${mode === 'SAT' ? 'rgba(15,118,110,0.25)' : 'rgba(124,58,237,0.25)'}`,
               }}
             >
-              <TeamAgentCard
-                node={p.node}
-                teamCode={teamCodes?.[p.node.teamId]}
-                nodeType={nodeTypeMap.get(p.node.id)}
-                onOpen={wsId => window.open(`/workspace/${wsId}`, '_blank', 'noopener,noreferrer')}
-                onEdit={onEdit}
-              />
-            </div>
-          ))}
+              {mode}
+            </span>
 
-          {/* Single Connect Team box at the end of the GM row */}
-          <div
-            className="absolute"
-            style={{
-              left:   `${connectTeamLeft}px`,
-              top:    `${MAP_CANVAS_PADDING_Y}px`,
-              width:  `${CONNECT_TEAM_WIDTH}px`,
-              height: `${CONNECT_TEAM_HEIGHT}px`,
-            }}
-          >
-            <ConnectTeamBox onConnect={onConnect} />
+            {isIsolated && (
+              <span className="text-xs font-semibold px-2 py-1 rounded bg-black text-white">
+                Shared
+              </span>
+            )}
+
+            <div className="flex gap-2">
+              {workspace && (
+                <button
+                  onClick={() => window.open(`/workspace/${workspace.id}`, '_blank', 'noopener,noreferrer')}
+                  className="text-xs font-medium px-3 py-1.5 rounded bg-slate-900 text-white hover:bg-slate-700 transition-colors"
+                >
+                  Open
+                </button>
+              )}
+              <button
+                onClick={() => onEdit(team.id)}
+                className="text-xs font-medium px-3 py-1.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Edit
+              </button>
+            </div>
           </div>
         </div>
-      </CanvasViewport>
+      </div>
+
+      {/* Subteams */}
+      {subteams.length > 0 && (
+        <div className="ml-8 mt-2 space-y-2">
+          {subteams.map(subteam => (
+            <SubteamCard
+              key={subteam.team.id}
+              enrichedTeam={subteam}
+              onEdit={onEdit}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SubteamCard({
+  enrichedTeam,
+  onEdit,
+}: {
+  enrichedTeam: EnrichedTeam
+  onEdit: (teamId: string) => void
+}) {
+  const { team, provider, model, color, workspaces, sessions, workers, code } = enrichedTeam
+  const workspace = team.workspaces?.[0] ?? null
+
+  return (
+    <div
+      className="rounded-lg border bg-white p-3 text-xs"
+      style={{
+        borderLeft: `3px solid ${color}`,
+        borderTop: '1px solid rgba(0,0,0,0.06)',
+        borderRight: '1px solid rgba(0,0,0,0.06)',
+        borderBottom: '1px solid rgba(0,0,0,0.06)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          {/* Subteam code + name */}
+          <div className="flex items-center gap-2 mb-1">
+            {code && (
+              <span className="text-xs font-mono text-slate-400 shrink-0">
+                {code}
+              </span>
+            )}
+            <span className="font-medium text-slate-800 truncate">{team.name}</span>
+          </div>
+
+          {/* Provider + Model */}
+          <div className="text-xs text-slate-500 mb-1">
+            {provider} · {model}
+          </div>
+
+          {/* Metrics */}
+          <div className="flex gap-2 text-xs text-slate-400">
+            <span>W: {workspaces}</span>
+            <span>S: {sessions}</span>
+            <span>Workers: {workers}</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-1 shrink-0">
+          {workspace && (
+            <button
+              onClick={() => window.open(`/workspace/${workspace.id}`, '_blank', 'noopener,noreferrer')}
+              className="text-xs px-2 py-1 rounded bg-slate-800 text-white hover:bg-slate-600 transition-colors"
+            >
+              Open
+            </button>
+          )}
+          <button
+            onClick={() => onEdit(team.id)}
+            className="text-xs px-2 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            Edit
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
