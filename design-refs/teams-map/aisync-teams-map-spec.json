@@ -1,0 +1,474 @@
+{
+  "meta": {
+    "name": "AISync Teams Map",
+    "version": "1.0.0",
+    "purpose": "Especificación visual y funcional para implementar Teams Map con múltiples Projects, Teams, Subteams y Workers.",
+    "figma_import_file": "aisync-teams-map-figma.svg",
+    "layout_note": "Las coordenadas x/y/w/h son de la captura de Figma en un caso de ejemplo específico. El layout real debe ser fluido (CSS grid/flex/columns), no replicar posiciones absolutas. Estas coordenadas sirven solo para entender proporciones relativas entre elementos."
+  },
+  "design_tokens": {
+    "colors": {
+      "navy_950": "#071A35",
+      "navy_900": "#0B2348",
+      "navy_800": "#12345A",
+      "canvas": "#EEF3F8",
+      "surface": "#FFFFFF",
+      "surface_soft": "#F7FAFC",
+      "project_border": "#D7E2EE",
+      "connector": "#9AA9B8",
+      "text_primary": "#10233D",
+      "text_secondary": "#64748B",
+      "muted": "#94A3B8",
+      "focus": "#2563EB",
+      "disabled_bg": "#E5E7EB",
+      "disabled_text": "#9CA3AF",
+      "project_1": "#8E4CC6",
+      "project_2": "#2F78C4",
+      "project_3": "#2F9C5B",
+      "project_4": "#E66A00",
+      "project_5": "#D62E68"
+    },
+    "spacing_px": {
+      "2xs": 2,
+      "xs": 4,
+      "sm": 8,
+      "md": 12,
+      "lg": 16,
+      "xl": 24,
+      "2xl": 32,
+      "3xl": 48
+    },
+    "radius_px": {
+      "xs": 4,
+      "sm": 6,
+      "md": 10,
+      "lg": 16,
+      "pill": 999
+    },
+    "typography": {
+      "font_family": "Inter, Arial, sans-serif",
+      "page_title": {
+        "size_px": 20,
+        "weight": 700,
+        "line_height_px": 26,
+        "letter_spacing_px": 0.4
+      },
+      "page_subtitle": {
+        "size_px": 10,
+        "weight": 600,
+        "line_height_px": 14,
+        "letter_spacing_px": 1.4
+      },
+      "project_title": {
+        "size_px": 18,
+        "weight": 700,
+        "line_height_px": 24
+      },
+      "card_eyebrow": {
+        "size_px": 9,
+        "weight": 700,
+        "line_height_px": 12,
+        "letter_spacing_px": 0.8
+      },
+      "card_title": {
+        "size_px": 13,
+        "weight": 700,
+        "line_height_px": 17
+      },
+      "card_section": {
+        "size_px": 11,
+        "weight": 700,
+        "line_height_px": 15
+      },
+      "card_body": {
+        "size_px": 10,
+        "weight": 400,
+        "line_height_px": 15
+      },
+      "chip": {
+        "size_px": 9,
+        "weight": 600,
+        "line_height_px": 12
+      },
+      "button": {
+        "size_px": 10,
+        "weight": 600,
+        "line_height_px": 14
+      },
+      "counter": {
+        "size_px": 10,
+        "weight": 600,
+        "line_height_px": 14
+      }
+    },
+    "shadows": {
+      "card": "0 4px 14px rgba(15, 23, 42, 0.10)",
+      "card_hover": "0 8px 22px rgba(15, 23, 42, 0.16)",
+      "project": "0 2px 8px rgba(15, 23, 42, 0.06)"
+    },
+    "borders": {
+      "card": "1px solid #D7E2EE",
+      "project": "1px solid #D7E2EE",
+      "connector": "1px solid #9AA9B8",
+      "focus": "2px solid #2563EB"
+    }
+  },
+  "global_layout": {
+    "top_ribbon": {
+      "height_px": 54,
+      "background": "#071A35"
+    },
+    "controls_bar": {
+      "height_px": 86,
+      "background": "#F7FAFC"
+    },
+    "bottom_ribbon": {
+      "height_px": 74,
+      "background": "#071A35"
+    },
+    "canvas": {
+      "background": "#EEF3F8",
+      "pan_enabled": true,
+      "zoom_enabled": true,
+      "zoom_min": 0.25,
+      "zoom_max": 2.5,
+      "zoom_step": 0.1,
+      "fit_to_view": true,
+      "horizontal_scroll": "permitido solo como consecuencia de pan/zoom; no usar scroll horizontal nativo de página",
+      "vertical_scroll": "permitido a nivel de página cuando hay múltiples Projects"
+    },
+    "project_separation": {
+      "display": "stack vertical",
+      "gap_px": 24,
+      "container_padding_px": 24,
+      "header_height_px": 52,
+      "project_border_radius_px": 16,
+      "project_background": "#F7FAFC"
+    }
+  },
+  "components": {
+    "project_header": {
+      "always_visible": [
+        "project.name",
+        "project.team_count",
+        "project.subteam_count",
+        "project.worker_count"
+      ],
+      "on_demand": [
+        "project.description",
+        "project.last_activity",
+        "project.status"
+      ],
+      "interaction": "click en header centra el Project; menú contextual abre acciones"
+    },
+    "team_card": {
+      "literal_size_reference_px": {
+        "width": 308,
+        "height": 314
+      },
+      "same_size_for_roles": [
+        "manager",
+        "submanager",
+        "worker"
+      ],
+      "always_visible": [
+        "role_label",
+        "team.code",
+        "team.name",
+        "team.color",
+        "team_type_badge",
+        "provider",
+        "model",
+        "relationship_chip",
+        "description",
+        "open_button",
+        "edit_button"
+      ],
+      "on_demand": [
+        "full_worker_list",
+        "audit_metadata",
+        "timestamps",
+        "provider_configuration",
+        "workspace_list"
+      ],
+      "workers_behavior": {
+        "location": "panel lateral o modal abierto desde la Team Card",
+        "default_state": "colapsados",
+        "inline_preview_max": 0,
+        "open_trigger": "click en contador Workers o menú contextual"
+      },
+      "subteams_behavior": {
+        "location": "nodos independientes conectados debajo del Team padre",
+        "default_state": "expandidos hasta el límite definido por overflow_rules",
+        "collapse_control": "chevron en la Team Card"
+      }
+    },
+    "subteam_card": {
+      "inherits": "team_card",
+      "visual_difference": "misma forma y tamaño; color propio; jerarquía expresada solo por posición y conectores",
+      "always_visible": [
+        "role_label",
+        "code",
+        "name",
+        "provider",
+        "model",
+        "relationship_chip",
+        "description",
+        "actions"
+      ]
+    },
+    "worker_card": {
+      "inherits": "team_card",
+      "visual_difference": "misma forma y tamaño; etiqueta TEAM WORKER; posición inferior en el árbol",
+      "always_visible": [
+        "role_label",
+        "code",
+        "name",
+        "provider",
+        "model",
+        "relationship_chip",
+        "description",
+        "actions"
+      ]
+    }
+  },
+  "overflow_rules": {
+    "workers": {
+      "max_visible_inline": 0,
+      "summary_format": "Workers N",
+      "overflow_indicator": "+N",
+      "behavior": "abrir panel lateral con scroll vertical; no insertar Workers dentro del cuerpo de la Team Card"
+    },
+    "subteams": {
+      "max_visible_before_collapse": 4,
+      "overflow_indicator": "+N subteams",
+      "behavior": "mantener 4 visibles y colapsar el resto; expandir dentro del canvas sin modificar el tamaño de las tarjetas"
+    },
+    "names": {
+      "project": {
+        "max_lines": 1,
+        "overflow": "ellipsis"
+      },
+      "team": {
+        "max_lines": 2,
+        "overflow": "ellipsis",
+        "min_font_size_px": 12
+      },
+      "description": {
+        "max_lines": 4,
+        "overflow": "fade + tooltip/full view on hover"
+      }
+    },
+    "project_container": {
+      "min_width_px": 1100,
+      "min_height_px": 520,
+      "growth": "aumenta libremente en ancho y alto según cantidad de nodos",
+      "clipping": "none",
+      "internal_scroll": "no",
+      "canvas_overflow": "resuelto por pan y zoom"
+    }
+  },
+  "interaction_states": {
+    "team_card": {
+      "default": {
+        "shadow": "card",
+        "transform": "none"
+      },
+      "hover": {
+        "shadow": "card_hover",
+        "translate_y_px": -2,
+        "cursor": "pointer"
+      },
+      "selected": {
+        "border": "2px solid #2563EB",
+        "shadow": "card_hover"
+      },
+      "collapsed": {
+        "children_hidden": true,
+        "chevron": "right",
+        "counter_visible": true
+      },
+      "expanded": {
+        "children_hidden": false,
+        "chevron": "down",
+        "counter_visible": true
+      }
+    },
+    "buttons": {
+      "open": {
+        "default": {
+          "background": "#0B4B78",
+          "text": "#FFFFFF"
+        },
+        "hover": {
+          "background": "#08395C"
+        },
+        "disabled": {
+          "background": "#E5E7EB",
+          "text": "#9CA3AF"
+        }
+      },
+      "edit": {
+        "default": {
+          "background": "#FFFFFF",
+          "text": "#334155",
+          "border": "#D7E2EE"
+        },
+        "hover": {
+          "background": "#F1F5F9"
+        },
+        "disabled": {
+          "background": "#F8FAFC",
+          "text": "#CBD5E1",
+          "border": "#E5E7EB"
+        }
+      }
+    }
+  },
+  "data_scenarios": {
+    "empty_case": {
+      "description": "1 Project sin Teams",
+      "projects": [
+        {
+          "id": "P-EMPTY",
+          "name": "Empty Project",
+          "teams": []
+        }
+      ],
+      "visible_result": "Se ve el submarco del Project, su header con 0 Teams, 0 Subteams y 0 Workers, y un estado vacío centrado con botón Add Team.",
+      "truncation": "ninguna",
+      "collapse": "no aplica",
+      "scroll": "no"
+    },
+    "minimum_case": {
+      "description": "1 Project, 1 Team sin Subteams y sin Workers",
+      "projects": [
+        {
+          "id": "P-MIN",
+          "name": "Minimum Project",
+          "teams": [
+            {
+              "id": "T-MIN-01",
+              "code": "T-01",
+              "name": "Single Team",
+              "role": "manager",
+              "provider": "Anthropic",
+              "model": "Claude Sonnet",
+              "color": "#8E4CC6",
+              "subteams": [],
+              "workers": []
+            }
+          ]
+        }
+      ],
+      "visible_result": "Se ve un único Team Card centrado dentro del submarco. El contador Workers muestra 0. No aparece ningún nodo hijo.",
+      "truncation": "ninguna",
+      "collapse": "no aplica",
+      "scroll": "no"
+    },
+    "normal_case": {
+      "description": "3 Projects, cada uno con 2-4 Teams; algunos con 1-2 Subteams",
+      "projects": [
+        {
+          "id": "P-01",
+          "name": "Client Strategy",
+          "team_count": 3,
+          "subteam_count": 2,
+          "worker_count": 8
+        },
+        {
+          "id": "P-02",
+          "name": "Product Development",
+          "team_count": 4,
+          "subteam_count": 3,
+          "worker_count": 14
+        },
+        {
+          "id": "P-03",
+          "name": "Research Ops",
+          "team_count": 2,
+          "subteam_count": 1,
+          "worker_count": 6
+        }
+      ],
+      "visible_result": "Cada Project ocupa un submarco vertical independiente. Los Teams se ordenan horizontalmente por rama; los Subteams aparecen debajo del Team padre.",
+      "truncation": "nombres largos a 2 líneas y luego ellipsis",
+      "collapse": "ninguno si cada Team tiene hasta 2 Subteams",
+      "scroll": "scroll vertical de página entre Projects; pan/zoom dentro del canvas"
+    },
+    "stress_case": {
+      "description": "1 Project con 9 Teams, varios con 3-5 Subteams y un Team con 12 Workers",
+      "projects": [
+        {
+          "id": "P-STRESS",
+          "name": "Dense Operations Project",
+          "team_count": 9,
+          "subteam_count": 19,
+          "worker_count": 38,
+          "special_conditions": {
+            "team_with_12_workers": "T-05",
+            "teams_with_3plus_subteams": [
+              "T-02",
+              "T-05",
+              "T-08"
+            ]
+          }
+        }
+      ],
+      "visible_result": "El Project crece en ancho y alto. El canvas no intenta encajar todo en una pantalla. Se usa pan y zoom. Los Workers no se dibujan inline; el Team muestra Workers 12 y abre un panel lateral.",
+      "truncation": "máximo 2 líneas por nombre de Team; descripción a 4 líneas",
+      "collapse": "si un Team tiene más de 4 Subteams, se muestran 4 y un control +N subteams",
+      "scroll": "sin scroll interno en el Project; pan/zoom en canvas y scroll vertical de página"
+    }
+  },
+  "sample_visual_case": {
+    "projects": [
+      {
+        "id": "project-1",
+        "name": "Project 1",
+        "team_count": 7,
+        "subteam_count": 0,
+        "worker_count": 14,
+        "accent": "#8E4CC6"
+      },
+      {
+        "id": "project-2",
+        "name": "Project 2",
+        "team_count": 8,
+        "subteam_count": 10,
+        "worker_count": 32,
+        "accent": "#2F78C4"
+      },
+      {
+        "id": "project-3",
+        "name": "Project 3",
+        "team_count": 6,
+        "subteam_count": 6,
+        "worker_count": 24,
+        "accent": "#2F9C5B"
+      }
+    ],
+    "note": "Este caso es solo la referencia visual del SVG importable en Figma."
+  },
+  "contract": {
+    "literal_contract": [
+      "colores exactos definidos en design_tokens.colors",
+      "estructura de Team Card",
+      "franja superior coloreada de cada Team Card",
+      "mismo tamaño de Card para manager, submanager y worker",
+      "submarco independiente por Project",
+      "jerarquía expresada por posición y conectores",
+      "ribbon superior e inferior",
+      "barra de controles de Teams Map",
+      "comportamiento de pan y zoom",
+      "reglas de overflow y truncamiento"
+    ],
+    "design_intent_only": [
+      "posiciones absolutas del mockup",
+      "cantidad exacta de Teams mostrados en el ejemplo",
+      "distancias exactas entre ramas en el ejemplo",
+      "ancho total del canvas del SVG",
+      "nombres ficticios y métricas del caso visual"
+    ]
+  }
+}
