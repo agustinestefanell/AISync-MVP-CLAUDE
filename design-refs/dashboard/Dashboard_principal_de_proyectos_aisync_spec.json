@@ -1,0 +1,311 @@
+{
+  "name": "AISync Dashboard Redesign",
+  "version": "1.0",
+  "format": "Implementation spec for VS Code / Claude Code",
+  "source_reference_image": "/mnt/data/tablero_principal_de_proyectos_aisync.png",
+  "canvas": {
+    "width": 1672,
+    "height": 941,
+    "background": "#F5F8FC"
+  },
+  "global_rules": {
+    "keep_top_ribbon": true,
+    "keep_bottom_ribbon": true,
+    "style": "clean SaaS light mode",
+    "main_goal": "Reduce visual friction, improve scanability, clarify project hierarchy and connected teams."
+  },
+  "palette": {
+    "page_bg": "#F5F8FC",
+    "surface": "#FFFFFF",
+    "surface_soft": "#F8FBFF",
+    "border": "#DDE6F1",
+    "text_primary": "#0C1733",
+    "text_secondary": "#5C6B82",
+    "text_muted": "#8A97AA",
+    "navy": "#08172F",
+    "blue": "#1F6BFF",
+    "blue_dark": "#114FC7",
+    "blue_soft": "#EAF3FF",
+    "green": "#63C37D",
+    "green_soft": "#E9F8EE",
+    "green_border": "#BFE7C8",
+    "red_soft": "#FFF0F0",
+    "red_text": "#C64F4F",
+    "chip_border": "#D8E2EE",
+    "shadow": "0 10px 30px rgba(12, 23, 51, 0.06)"
+  },
+  "typography": {
+    "font_family": "Inter, system-ui, sans-serif",
+    "title_xl": {
+      "size": 28,
+      "weight": 700,
+      "line_height": 1.2
+    },
+    "title_lg": {
+      "size": 18,
+      "weight": 700,
+      "line_height": 1.3
+    },
+    "title_md": {
+      "size": 16,
+      "weight": 600,
+      "line_height": 1.3
+    },
+    "body": {
+      "size": 14,
+      "weight": 400,
+      "line_height": 1.5
+    },
+    "small": {
+      "size": 12,
+      "weight": 400,
+      "line_height": 1.4
+    },
+    "button": {
+      "size": 14,
+      "weight": 600,
+      "line_height": 1.2
+    }
+  },
+  "layout": {
+    "page_padding": 24,
+    "main_grid": {
+      "type": "2-column",
+      "columns": [
+        "1.7fr",
+        "1fr"
+      ],
+      "gap": 24
+    },
+    "left_column": {
+      "sections": [
+        "welcome_header",
+        "project_accordion_list"
+      ]
+    },
+    "right_column": {
+      "sections": [
+        "connected_teams_panel"
+      ]
+    }
+  },
+  "header": {
+    "welcome_title": "Welcome",
+    "welcome_subtitle": "Here's an overview of your projects and teams.",
+    "center_email": "agustinstefanell@gmail.com",
+    "primary_action": {
+      "label": "+ New Project",
+      "style": "primary blue button"
+    },
+    "secondary_action": {
+      "label": "Sign out",
+      "style": "ghost text"
+    }
+  },
+  "accordion_projects": {
+    "container_style": {
+      "background": "#FFFFFF",
+      "border": "1px solid #DDE6F1",
+      "radius": 18,
+      "shadow": "0 8px 24px rgba(12, 23, 51, 0.05)"
+    },
+    "collapsed_rows": [
+      {
+        "label": "A-Proycto Seguro Credito",
+        "teams_count": "3 Teams"
+      },
+      {
+        "label": "B-Seguro Credito Clientes",
+        "teams_count": "7 Teams"
+      },
+      {
+        "label": "D-Experimentación Interna",
+        "teams_count": "4 Teams"
+      }
+    ],
+    "expanded_row": {
+      "label": "C-Pruebas AISync",
+      "teams_count": "7 Teams",
+      "status_chip": {
+        "label": "Open",
+        "bg": "#E9F8EE",
+        "text": "#2F8A47"
+      },
+      "content_card": {
+        "title": "Mi Primer Proyecto",
+        "project_status": {
+          "label": "active",
+          "bg": "#DFF4E5",
+          "text": "#2F8A47"
+        },
+        "actions": [
+          {
+            "label": "Archive",
+            "style": "ghost"
+          },
+          {
+            "label": "Delete",
+            "style": "ghost danger-text"
+          }
+        ],
+        "teams": [
+          {
+            "name": "Equipo Principal-AISYNC",
+            "type_chip": "MAT",
+            "workspace": "Workspace Principal",
+            "workspace_chip": "free",
+            "agents": [
+              "Worker 2 · GPT-4o (OpenAI)",
+              "Manager · Claude 3.5 Sonnet (Anthropic)",
+              "Worker 1 · Gemini 2.0 Flash (Google)"
+            ],
+            "buttons": [
+              "Edit Team",
+              "Open →"
+            ]
+          },
+          {
+            "name": "Prueba por la madrugada",
+            "type_chip": "SAT",
+            "workspace": "Workspace Prueba por la madrugada",
+            "workspace_chip": "free",
+            "agents": [
+              "Manager · Claude 3.5 Sonnet (Anthropic)",
+              "Worker 1 · Claude 3.5 Sonnet (Anthropic)",
+              "Worker 2 · Claude 3.5 Sonnet (Anthropic)"
+            ],
+            "buttons": [
+              "Edit Team",
+              "Open →"
+            ]
+          },
+          {
+            "name": "ORGNAIZACION COGNITIVA DE PROYECTOS",
+            "type_chip": "MAT",
+            "workspace": "Workspace PRUEBAS MENSAJE INICIAL",
+            "workspace_chip": "free",
+            "agents": [
+              "Manager · GPT-4o (OpenAI)",
+              "Worker 1 · Claude 3.5 Sonnet (Anthropic)"
+            ],
+            "buttons": [
+              "Edit Team",
+              "Open →"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "connected_teams_panel": {
+    "title": "Connected Teams",
+    "subtitle": "Manage your external connections.",
+    "header_actions": [
+      {
+        "label": "Requests",
+        "style": "secondary"
+      },
+      {
+        "label": "+ Connect",
+        "style": "outline-green"
+      }
+    ],
+    "cards": [
+      {
+        "avatar": "PB",
+        "avatar_color": "#2F80ED",
+        "email_primary": "paola.albe.bayo@gmail.com",
+        "email_secondary": "paola.albe.bayo@gmail.com",
+        "project": "Prueba Usuario 1",
+        "badge": {
+          "label": "Host",
+          "bg": "#EAF3FF",
+          "text": "#2F80ED"
+        },
+        "open_button": "Open →",
+        "open_badge": "3",
+        "disconnect_button": "Disconnect"
+      },
+      {
+        "avatar": "AG",
+        "avatar_color": "#8B5CF6",
+        "email_primary": "arenaglirsas@gmail.com",
+        "email_secondary": "arenaglirsas@gmail.com",
+        "project": "Prueba PASO 2",
+        "badge": {
+          "label": "Host",
+          "bg": "#EAF3FF",
+          "text": "#2F80ED"
+        },
+        "open_button": "Open →",
+        "open_badge": "1",
+        "disconnect_button": "Disconnect"
+      },
+      {
+        "avatar": "TP",
+        "avatar_color": "#1CB5A3",
+        "email_primary": "Team Power",
+        "email_secondary": "agustin.viaje@gmail.com",
+        "project": "Prueba SOLUCION No more\nshared manager",
+        "badge": {
+          "label": "Invite",
+          "bg": "#F3EAFF",
+          "text": "#8B5CF6"
+        },
+        "open_button": "Open →",
+        "disconnect_button": "Disconnect"
+      }
+    ]
+  },
+  "components": {
+    "accordion_row": {
+      "height": 56,
+      "radius": 14,
+      "padding_x": 20,
+      "border": "1px solid #DDE6F1",
+      "background": "#FFFFFF"
+    },
+    "panel_card": {
+      "radius": 18,
+      "padding": 18,
+      "background": "#FFFFFF",
+      "border": "1px solid #DDE6F1",
+      "shadow": "0 8px 24px rgba(12, 23, 51, 0.05)"
+    },
+    "type_chip": {
+      "radius": 999,
+      "padding_x": 10,
+      "padding_y": 4,
+      "background": "#F8FBFF",
+      "border": "1px solid #D8E2EE",
+      "text_color": "#6E7B90"
+    },
+    "status_chip": {
+      "radius": 999,
+      "padding_x": 12,
+      "padding_y": 5
+    },
+    "primary_button": {
+      "height": 40,
+      "radius": 10,
+      "background": "#1F6BFF",
+      "text": "#FFFFFF"
+    },
+    "secondary_button": {
+      "height": 38,
+      "radius": 10,
+      "background": "#FFFFFF",
+      "border": "1px solid #DDE6F1",
+      "text": "#4E5D75"
+    }
+  },
+  "implementation_notes": [
+    "The redesign should remain visually close to the approved image.",
+    "Do not redesign the top or bottom ribbons.",
+    "Use a cleaner card system with more white space and clearer grouping.",
+    "Project rows should behave like accordions.",
+    "The expanded project contains nested team blocks with workspace and agents clearly indented.",
+    "Connected Teams should remain a right-side panel with stacked cards.",
+    "Preserve the overall content, but improve spacing, alignment, border consistency, and hierarchy."
+  ]
+}
