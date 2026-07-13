@@ -111,3 +111,103 @@ Teams Map rebuilt desde cero como grilla CSS flexible (`grid-cols-1 xl:grid-cols
 **Lección clave:** Reemplazo canvas→grilla requiere: eliminar deps zoom sin romper handlers, transformar lista plana parent_id→estructura agrupada, derivar datos tipos anidados correctamente (project_id desde workspace.teams.project_id), deprecar imports sin usarlos activamente, usar Array.from(map.entries()) para iterar Map, separar color estructural de badge semántico.
 
 ---
+
+---
+
+## Sesión 2026-07-12 — Teams Map Draft 2 literal reconstruction v2
+
+**Fecha:** 2026-07-12
+**Estado:** Partial (código completo, build exitoso, pendiente screenshot PO)
+
+**Diagnóstico:**
+La implementación anterior (commit db47127) resolvió la grilla por proyecto, pero no respetó literalmente el diseño aprobado Draft 2. Errores identificados:
+- PROJECT UNKNOWN aparecía por falta de `projectName` prop en MapView
+- Layout usaba `grid-cols-1 xl:grid-cols-2` (grilla uniforme) en vez de `columns-1 xl:columns-2` (mosaico tipo bento)
+- Team Card usaba borde lateral 4px de color en vez de franja superior de color
+- Texto code/name NO era blanco sobre color
+- Cuerpo de Team Card preservado correctamente en blanco
+- Subteams correctamente bajo padre, pero sin conector visual horizontal explícito
+- Legend ausente
+- Map/Tree toggle correctamente eliminado, TreeView correctamente deprecado
+
+**Cambio realizado:**
+
+1. **src/lib/teams/assignTeamColor.ts (nuevo):**
+   - `resolveTeamColor(team)`: Usa `team.color` si existe, sino fallback determinístico desde palette 11 colores por hash de `team.id`
+   - Reemplaza `getFallbackTeamColor` inline en MapView anterior con helper dedicado
+
+2. **src/components/teams/MapView.tsx (reescrito v2):**
+   - **Layout principal:** `columns-1 xl:columns-2` con `columnGap: 16px` — NO grid uniforme
+   - **ProjectContainer:** `break-inside-avoid` + fondo #FBFDFF + borde #BED7F7 + radio 16px
+   - **Project header:** Nombre real en mayúsculas/bold + 4 contadores (Teams/Subteams/Sessions/Workers)
+   - **Project teams:** `flex flex-wrap` horizontal
+   - **Team Card:** Franja superior de color (backgroundColor) con code/name en blanco
+   - **Team Card body:** Fondo blanco con provider/model (bold/normal), SAT/MAT text badge, métricas WS:N SES:N WRK:N, Open/Edit
+   - **Subteams:** Bajo padre con `border-l-2 border-slate-300` vertical + conector horizontal `h-px w-3` por subteam
+   - **Subteam Card:** Franja superior con `deriveLighterColor(parentColor, 0.25)` + code/name blanco, body blanco con métricas/Open/Edit, sin provider/model/SAT-MAT
+   - **Legend:** 4 bloques exactos (Project=Container, Team=Color, Subteam=Lighter Shade, Workspace/Sessions=Compact Metadata) con texto literal aprobado
+
+3. **src/components/teams/TeamsClient.tsx:**
+   - Agregada prop `projectName={projectName}` al render de MapView línea ~412
+   - Sin otros cambios — Map/Tree toggle ya estaba eliminado, TreeView ya estaba deprecado
+
+**Decisiones técnicas:**
+
+1. **Column-count vs grid:** CSS columns produce mosaico tipo bento real con altura variable por proyecto. Grid uniforme producía columnas percibidas de igual ancho/alto artificial.
+
+2. **Franja superior vs borde lateral:** Draft 2 especifica literalmente franja superior de color con texto blanco. Borde lateral fue arquitectura anterior que no se alineaba con diseño aprobado.
+
+3. **Conector horizontal explícito:** Agregado `div` con `h-px w-3 bg-slate-300` como línea horizontal desde vertical border hacia cada subteam card.
+
+4. **Project name resolution:** `projectName` ya llegaba como prop opcional a TeamsClient desde page.tsx. Fix fue pasar prop a MapView. Fallback: `'Untitled Project'` si falta (nunca `PROJECT UNKNOWN`).
+
+5. **Subteams tono claro:** `deriveLighterColor(parentColor, 0.25)` — 25% lighten (ajustado desde 40% anterior para balance visual mejor con franja superior).
+
+6. **Legend texto literal:** Copiado exactamente del spec de OE. No traducido, no resumido, no parafraseado.
+
+**Archivos modificados:**
+- src/lib/teams/assignTeamColor.ts (creado)
+- src/components/teams/MapView.tsx (reescrito v2)
+- src/components/teams/TeamsClient.tsx (1 línea: prop projectName)
+
+**Archivos NO tocados:**
+- CanvasViewport activo/huérfano (preservados)
+- TreeView.tsx (preservado/deprecado)
+- deriveTeamColor.ts (sin cambios — deriveLighterColor ya existía)
+- Modales, tipos, DB, RLS, migraciones (sin cambios)
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings preexistentes CanvasViewport)
+- npm run build: ✅ Exitoso
+- grep PROJECT UNKNOWN: ✅ 0 resultados
+- grep CanvasViewport MapView: ✅ 0 resultados
+- grep zoom: ✅ 0 resultados en MapView/TeamsClient
+- grep TreeView TeamsClient: ✅ Solo comentario de deprecación
+
+**Validación funcional:**
+⏳ PENDIENTE — Requiere screenshot PO mostrando:
+1. Project con nombre real (no PROJECT UNKNOWN ni Project [id])
+2. Mosaico tipo bento con columnas de altura variable (no grilla uniforme)
+3. Team Cards con franja superior de color (no borde lateral)
+4. Code/name en blanco sobre franja de color
+5. Subteams bajo su padre específico con conector horizontal visible
+6. Subteam con tono claro derivado del padre
+7. Legend con 4 bloques exactos visible al final
+8. Open/Edit funcionando
+9. Add Team/Connect/Requests sin regresión
+
+**Restricciones respetadas:**
+- ✅ NO posiciones absolutas x/y/w/h
+- ✅ NO grid uniforme principal
+- ✅ NO borde lateral color (franja superior implementada)
+- ✅ NO subteams al final (bajo padre específico)
+- ✅ NO Map/Tree toggle
+- ✅ NO CanvasViewport activo modificado
+- ✅ NO TreeView modificado
+- ✅ NO modales/tipos/DB/RLS/migraciones
+
+**Estado:**
+Partial — código completo, build exitoso, lint OK, documentación actualizada pendiente — screenshot PO pendiente mostrando franja superior color, mosaico bento, conector horizontal subteams, project name correcto, legend visible.
+
+**Lección clave:**
+Cuando el ejecutor no puede ver imágenes, la especificación visual debe traducirse con precisión quirúrgica: "franja superior de color con texto blanco" ≠ "borde lateral de color", "mosaico tipo bento" ≠ "grilla uniforme", "4 bloques exactos de legend con texto literal" ≠ "explicación resumida". La implementación debe respetar literalmente cada elemento visual especificado, no interpretaciones aproximadas.

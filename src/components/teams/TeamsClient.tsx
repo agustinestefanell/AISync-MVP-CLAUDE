@@ -409,6 +409,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
         <MapView
           teams={sortedTeams}
           projectId={projectId}
+          projectName={projectName}
           activeProjectId={projectId}
           connectedTeamIds={connectedTeamIds}
           teamCodes={teamCodes}

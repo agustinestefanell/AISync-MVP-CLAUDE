@@ -2,11 +2,13 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
-import { deriveLighterColor, getFallbackTeamColor } from '@/lib/teams/deriveTeamColor'
+import { deriveLighterColor } from '@/lib/teams/deriveTeamColor'
+import { resolveTeamColor } from '@/lib/teams/assignTeamColor'
 
 interface MapViewProps {
   teams: TeamWithWorkspaces[]
   projectId: string
+  projectName?: string
   activeProjectId: string
   connectedTeamIds: Set<string>
   teamCodes?: Record<string, string>
@@ -30,10 +32,11 @@ interface EnrichedTeam {
 interface ProjectGroup {
   projectId: string
   projectName: string
-  teams: EnrichedTeam[]
-  totalTeams: number
+  mainTeamsCount: number
+  totalSubteamsCount: number
   totalSessions: number
   totalWorkers: number
+  teams: EnrichedTeam[]
 }
 
 function enrichTeam(
@@ -61,13 +64,10 @@ function enrichTeam(
   let color: string
   if (parentColor) {
     // Subteam: derive lighter tone from parent
-    color = deriveLighterColor(parentColor, 0.4)
-  } else if (team.color) {
-    // Team has own color
-    color = team.color
+    color = deriveLighterColor(parentColor, 0.25)
   } else {
-    // Fallback: deterministic from team.id
-    color = getFallbackTeamColor(team.id)
+    // Team: use team.color or deterministic fallback
+    color = resolveTeamColor(team)
   }
 
   return {
@@ -86,6 +86,7 @@ function enrichTeam(
 
 export default function MapView({
   teams,
+  projectName,
   activeProjectId,
   teamCodes,
   onEdit,
@@ -158,26 +159,25 @@ export default function MapView({
       }
 
       // Calculate project-level metrics
+      const mainTeamsCount = enrichedMainTeams.length
+      const totalSubteamsCount = enrichedMainTeams.reduce((sum, t) => sum + t.subteams.length, 0)
       const allEnriched = [...enrichedMainTeams, ...enrichedMainTeams.flatMap(t => t.subteams)]
-      const totalTeams = allEnriched.length
       const totalSessions = allEnriched.reduce((sum, t) => sum + t.sessions, 0)
       const totalWorkers = allEnriched.reduce((sum, t) => sum + t.workers, 0)
 
-      // Project name fallback
-      const projectName = `Project ${projectId.slice(0, 8)}`
-
       groups.push({
         projectId,
-        projectName,
-        teams: enrichedMainTeams,
-        totalTeams,
+        projectName: projectName ?? 'Untitled Project',
+        mainTeamsCount,
+        totalSubteamsCount,
         totalSessions,
         totalWorkers,
+        teams: enrichedMainTeams,
       })
     }
 
     return groups
-  }, [teams, teamCodes])
+  }, [teams, teamCodes, projectName])
 
   if (projectGroups.length === 0 || projectGroups.every(g => g.teams.length === 0)) {
     return (
@@ -192,7 +192,11 @@ export default function MapView({
 
   return (
     <div className="w-full h-full overflow-auto p-6 bg-slate-50">
-      <div className="grid gap-4 grid-cols-1 xl:grid-cols-2 auto-rows-min">
+      {/* Projects mosaic — column layout */}
+      <div
+        className="columns-1 xl:columns-2"
+        style={{ columnGap: '16px' }}
+      >
         {projectGroups.map(project => (
           <ProjectContainer
             key={project.projectId}
@@ -205,7 +209,7 @@ export default function MapView({
 
         {/* Connect Team box */}
         <div
-          className="flex flex-col items-center justify-center rounded-[22px] border-2 border-dashed p-6 text-center transition-colors hover:border-slate-500 hover:bg-white/90 cursor-pointer min-h-[200px]"
+          className="mb-4 break-inside-avoid flex flex-col items-center justify-center rounded-[22px] border-2 border-dashed p-6 text-center transition-colors hover:border-slate-500 hover:bg-white/90 cursor-pointer min-h-[200px]"
           style={{
             borderColor: 'rgba(100,116,139,0.45)',
             background: 'linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(241,245,249,0.92) 100%)',
@@ -220,6 +224,9 @@ export default function MapView({
           <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-500">Link External User</div>
         </div>
       </div>
+
+      {/* Legend */}
+      <Legend />
     </div>
   )
 }
@@ -239,7 +246,7 @@ function ProjectContainer({
 
   return (
     <section
-      className="rounded-2xl border p-5 transition-opacity"
+      className="mb-4 break-inside-avoid rounded-2xl border p-4"
       style={{
         borderColor: '#BED7F7',
         background: '#FBFDFF',
@@ -248,21 +255,22 @@ function ProjectContainer({
       }}
     >
       {/* Project header */}
-      <div className="mb-4 border-b pb-3" style={{ borderColor: '#D9E2EC' }}>
-        <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: '#10233D' }}>
-          {project.projectName}
+      <div className="mb-3 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid #D9E2EC', paddingBottom: '8px' }}>
+        <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: '#10233D' }}>
+          {project.projectName.toUpperCase()}
         </h3>
-        <div className="mt-2 flex gap-4 text-xs" style={{ color: '#64748B' }}>
-          <span>Teams: {project.totalTeams}</span>
+        <div className="flex gap-3 text-xs font-medium" style={{ color: '#64748B' }}>
+          <span>Teams: {project.mainTeamsCount}</span>
+          <span>Subteams: {project.totalSubteamsCount}</span>
           <span>Sessions: {project.totalSessions}</span>
           <span>Workers: {project.totalWorkers}</span>
         </div>
       </div>
 
-      {/* Teams grid */}
-      <div className="grid gap-3 grid-cols-1">
+      {/* Teams flex-wrap */}
+      <div className="flex flex-wrap items-start gap-3">
         {project.teams.map(enrichedTeam => (
-          <TeamCardWithSubteams
+          <TeamColumn
             key={enrichedTeam.team.id}
             enrichedTeam={enrichedTeam}
             connectionMap={connectionMap}
@@ -274,7 +282,7 @@ function ProjectContainer({
   )
 }
 
-function TeamCardWithSubteams({
+function TeamColumn({
   enrichedTeam,
   connectionMap,
   onEdit,
@@ -289,95 +297,89 @@ function TeamCardWithSubteams({
   const conn = isIsolated ? connectionMap[team.id] : null
 
   return (
-    <div>
+    <div className="flex w-[180px] flex-col items-stretch">
       {/* Main team card */}
       <div
-        className="rounded-xl border bg-white p-4 transition-shadow hover:shadow-md"
+        className="overflow-hidden rounded-[10px] bg-white"
         style={{
-          borderLeft: `4px solid ${color}`,
-          borderTop: '1px solid rgba(0,0,0,0.08)',
-          borderRight: '1px solid rgba(0,0,0,0.08)',
-          borderBottom: '1px solid rgba(0,0,0,0.08)',
+          boxShadow: '0 2px 8px rgba(15,23,42,0.08)',
         }}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            {/* Team code + name */}
-            <div className="flex items-center gap-2 mb-2">
-              {code && (
-                <span className="text-xs font-mono text-slate-500 shrink-0">
-                  {code}
-                </span>
-              )}
-              <h4 className="text-sm font-semibold text-slate-900 truncate">
-                {conn?.description || team.name}
-              </h4>
+        {/* Top color header */}
+        <div
+          className="px-3 py-2 text-white"
+          style={{ backgroundColor: color }}
+        >
+          {code && (
+            <div className="text-[11px] font-bold uppercase tracking-wide">
+              {code}
             </div>
+          )}
+          <div className="mt-0.5 text-[12px] font-semibold leading-tight">
+            {conn?.description || team.name}
+          </div>
+        </div>
 
-            {/* Provider + Model */}
-            <div className="flex items-center gap-2 mb-2 text-xs text-slate-600">
-              <span className="font-medium">{provider}</span>
-              <span className="text-slate-400">·</span>
-              <span>{model}</span>
-            </div>
-
-            {/* Metrics */}
-            <div className="flex gap-3 text-xs text-slate-500">
-              <span>W: {workspaces}</span>
-              <span>S: {sessions}</span>
-              <span>Workers: {workers}</span>
-            </div>
+        {/* White body */}
+        <div className="p-3">
+          {/* Provider + Model */}
+          <div className="mb-2">
+            <div className="text-[11px] font-bold text-slate-900">{provider}</div>
+            <div className="text-[10px] text-slate-600">{model}</div>
           </div>
 
-          {/* SAT/MAT badge + Actions */}
-          <div className="flex flex-col items-end gap-2 shrink-0">
-            <span
-              className="text-xs font-semibold px-2 py-1 rounded"
-              style={{
-                color: mode === 'SAT' ? '#0f766e' : '#7c3aed',
-                background: mode === 'SAT' ? 'rgba(15,118,110,0.10)' : 'rgba(124,58,237,0.10)',
-                border: `1px solid ${mode === 'SAT' ? 'rgba(15,118,110,0.25)' : 'rgba(124,58,237,0.25)'}`,
-              }}
-            >
+          {/* SAT/MAT badge */}
+          <div className="mb-2">
+            <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
               {mode}
             </span>
-
             {isIsolated && (
-              <span className="text-xs font-semibold px-2 py-1 rounded bg-black text-white">
+              <span className="ml-1 rounded bg-black px-1.5 py-0.5 text-[10px] font-semibold text-white">
                 Shared
               </span>
             )}
+          </div>
 
-            <div className="flex gap-2">
-              {workspace && (
-                <button
-                  onClick={() => window.open(`/workspace/${workspace.id}`, '_blank', 'noopener,noreferrer')}
-                  className="text-xs font-medium px-3 py-1.5 rounded bg-slate-900 text-white hover:bg-slate-700 transition-colors"
-                >
-                  Open
-                </button>
-              )}
+          {/* Compact metrics */}
+          <div className="mb-2 flex gap-2 text-[10px] text-slate-500">
+            <span>WS:{workspaces}</span>
+            <span>SES:{sessions}</span>
+            <span>WRK:{workers}</span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-1">
+            {workspace && (
               <button
-                onClick={() => onEdit(team.id)}
-                className="text-xs font-medium px-3 py-1.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+                onClick={() => window.open(`/workspace/${workspace.id}`, '_blank', 'noopener,noreferrer')}
+                className="flex-1 rounded bg-slate-900 px-2 py-1 text-[10px] font-medium text-white hover:bg-slate-700 transition-colors"
               >
-                Edit
+                Open
               </button>
-            </div>
+            )}
+            <button
+              onClick={() => onEdit(team.id)}
+              className="flex-1 rounded border border-slate-300 px-2 py-1 text-[10px] font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Edit
+            </button>
           </div>
         </div>
       </div>
 
       {/* Subteams */}
       {subteams.length > 0 && (
-        <div className="ml-8 mt-2 space-y-2">
-          {subteams.map(subteam => (
-            <SubteamCard
-              key={subteam.team.id}
-              enrichedTeam={subteam}
-              onEdit={onEdit}
-            />
-          ))}
+        <div className="relative ml-3 mt-2 border-l-2 border-slate-300 pl-3">
+          <div className="space-y-2">
+            {subteams.map((subteam, idx) => (
+              <SubteamCard
+                key={subteam.team.id}
+                enrichedTeam={subteam}
+                _isLast={idx === subteams.length - 1}
+                onEdit={onEdit}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -386,65 +388,142 @@ function TeamCardWithSubteams({
 
 function SubteamCard({
   enrichedTeam,
+  _isLast,
   onEdit,
 }: {
   enrichedTeam: EnrichedTeam
+  _isLast: boolean
   onEdit: (teamId: string) => void
 }) {
-  const { team, provider, model, color, workspaces, sessions, workers, code } = enrichedTeam
+  const { team, color, workspaces, sessions, workers, code } = enrichedTeam
   const workspace = team.workspaces?.[0] ?? null
 
   return (
-    <div
-      className="rounded-lg border bg-white p-3 text-xs"
-      style={{
-        borderLeft: `3px solid ${color}`,
-        borderTop: '1px solid rgba(0,0,0,0.06)',
-        borderRight: '1px solid rgba(0,0,0,0.06)',
-        borderBottom: '1px solid rgba(0,0,0,0.06)',
-      }}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          {/* Subteam code + name */}
-          <div className="flex items-center gap-2 mb-1">
-            {code && (
-              <span className="text-xs font-mono text-slate-400 shrink-0">
-                {code}
-              </span>
-            )}
-            <span className="font-medium text-slate-800 truncate">{team.name}</span>
-          </div>
+    <div className="relative">
+      {/* Connector horizontal line */}
+      <div
+        className="absolute left-[-12px] top-3 h-px w-3 bg-slate-300"
+        style={{ width: '12px' }}
+      />
 
-          {/* Provider + Model */}
-          <div className="text-xs text-slate-500 mb-1">
-            {provider} · {model}
-          </div>
-
-          {/* Metrics */}
-          <div className="flex gap-2 text-xs text-slate-400">
-            <span>W: {workspaces}</span>
-            <span>S: {sessions}</span>
-            <span>Workers: {workers}</span>
+      <div
+        className="overflow-hidden rounded-lg bg-white"
+        style={{
+          boxShadow: '0 1px 4px rgba(15,23,42,0.06)',
+        }}
+      >
+        {/* Subteam top color header — lighter shade */}
+        <div
+          className="px-2 py-1.5 text-white"
+          style={{ backgroundColor: color }}
+        >
+          {code && (
+            <div className="text-[9px] font-bold uppercase tracking-wide">
+              {code}
+            </div>
+          )}
+          <div className="mt-0.5 text-[10px] font-semibold leading-tight">
+            {team.name}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-1 shrink-0">
-          {workspace && (
+        {/* White body — compact metrics only */}
+        <div className="p-2">
+          <div className="mb-1.5 flex gap-2 text-[9px] text-slate-500">
+            <span>WS:{workspaces}</span>
+            <span>SES:{sessions}</span>
+            <span>WRK:{workers}</span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-1">
+            {workspace && (
+              <button
+                onClick={() => window.open(`/workspace/${workspace.id}`, '_blank', 'noopener,noreferrer')}
+                className="flex-1 rounded bg-slate-800 px-2 py-0.5 text-[9px] font-medium text-white hover:bg-slate-600 transition-colors"
+              >
+                Open
+              </button>
+            )}
             <button
-              onClick={() => window.open(`/workspace/${workspace.id}`, '_blank', 'noopener,noreferrer')}
-              className="text-xs px-2 py-1 rounded bg-slate-800 text-white hover:bg-slate-600 transition-colors"
+              onClick={() => onEdit(team.id)}
+              className="flex-1 rounded border border-slate-200 px-2 py-0.5 text-[9px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              Open
+              Edit
             </button>
-          )}
-          <button
-            onClick={() => onEdit(team.id)}
-            className="text-xs px-2 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            Edit
-          </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Legend() {
+  return (
+    <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6">
+      <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-900">
+        Legend
+      </h3>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {/* Block 1 */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <div
+              className="h-6 w-12 rounded"
+              style={{ border: '2px solid #BED7F7', background: '#FBFDFF' }}
+            />
+            <div className="text-xs font-bold text-slate-900">Project = Container</div>
+          </div>
+          <p className="text-[11px] leading-relaxed text-slate-600">
+            Isolates teams, subteams, and project identity.
+          </p>
+        </div>
+
+        {/* Block 2 */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <div
+              className="h-6 w-6 rounded"
+              style={{ background: '#8E4CC6' }}
+            />
+            <div className="text-xs font-bold text-slate-900">Team = Color</div>
+          </div>
+          <p className="text-[11px] leading-relaxed text-slate-600">
+            Each team has a unique color identity.
+          </p>
+        </div>
+
+        {/* Block 3 */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <div
+              className="h-6 w-6 rounded"
+              style={{ background: '#C8A8E1' }}
+            />
+            <div className="text-xs font-bold text-slate-900">Subteam = Lighter Shade</div>
+          </div>
+          <p className="text-[11px] leading-relaxed text-slate-600">
+            Nested under parent team with connectors.
+          </p>
+        </div>
+
+        {/* Block 4 */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <div className="flex gap-1">
+              <span className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700">
+                WS 2
+              </span>
+              <span className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700">
+                SES 4
+              </span>
+            </div>
+            <div className="text-xs font-bold text-slate-900">Workspace/Sessions = Compact Metadata</div>
+          </div>
+          <p className="text-[11px] leading-relaxed text-slate-600">
+            Quick view of capacity and activity without expanding the tree.
+          </p>
         </div>
       </div>
     </div>
