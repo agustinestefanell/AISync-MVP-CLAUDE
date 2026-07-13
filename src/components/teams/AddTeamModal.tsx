@@ -17,6 +17,7 @@ interface CustomProviderInfo { name: string; model: string }
 
 interface AddTeamModalProps {
   projectId: string
+  projects:  Array<{ id: string; name: string }>
   teams:     TeamWithWorkspaces[]
   parentTeamId?: string
   onClose:   () => void
@@ -69,11 +70,12 @@ function ProviderButtons({
   )
 }
 
-export default function AddTeamModal({ projectId, teams, parentTeamId, onClose, onCreated }: AddTeamModalProps) {
+export default function AddTeamModal({ projectId, projects, teams, parentTeamId, onClose, onCreated }: AddTeamModalProps) {
   const [teamMode, setTeamMode]         = useState<'MAT' | 'SAT'>('MAT')
   const [name, setName]                 = useState('')
   const [description, setDescription]   = useState('')
   const [parentId, setParentId]         = useState(parentTeamId ?? '')
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId)
   const [matProviders, setMatProviders] = useState<[string, string, string]>(['Anthropic', 'OpenAI', 'Google'])
   const [satProvider, setSatProvider]   = useState<string>('Anthropic')
   const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([])
@@ -126,7 +128,7 @@ export default function AddTeamModal({ projectId, teams, parentTeamId, onClose, 
         body:    JSON.stringify({
           name:        name.trim(),
           description: description.trim(),
-          projectId,
+          projectId:   selectedProjectId,
           parentId:    parentId || null,
           agents,
         }),
@@ -175,6 +177,23 @@ export default function AddTeamModal({ projectId, teams, parentTeamId, onClose, 
                 />
               </div>
             </div>
+
+            {/* Project selector — only shown when multiple projects exist */}
+            {projects.length > 1 && (
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Project *</label>
+                <p className="text-xs text-neutral-500 mb-2">Choose where this team will belong.</p>
+                <select
+                  value={selectedProjectId}
+                  onChange={e => setSelectedProjectId(e.target.value)}
+                  className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:border-neutral-800 transition-colors bg-white"
+                >
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Sub-team selector (optional) */}
             {teams.length > 0 && (

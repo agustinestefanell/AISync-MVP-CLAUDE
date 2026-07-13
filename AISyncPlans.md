@@ -109,8 +109,8 @@ components/
     TeamsClient.tsx              ← Orquestador: Map/Tree + modales
     MapView.tsx                  ← Vista mapa con canvas + cards posicionadas
     TreeView.tsx                 ← Vista árbol jerárquico
-    AddTeamModal.tsx             ← Crear team (panel dual MAT/SAT)
-    EditTeamModal.tsx            ← Editar team + agentes
+    AddTeamModal.tsx             ← Crear team (panel dual MAT/SAT + selector Project si projects.length > 1)
+    EditTeamModal.tsx            ← Editar team + agentes (pasa projects[] a AddTeamModal para subteams)
     ConnectTeamModal.tsx         ← Conectar equipo externo
     IncomingRequestsPanel.tsx    ← Solicitudes entrantes
     ExternalTeamNode.tsx         ← Nodo de equipo externo en Map
@@ -612,10 +612,11 @@ export async function POST(request: Request) {
 ### 7.2 Selección de provider/model
 
 1. Usuario configura provider/model por agente en EditTeamModal o AddTeamModal
-2. Se persiste en `agent_sessions.provider` y `agent_sessions.model`
-3. WorkspaceShell pasa `session.provider` y `session.model` a AgentPanel
-4. AgentPanel los incluye en el body del POST a `/api/chat`
-5. `route.ts` llama `getProvider(provider, { apiKey, endpoint })` para obtener la instancia
+2. **Project selection (2026-07-12):** AddTeamModal permite elegir Project cuando `projects.length > 1`. Si hay 1 solo Project, auto-seleccionado. Selector con label "Project *" + helper text. TeamsClient y EditTeamModal pasan `projects[]` prop. State `selectedProjectId` enviado en payload como `projectId`. Endpoint `/api/teams` POST ya acepta y persiste correctamente.
+3. Se persiste en `agent_sessions.provider` y `agent_sessions.model`
+4. WorkspaceShell pasa `session.provider` y `session.model` a AgentPanel
+5. AgentPanel los incluye en el body del POST a `/api/chat`
+6. `route.ts` llama `getProvider(provider, { apiKey, endpoint })` para obtener la instancia
 
 ### 7.3 BYOK / configuración
 

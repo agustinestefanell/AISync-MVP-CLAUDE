@@ -38,13 +38,14 @@ function computeType(agents: AgentEdit[]) {
 interface EditTeamModalProps {
   team: TeamWithWorkspaces
   allTeams: TeamWithWorkspaces[]
+  projects?: Array<{ id: string; name: string }>
   onClose: () => void
   onUpdated: (team: TeamWithWorkspaces) => void
   onDeleted: (teamId: string) => void
   onTeamCreated?: (team: TeamWithWorkspaces) => void
 }
 
-export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDeleted, onTeamCreated }: EditTeamModalProps) {
+export default function EditTeamModal({ team, allTeams, projects, onClose, onUpdated, onDeleted, onTeamCreated }: EditTeamModalProps) {
   const router    = useRouter()
   const workspace = team.workspaces[0] ?? null
   const rawAgents: AgentSession[] = workspace?.agent_sessions ?? []
@@ -407,6 +408,7 @@ export default function EditTeamModal({ team, allTeams, onClose, onUpdated, onDe
       {showAddSubTeam && (
         <AddTeamModal
           projectId={team.project_id}
+          projects={projects ?? [{ id: team.project_id, name: 'Current Project' }]}
           teams={allTeams}
           parentTeamId={team.id}
           onClose={() => setShowAddSubTeam(false)}

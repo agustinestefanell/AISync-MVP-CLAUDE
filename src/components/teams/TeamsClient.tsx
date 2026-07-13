@@ -425,6 +425,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
       {showAdd && (
         <AddTeamModal
           projectId={projectId}
+          projects={projectOptions}
           teams={teams}
           onClose={() => setShowAdd(false)}
           onCreated={handleCreated}
@@ -435,6 +436,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
         <EditTeamModal
           team={editingTeam}
           allTeams={teams}
+          projects={projectOptions}
           onClose={() => setEditingTeam(null)}
           onUpdated={handleUpdated}
           onDeleted={handleDeleted}

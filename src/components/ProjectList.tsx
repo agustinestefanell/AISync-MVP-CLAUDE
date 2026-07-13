@@ -660,6 +660,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
         <EditTeamModal
           team={editingTeam}
           allTeams={allTeams}
+          projects={projects.map(p => ({ id: p.id, name: p.name }))}
           onClose={() => setEditingTeam(null)}
           onUpdated={() => {
             setEditingTeam(null)

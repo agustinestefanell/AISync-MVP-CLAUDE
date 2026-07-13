@@ -278,3 +278,90 @@ Partial — correcciones aplicadas basándose en análisis de diff before/after 
 
 **Lección clave:**
 Cuando no hay acceso directo al screenshot del PO, el diagnóstico debe basarse en análisis riguroso del diff before/after + evidencia del código + feedback textual del Manager. Workers "visibles individualmente" podía significar (a) cards separadas por worker (no había evidencia en versiones anteriores) o (b) mejora de formato legible + badges individuales (implementado). Defensive fallbacks en color críticos para prevenir cards grises por fallas de runtime en resolveTeamColor.
+
+---
+
+## Sesión 2026-07-12 — Add Team project selector
+
+**Fecha:** 2026-07-12
+**Estado:** Closed (code complete, build successful, pending PO validation)
+
+**Diagnóstico:**
+El flujo de creación de teams asumía un Project default/original. En cuentas con múltiples Projects, el usuario no podía elegir a qué Project pertenecería el nuevo team. El problema afectaba:
+- **Teams Map:** AddTeamModal invocado desde TeamsClient (+ Add Team button)
+- **Dashboard:** NO — Dashboard solo muestra/edita teams existentes vía EditTeamModal, no crea teams raíz
+- **EditTeamModal:** Crear subteams desde "Edit Team" modal
+
+**Causa raíz:**
+AddTeamModal recibía `projectId` fijo como prop y lo enviaba en el payload sin permitir selección. TeamsClient tenía acceso a `projectOptions` (obtenidos de `/api/projects/active`) pero NO los pasaba a AddTeamModal.
+
+**Archivos modificados:**
+
+1. **src/components/teams/AddTeamModal.tsx:**
+   - Props: agregado `projects: Array<{ id: string; name: string }>`
+   - State: agregado `selectedProjectId` inicializado con `projectId` default
+   - UI: selector Project visible solo cuando `projects.length > 1`
+   - Payload: envía `selectedProjectId` en lugar de `projectId` fijo
+   - Selector con label "Project *" + copy "Choose where this team will belong."
+   - Si hay 1 solo Project: NO muestra selector, usa automáticamente ese project_id
+
+2. **src/components/teams/TeamsClient.tsx:**
+   - Paso `projectOptions` a AddTeamModal
+   - Paso `projectOptions` a EditTeamModal
+   - TeamsClient ya tenía `projectOptions` state poblado desde `/api/projects/active`
+
+3. **src/components/teams/EditTeamModal.tsx:**
+   - Props: agregado `projects?: Array<{ id: string; name: string }>` (opcional)
+   - Paso `projects` a AddTeamModal cuando se crea subteam
+   - Fallback: si `projects` no llega, genera `[{ id: team.project_id, name: 'Current Project' }]`
+
+4. **src/components/ProjectList.tsx:**
+   - Paso `projects` a EditTeamModal (Dashboard scenario)
+   - Map de `projects` a formato simplificado `{ id, name }`
+
+**Decisiones técnicas clave:**
+
+- **Selector condicional:** Solo visible cuando `projects.length > 1` — evita UI innecesaria en cuentas con 1 solo Project
+- **Default automático:** Si hay 1 Project, `selectedProjectId` se inicializa con ese único Project — no requiere interacción del usuario
+- **Fallback defensive:** EditTeamModal genera proyecto default si `projects` prop no llega — previene crashes en flujos edge
+- **Payload explícito:** AddTeamModal siempre envía `projectId` explícito — el endpoint ya valida y persiste correctamente
+- **NO tocar endpoint:** `/api/teams/route.ts` POST ya acepta `projectId` y lo persiste como `project_id` — NO requiere cambios
+- **NO tocar schema/RLS/migraciones:** `teams.project_id` ya existe — solo faltaba UI de selección
+
+**Restricciones respetadas:**
+- ✅ NO MapView layout
+- ✅ NO TreeView
+- ✅ NO CanvasViewport
+- ✅ NO modales no relacionados (ConnectTeamModal, HowConnectedTeamsModal, IncomingRequestsPanel intocados)
+- ✅ NO schema
+- ✅ NO RLS
+- ✅ NO migraciones
+- ✅ Provider/model defaults sin cambios
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (warnings pre-existentes en CanvasViewport)
+- npm run build: ✅ Exitoso
+- grep selectedProjectId: ✅ Usado correctamente en state, selector value, payload
+- git diff --check: ✅ OK
+
+**Validación funcional:**
+⏳ PENDIENTE — Requiere screenshot PO confirmando:
+1. Account con 1 solo Project: selector NO visible, team creado automáticamente en ese Project
+2. Account con múltiples Projects: selector visible con todos los Projects disponibles
+3. Crear team eligiendo Project A: team persiste con `project_id` de Project A
+4. Crear team eligiendo Project B: team persiste con `project_id` de Project B
+5. Teams Map muestra team en contenedor correcto según Project elegido
+6. Crear subteam desde Edit Team: selector funciona igual
+7. Provider/model defaults: sin regresión
+8. SAT/MAT: sin regresión
+
+**Superficies afectadas:**
+- ✅ Teams Map — + Add Team button invoca AddTeamModal con selector
+- ✅ Edit Team — + Add Sub-Team invoca AddTeamModal con selector
+- ❌ Dashboard — NO crea teams raíz (solo muestra/edita existentes)
+
+**Lección técnica:**
+TeamsClient ya tenía `projectOptions` disponibles via `/api/projects/active` (línea 192-196) pero NO los pasaba a AddTeamModal. El fix fue threading: pasar la lista existente desde TeamsClient → AddTeamModal/EditTeamModal → AddTeamModal (subteams). NO fue necesario agregar nuevos fetches ni modificar lógica de persistencia — solo UI de selección faltante.
+
+**Riesgo mitigado:**
+Si `projects` prop llega vacía a AddTeamModal, el selector NO se muestra (condición `projects.length > 1`) y `selectedProjectId` usa el `projectId` default pasado como prop. Esto previene crear team sin `project_id` o mostrar selector vacío.
