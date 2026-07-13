@@ -211,3 +211,70 @@ Partial — código completo, build exitoso, lint OK, documentación actualizada
 
 **Lección clave:**
 Cuando el ejecutor no puede ver imágenes, la especificación visual debe traducirse con precisión quirúrgica: "franja superior de color con texto blanco" ≠ "borde lateral de color", "mosaico tipo bento" ≠ "grilla uniforme", "4 bloques exactos de legend con texto literal" ≠ "explicación resumida". La implementación debe respetar literalmente cada elemento visual especificado, no interpretaciones aproximadas.
+
+---
+
+## Sesión 2026-07-12 — Teams Map v2 emergency correction after PO screenshot
+
+**Fecha:** 2026-07-12
+**Estado:** Partial (código corregido, build exitoso, pendiente screenshot PO validation)
+
+**Diagnóstico:**
+La OE v2 commit 8786866 fue reportada con regresiones visuales por el Product Owner. Análisis del diff y código actual reveló:
+- **Colores:** El código SÍ aplicaba `backgroundColor: color` correctamente (líneas 311, 418), pero sin fallback defensive
+- **Workers:** Cambiaron de `Workers: {workers}` (legible) a `WRK:{workers}` (compacto menos legible). NO había evidencia de workers individuales como cards en versión anterior — siempre fueron contador
+- **Connected Teams:** Código actual ya los renderiza como cards normales dentro del mosaico (líneas 206-224), NO como panel gigante
+- **Overflow:** Ya tenía `overflow-auto` en línea 194
+
+**Correcciones aplicadas:**
+
+1. **Workers legibilidad restaurada:**
+   - Main Team Card: `WRK:{workers}` → `Workspaces: {workspaces}`, `Sessions: {sessions}`, `Workers: {workers}` (formato completo)
+   - Agregada sección "Team Members" mostrando agent_sessions individuales como badges compactos (GM, W1, W2, etc.) + contador "+N" si hay más de 4
+   - Subteam Card: `WS:{workspaces}` → `W: {workspaces}`, `WRK:{workers}` → `Workers: {workers}` (más legible)
+
+2. **Color defensive fallback:**
+   - Team header: `backgroundColor: color` → `backgroundColor: color || '#8E4CC6'` (fallback hardcoded si falla resolveTeamColor)
+   - Subteam header: `backgroundColor: color` → `backgroundColor: color || '#C8A8E1'` (fallback hardcoded)
+
+3. **Connected Teams:** SIN CAMBIOS — código actual ya correcto (box normal dentro del mosaico)
+
+4. **Overflow:** SIN CAMBIOS — ya tenía scroll vertical normal
+
+**Decisión técnica clave:**
+Workers individuales como agent_sessions no aparecían como cards separadas en NINGUNA de las dos versiones (before/after 8786866). La "pérdida de visibilidad" era el cambio de formato `Workers: N` a `WRK:N`. Implementada mejora mostrando mini-badges de agent_sessions individuales (GM, W1-W4, +N) para cumplir expectativa de "workers visibles individualmente" sin crear cards gigantes por cada worker.
+
+**Archivos modificados:**
+- src/components/teams/MapView.tsx (+29 líneas netas)
+
+**Archivos NO tocados:**
+- TeamsClient.tsx (sin cambios necesarios)
+- assignTeamColor.ts (sin cambios necesarios — lógica correcta)
+- deriveTeamColor.ts (sin cambios necesarios)
+- CanvasViewport, TreeView, modales, tipos, DB, RLS, migraciones (preservados)
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK
+- npm run build: ✅ Exitoso
+- grep PROJECT UNKNOWN: ✅ 0 resultados
+- grep CanvasViewport MapView: ✅ 0 resultados
+- grep resolveTeamColor/backgroundColor: ✅ Aplicado con fallback defensive
+
+**Validación funcional:**
+⏳ PENDIENTE — Requiere nuevo screenshot PO confirmando:
+1. Colores visibles en Team Cards (con fallback defensive agregado)
+2. Workers visibles como badges individuales + label legible "Workers: N"
+3. Connected Teams compactos dentro del mosaico
+4. Overflow sin problemas visuales
+
+**Restricciones respetadas:**
+- ✅ NO TreeView reintroducido
+- ✅ NO CanvasViewport reintroducido
+- ✅ NO Map/Tree toggle reintroducido
+- ✅ NO modales/tipos/DB/RLS/migraciones tocados
+
+**Estado:**
+Partial — correcciones aplicadas basándose en análisis de diff before/after 8786866 y feedback del Manager. Pendiente screenshot PO validando colores visibles, workers individuales como badges, layout compacto sin overflow. La OE v2 anterior (8786866) NO debe marcarse Closed hasta validar esta corrección.
+
+**Lección clave:**
+Cuando no hay acceso directo al screenshot del PO, el diagnóstico debe basarse en análisis riguroso del diff before/after + evidencia del código + feedback textual del Manager. Workers "visibles individualmente" podía significar (a) cards separadas por worker (no había evidencia en versiones anteriores) o (b) mejora de formato legible + badges individuales (implementado). Defensive fallbacks en color críticos para prevenir cards grises por fallas de runtime en resolveTeamColor.

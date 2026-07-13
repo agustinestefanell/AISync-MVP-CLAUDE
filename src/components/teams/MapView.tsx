@@ -308,7 +308,7 @@ function TeamColumn({
         {/* Top color header */}
         <div
           className="px-3 py-2 text-white"
-          style={{ backgroundColor: color }}
+          style={{ backgroundColor: color || '#8E4CC6' }}
         >
           {code && (
             <div className="text-[11px] font-bold uppercase tracking-wide">
@@ -342,10 +342,32 @@ function TeamColumn({
 
           {/* Compact metrics */}
           <div className="mb-2 flex gap-2 text-[10px] text-slate-500">
-            <span>WS:{workspaces}</span>
-            <span>SES:{sessions}</span>
-            <span>WRK:{workers}</span>
+            <span>Workspaces: {workspaces}</span>
+            <span>Sessions: {sessions}</span>
+            <span>Workers: {workers}</span>
           </div>
+
+          {/* Workers list */}
+          {workspace && workspace.agent_sessions && workspace.agent_sessions.length > 0 && (
+            <div className="mb-2">
+              <div className="text-[9px] font-semibold text-slate-600 mb-1">Team Members:</div>
+              <div className="flex flex-wrap gap-1">
+                {workspace.agent_sessions.slice(0, 4).map((session, idx) => (
+                  <span
+                    key={idx}
+                    className="rounded bg-slate-100 px-1.5 py-0.5 text-[8px] text-slate-700"
+                  >
+                    {session.agent_role === 'manager' ? 'GM' : `W${idx}`}
+                  </span>
+                ))}
+                {workspace.agent_sessions.length > 4 && (
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[8px] text-slate-500">
+                    +{workspace.agent_sessions.length - 4}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-1">
@@ -415,7 +437,7 @@ function SubteamCard({
         {/* Subteam top color header — lighter shade */}
         <div
           className="px-2 py-1.5 text-white"
-          style={{ backgroundColor: color }}
+          style={{ backgroundColor: color || '#C8A8E1' }}
         >
           {code && (
             <div className="text-[9px] font-bold uppercase tracking-wide">
@@ -430,9 +452,9 @@ function SubteamCard({
         {/* White body — compact metrics only */}
         <div className="p-2">
           <div className="mb-1.5 flex gap-2 text-[9px] text-slate-500">
-            <span>WS:{workspaces}</span>
-            <span>SES:{sessions}</span>
-            <span>WRK:{workers}</span>
+            <span>W: {workspaces}</span>
+            <span>S: {sessions}</span>
+            <span>Workers: {workers}</span>
           </div>
 
           {/* Actions */}
