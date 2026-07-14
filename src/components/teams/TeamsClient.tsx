@@ -158,6 +158,9 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   const [showConnectGuide,     setShowConnectGuide]     = useState(false)
   const [projectOptions, setProjectOptions] = useState<{ id: string; name: string }[]>([])
   const [switchingProject, setSwitchingProject] = useState(false)
+  const [zoomInSignal, setZoomInSignal] = useState(0)
+  const [zoomOutSignal, setZoomOutSignal] = useState(0)
+  const [resetSignal, setResetSignal] = useState(0)
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -257,8 +260,8 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
     [teams, teamCodes],
   )
 
-  // My local teams that have at least one active connection
-  const connectedTeamIds = new Set(
+  // My local teams that have at least one active connection (used by realtime)
+  const _connectedTeamIds = new Set(
     connections
       .filter(c => c.status === 'active')
       .map(c => c.direction === 'outgoing' ? c.requester_team_id : c.receiver_team_id)
@@ -372,6 +375,26 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
               Teams {teams.length} / Workers {workerCount}
             </div>
 
+            {/* Zoom controls */}
+            <button
+              onClick={() => setZoomOutSignal(prev => prev + 1)}
+              className="rounded bg-white px-3 py-1 text-sm font-semibold text-[#64748B] hover:bg-[#F1F5F9] border border-neutral-200"
+            >
+              −
+            </button>
+            <button
+              onClick={() => setResetSignal(prev => prev + 1)}
+              className="rounded bg-white px-3 py-1 text-sm font-semibold text-[#64748B] hover:bg-[#F1F5F9] border border-neutral-200"
+            >
+              Reset
+            </button>
+            <button
+              onClick={() => setZoomInSignal(prev => prev + 1)}
+              className="rounded bg-white px-3 py-1 text-sm font-semibold text-[#64748B] hover:bg-[#F1F5F9] border border-neutral-200"
+            >
+              +
+            </button>
+
             {/* Requests */}
             <button
               onClick={() => setShowIncoming(true)}
@@ -410,14 +433,12 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           teams={sortedTeams}
           projectId={projectId}
           projectName={projectName}
-          activeProjectId={projectId}
-          connectedTeamIds={connectedTeamIds}
-          teamCodes={teamCodes}
-          onEdit={teamId => {
-            const team = teams.find(t => t.id === teamId)
-            if (team) setEditingTeam(team)
-          }}
-          onConnect={() => setShowConnect(true)}
+          projectOptions={projectOptions}
+          zoomInSignal={zoomInSignal}
+          zoomOutSignal={zoomOutSignal}
+          resetSignal={resetSignal}
+          onEdit={team => setEditingTeam(team)}
+          onOpen={workspaceId => window.open(`/workspace/${workspaceId}`, '_blank')}
         />
       </div>
 

@@ -2,7 +2,29 @@
 
 Documento de referencia técnica para Workers nuevos o relevos. Basado en lectura directa del código activo, migraciones y handoff.md. No es documentación de marketing.
 
-Última actualización: 2026-07-03
+Última actualización: 2026-07-13
+
+---
+
+## Teams / Workers domain rule
+
+**Critical product constraint:**
+
+- A Manager or Submanager can have at most 2 Workers.
+- This is a product/domain constraint, not only a UI simplification.
+- Stress cases must scale by number of Teams/Subteams, never by more than 2 Workers per Manager/Submanager.
+- This rule applies to SAT, MAT, preview, and future Fase 1 production data.
+- No exceptions.
+
+**Rationale:**
+The product owner has determined that workflows requiring more than 2 Workers per Manager indicate a need for additional Team/Subteam structure, not more Workers under a single Manager.
+
+**Enforcement:**
+- Mock data for preview must respect this rule
+- Future Fase 1 implementation must validate this rule in UI before team creation
+- Backend validation may be added in future iterations
+
+---
 
 **Documentación interna relacionada:**
 - `PromtsOperativos.md`: archivo de referencia operacional que centraliza los prompts vigentes de Claude Code y GPT OE Maker para sesiones de desarrollo y redacción de OEs.
@@ -106,9 +128,10 @@ components/
     SMPanel.tsx                  ← Sub-Manager: sidebar con chat IA + contexto documental
     SMDisambiguationModal.tsx    ← Modal cuando SM detecta múltiples documentos mencionados
   teams/
-    TeamsClient.tsx              ← Orquestador: Map/Tree + modales
-    MapView.tsx                  ← Vista mapa con canvas + cards posicionadas
-    TreeView.tsx                 ← Vista árbol jerárquico
+    TeamsClient.tsx              ← Orquestador: Map-only + modales + Project selector ribbon
+    MapView.tsx                  ← Vista v3: hierarchical org chart + pan/zoom + accordion Projects
+    TreeView.tsx                 ← Deprecado (preservado sin uso activo)
+    v3/                          ← Componentes de rendering v3 (TeamCard, WorkerBox, ConnectorLines, LegendBlock)
     AddTeamModal.tsx             ← Crear team (panel dual MAT/SAT + selector Project si projects.length > 1)
     EditTeamModal.tsx            ← Editar team + agentes (pasa projects[] a AddTeamModal para subteams)
     ConnectTeamModal.tsx         ← Conectar equipo externo
@@ -139,9 +162,14 @@ lib/
   documentation/
     buildMirrorTree.ts           ← Construye árbol espejo para StructureView
     types.ts                     ← Tipos para el árbol documental
+  teams/
+    buildTreeLayout.ts           ← Algoritmo recursivo de posicionamiento jerárquico (v3)
+    teamsMapLayoutTypes.ts       ← Tipos LayoutNode, LayoutTree, ProjectTree (v3)
+    teamsMapLayoutHelpers.ts     ← Helpers createLayoutNode, positionChildren, calculateTreeBounds (v3)
+    computeTeamCodes.ts          ← Códigos jerárquicos A-00, A-01, A-01-01
+    getProjectColor.ts           ← 12 paletas corporativas fijas
   map/
-    buildAgentLayout.ts          ← Calcula posiciones de nodos en el mapa
-    buildTreeLayout.ts           ← Calcula posiciones del árbol jerárquico
+    buildAgentLayout.ts          ← Legacy (no usado por v3)
   providers/
     anthropic.ts | openai.ts | google.ts | groq.ts | local.ts
     index.ts                     ← Registry + factory getProvider()
@@ -248,7 +276,7 @@ AppLayout
 
 **Excepción — Teams Map**: `TeamsClient` gestiona layout completo (TopRibbon + ribbon operativo interno + BottomRibbon). El ribbon interno tiene tres links agrupados junto a la burbuja SAT/MAT: `SAT vs MAT` → `showSatMatGuide`, `How to create or grow Teams` → `showCreateTeamsGuide`, `How to Connect Team` → `showConnectGuide`. El subtítulo del `TopRibbon` superior abre `showMainGuide`. Burbuja SAT/MAT es solo texto plano (sin botón interno). `page.tsx` retorna `<TeamsClient pageName projectName .../>` directamente.
 
-**Teams Map Draft 2 visual contract (2026-07-12 v2 + emergency correction):** Active Teams Map uses bento/masonry-like Project layout via CSS columns (`columns-1 xl:columns-2` with `columnGap: 16px`). Project containers use `break-inside-avoid`. Project names from real `projectName` prop. Teams flow inside Project using `flex flex-wrap`. **Team Card visual contract:** top color header (`backgroundColor: color || '#8E4CC6'` defensive fallback) with white code/name text, white body with provider/model, SAT/MAT text badge, legible metrics (Workspaces/Sessions/Workers: N), Team Members section showing agent_sessions as compact badges (GM, W1-W4, +N overflow), Open/Edit actions. **Workers visibility (2026-07-12 emergency fix):** Workers are NOT separate cards per worker — they appear as (1) legible "Workers: N" label, (2) compact agent_sessions badges showing GM + W1-W4 + overflow counter. This balances visibility with density. **Subteams visual contract:** render under parent, lighter shade (`deriveLighterColor 25%` + defensive fallback), vertical + horizontal connector lines, no provider/model/SAT-MAT, only code/name/metrics/Open-Edit. **Color defensive fallback:** Always apply runtime fallback to prevent gray cards if `resolveTeamColor` fails. **Legend:** 4 exact blocks. Map only view. TreeView/CanvasViewport untouched.
+**Teams Map v3 architecture (2026-07-14):** Active Teams Map is a hierarchical org chart with Project accordion, Executive Team synthetic root (when multiple projects), and algorithmic tree positioning via `buildTreeLayout()`. Canvas supports pan (left-click drag) and zoom (wheel, 0.25-2.0 range). **Components:** `buildTreeLayout.ts` (recursive positioning algorithm), `teamsMapLayoutTypes.ts` (LayoutNode/Tree types), `teamsMapLayoutHelpers.ts`, `v3/` rendering components (TeamCard, WorkerBox, ConnectorLines, LegendBlock). **MapView.tsx v3:** Complete rewrite (+640 lines net) — pan/zoom state with useRef, accordion Projects (expandedProjects Set), TeamCard with top color header + hierarchical codes (A-00/A-01/A-01-01), WorkerBox (max 2 per Manager/Submanager — domain constraint), Shared Team with black banner "Shared with [email]", SVG connectors parent→children, Legend with 4 blocks. **TeamsClient:** Eliminated Map/Tree toggle (Map-only view), added Project selector in ribbon. **Executive Team synthetic:** Visible only when `projects.length > 1` as visual unifying root with color #6B46C1. **Layout:** Vertical tree per Project, accordion collapsible with chevron animation. **Domain constraint:** Maximum 2 Workers per Manager/Submanager strictly enforced in layout algorithm. **Legacy preserved:** CanvasViewport and TreeView.tsx untouched. No changes to modals, API routes, migrations, RLS, schema. Validated visually 2026-07-14 with real data (14-point checklist).
 
 **Patrón reusable — `TopRibbon.pageSubtitleOnClick`**: `TopRibbon` acepta `pageSubtitleOnClick?: () => void`. Prioridad: `pageSubtitleHref` (link) > `pageSubtitleOnClick` (button) > texto plano. Usar este patrón para disparar modales de ayuda por página desde el subtítulo del ribbon. Ver `DECISIONS.md` entrada 2026-06-02.
 

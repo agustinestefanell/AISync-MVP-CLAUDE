@@ -365,3 +365,120 @@ TeamsClient ya tenía `projectOptions` disponibles via `/api/projects/active` (l
 
 **Riesgo mitigado:**
 Si `projects` prop llega vacía a AddTeamModal, el selector NO se muestra (condición `projects.length > 1`) y `selectedProjectId` usa el `projectId` default pasado como prop. Esto previene crear team sin `project_id` o mostrar selector vacío.
+
+---
+
+## Sesión 2026-07-14 — Teams Map v3: Hierarchical org chart replacing bento mosaic
+
+**Fecha:** 2026-07-14
+**Estado:** Closed (validated visually in production localhost:3000/teams with real data)
+
+**Diagnóstico:**
+Teams Map v2 (bento/masonry layout con CSS columns) no representaba correctamente la jerarquía organizacional del producto. El Product Owner confirmó que el diseño aprobado era un organigrama jerárquico tipo árbol con Executive Team sintético, no un mosaico de proyectos. La confusión surgió porque los assets de referencia (Draft 2 de Teams Map) correspondían al Dashboard (Project cards en grilla), no a Teams Map.
+
+**Decisión arquitectónica:**
+Teams Map debe mostrar estructura de organigrama completo con jerarquía visual de teams/subteams/workers, acordeón por Project, y nodos posicionados algorítmicamente. El layout correcto es árbol vertical con Executive Team sintético como raíz cuando hay múltiples Projects.
+
+**Implementación v3:**
+
+1. **Arquitectura de layout:**
+   - Acordeón por Project (collapsible containers con header + chevron animado)
+   - Árbol jerárquico vertical por cada Project
+   - Executive Team sintético cuando `projects.length > 1` (raíz visual unificadora)
+   - Algoritmo recursivo `buildTreeLayout()` calcula posiciones x/y de todos los nodos
+   - Canvas con pan (click izquierdo + drag) y zoom (wheel)
+   - Máximo 2 Workers por Manager/Submanager (regla de dominio estricta)
+
+2. **Componentes nuevos:**
+   - `src/lib/teams/buildTreeLayout.ts`: Algoritmo recursivo de posicionamiento jerárquico
+   - `src/lib/teams/teamsMapLayoutTypes.ts`: Tipos `LayoutNode`, `LayoutTree`, `ProjectTree`
+   - `src/lib/teams/teamsMapLayoutHelpers.ts`: Helpers `createLayoutNode`, `positionChildren`, `calculateTreeBounds`
+   - `src/components/teams/v3/`: Carpeta con componentes de rendering (TeamCard, WorkerBox, ConnectorLines, LegendBlock)
+
+3. **MapView.tsx (reescrito completo v3):**
+   - Pan/zoom state con `useRef` para `isPanning`, `panStart`, `panOffset`, `zoomLevel`
+   - Event handlers: `onWheel` (zoom con clamp 0.25-2.0), `onMouseDown/Move/Up` (pan), `onMouseLeave` (cleanup)
+   - Acordeón Projects con estado `expandedProjects` (Set de project IDs)
+   - Render de nodos desde `LayoutNode[]` devuelto por `buildTreeLayout()`
+   - TeamCard con franja superior de color + código jerárquico + nombre
+   - WorkerBox (máximo 2) con etiquetas W1/W2 + provider badge
+   - Shared Team con banner negro "Shared with [email]"
+   - Conectores SVG padre→hijos (líneas verticales + horizontales)
+   - Legend con 4 bloques explicativos
+
+4. **TeamsClient.tsx:**
+   - Eliminado view toggle Map/Tree (solo Map view)
+   - Agregado Project selector en ribbon (proyecto activo destacado)
+   - Ribbon buttons: Add Team / Connect / Requests sin cambios
+   - SAT/MAT badge preservado
+   - Props `projectName` pasada a MapView
+
+5. **Colores y estilos:**
+   - Team colors desde `team.color` con fallback determinístico hash-based
+   - Subteams con tono derivado 25% más claro (`deriveLighterColor`)
+   - Executive Team sintético con color #6B46C1 (púrpura institucional)
+   - Acordeón headers con fondo #F8FAFC + borde #E2E8F0
+   - Canvas fondo #FEFEFE
+   - Conectores SVG #D1D5DB (stroke-width 2px)
+
+6. **Datos y lógica:**
+   - `buildTreeLayout()` recibe `projects[]`, `teams[]`, `workspaces[]`, `agent_sessions[]`
+   - Construye `ProjectTree[]` con Executive Team sintético cuando `projects.length > 1`
+   - Detecta manager session de cada team para determinar provider/model
+   - Calcula workers reales (agent_sessions con role worker1/worker2)
+   - Respeta constraint de dominio: máximo 2 workers por team
+   - Connected Teams integrados con `scope_connections` y `partner_email` desde context
+
+7. **Validaciones técnicas:**
+   - npm run lint: ✅ OK
+   - npm run build: ✅ Exitoso
+   - TypeScript: ✅ Sin errores de tipos
+   - grep CanvasViewport: ✅ Componente legacy preservado sin tocar
+   - grep TreeView: ✅ Componente deprecado preservado sin tocar
+
+**Validación funcional (2026-07-14, localhost:3000/teams con datos reales):**
+✅ 1. Organigrama jerárquico (no bento/mosaico)
+✅ 2. Acordeón por Project funcional (expand/collapse con chevron animado)
+✅ 3. Executive Team sintético visible cuando hay múltiples Projects
+✅ 4. Teams/Subteams/Workers en árbol correcto con posiciones calculadas
+✅ 5. Colores distintos por team desde `team.color`
+✅ 6. Máximo 2 Workers por team respetado (constraint de dominio)
+✅ 7. Códigos jerárquicos correctos (A-00, A-01, A-01-01)
+✅ 8. Shared Team integrado al árbol con banner "Shared with agustinestefanell@gmail.com"
+✅ 9. Header ribbon con Project selector real funcionando
+✅ 10. Wheel zoom sin conflicto (rango 0.25-2.0)
+✅ 11. Pan con click izquierdo funcionando
+✅ 12. Open/Edit probados y funcionando (abren workspace/modal real)
+✅ 13. Add Team/Connect/Requests sin regresión
+✅ 14. SAT/MAT badge preservado
+
+**Archivos modificados:**
+- src/components/teams/MapView.tsx (reescrito completo v3 +640 líneas netas)
+- src/components/teams/TeamsClient.tsx (eliminado Map/Tree toggle, agregado Project selector)
+- src/lib/teams/buildTreeLayout.ts (nuevo +320 líneas)
+- src/lib/teams/teamsMapLayoutTypes.ts (nuevo +45 líneas)
+- src/lib/teams/teamsMapLayoutHelpers.ts (nuevo +85 líneas)
+- src/components/teams/v3/ (carpeta nueva con componentes de rendering)
+
+**Archivos NO tocados:**
+- CanvasViewport activo/legacy (preservado)
+- TreeView.tsx (deprecado pero preservado)
+- Modales (AddTeamModal, EditTeamModal, ConnectTeamModal, IncomingRequestsPanel)
+- API routes, migrations, RLS, schema
+
+**Restricciones respetadas:**
+- ✅ NO bento/mosaico (implementado organigrama jerárquico)
+- ✅ NO Map/Tree toggle (solo Map view)
+- ✅ Máximo 2 Workers por Manager (constraint de dominio estricto)
+- ✅ Executive Team sintético solo cuando projects.length > 1
+- ✅ Pan/zoom sin conflicto con scroll de página
+- ✅ Conectores visuales padre→hijos
+- ✅ Legend con 4 bloques explicativos
+- ✅ Shared Teams integrados al árbol (no aislados)
+- ✅ Códigos jerárquicos A-00/A-01/A-01-01 correctos
+- ✅ Provider/model desde manager session
+- ✅ Open/Edit funcionando
+- ✅ Add Team/Connect/Requests sin regresión
+
+**Lección clave:**
+Los assets de referencia (Draft 2, dashboard-2.svg, teams-map.json) correspondían al Dashboard, no a Teams Map. El diseño correcto de Teams Map es organigrama jerárquico tipo árbol con Executive Team sintético, acordeón por Project, y posicionamiento algorítmico. Cuando hay confusión entre specs visuales de módulos distintos (Dashboard vs Teams Map), validar con el Product Owner antes de implementar. La validación visual en producción local (localhost:3000 con datos reales) es el gate definitivo de aprobación, no los assets estáticos.

@@ -1,187 +1,417 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+/**
+ * MapView — Teams Map v3 con organigrama jerárquico
+ *
+ * Port desde preview validada, adaptado a datos reales de producción.
+ * Arquitectura: acordeón por Project + canvas CanvasViewport + tree layout.
+ */
+
+import { useState, useMemo, useEffect } from 'react'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
-import { deriveLighterColor } from '@/lib/teams/deriveTeamColor'
-import { resolveTeamColor } from '@/lib/teams/assignTeamColor'
+import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
+import { buildTreeLayout } from '@/lib/teams/buildTreeLayout'
+import { getTeamTheme, getProviderDisplayName } from '@/lib/teams/teamsMapLayoutHelpers'
+import { CanvasViewport } from './v3/CanvasViewport'
+import { TreeLayoutCanvas } from './v3/TreeLayoutCanvas'
+import { TreeWorkspaceCard } from './v3/TreeWorkspaceCard'
+import type { TeamsGraphNode, TreeLayoutPlacement } from '@/lib/teams/teamsMapLayoutTypes'
+import { MAP_CANVAS_PADDING_X, MAP_CANVAS_PADDING_Y, MAP_ROOT_WIDTH } from '@/lib/teams/teamsMapLayoutTypes'
 
 interface MapViewProps {
   teams: TeamWithWorkspaces[]
   projectId: string
   projectName?: string
-  activeProjectId: string
-  connectedTeamIds: Set<string>
-  teamCodes?: Record<string, string>
-  onEdit: (teamId: string) => void
-  onConnect: () => void
+  projectOptions: Array<{ id: string; name: string }>
+  zoomInSignal: number
+  zoomOutSignal: number
+  resetSignal: number
+  onEdit: (team: TeamWithWorkspaces) => void
+  onOpen: (workspaceId: string) => void
 }
 
-interface EnrichedTeam {
-  team: TeamWithWorkspaces
-  provider: string
-  model: string
-  mode: 'SAT' | 'MAT'
-  color: string
-  workspaces: number
-  sessions: number
-  workers: number
-  code?: string
-  subteams: EnrichedTeam[]
+interface Connection {
+  id: string
+  requester_account_id: string
+  requester_email: string
+  requester_team_id: string
+  receiver_email: string
+  receiver_account_id: string | null
+  host_isolated_team_id?: string | null
+  invitee_isolated_team_id?: string | null
+  direction: 'outgoing' | 'incoming'
+  status: string
+  description?: string | null
+  color?: string | null
 }
 
-interface ProjectGroup {
-  projectId: string
-  projectName: string
-  mainTeamsCount: number
-  totalSubteamsCount: number
-  totalSessions: number
-  totalWorkers: number
-  teams: EnrichedTeam[]
+// Build graph nodes from real TeamWithWorkspaces data
+function buildGraphNodesForProject(
+  teams: TeamWithWorkspaces[],
+  projectId: string,
+  projectName: string,
+  projectIndex: number,
+  teamCodes: Record<string, string>,
+  connectionMetadata: Record<string, { partnerEmail: string; role: 'host' | 'invitee' }>
+): { nodes: TeamsGraphNode[]; rootNode: TeamsGraphNode } {
+  const nodes: TeamsGraphNode[] = []
+
+  // Synthetic Executive Team node for this project
+  const rootNode: TeamsGraphNode = {
+    id: `gm_${projectId}`,
+    type: 'general_manager',
+    label: `Executive Team - ${projectName}`,
+    provider: 'Anthropic',
+    parentId: null,
+    teamId: `exec_${projectId}`,
+    teamType: 'SAT',
+  }
+  nodes.push(rootNode)
+
+  // Root teams (parent_id === null)
+  const rootTeams = teams.filter(t => !t.parent_id)
+
+  rootTeams.forEach(team => {
+    const managerSession = team.workspaces?.[0]?.agent_sessions?.find(s => s.agent_role === 'manager')
+    const provider = (managerSession?.provider ?? 'Anthropic') as 'OpenAI' | 'Anthropic' | 'Google'
+
+    // Check if this is a connected/shared team
+    const isConnected = team.type === 'isolated'
+    const connMeta = connectionMetadata[team.id]
+
+    const teamNode: TeamsGraphNode = {
+      id: team.id,
+      type: 'senior_manager',
+      label: team.name,
+      provider,
+      parentId: rootNode.id,
+      teamId: team.id,
+      teamType: team.type === 'MAT' ? 'MAT' : 'SAT',
+      isConnected,
+      connectionRole: connMeta?.role,
+      partnerEmail: connMeta?.partnerEmail,
+      partnerOrg: undefined, // Not available in current data model
+    }
+    nodes.push(teamNode)
+
+    // Add subteams recursively
+    addSubteamsRecursive(team.id, teams, nodes, teamCodes, connectionMetadata)
+
+    // Add workers for this team (MAX 2)
+    const workers = team.workspaces?.[0]?.agent_sessions?.filter(s => s.agent_role !== 'manager') ?? []
+    workers.slice(0, 2).forEach(worker => {
+      const workerNode: TeamsGraphNode = {
+        id: `${worker.id}_worker`,
+        type: 'worker',
+        label: worker.agent_role === 'worker1' ? 'Worker 1' : 'Worker 2',
+        provider,
+        parentId: team.id,
+        teamId: team.id,
+        teamType: team.type === 'MAT' ? 'MAT' : 'SAT',
+      }
+      nodes.push(workerNode)
+    })
+  })
+
+  return { nodes, rootNode }
 }
 
-function enrichTeam(
-  team: TeamWithWorkspaces,
-  teamCodes: Record<string, string> | undefined,
-  parentColor?: string
-): EnrichedTeam {
-  // Derive provider/model from manager session
-  const managerSession = team.workspaces?.[0]?.agent_sessions?.find(
-    (session) => session.agent_role === 'manager'
+function addSubteamsRecursive(
+  parentId: string,
+  allTeams: TeamWithWorkspaces[],
+  nodes: TeamsGraphNode[],
+  teamCodes: Record<string, string>,
+  connectionMetadata: Record<string, { partnerEmail: string; role: 'host' | 'invitee' }>
+) {
+  const subteams = allTeams.filter(t => t.parent_id === parentId)
+
+  subteams.forEach(subteam => {
+    const managerSession = subteam.workspaces?.[0]?.agent_sessions?.find(s => s.agent_role === 'manager')
+    const provider = (managerSession?.provider ?? 'Anthropic') as 'OpenAI' | 'Anthropic' | 'Google'
+
+    const isConnected = subteam.type === 'isolated'
+    const connMeta = connectionMetadata[subteam.id]
+
+    const subteamNode: TeamsGraphNode = {
+      id: subteam.id,
+      type: 'senior_manager',
+      label: subteam.name,
+      provider,
+      parentId,
+      teamId: subteam.id,
+      teamType: subteam.type === 'MAT' ? 'MAT' : 'SAT',
+      isConnected,
+      connectionRole: connMeta?.role,
+      partnerEmail: connMeta?.partnerEmail,
+      partnerOrg: undefined,
+    }
+    nodes.push(subteamNode)
+
+    // Recursive subteams
+    addSubteamsRecursive(subteam.id, allTeams, nodes, teamCodes, connectionMetadata)
+
+    // Workers for subteam (MAX 2)
+    const workers = subteam.workspaces?.[0]?.agent_sessions?.filter(s => s.agent_role !== 'manager') ?? []
+    workers.slice(0, 2).forEach(worker => {
+      const workerNode: TeamsGraphNode = {
+        id: `${worker.id}_worker`,
+        type: 'worker',
+        label: worker.agent_role === 'worker1' ? 'Worker 1' : 'Worker 2',
+        provider,
+        parentId: subteam.id,
+        teamId: subteam.id,
+        teamType: subteam.type === 'MAT' ? 'MAT' : 'SAT',
+      }
+      nodes.push(workerNode)
+    })
+  })
+}
+
+// Project Canvas component
+function ProjectCanvas({
+  project,
+  teams,
+  teamCodes,
+  connectionMetadata,
+  zoomInSignal,
+  zoomOutSignal,
+  resetSignal,
+  onEdit,
+  onOpen,
+}: {
+  project: { id: string; name: string; index: number }
+  teams: TeamWithWorkspaces[]
+  teamCodes: Record<string, string>
+  connectionMetadata: Record<string, { partnerEmail: string; role: 'host' | 'invitee' }>
+  zoomInSignal: number
+  zoomOutSignal: number
+  resetSignal: number
+  onEdit: (team: TeamWithWorkspaces) => void
+  onOpen: (workspaceId: string) => void
+}) {
+  const { nodes: graphNodes, rootNode } = useMemo(
+    () => buildGraphNodesForProject(teams, project.id, project.name, project.index, teamCodes, connectionMetadata),
+    [teams, project.id, project.name, project.index, teamCodes, connectionMetadata]
   )
 
-  const provider = managerSession?.provider ?? 'Unknown'
-  const model = managerSession?.model ?? 'Unknown'
+  const layout = useMemo(() => {
+    if (!rootNode) return null
+    return buildTreeLayout(rootNode, graphNodes, 'map')
+  }, [rootNode, graphNodes])
 
-  // Calculate metrics
-  const workspaces = team.workspaces?.length ?? 0
-  const sessions = team.workspaces?.reduce((sum, ws) => sum + (ws.agent_sessions?.length ?? 0), 0) ?? 0
-  const workers = team.workspaces?.reduce(
-    (sum, ws) => sum + (ws.agent_sessions?.filter(s => s.agent_role?.includes('worker')).length ?? 0),
-    0
-  ) ?? 0
-
-  // Determine color
-  let color: string
-  if (parentColor) {
-    // Subteam: derive lighter tone from parent
-    color = deriveLighterColor(parentColor, 0.25)
-  } else {
-    // Team: use team.color or deterministic fallback
-    color = resolveTeamColor(team)
+  if (!layout || !rootNode) {
+    return (
+      <div className="rounded-lg border border-[#D7E2EE] bg-white p-8 text-center">
+        <p className="text-[#64748B]">No data to display for {project.name}</p>
+      </div>
+    )
   }
 
-  return {
-    team,
-    provider,
-    model,
-    mode: team.type === 'SAT' || team.type === 'MAT' ? team.type : 'SAT',
-    color,
-    workspaces,
-    sessions,
-    workers,
-    code: teamCodes?.[team.id],
-    subteams: [], // Populated separately
-  }
+  return (
+    <div className="flex flex-col gap-4">
+      <CanvasViewport
+        initialZoom={1}
+        minZoom={0.05}
+        maxZoom={1.12}
+        fitFloor={0.5}
+        fitTopOffset={0}
+        alignTopOnFit
+        zoomInSignal={zoomInSignal}
+        zoomOutSignal={zoomOutSignal}
+        resetSignal={resetSignal}
+        contentWidthClass="inline-flex w-max flex-col items-center"
+      >
+        <TreeLayoutCanvas
+          layout={layout}
+          paddingX={MAP_CANVAS_PADDING_X}
+          paddingY={MAP_CANVAS_PADDING_Y}
+          connectorColor="rgba(100, 116, 139, 0.52)"
+          connectorStrokeWidth={2}
+        >
+          {(placement: TreeLayoutPlacement) => {
+            const node = placement.node
+            const colorKey = node.type === 'senior_manager' && node.parentId === rootNode.id
+              ? node.id
+              : node.teamId
+            const theme = getTeamTheme(colorKey)
+            const code = teamCodes[node.id] || ''
+
+            // Find real team for Open/Edit actions
+            const realTeam = teams.find(t => t.id === node.id)
+
+            // General Manager card (synthetic Executive Team)
+            if (node.type === 'general_manager') {
+              return (
+                <TreeWorkspaceCard
+                  title={node.label}
+                  subtitle="Executive Team"
+                  functionLabel="Project Coordination"
+                  brief="Strategic oversight and cross-team alignment for all teams in this project."
+                  ribbonColor="#0B4B78"
+                  softColor="rgba(11, 75, 120, 0.08)"
+                  borderColor="rgba(11, 75, 120, 0.22)"
+                  accentColor="#083854"
+                  tags={['Leadership', 'Strategy', 'Oversight']}
+                  metrics={[]}
+                  isSat
+                  explicitWidth={MAP_ROOT_WIDTH}
+                  actionLabel="Overview"
+                  onPrimaryAction={() => {
+                    // Executive Team overview — placeholder
+                    console.log('Executive Team Overview')
+                  }}
+                />
+              )
+            }
+
+            // Worker card (compact)
+            if (node.type === 'worker') {
+              return (
+                <TreeWorkspaceCard
+                  title={node.label}
+                  subtitle="Worker"
+                  functionLabel="Execution lane"
+                  brief="Executes assigned tasks and returns compact updates."
+                  ribbonColor={theme.ribbon}
+                  softColor={theme.soft}
+                  borderColor={theme.border}
+                  accentColor={theme.accent}
+                  tags={['Execution', getProviderDisplayName(node.provider)]}
+                  metrics={[]}
+                  compact
+                  actionLabel="Open"
+                  onPrimaryAction={() => {
+                    if (realTeam?.workspaces?.[0]?.id) {
+                      onOpen(realTeam.workspaces[0].id)
+                    }
+                  }}
+                />
+              )
+            }
+
+            // Senior Manager card (Team/Subteam)
+            const workersCount = graphNodes.filter(n => n.parentId === node.id && n.type === 'worker').length
+
+            return (
+              <TreeWorkspaceCard
+                title={`${code ? `${code} · ` : ''}${node.label}`}
+                subtitle={
+                  node.isConnected
+                    ? 'Connected Team'
+                    : node.parentId === rootNode.id
+                      ? 'Team Manager'
+                      : 'Subteam Manager'
+                }
+                functionLabel="Team coordination"
+                brief="Coordinates delivery lane, manages artifacts, and oversees handoffs."
+                ribbonColor={theme.ribbon}
+                softColor={theme.soft}
+                borderColor={theme.border}
+                accentColor={theme.accent}
+                tags={[
+                  node.teamType,
+                  getProviderDisplayName(node.provider),
+                  'Operations',
+                ]}
+                metrics={[
+                  {
+                    label: 'Workers',
+                    value: String(workersCount),
+                  },
+                ]}
+                isSat={node.teamType === 'SAT'}
+                isConnected={node.isConnected}
+                connectionRole={node.connectionRole}
+                partnerEmail={node.partnerEmail}
+                partnerOrg={node.partnerOrg}
+                actionLabel="Open"
+                secondaryActionLabel="Edit"
+                onPrimaryAction={() => {
+                  if (realTeam?.workspaces?.[0]?.id) {
+                    onOpen(realTeam.workspaces[0].id)
+                  }
+                }}
+                onSecondaryAction={() => {
+                  if (realTeam) {
+                    onEdit(realTeam)
+                  }
+                }}
+              />
+            )
+          }}
+        </TreeLayoutCanvas>
+      </CanvasViewport>
+    </div>
+  )
 }
 
 export default function MapView({
   teams,
+  projectId,
   projectName,
-  activeProjectId,
-  teamCodes,
+  projectOptions,
+  zoomInSignal,
+  zoomOutSignal,
+  resetSignal,
   onEdit,
-  onConnect,
+  onOpen,
 }: MapViewProps) {
-  // Fetch connection metadata for isolated teams
-  const [connectionMap, setConnectionMap] = useState<Record<string, { description: string | null; color: string | null }>>({})
+  const [expandedProject, setExpandedProject] = useState<string | null>(null)
+  const [connections, setConnections] = useState<Connection[]>([])
 
+  // Fetch connections for partner email metadata
   useEffect(() => {
-    const isolatedTeamIds = teams.filter(t => t.type === 'isolated').map(t => t.id)
-    if (isolatedTeamIds.length === 0) {
-      setConnectionMap({})
-      return
-    }
-
     fetch('/api/connections')
       .then(r => r.json())
-      .then((connections: Array<{
-        host_isolated_team_id?: string | null
-        invitee_isolated_team_id?: string | null
-        direction: 'outgoing' | 'incoming'
-        description?: string | null
-        color?: string | null
-        status?: string
-      }>) => {
-        const map: Record<string, { description: string | null; color: string | null }> = {}
-        for (const conn of connections) {
-          if (conn.status === 'active') {
-            const teamId = conn.direction === 'outgoing'
-              ? conn.host_isolated_team_id
-              : conn.invitee_isolated_team_id
+      .then((data: Connection[]) => setConnections(Array.isArray(data) ? data : []))
+      .catch(() => setConnections([]))
+  }, [])
 
-            if (teamId && isolatedTeamIds.includes(teamId)) {
-              map[teamId] = {
-                description: conn.description ?? null,
-                color: conn.color ?? null,
-              }
-            }
-          }
-        }
-        setConnectionMap(map)
-      })
-      .catch(() => setConnectionMap({}))
-  }, [teams])
+  const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])
 
-  // Build project groups with teams and subteams
-  const projectGroups = useMemo((): ProjectGroup[] => {
-    // Group teams by project_id
+  // Build connection metadata: map isolated team ID → { partnerEmail, role }
+  const connectionMetadata = useMemo(() => {
+    const map: Record<string, { partnerEmail: string; role: 'host' | 'invitee' }> = {}
+
+    connections.filter(c => c.status === 'active').forEach(conn => {
+      const isHost = conn.direction === 'outgoing'
+      const myTeamId = isHost ? conn.host_isolated_team_id : conn.invitee_isolated_team_id
+      const partnerEmail = isHost ? conn.receiver_email : conn.requester_email
+      const role: 'host' | 'invitee' = isHost ? 'host' : 'invitee'
+
+      if (myTeamId) {
+        map[myTeamId] = { partnerEmail, role }
+      }
+    })
+
+    return map
+  }, [connections])
+
+  // Group teams by project
+  const projectGroups = useMemo(() => {
     const grouped = new Map<string, TeamWithWorkspaces[]>()
-    for (const team of teams) {
-      const pid = team.workspaces?.[0]?.teams?.project_id ?? 'unknown'
+
+    teams.forEach(team => {
+      const pid = team.workspaces?.[0]?.teams?.project_id ?? projectId
       if (!grouped.has(pid)) grouped.set(pid, [])
       grouped.get(pid)!.push(team)
-    }
+    })
 
-    // Transform each project group
-    const groups: ProjectGroup[] = []
-    for (const [projectId, projectTeams] of Array.from(grouped.entries())) {
-      // Separate main teams (parent_id === null) and subteams
-      const mainTeams = projectTeams.filter(t => !t.parent_id)
-      const subteamsList = projectTeams.filter(t => t.parent_id)
-
-      // Enrich main teams
-      const enrichedMainTeams = mainTeams.map(t => enrichTeam(t, teamCodes))
-
-      // Attach subteams to their parents
-      for (const enrichedTeam of enrichedMainTeams) {
-        const childSubteams = subteamsList.filter(st => st.parent_id === enrichedTeam.team.id)
-        enrichedTeam.subteams = childSubteams.map(st => enrichTeam(st, teamCodes, enrichedTeam.color))
+    return Array.from(grouped.entries()).map(([pid, projectTeams], index) => {
+      const pName = projectOptions.find(p => p.id === pid)?.name ?? projectName ?? 'Untitled Project'
+      return {
+        id: pid,
+        name: pName,
+        index,
+        teams: projectTeams,
+        count: projectTeams.length,
       }
-
-      // Calculate project-level metrics
-      const mainTeamsCount = enrichedMainTeams.length
-      const totalSubteamsCount = enrichedMainTeams.reduce((sum, t) => sum + t.subteams.length, 0)
-      const allEnriched = [...enrichedMainTeams, ...enrichedMainTeams.flatMap(t => t.subteams)]
-      const totalSessions = allEnriched.reduce((sum, t) => sum + t.sessions, 0)
-      const totalWorkers = allEnriched.reduce((sum, t) => sum + t.workers, 0)
-
-      groups.push({
-        projectId,
-        projectName: projectName ?? 'Untitled Project',
-        mainTeamsCount,
-        totalSubteamsCount,
-        totalSessions,
-        totalWorkers,
-        teams: enrichedMainTeams,
-      })
-    }
-
-    return groups
-  }, [teams, teamCodes, projectName])
+    })
+  }, [teams, projectId, projectName, projectOptions])
 
   if (projectGroups.length === 0 || projectGroups.every(g => g.teams.length === 0)) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center">
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <p className="text-sm text-slate-500">No teams in this project yet.</p>
         <p className="text-xs mt-1 text-slate-400">
           Add teams with workspaces and agents to see the map.
@@ -191,361 +421,73 @@ export default function MapView({
   }
 
   return (
-    <div className="w-full h-full overflow-auto p-6 bg-slate-50">
-      {/* Projects mosaic — column layout */}
-      <div
-        className="columns-1 xl:columns-2"
-        style={{ columnGap: '16px' }}
-      >
-        {projectGroups.map(project => (
-          <ProjectContainer
-            key={project.projectId}
-            project={project}
-            activeProjectId={activeProjectId}
-            connectionMap={connectionMap}
-            onEdit={onEdit}
-          />
-        ))}
+    <div className="w-full h-full overflow-auto p-6 bg-[#F5F7FA]">
+      <div className="mx-auto w-full">
+        <div className="overflow-hidden rounded-[18px] border border-[#DDE6F1] bg-white shadow-[0_8px_24px_rgba(12,23,51,0.05)]">
+          {projectGroups.map((project, idx) => {
+            const isExpanded = expandedProject === project.id
 
-        {/* Connect Team box */}
-        <div
-          className="mb-4 break-inside-avoid flex flex-col items-center justify-center rounded-[22px] border-2 border-dashed p-6 text-center transition-colors hover:border-slate-500 hover:bg-white/90 cursor-pointer min-h-[200px]"
-          style={{
-            borderColor: 'rgba(100,116,139,0.45)',
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(241,245,249,0.92) 100%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.78), 0 12px 24px rgba(15,23,42,0.05)',
-          }}
-          onClick={onConnect}
-        >
-          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-slate-400 bg-white/85 text-[28px] font-semibold leading-none text-slate-700">
-            +
-          </div>
-          <div className="mt-4 text-[14px] font-semibold text-slate-900">Connect Team</div>
-          <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-500">Link External User</div>
-        </div>
-      </div>
+            return (
+              <div
+                key={project.id}
+                className={idx > 0 ? 'border-t border-[#DDE6F1]' : ''}
+              >
+                {/* Accordion row header */}
+                <button
+                  onClick={() => setExpandedProject(isExpanded ? null : project.id)}
+                  className="flex h-14 w-full items-center justify-between px-5 transition-colors hover:bg-[#F8FBFF]"
+                >
+                  <div className="flex items-center gap-3">
+                    <svg
+                      className={`h-4 w-4 text-[#5C6B82] transition-transform ${
+                        isExpanded ? 'rotate-90' : ''
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                    <span className="text-base font-semibold text-[#0C1733]">
+                      {project.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-[#5C6B82]">
+                      {project.count} Team{project.count !== 1 ? 's' : ''}
+                    </span>
+                    {isExpanded && (
+                      <span className="rounded-full bg-[#E9F8EE] px-3 py-1 text-xs font-medium text-[#2F8A47]">
+                        Open
+                      </span>
+                    )}
+                  </div>
+                </button>
 
-      {/* Legend */}
-      <Legend />
-    </div>
-  )
-}
-
-function ProjectContainer({
-  project,
-  activeProjectId,
-  connectionMap,
-  onEdit,
-}: {
-  project: ProjectGroup
-  activeProjectId: string
-  connectionMap: Record<string, { description: string | null; color: string | null }>
-  onEdit: (teamId: string) => void
-}) {
-  const isActive = project.projectId === activeProjectId
-
-  return (
-    <section
-      className="mb-4 break-inside-avoid rounded-2xl border p-4"
-      style={{
-        borderColor: '#BED7F7',
-        background: '#FBFDFF',
-        boxShadow: '0 2px 8px rgba(15,23,42,0.08)',
-        opacity: isActive ? 1 : 0.6,
-      }}
-    >
-      {/* Project header */}
-      <div className="mb-3 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid #D9E2EC', paddingBottom: '8px' }}>
-        <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: '#10233D' }}>
-          {project.projectName.toUpperCase()}
-        </h3>
-        <div className="flex gap-3 text-xs font-medium" style={{ color: '#64748B' }}>
-          <span>Teams: {project.mainTeamsCount}</span>
-          <span>Subteams: {project.totalSubteamsCount}</span>
-          <span>Sessions: {project.totalSessions}</span>
-          <span>Workers: {project.totalWorkers}</span>
-        </div>
-      </div>
-
-      {/* Teams flex-wrap */}
-      <div className="flex flex-wrap items-start gap-3">
-        {project.teams.map(enrichedTeam => (
-          <TeamColumn
-            key={enrichedTeam.team.id}
-            enrichedTeam={enrichedTeam}
-            connectionMap={connectionMap}
-            onEdit={onEdit}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function TeamColumn({
-  enrichedTeam,
-  connectionMap,
-  onEdit,
-}: {
-  enrichedTeam: EnrichedTeam
-  connectionMap: Record<string, { description: string | null; color: string | null }>
-  onEdit: (teamId: string) => void
-}) {
-  const { team, provider, model, mode, color, workspaces, sessions, workers, code, subteams } = enrichedTeam
-  const workspace = team.workspaces?.[0] ?? null
-  const isIsolated = team.type === 'isolated'
-  const conn = isIsolated ? connectionMap[team.id] : null
-
-  return (
-    <div className="flex w-[180px] flex-col items-stretch">
-      {/* Main team card */}
-      <div
-        className="overflow-hidden rounded-[10px] bg-white"
-        style={{
-          boxShadow: '0 2px 8px rgba(15,23,42,0.08)',
-        }}
-      >
-        {/* Top color header */}
-        <div
-          className="px-3 py-2 text-white"
-          style={{ backgroundColor: color || '#8E4CC6' }}
-        >
-          {code && (
-            <div className="text-[11px] font-bold uppercase tracking-wide">
-              {code}
-            </div>
-          )}
-          <div className="mt-0.5 text-[12px] font-semibold leading-tight">
-            {conn?.description || team.name}
-          </div>
-        </div>
-
-        {/* White body */}
-        <div className="p-3">
-          {/* Provider + Model */}
-          <div className="mb-2">
-            <div className="text-[11px] font-bold text-slate-900">{provider}</div>
-            <div className="text-[10px] text-slate-600">{model}</div>
-          </div>
-
-          {/* SAT/MAT badge */}
-          <div className="mb-2">
-            <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-              {mode}
-            </span>
-            {isIsolated && (
-              <span className="ml-1 rounded bg-black px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                Shared
-              </span>
-            )}
-          </div>
-
-          {/* Compact metrics */}
-          <div className="mb-2 flex gap-2 text-[10px] text-slate-500">
-            <span>Workspaces: {workspaces}</span>
-            <span>Sessions: {sessions}</span>
-            <span>Workers: {workers}</span>
-          </div>
-
-          {/* Workers list */}
-          {workspace && workspace.agent_sessions && workspace.agent_sessions.length > 0 && (
-            <div className="mb-2">
-              <div className="text-[9px] font-semibold text-slate-600 mb-1">Team Members:</div>
-              <div className="flex flex-wrap gap-1">
-                {workspace.agent_sessions.slice(0, 4).map((session, idx) => (
-                  <span
-                    key={idx}
-                    className="rounded bg-slate-100 px-1.5 py-0.5 text-[8px] text-slate-700"
-                  >
-                    {session.agent_role === 'manager' ? 'GM' : `W${idx}`}
-                  </span>
-                ))}
-                {workspace.agent_sessions.length > 4 && (
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[8px] text-slate-500">
-                    +{workspace.agent_sessions.length - 4}
-                  </span>
+                {/* Expanded content — canvas */}
+                {isExpanded && (
+                  <div className="bg-[#F8FBFF] px-5 py-6 min-h-[70vh]">
+                    <ProjectCanvas
+                      project={project}
+                      teams={project.teams}
+                      teamCodes={teamCodes}
+                      connectionMetadata={connectionMetadata}
+                      zoomInSignal={zoomInSignal}
+                      zoomOutSignal={zoomOutSignal}
+                      resetSignal={resetSignal}
+                      onEdit={onEdit}
+                      onOpen={onOpen}
+                    />
+                  </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-1">
-            {workspace && (
-              <button
-                onClick={() => window.open(`/workspace/${workspace.id}`, '_blank', 'noopener,noreferrer')}
-                className="flex-1 rounded bg-slate-900 px-2 py-1 text-[10px] font-medium text-white hover:bg-slate-700 transition-colors"
-              >
-                Open
-              </button>
-            )}
-            <button
-              onClick={() => onEdit(team.id)}
-              className="flex-1 rounded border border-slate-300 px-2 py-1 text-[10px] font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              Edit
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Subteams */}
-      {subteams.length > 0 && (
-        <div className="relative ml-3 mt-2 border-l-2 border-slate-300 pl-3">
-          <div className="space-y-2">
-            {subteams.map((subteam, idx) => (
-              <SubteamCard
-                key={subteam.team.id}
-                enrichedTeam={subteam}
-                _isLast={idx === subteams.length - 1}
-                onEdit={onEdit}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function SubteamCard({
-  enrichedTeam,
-  _isLast,
-  onEdit,
-}: {
-  enrichedTeam: EnrichedTeam
-  _isLast: boolean
-  onEdit: (teamId: string) => void
-}) {
-  const { team, color, workspaces, sessions, workers, code } = enrichedTeam
-  const workspace = team.workspaces?.[0] ?? null
-
-  return (
-    <div className="relative">
-      {/* Connector horizontal line */}
-      <div
-        className="absolute left-[-12px] top-3 h-px w-3 bg-slate-300"
-        style={{ width: '12px' }}
-      />
-
-      <div
-        className="overflow-hidden rounded-lg bg-white"
-        style={{
-          boxShadow: '0 1px 4px rgba(15,23,42,0.06)',
-        }}
-      >
-        {/* Subteam top color header — lighter shade */}
-        <div
-          className="px-2 py-1.5 text-white"
-          style={{ backgroundColor: color || '#C8A8E1' }}
-        >
-          {code && (
-            <div className="text-[9px] font-bold uppercase tracking-wide">
-              {code}
-            </div>
-          )}
-          <div className="mt-0.5 text-[10px] font-semibold leading-tight">
-            {team.name}
-          </div>
-        </div>
-
-        {/* White body — compact metrics only */}
-        <div className="p-2">
-          <div className="mb-1.5 flex gap-2 text-[9px] text-slate-500">
-            <span>W: {workspaces}</span>
-            <span>S: {sessions}</span>
-            <span>Workers: {workers}</span>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-1">
-            {workspace && (
-              <button
-                onClick={() => window.open(`/workspace/${workspace.id}`, '_blank', 'noopener,noreferrer')}
-                className="flex-1 rounded bg-slate-800 px-2 py-0.5 text-[9px] font-medium text-white hover:bg-slate-600 transition-colors"
-              >
-                Open
-              </button>
-            )}
-            <button
-              onClick={() => onEdit(team.id)}
-              className="flex-1 rounded border border-slate-200 px-2 py-0.5 text-[9px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-            >
-              Edit
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Legend() {
-  return (
-    <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6">
-      <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-900">
-        Legend
-      </h3>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {/* Block 1 */}
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <div
-              className="h-6 w-12 rounded"
-              style={{ border: '2px solid #BED7F7', background: '#FBFDFF' }}
-            />
-            <div className="text-xs font-bold text-slate-900">Project = Container</div>
-          </div>
-          <p className="text-[11px] leading-relaxed text-slate-600">
-            Isolates teams, subteams, and project identity.
-          </p>
-        </div>
-
-        {/* Block 2 */}
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <div
-              className="h-6 w-6 rounded"
-              style={{ background: '#8E4CC6' }}
-            />
-            <div className="text-xs font-bold text-slate-900">Team = Color</div>
-          </div>
-          <p className="text-[11px] leading-relaxed text-slate-600">
-            Each team has a unique color identity.
-          </p>
-        </div>
-
-        {/* Block 3 */}
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <div
-              className="h-6 w-6 rounded"
-              style={{ background: '#C8A8E1' }}
-            />
-            <div className="text-xs font-bold text-slate-900">Subteam = Lighter Shade</div>
-          </div>
-          <p className="text-[11px] leading-relaxed text-slate-600">
-            Nested under parent team with connectors.
-          </p>
-        </div>
-
-        {/* Block 4 */}
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <div className="flex gap-1">
-              <span className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700">
-                WS 2
-              </span>
-              <span className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700">
-                SES 4
-              </span>
-            </div>
-            <div className="text-xs font-bold text-slate-900">Workspace/Sessions = Compact Metadata</div>
-          </div>
-          <p className="text-[11px] leading-relaxed text-slate-600">
-            Quick view of capacity and activity without expanding the tree.
-          </p>
+            )
+          })}
         </div>
       </div>
     </div>
