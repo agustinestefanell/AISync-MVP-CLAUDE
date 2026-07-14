@@ -20,7 +20,6 @@ import { MAP_CANVAS_PADDING_X, MAP_CANVAS_PADDING_Y, MAP_ROOT_WIDTH } from '@/li
 
 interface MapViewProps {
   teams: TeamWithWorkspaces[]
-  projectId: string
   projectName?: string
   projectOptions: Array<{ id: string; name: string }>
   zoomInSignal: number
@@ -347,7 +346,6 @@ function ProjectCanvas({
 
 export default function MapView({
   teams,
-  projectId,
   projectName,
   projectOptions,
   zoomInSignal,
@@ -392,7 +390,7 @@ export default function MapView({
     const grouped = new Map<string, TeamWithWorkspaces[]>()
 
     teams.forEach(team => {
-      const pid = team.workspaces?.[0]?.teams?.project_id ?? projectId
+      const pid = team.project_id
       if (!grouped.has(pid)) grouped.set(pid, [])
       grouped.get(pid)!.push(team)
     })
@@ -407,7 +405,7 @@ export default function MapView({
         count: projectTeams.length,
       }
     })
-  }, [teams, projectId, projectName, projectOptions])
+  }, [teams, projectName, projectOptions])
 
   if (projectGroups.length === 0 || projectGroups.every(g => g.teams.length === 0)) {
     return (

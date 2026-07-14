@@ -431,7 +431,6 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
       <div className="flex-1 min-h-0 relative">
         <MapView
           teams={sortedTeams}
-          projectId={projectId}
           projectName={projectName}
           projectOptions={projectOptions}
           zoomInSignal={zoomInSignal}

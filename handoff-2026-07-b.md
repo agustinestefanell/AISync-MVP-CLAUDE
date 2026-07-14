@@ -482,3 +482,42 @@ Teams Map debe mostrar estructura de organigrama completo con jerarquía visual 
 
 **Lección clave:**
 Los assets de referencia (Draft 2, dashboard-2.svg, teams-map.json) correspondían al Dashboard, no a Teams Map. El diseño correcto de Teams Map es organigrama jerárquico tipo árbol con Executive Team sintético, acordeón por Project, y posicionamiento algorítmico. Cuando hay confusión entre specs visuales de módulos distintos (Dashboard vs Teams Map), validar con el Product Owner antes de implementar. La validación visual en producción local (localhost:3000 con datos reales) es el gate definitivo de aprobación, no los assets estáticos.
+
+---
+
+## Mini-OE 2026-07-14 — Teams Map v3 accordion project grouping fix
+
+**Fecha:** 2026-07-14
+**Estado:** Closed (validated visually in localhost:3000/teams by Product Owner)
+
+**Bug reportado:**
+Teams Map v3 acordeón solo mostraba 1 Project ("Mi Primer Proyecto") en vez de los 4 Projects reales de la cuenta (Mi Primer Proyecto, Proyecto 2, agustinestefanell+arenaglirsas, Proyecto Europa), confirmados existentes y con 1 team cada uno en Dashboard.
+
+**Causa raíz identificada:**
+MapView.tsx línea 395 usaba navegación incorrecta `team.workspaces?.[0]?.teams?.project_id ?? projectId` para agrupar teams por Project. El campo `team.workspaces[0].teams` no existe en el tipo `TeamWithWorkspaces` (workspaces es `WorkspaceWithAgents[]`, sin campo `.teams`), por lo que siempre devolvía `undefined` y todos los teams caían bajo el `projectId` activo por el fallback `??`. Esto agrupaba todos los teams de los 4 Projects bajo un solo Project en el acordeón.
+
+**Solución aplicada:**
+Reemplazada navegación incorrecta por acceso directo a `team.project_id` (campo que existe en tipo `Team`, heredado por `TeamWithWorkspaces`). El `project_id` ya viene poblado del SELECT de `getProjectsWithHierarchy()` server-side. No requiere fallback porque es NOT NULL en schema.
+
+**Cambios:**
+- MapView.tsx línea 395: `const pid = team.workspaces?.[0]?.teams?.project_id ?? projectId` → `const pid = team.project_id`
+- Removida dependencia `projectId` de `useMemo` dependencies (línea 410)
+- Removida prop `projectId` de interfaz `MapViewProps` (quedó sin uso tras el fix)
+- Removido paso de prop `projectId` en TeamsClient.tsx (línea 434)
+
+**Código muerto detectado y removido:**
+Función `buildNodesForProject` en MapView.tsx (líneas 50-70) no era llamada desde ningún lugar tras refactor v3 — contenía las únicas referencias a la prop `projectId` que impedían su eliminación.
+
+**Validaciones:**
+- npm run lint: ✅ OK
+- npm run build: ✅ Exitoso
+- Validación visual PO (localhost:3000/teams): ✅ Los 4 Projects aparecen correctamente en acordeón
+
+**Archivos modificados:**
+- src/components/teams/MapView.tsx
+- src/components/teams/TeamsClient.tsx
+
+**Sin cambios:** Schema, RLS, migraciones, API routes, tipos, modales.
+
+**Lección técnica:**
+Navegación de tipos debe validarse contra la estructura real del tipo, no asumir por convención de nombres. `team.workspaces[0].teams.project_id` sugiere una relación que no existe — `workspaces` es array de `WorkspaceWithAgents`, no de objetos con campo `.teams`. TypeScript no detectó el error en tiempo de compilación porque el optional chaining `?.` silencia el tipo `undefined`. El Dashboard mostraba los 4 Projects correctamente porque usa `getProjectsWithHierarchy()` que trae TODOS los Projects activos de la cuenta — el problema estaba exclusivamente en la agrupación client-side del acordeón, no en el fetch server-side.
