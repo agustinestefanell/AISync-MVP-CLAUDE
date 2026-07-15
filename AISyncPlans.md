@@ -1,6 +1,6 @@
 # AISync — Planos Técnicos
 
-Documento de referencia técnica para Workers nuevos o relevos. Basado en lectura directa del código activo, migraciones y handoff.md. No es documentación de marketing.
+Documento de referencia técnica para Workers nuevos o relevos. Basado en lectura directa del código activo, migraciones y handoff-archive-2026-06.md. No es documentación de marketing.
 
 Última actualización: 2026-07-13
 
@@ -29,7 +29,7 @@ The product owner has determined that workflows requiring more than 2 Workers pe
 **Documentación interna relacionada:**
 - `PromtsOperativos.md`: archivo de referencia operacional que centraliza los prompts vigentes de Claude Code y GPT OE Maker para sesiones de desarrollo y redacción de OEs.
 - `CodingWorkshop.md`: registro acumulativo de bugs resueltos, causas raíz y lecciones técnicas.
-- `handoff.md`: historial operativo de OEs ejecutadas y decisiones técnicas.
+- `handoff-archive-2026-06.md`: historial operativo de OEs ejecutadas y decisiones técnicas.
 - `PRODUCT_STATUS.md`: estado de features del producto.
 
 ---
@@ -171,7 +171,7 @@ lib/
   map/
     buildAgentLayout.ts          ← Legacy (no usado por v3)
   providers/
-    anthropic.ts | openai.ts | google.ts | groq.ts | local.ts
+    anthropic.ts | openai.ts | google.ts | groq.ts (retired 2026-07-10) | local.ts
     index.ts                     ← Registry + factory getProvider()
     types.ts                     ← ChatMessage, ChatProvider, ProviderConfig
   storage/contextFiles.ts        ← Upload/signed URL en Supabase Storage
@@ -758,7 +758,7 @@ Click fuera del contenedor cierra el modal. No se usa portal, no hay librería d
 La CLI de Supabase no está vinculada al proyecto remoto en este entorno. Toda migración nueva debe:
 1. Crearse como archivo `.sql` en `supabase/migrations/`
 2. Ejecutarse manualmente en Supabase Dashboard → SQL Editor
-3. Documentarse en `PRODUCT_STATUS.md` + `handoff.md`
+3. Documentarse en `PRODUCT_STATUS.md` + `handoff-archive-2026-06.md`
 
 ---
 
@@ -774,7 +774,7 @@ Componente más crítico del sistema. Orquesta 3 paneles, 3 modales, el counter 
 
 ### 9.3 `AppLayout` scroll chain
 
-`scrollable={false}` requiere que el `<main>` tenga `flex flex-col` y que todos los descendientes usen `min-h-0` + `flex-1` correctamente. Romper la cadena causa que el scroll desaparezca en todas las vistas de altura fija. Ver historia completa en handoff.md.
+`scrollable={false}` requiere que el `<main>` tenga `flex flex-col` y que todos los descendientes usen `min-h-0` + `flex-1` correctamente. Romper la cadena causa que el scroll desaparezca en todas las vistas de altura fija. Ver historia completa en handoff-archive-2026-06.md.
 
 ### 9.4 RLS
 
@@ -1004,7 +1004,7 @@ AISync usa una interfaz `RateLimiter` desacoplada del proveedor (`src/lib/rate-l
 
 ### Provider API key resolution
 
-AISync resuelve API keys mediante `src/lib/providers/resolveApiKey.ts`. `resolveProviderApiKey(supabase, userId, provider)` centraliza: providers conocidos (`KNOWN_PROVIDERS` — incluye Groq), custom providers (devuelve `endpointUrl` + `api_key` nullable), BYOK por `user_api_keys`, y fallback de entorno solo en development. Devuelve `null` si no hay key — la route decide el 400. `'IA Local'` se maneja en la route antes del helper (usa endpoint del request). Las routes chat y sm-doc-chat no deben mantener listas propias de providers — toda route nueva que consuma providers usa este helper.
+AISync resuelve API keys mediante `src/lib/providers/resolveApiKey.ts`. `resolveProviderApiKey(supabase, userId, provider)` centraliza: providers conocidos (`KNOWN_PROVIDERS` — incluye Groq para compatibilidad legacy), custom providers (devuelve `endpointUrl` + `api_key` nullable), BYOK por `user_api_keys`, y fallback de entorno solo en development. Devuelve `null` si no hay key — la route decide el 400. `'IA Local'` se maneja en la route antes del helper (usa endpoint del request). Las routes chat y sm-doc-chat no deben mantener listas propias de providers — toda route nueva que consuma providers usa este helper.
 
 ### API ownership hardening
 
@@ -1155,7 +1155,7 @@ GPT OE Maker → Claude Chat (Manager) ya es viable hoy en AISync: ambos son cha
 Lo que falta es el tercer eslabón: un Worker que sea un agente de ejecución de código real (Claude Code, GPT Code, o similar), con capacidad de leer/escribir archivos y ejecutar comandos — no solo generar texto.
 
 #### Por qué es distinto a un Worker normal
-Los Workers actuales (Anthropic, OpenAI, Google, Groq) son chat completions puros: reciben texto, devuelven texto, sin acceso a filesystem.
+Los Workers actuales (Anthropic, OpenAI, Google) son chat completions puros: reciben texto, devuelven texto, sin acceso a filesystem.
 
 Claude Code (y herramientas similares) operan distinto: ejecutan un bucle de herramientas (leer archivo, escribir archivo, correr comando, repetir) sobre un repositorio real. No tienen una API de "chat completion" tradicional — requieren modo headless/SDK y un entorno de ejecución con acceso al repo.
 

@@ -9,10 +9,10 @@ Estos prompts deben respetarse en toda sesión de trabajo.
 
 # AISync MVP — Claude Code Reference
 
-## RUTINA DURA — Actualización de handoff.md
+## RUTINA DURA — Actualización de handoff-2026-07-b.md
 
 Al cerrar cada OE, ANTES de confirmar que está cerrada,
-Claude Code DEBE actualizar handoff.md con:
+Claude Code DEBE actualizar handoff-2026-07-b.md con:
 
 1. Fecha y título de la OE
 2. Archivos modificados
@@ -138,7 +138,7 @@ No ejecutás código. No tomás decisiones de arquitectura. No ampliás scope. S
 **Documentación técnica de referencia:**
 - `AISyncPlans.md` — planos técnicos del sistema
 - `CodingWorkshop.md` — registro de problemas resueltos
-- `handoff.md` — historial de OEs ejecutadas
+- `handoff-2026-07-b.md` — historial de OEs ejecutadas
 - `PRODUCT_STATUS.md` — estado de features
 
 ---
@@ -169,7 +169,7 @@ Commit requerido: [mensaje exacto]
    ### 7.2 Build
    ### 7.3 Validación manual mínima
 ## 8. ACTUALIZACIÓN DE DOCUMENTACIÓN
-   ### 8.1 handoff.md
+   ### 8.1 handoff-2026-07-b.md
    ### 8.2 PRODUCT_STATUS.md
    ### 8.3 AISyncPlans.md
    ### 8.4 CodingWorkshop.md
@@ -282,7 +282,7 @@ No commit si falla.
 
 Esta sección es obligatoria en toda OE. Nunca omitir.
 
-### 8.1 handoff.md
+### 8.1 handoff-2026-07-b.md
 Bloque de cierre con diagnóstico, archivos tocados, cambios, restricciones, validaciones, build, commit y riesgos.
 
 ### 8.2 PRODUCT_STATUS.md
@@ -333,7 +333,7 @@ Toda OE termina con push. Sin excepción.
 8. Validación manual
 9. Commit hash
 10. Push confirmado
-11. `handoff.md` ✓
+11. `handoff-2026-07-b.md` ✓
 12. `PRODUCT_STATUS.md` ✓ / sin cambios
 13. `AISyncPlans.md` ✓ / sin cambios requeridos
 14. `CodingWorkshop.md` ✓ entrada agregada / sin entrada requerida
@@ -381,7 +381,7 @@ Toda OE termina con push. Sin excepción.
 
 Toda intervención — OE formal o directiva suelta — debe cerrar con:
 
-- Actualización de `handoff.md`
+- Actualización de `handoff-2026-07-b.md`
 - Actualización de `PRODUCT_STATUS.md`
 - Actualización de `AISyncPlans.md` si consolida patrón
 - `CodingWorkshop.md` si hay bug o lección técnica

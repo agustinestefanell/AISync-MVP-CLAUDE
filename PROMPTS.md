@@ -92,7 +92,7 @@ generar reporte estructurado:
 ### 2. Archivos modificados
 - archivo/path.tsx (líneas X-Y: descripción)
 - archivo/path2.ts (líneas A-B: descripción)
-- docs/handoff.md (entrada agregada)
+- docs/handoff-2026-07-b.md (entrada agregada)
 
 ### 3. Alcance técnico
 - Qué se cambió: [frontend/backend/DB/config]
@@ -117,7 +117,7 @@ generar reporte estructurado:
 - Migraciones/pasos manuales pendientes: [lista o "Ninguno"]
 
 ### 7. Documentación actualizada
-- [✅/❌] handoff.md / CHANGELOG
+- [✅/❌] handoff-2026-07-b.md / CHANGELOG
 - [✅/❌] README / docs técnicos
 - [✅/❌] Comentarios en código (si aplica)
 

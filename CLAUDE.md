@@ -14,7 +14,7 @@ Claude Code DEBE actualizar el archivo de handoff activo con:
 **Archivo activo:** `handoff-2026-07-b.md` (desde 2026-07-12)
 **Archivos anteriores:** 
 - `handoff-archive-2026-07-a.md` (cerrado 2026-07-12, 168KB)
-- `handoff.md` (cerrado 2026-06-30, 576KB, histórico)
+- `handoff-archive-2026-06.md` (cerrado 2026-06-30, 576KB, histórico)
 
 **Regla de rotación:** Cuando el archivo activo alcance ~400KB, crear
 archivo nuevo con sufijo secuencial (`handoff-YYYY-MM-c.md`, etc.), 

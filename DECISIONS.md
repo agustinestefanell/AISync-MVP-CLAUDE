@@ -3,11 +3,11 @@
 Registro de decisiones de producto y arquitectura tomadas durante el desarrollo del MVP.
 
 Este archivo no es roadmap.
-Este archivo no reemplaza `AISyncPlans.md`, `PRODUCT_STATUS.md` ni `handoff.md`.
+Este archivo no reemplaza `AISyncPlans.md`, `PRODUCT_STATUS.md` ni `handoff-2026-07-b.md`.
 
 Su función es preservar decisiones ya tomadas para evitar discusiones repetidas, contradicciones futuras o pérdida de contexto entre sesiones.
 
-Regla: no documentar como decisión nada que no esté respaldado por `handoff.md`, `AISyncPlans.md` o `PRODUCT_STATUS.md`.
+Regla: no documentar como decisión nada que no esté respaldado por `handoff-2026-07-b.md`, `AISyncPlans.md` o `PRODUCT_STATUS.md`.
 
 ---
 
@@ -383,7 +383,7 @@ accede con scope aislado, sincronizado via Supabase Realtime.
 - **Caso de uso concreto:** `welcome_viewed_by_invitee` en OE B.3 — cuando un invitado acepta conexión y entra al isolated workspace, ve bienvenida solo la primera vez. El flag persiste por conexión (no globalmente) y cross-dispositivo automáticamente.
 - **Patrón reutilizable:** Server-side check en page.tsx (detecta contexto + flag) → pasar metadata a client component → renderizar modal condicionalmente → API endpoint marca flag como visto. Extensible a otros onboardings contextuales: `first_checkpoint_created`, `admin_panel_first_visit`, `prompt_library_first_use`.
 - **Lección clave:** Los flags de estado de UX deben vivir cerca de su contexto relacional. Si el flag es específico de una relación (conexión, workspace, team), debe vivir en la tabla de esa relación. `accounts` es para estado global del usuario, no para estado contextual de features.
-- **Estado:** Implemented en OE B.3 (commit df105c8), documentado en handoff.md 2026-06-18
+- **Estado:** Implemented en OE B.3 (commit df105c8), documentado en handoff-2026-07-b.md 2026-06-18
 
 
 ---
@@ -687,28 +687,28 @@ Componentes que renderizan estructuras variables (SAT/MAT/isolated) deben adapta
 
 ---
 
-## 2026-06-22 — Rutina de cierre duro obligatoria (handoff.md)
+## 2026-06-22 — Rutina de cierre duro obligatoria (handoff-2026-07-b.md)
 
 **Contexto:**
-Auditoría de cierres detectó que faltaban 4 commits sin entrada en handoff.md (e5177df, 5b2203f, 9ffdffc, 7362c57, c038fab). Gap documental requirió backfill exhaustivo de ~300 líneas de contexto.
+Auditoría de cierres detectó que faltaban 4 commits sin entrada en handoff-2026-07-b.md (e5177df, 5b2203f, 9ffdffc, 7362c57, c038fab). Gap documental requirió backfill exhaustivo de ~300 líneas de contexto.
 
 **Decisión:**
-Establecer rutina de cierre duro obligatoria: actualizar handoff.md ANTES de declarar OE cerrada, sin excepciones. Una OE no está cerrada hasta que handoff.md está actualizado.
+Establecer rutina de cierre duro obligatoria: actualizar handoff-2026-07-b.md ANTES de declarar OE cerrada, sin excepciones. Una OE no está cerrada hasta que handoff-2026-07-b.md está actualizado.
 
 **Por qué:**
 - Gap documental de 4 commits requirió sesión adicional de backfill (costo de tokens y tiempo)
 - Sin trazabilidad de decisiones técnicas y alternativas descartadas, sesiones futuras requieren re-derivar contexto
-- handoff.md es única fuente de verdad para "por qué se hizo así" — sin él, solo tenemos "qué se hizo" (git log)
+- handoff-2026-07-b.md es única fuente de verdad para "por qué se hizo así" — sin él, solo tenemos "qué se hizo" (git log)
 - Ritual de cierre debe ser hard requirement, no "nice to have"
 
 **Protocolo:**
-1. Al finalizar OE/mini-OE/fix: actualizar handoff.md PRIMERO
+1. Al finalizar OE/mini-OE/fix: actualizar handoff-2026-07-b.md PRIMERO
 2. Verificar que entrada incluye: commits, archivos modificados, decisión técnica, alternativas descartadas, riesgos conocidos
 3. Solo después: build, commit, push
-4. Reporte final debe confirmar "handoff.md updated" explícitamente
+4. Reporte final debe confirmar "handoff-2026-07-b.md updated" explícitamente
 
 **Alternativas descartadas:**
-- Actualizar handoff.md "cuando haya tiempo" — descartado porque genera gaps documentales
+- Actualizar handoff-2026-07-b.md "cuando haya tiempo" — descartado porque genera gaps documentales
 - Handoff opcional solo para OEs grandes — descartado porque mini-OEs y fixes también necesitan trazabilidad
 - Usar git commit messages como única fuente de verdad — descartado porque commits no capturan alternativas descartadas ni riesgos conocidos
 
@@ -1082,13 +1082,13 @@ Agregado en `teams/page.tsx` (misma directiva que ya existe en `workspace/[id]/p
 
 ---
 
-## 2026-06-30 � Connected Teams Etapa 8b y 8c: Eliminaci�n completa de scope_isolated_* (c�digo + schema)
+## 2026-06-30 � Connected Teams Etapa 8b y 8c: Eliminaci�n completa de scope_isolated_* (c�digo + schema)
 
-- **Decisi�n:** Eliminar completamente los campos legacy `scope_isolated_team_id` y `scope_isolated_workspace_id` del sistema, tanto en c�digo TypeScript (Etapa 8b) como en schema de DB (Etapa 8c), dejando �nicamente la arquitectura de dos edificios separados validada en Etapas 0-5.
+- **Decisi�n:** Eliminar completamente los campos legacy `scope_isolated_team_id` y `scope_isolated_workspace_id` del sistema, tanto en c�digo TypeScript (Etapa 8b) como en schema de DB (Etapa 8c), dejando �nicamente la arquitectura de dos edificios separados validada en Etapas 0-5.
 
 - **Mot
 
-ivo:** Con la arquitectura de dos edificios completamente implementada y validada (cada usuario due�o de su propio proyecto/team/workspace), los campos legacy y sus pol�ticas RLS asociadas son completamente redundantes. Mantenerlos aumenta complejidad, superficie de ataque, y riesgo de regresi�n futura a la arquitectura incorrecta.
+ivo:** Con la arquitectura de dos edificios completamente implementada y validada (cada usuario due�o de su propio proyecto/team/workspace), los campos legacy y sus pol�ticas RLS asociadas son completamente redundantes. Mantenerlos aumenta complejidad, superficie de ataque, y riesgo de regresi�n futura a la arquitectura incorrecta.
 
-- **Estado:** Etapas 8b y 8c COMPLETADAS (c�digo + schema), validaci�n en vivo PENDIENTE (2026-06-30)
+- **Estado:** Etapas 8b y 8c COMPLETADAS (c�digo + schema), validaci�n en vivo PENDIENTE (2026-06-30)
 

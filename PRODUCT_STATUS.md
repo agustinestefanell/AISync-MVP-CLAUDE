@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-07-03 (Dashboard visual redesign — ⚠️ Partial, code complete, pending visual validation)
+Last updated: 2026-07-14 (Teams Map v3 hierarchical org chart — Closed, validated)
 
 ---
 
@@ -71,7 +71,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Connected Teams — + Connect button | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón `+ Connect` en header abre `ConnectTeamModal`. Re-fetch post-connect. |
 | ConnectTeamModal — team codes en dropdown | ✅ Closed | commit fix: show team codes in ConnectTeamModal host team dropdown | `computeTeamCodes` + `useMemo` + sort por código + `{code} · {name}`. Mismo patrón que `AddTeamModal`. |
 | Connected Teams — Requests panel | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón `Requests` con badge rojo (count incoming pendientes). Abre `IncomingRequestsPanel`. Accept automático (isolated team creado por backend). Reject. Re-fetch post-action. **IncomingRequestsPanel cleanup (2026-07-06):** Sección redundante "Active connections (incoming)" eliminada — conexiones activas permanecen visibles en Dashboard / Connected Teams panel con mejor jerarquía visual (avatares, badges Host/Invitee) y acciones completas. Modal ahora enfocado únicamente en pending requests. Validado visualmente en producción (2026-07-06): modal con 1 solicitud pendiente muestra Accept/Reject correctamente; modal sin solicitudes muestra "No pending requests." limpio, sin restos de la sección eliminada. |
-| **Connected Teams — Mini OE post OE-A fixes** | ✅ Closed | Mini OE 2026-06-13 | 3 fixes: (1) Isolated team card badge → fondo negro con letras blancas; (2) "Open →" en dashboard navega a workspace del isolated team cuando existe; (3) Modal accept invitado sin selector de team + mensaje informativo. Incluye modificación de backend para hacer receiver_team_id opcional. Ver handoff.md para detalle completo. |
+| **Connected Teams — Mini OE post OE-A fixes** | ✅ Closed | Mini OE 2026-06-13 | 3 fixes: (1) Isolated team card badge → fondo negro con letras blancas; (2) "Open →" en dashboard navega a workspace del isolated team cuando existe; (3) Modal accept invitado sin selector de team + mensaje informativo. Incluye modificación de backend para hacer receiver_team_id opcional. Ver handoff-archive-2026-06.md para detalle completo. |
 | **ConnectTeamModal redesign + Shared Session visual** | ✅ Closed | Mini OE 2026-06-13 | ConnectTeamModal simplificado: no host team selector (auto-usa primer team), descripción obligatoria, paleta de 8 colores. Migration 030: description/color en team_connections. Dashboard muestra descripción. TeamAgentCard: Shared Session full-card black background, white text, labels personalizados (Host + AI, Guest + AI, Host ↔ Guest). |
 | Connected Teams — Disconnect | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | Botón Disconnect inline → confirmación con email del partner → botón rojo confirm + Cancel. Usa `PATCH { action: 'reject' }` (no DELETE — solo para pending+requester). |
 | Connected Teams — IncomingRequestsPanel light mode | ✅ Closed | commit feat: complete connected teams - open, incoming requests, disconnect | 7 clases dark reemplazadas: borders, títulos, emails, labels, select, botones Confirm/Accept/Reject todos en light tokens. |
@@ -79,10 +79,10 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Connected Teams — "How it works" link | ✅ Closed | commit fix: replace ? button with how connected teams work link | Link de texto `How Connected Teams work` debajo del título de la columna. Abre `HowConnectedTeamsModal`. |
 | Connected Teams — How it works modal (v2) | ✅ Closed | commit docs: update how connected teams work modal with approved content | 6 secciones aprobadas + tabla quick reference (5 filas: send/accept/view/map/disconnect). Modal ampliado a `max-w-2xl`. |
 | Connected Teams — Realtime updates | Partial | commit b9d4b72 | Dashboard connections: realtime ✅. Pending badge: realtime ✅. Disconnect en cuenta pasiva: pendiente OE B completo. |
-| **Connected Teams — Dashboard "Open" button fix** | ✅ Closed | commit da4042e | Dashboard botón "Open" usaba `scope_isolated_workspace_id` sin dual-read → invitees navegaban al workspace del host. Fix: nueva función `getUserIsolatedWorkspaceId()` en `connections.ts` (dual-read host/invitee con fallback legacy). ProjectList.tsx actualizado. Invitees ahora navegan a su propio workspace. Ver handoff.md 2026-06-29. |
-| **Connected Teams — Teams Map deduplication** | ✅ Closed | commit 65c06d7 | Invitees veían dos tarjetas idénticas del mismo isolated team (aparecía en `projects.flatMap()` Y `isolatedTeams`). Fix: deduplicar `allTeams` por `team.id` usando Map en `teams/page.tsx`. Una sola tarjeta por team ahora. Ver handoff.md 2026-06-29. |
+| **Connected Teams — Dashboard "Open" button fix** | ✅ Closed | commit da4042e | Dashboard botón "Open" usaba `scope_isolated_workspace_id` sin dual-read → invitees navegaban al workspace del host. Fix: nueva función `getUserIsolatedWorkspaceId()` en `connections.ts` (dual-read host/invitee con fallback legacy). ProjectList.tsx actualizado. Invitees ahora navegan a su propio workspace. Ver handoff-archive-2026-06.md 2026-06-29. |
+| **Connected Teams — Teams Map deduplication** | ✅ Closed | commit 65c06d7 | Invitees veían dos tarjetas idénticas del mismo isolated team (aparecía en `projects.flatMap()` Y `isolatedTeams`). Fix: deduplicar `allTeams` por `team.id` usando Map en `teams/page.tsx`. Una sola tarjeta por team ahora. Ver handoff-archive-2026-06.md 2026-06-29. |
 | **Chat-First Onboarding** | ✅ Closed | Commits 5721d17, 5ee3b70, 01aca2c, 464a661, e22ec23, 373853c, ff56050 | Usuario nuevo redirigido a /start. Layout 3 columnas portado de PageJ.tsx demo. Modal provider (Groq, Gemini, Anthropic, OpenAI). Validación pre-flight API key. **Campos Project name y Team name editables** (defaults: My First Project / My First Team, feat 373853c). Auto-creación: Project + Team SAT + Workspace + 3 sessions. **Groq default model actualizado** a llama-3.3-70b-versatile (fix ff56050). initialIntent como **prefill del input** (no autostart) — Usuario ve su texto pre-llenado en el Manager y presiona Send cuando quiera. Autostart eliminado (fix e22ec23: -50 líneas netas, mejor UX, sin timing issues). Skip setup disponible. Dashboard redirect si onboarding_completed=false. Manual migration 032 pending in Supabase. |
-| **Start Page — Sober Visual Translation** | ✅ Closed | OE-S8-002, 2026-06-17 | Rediseño visual de /start de colorido a sobrio monocromático institucional. Paleta reducida a grises + blanco + azul solo en CTA. Contenido y nomenclatura preservados 100% (Main AI Session, Research/Review, badge AI, 4 nodos jerárquicos). Sombras mínimas, bordes finos uniformes, ilustraciones simplificadas. Lógica funcional intacta (handlers, validación, API key flow, routing). Ver handoff.md 2026-06-17. |
+| **Start Page — Sober Visual Translation** | ✅ Closed | OE-S8-002, 2026-06-17 | Rediseño visual de /start de colorido a sobrio monocromático institucional. Paleta reducida a grises + blanco + azul solo en CTA. Contenido y nomenclatura preservados 100% (Main AI Session, Research/Review, badge AI, 4 nodos jerárquicos). Sombras mínimas, bordes finos uniformes, ilustraciones simplificadas. Lógica funcional intacta (handlers, validación, API key flow, routing). Ver handoff-archive-2026-06.md 2026-06-17. |
 
 ---
 
@@ -190,7 +190,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | 023_token_usage.sql | ✅ Applied — 2026-06-10, manually via Supabase SQL Editor |
 | 024_token_usage_capture_method.sql | ✅ Applied — 2026-06-10, manually via Supabase SQL Editor |
 | 025_workspaces_update_policy.sql | ✅ Applied — 2026-06-11, manually via Supabase SQL Editor (SEC-007) |
-| 026_vault_api_keys.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor inmediatamente después del deploy (SEC-005); luego backfill manual (SQL en handoff.md 2026-06-12) |
+| 026_vault_api_keys.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor inmediatamente después del deploy (SEC-005); luego backfill manual (SQL en handoff-archive-2026-06.md 2026-06-12) |
 | 027_active_project.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (ARC-004 Switch Project); su prueba post-aplicación verifica además SEC-002 |
 | 028_scope_isolated_team.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE A Scope Isolated Team); extiende constraint teams_type_check + agrega scope_isolated_team_id + RLS policies para invitee |
 | 029_isolated_workspace_id.sql | ⏳ PENDING — aplicar manualmente en Supabase SQL Editor (OE A extended); agrega team_connections.scope_isolated_workspace_id |
@@ -313,7 +313,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 - GET settings muestra `key_last4` — nunca la API key real
 - DELETE borra fila + secret en Vault (sin secrets huérfanos)
 - ⚠️ Ventana conocida: guardar keys nuevas da 500 hasta aplicar la 026 (deliberado — sin fallback plaintext)
-- Backfill manual pendiente (SQL en handoff.md 2026-06-12)
+- Backfill manual pendiente (SQL en handoff-archive-2026-06.md 2026-06-12)
 - Limpieza de plaintext legacy → fase posterior, tras validar Vault-first en producción
 
 ---

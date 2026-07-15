@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Repositorio acumulativo de bugs resueltos, causas raíz, procesos de diagnóstico y lecciones técnicas del proyecto AISync MVP. Alimentado desde `handoff.md`. No reemplazar entradas anteriores — agregar al final.
+Repositorio acumulativo de bugs resueltos, causas raíz, procesos de diagnóstico y lecciones técnicas del proyecto AISync MVP. Alimentado desde `handoff-archive-2026-06.md`. No reemplazar entradas anteriores — agregar al final.
 
 Cada entrada documenta lo que fue difícil, por qué falló, cómo se resolvió y qué no volver a repetir. El objetivo es que un Worker nuevo pueda leer esto antes de tocar zonas sensibles del sistema.
 
@@ -992,7 +992,7 @@ Agregar política RLS para Invitee access en 13 tablas:
 - `checkpoints`, `checkpoint_messages` (ALTO — feature core)
 - `session_attachments`, `session_tool_calls` (MEDIO — features avanzadas)
 - `token_usage` (MEDIO-ALTO — bloqueante para billing real, no urgente para operación actual)
-- 7 tablas adicionales con menor impacto (ver auditoría completa en handoff.md)
+- 7 tablas adicionales con menor impacto (ver auditoría completa en handoff-archive-2026-06.md)
 
 Patrón a seguir (ejemplo para `messages`):
 ```sql
@@ -1036,7 +1036,7 @@ Auditoría completa encontró 13 tablas con políticas inseguras para Connected 
 - 4 media-alta (billing/compliance/features avanzadas)
 - 6 baja (administrativas/opcionales, requieren decisión arquitectónica)
 
-Ver `handoff.md` entrada 2026-06-24 para tabla completa de auditoría con las 20 tablas evaluadas.
+Ver `handoff-archive-2026-06.md` entrada 2026-06-24 para tabla completa de auditoría con las 20 tablas evaluadas.
 
 **Archivos involucrados:**
 - `supabase/migrations/002_messages.sql` — políticas originales (pre-Connected Teams)
@@ -1189,7 +1189,7 @@ exists (
 **Archivos:**
 - `supabase/migrations/041_invitee_checkpoints_access.sql` — nueva migración
 - `src/components/workspace/WorkspaceShell.tsx` — res.ok check en confirmSave
-- `handoff.md` — entrada completa con doble validación
+- `handoff-archive-2026-06.md` — entrada completa con doble validación
 - `CodingWorkshop.md` — esta entrada
 - `PRODUCT_STATUS.md` — actualizado
 
