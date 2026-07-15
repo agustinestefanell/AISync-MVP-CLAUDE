@@ -2,7 +2,45 @@
 
 Documento de referencia técnica para Workers nuevos o relevos. Basado en lectura directa del código activo, migraciones y handoff-archive-2026-06.md. No es documentación de marketing.
 
-Última actualización: 2026-07-13
+Última actualización: 2026-07-15
+
+---
+
+## Archived Teams Contract
+
+**Status manda. Tags son secundarios.**
+
+Archived Teams feature uses structural state (`teams.status`) as the source of truth for archived state. Tags remain auxiliary classification only and must never be treated as determining archive state.
+
+**Schema:**
+- `teams.status`: `'active' | 'archived'` (NOT NULL, default 'active', constraint enforced)
+- `teams.archived_at`: TIMESTAMPTZ (when team was archived, NULL for active)
+- `teams.archived_by`: UUID (user who archived, NULL for active, no FK to auth.users)
+- `teams.archive_reason`: TEXT (optional free-text reason, NULL if not provided)
+
+**Archive behavior:**
+- Archiving sets status='archived', populates archived_at/by/reason
+- Archiving **never deletes** workspaces, agent_sessions, messages, checkpoints, context_sources, or documentation
+- All related history is preserved intact
+- Archive is executed via PATCH `/api/teams/[id]` with `{ action: 'archive', archive_reason?: string }`
+- Ownership validated by existing RLS policy `teams_update` (confirmed applied in production 2026-07-15)
+
+**Restore:**
+- Restore/Unarchive is **not exposed in MVP**
+- Future implementation would reverse status to 'active' and clear archived_at/by/reason
+
+**UI/UX:**
+- EditTeamModal provides "Archive Team" button with double-click confirmation pattern
+- Teams Map archived visibility/UX belongs to Fase 1B (hide by default, "Show archived teams" toggle, visual attenuation)
+- Audit log events (`team_archived`) belong to Fase 1C
+
+**Metadata:**
+- `audit_log.metadata` already exists as JSONB and supports future lightweight archive snapshots without requiring audit_log migration
+- Formal snapshot tables are deferred to Fase 2
+
+**RLS:**
+- Policy `teams_update` confirmed applied in Supabase production (FOR UPDATE USING ownership check via projects.account_id)
+- RLS gap previously documented is officially closed as of 2026-07-15
 
 ---
 

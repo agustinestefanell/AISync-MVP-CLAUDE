@@ -14,6 +14,56 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
+
+  // Handle archive action separately
+  if (body.action === 'archive') {
+    const { archive_reason } = body as { action: 'archive'; archive_reason?: string }
+
+    const { data: updatedData, error: archiveErr } = await supabase
+      .from('teams')
+      .update({
+        status: 'archived',
+        archived_at: new Date().toISOString(),
+        archived_by: user.id,
+        archive_reason: archive_reason?.trim() || null,
+      })
+      .eq('id', params.id)
+      .select()
+
+    if (archiveErr) {
+      console.error('[PATCH /api/teams/[id]] Archive failed - Supabase error', {
+        teamId: params.id,
+        userId: user.id,
+        error: archiveErr
+      })
+      return NextResponse.json({ error: archiveErr.message }, { status: 500 })
+    }
+
+    if (!updatedData || updatedData.length === 0) {
+      console.error('[PATCH /api/teams/[id]] Archive blocked - no rows affected', {
+        teamId: params.id,
+        userId: user.id,
+        possibleCause: 'RLS policy blocked update, team not found, or team does not belong to user\'s projects'
+      })
+      return NextResponse.json({
+        error: 'Failed to archive team. You may not have permission to modify this team, or the team was not found.'
+      }, { status: 403 })
+    }
+
+    const { data: full, error: fullErr } = await supabase
+      .from('teams')
+      .select('*, workspaces(*, agent_sessions(*))')
+      .eq('id', params.id)
+      .single()
+
+    if (fullErr || !full) {
+      return NextResponse.json({ error: 'Could not reload archived team.' }, { status: 500 })
+    }
+
+    return NextResponse.json(full)
+  }
+
+  // Normal team update (name, description, agents, etc.)
   const { name, parentId, agents, description, lead_role } = body as {
     name: string
     parentId: string | null

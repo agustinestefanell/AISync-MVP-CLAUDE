@@ -84,6 +84,8 @@ export default function EditTeamModal({ team, allTeams, projects, onClose, onUpd
   const [error, setError]             = useState('')
   const [saving, setSaving]           = useState(false)
   const [confirming, setConfirming]   = useState(false)
+  const [confirmingArchive, setConfirmingArchive] = useState(false)
+  const [archiveReason, setArchiveReason] = useState('')
   const [showAddSubTeam, setShowAddSubTeam] = useState(false)
 
   useEffect(() => {
@@ -167,6 +169,40 @@ export default function EditTeamModal({ team, allTeams, projects, onClose, onUpd
       setError('Network error.')
     }
     finally { setSaving(false) }
+  }
+
+  async function handleArchive() {
+    if (!confirmingArchive) { setConfirmingArchive(true); return }
+    setSaving(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/teams/${team.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'archive',
+          archive_reason: archiveReason.trim() || null,
+        }),
+      })
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('[EditTeamModal] Failed to archive team', {
+          status: res.status,
+          teamId: team.id,
+          error: errorData.error,
+        })
+        setError(errorData.error ?? 'Error archiving team.')
+        setSaving(false)
+        return
+      }
+      const updatedTeam = await res.json()
+      onUpdated(updatedTeam)
+      onClose()
+    } catch (err) {
+      console.error('[EditTeamModal] Network error archiving team', err)
+      setError('Network error.')
+      setSaving(false)
+    }
   }
 
   async function handleDelete() {
@@ -356,6 +392,24 @@ export default function EditTeamModal({ team, allTeams, projects, onClose, onUpd
           )}
 
           {error && <p className="text-xs text-red-600 mt-3">{error}</p>}
+
+          {/* ── Archive confirmation section ── */}
+          {confirmingArchive && (
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs font-semibold text-amber-900 mb-2">Archive this team?</p>
+              <p className="text-xs text-amber-700 mb-3">
+                The team will be marked as archived. All workspaces, chat history, checkpoints, and context files will be preserved.
+              </p>
+              <label className="block text-xs font-medium text-amber-900 mb-1.5">Reason (optional)</label>
+              <textarea
+                value={archiveReason}
+                onChange={e => setArchiveReason(e.target.value)}
+                placeholder="Why are you archiving this team?"
+                rows={2}
+                className="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors resize-none"
+              />
+            </div>
+          )}
         </div>
 
         {/* ── Footer ── */}
@@ -374,6 +428,17 @@ export default function EditTeamModal({ team, allTeams, projects, onClose, onUpd
               className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] border border-[var(--color-border-default)] hover:border-[var(--color-accent)] px-3 py-2 rounded-lg transition-colors"
             >
               Add Sub Team
+            </button>
+            <button
+              onClick={handleArchive}
+              disabled={saving}
+              className={`text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
+                confirmingArchive
+                  ? 'bg-amber-600 hover:bg-amber-500 text-white'
+                  : 'border border-amber-600 text-amber-600 hover:text-amber-500 hover:border-amber-500'
+              }`}
+            >
+              {confirmingArchive ? 'Confirm archive' : 'Archive Team'}
             </button>
             <button
               onClick={handleDelete}

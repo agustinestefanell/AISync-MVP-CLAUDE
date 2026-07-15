@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-07-14 (Teams Map v3 hierarchical org chart — Closed, validated)
+Last updated: 2026-07-15 (Archived Teams Fase 1A — structural state implemented, pending migration + PO validation)
 
 ---
 
@@ -116,6 +116,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | SAT structured context (chat API) | ✅ Live | commit 0f40de5 | Layers 1/3/4 — commit 0f40de5 |
 | Add Team — parent dropdown con códigos jerárquicos | ✅ Closed | commit c24694e | `computeTeamCodes` importado en `AddTeamModal`. Dropdown ordenado por código. Cada option muestra `A-01 · Team Name`. Fallback `—` para teams sin código. Autocontenido — sin cambios al componente padre. |
 | **Add Team — Project selector** | ⏳ Partial | Pending commit | **Selector de Project durante creación de teams.** AddTeamModal ahora recibe `projects[]` como prop y muestra dropdown Project cuando `projects.length > 1`. Si hay 1 solo Project, selector NO visible (auto-selección). State `selectedProjectId` inicializado con `projectId` default, enviado en payload. TeamsClient pasa `projectOptions` (de `/api/projects/active`) a AddTeamModal y EditTeamModal. EditTeamModal pasa `projects` a AddTeamModal (subteams). ProjectList pasa `projects` a EditTeamModal (Dashboard scenario). Endpoint `/api/teams` POST NO tocado (ya acepta y persiste `projectId` correctamente). Validaciones: lint ✅, build ✅, grep selectedProjectId ✅. **Pending:** PO validation con screenshot (1 Project sin selector, múltiples Projects con selector, team creado en Project elegido). |
+| **Archived Teams — Fase 1A** | ⏳ Partial | Pending commit | **Estado estructural base implementado.** Migration 049 agrega columnas: status (active/archived), archived_at, archived_by (UUID), archive_reason (TEXT). types.ts extendido con TeamStatus y 4 campos nuevos en Team interface. API PATCH con action='archive' pobla status/archived_at/archived_by/archive_reason sin borrar workspaces/sessions/chats/checkpoints. EditTeamModal botón "Archive Team" con confirmación double-click + optional reason textarea. **RLS gap oficialmente cerrado:** Policy teams_update confirmada aplicada en Supabase real por PO (no solo archivo repo). audit_log.metadata confirmado existente como JSONB — NO requiere migración para Fase 1C. **Fase 1A scope:** Solo estado estructural. NO Restore/Unarchive, NO Teams Map UX, NO audit_log events (diferidos a fases 1B/1C). Validaciones: lint ✅, build ✅, grep Restore/audit_log: 0 results ✅. **Pending:** Migration 049 aplicada en Supabase + validación funcional PO (13-point checklist). |
 
 ---
 

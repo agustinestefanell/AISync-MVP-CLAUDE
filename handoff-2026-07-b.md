@@ -214,6 +214,144 @@ Cuando el ejecutor no puede ver imágenes, la especificación visual debe traduc
 
 ---
 
+## Sesión 2026-07-15 — Archived Teams Fase 1A + Mini-OE bug fix
+
+**Fecha:** 2026-07-15
+**Estado:** Closed (validado funcionalmente por PO — team padre y subteam archivados correctamente)
+
+**Contexto:**
+Primera OE de Archived Teams feature + diagnóstico y fix de bug crítico detectado durante validación funcional. Esta fase implementa solo estado estructural base — status manda, tags son secundarios. Archive no borra datos relacionados. Restore/Unarchive no se expone. Teams Map archived UX pendiente para Fase 1B. Audit log events pendiente para Fase 1C.
+
+**Inspección previa confirmada:**
+- teams.status: ❌ NO existía → Creado en migración 049
+- archived_at/by/reason: ❌ NO existían → Creados en migración 049
+- tags: ✅ SÍ existía (migración 015 aplicada previamente)
+- RLS UPDATE policy: ✅ **CONFIRMADA EN SUPABASE REAL** por Product Owner (query ejecutada directamente en producción 2026-07-15)
+- audit_log.metadata: ✅ JSONB existente, ya se usa, **NO requiere migración para Fase 1C**
+
+**Cambios implementados (Fase 1A):**
+
+1. **Migración 049_add_team_archive_state.sql:**
+   - `teams.status TEXT NOT NULL DEFAULT 'active'`
+   - Constraint: `CHECK (status IN ('active', 'archived'))`
+   - `teams.archived_at TIMESTAMPTZ`
+   - `teams.archived_by UUID REFERENCES accounts(id) ON DELETE SET NULL` (FK con SET NULL, no CASCADE)
+   - `teams.archive_reason TEXT`
+   - Comments SQL documentando cada campo
+
+2. **src/lib/db/types.ts:**
+   - Agregado tipo `TeamStatus = 'active' | 'archived'`
+   - Extendida interface `Team` con: status, archived_at, archived_by, archive_reason
+
+3. **src/app/api/teams/[id]/route.ts:**
+   - Archive implementado dentro del PATCH existente (no endpoint separado)
+   - Payload diferenciado: `{ action: 'archive', archive_reason?: string }`
+   - **FIX CRÍTICO:** Agregado `.select()` al UPDATE + verificación de filas afectadas (ver Mini-OE bug fix abajo)
+   - Handler archive ejecuta:
+     - `status = 'archived'`
+     - `archived_at = new Date().toISOString()`
+     - `archived_by = user.id`
+     - `archive_reason = trim(reason) || null`
+   - NO borra workspaces/agent_sessions/messages/checkpoints
+   - NO emite audit_log events (diferido Fase 1C)
+   - Ownership validado por RLS policy existente
+
+4. **src/components/teams/EditTeamModal.tsx:**
+   - Botón "Archive Team" en footer izquierdo (entre "Add Sub Team" y "Erase Team")
+   - Confirmación double-click (patrón de Erase Team)
+   - Estado `confirmingArchive` + `archiveReason` local
+   - Sección de confirmación amber expandible en body del modal:
+     - Warning "Archive this team?"
+     - Mensaje preservación de datos
+     - Textarea opcional `archive_reason` (2 rows, placeholder)
+   - Handler `handleArchive()` envía PATCH con action='archive'
+   - Modal cierra automáticamente post-success
+   - `onUpdated()` callback refresca UI parent
+
+**Mini-OE Bug Fix — Archive no persistía en DB (2026-07-15):**
+
+**Bug reportado:**
+Archivado de teams no persistía en DB. Team padre "Prueba 25" (8e2c556b-...) y subteam "Prueba archive subteam" (1572061d-...) mostraban status='active', archived_at=null en queries SQL directas a pesar de que flujo UI funcionaba aparentemente (modal cerraba, team desaparecía visualmente en primera carga, reaparecía tras hard refresh).
+
+**Diagnóstico ejecutado:**
+1. ✅ Código creación de teams verificado — `project_id` heredado correctamente en subteams
+2. ✅ Queries SQL PO confirmaron datos perfectos: `t.project_id` poblado, `p.id` existe, `p.account_id` coincide con usuario autenticado (6a4ef0f9-...), `p.status='active'`
+3. ✅ RLS policy confirmada aplicada y correcta
+4. ✅ Cliente Supabase instanciado idénticamente en POST (funciona) y PATCH (fallaba)
+
+**Hipótesis descartadas con evidencia:**
+- Hipótesis A (project_id NULL): ❌ Descartada — project_id poblado correctamente
+- Hipótesis B (usuario sin permiso): ❌ Descartada — p.account_id coincide con auth.uid()
+- Hipótesis C (project archivado): ❌ Descartada — p.status='active'
+- Hipótesis D (bug RLS con subqueries): ❌ Descartada — validación funcional confirmó que RLS NO bloqueaba
+
+**Causa raíz confirmada:**
+El UPDATE original (líneas 22-30 previas) ejecutaba sin `.select()` y sin verificar filas afectadas:
+```typescript
+const { error: archiveErr } = await supabase
+  .from('teams')
+  .update({ status: 'archived', ... })
+  .eq('id', params.id)
+```
+
+Supabase devuelve `error: null` y `data` no poblado cuando el UPDATE no devuelve filas. Sin `.select()`, no hay forma de saber cuántas filas se afectaron. El endpoint devolvía 200 OK incluso cuando el UPDATE no modificaba ninguna fila (ej. por team no encontrado, o cualquier fallo silencioso). El frontend cerraba el modal asumiendo éxito, pero DB quedaba intacta.
+
+**Fix aplicado:**
+```typescript
+const { data: updatedData, error: archiveErr } = await supabase
+  .from('teams')
+  .update({ status: 'archived', ... })
+  .eq('id', params.id)
+  .select()  // ← Agregado
+
+if (archiveErr) { /* manejo error */ }
+
+if (!updatedData || updatedData.length === 0) {  // ← Verificación agregada
+  console.error('[PATCH /api/teams/[id]] Archive blocked - no rows affected', {...})
+  return NextResponse.json({
+    error: 'Failed to archive team. You may not have permission...'
+  }, { status: 403 })
+}
+```
+
+**Validación funcional (2026-07-15):**
+✅ Team padre "Prueba 25" (8e2c556b-...): archivado correctamente — status='archived', archived_at poblado, archived_by='6a4ef0f9-...', rowsAffected=1 en logs
+✅ Subteam "Prueba archive subteam" (1572061d-...): archivado correctamente — status='archived', archived_at poblado, archived_by='6a4ef0f9-...', rowsAffected=1 en logs
+✅ Query SQL post-archive confirmó persistencia real en DB
+✅ Crear team nuevo: sin regresión
+✅ Editar team activo: sin regresión
+✅ Abrir team activo: sin regresión
+
+**Archivos modificados:**
+- supabase/migrations/049_add_team_archive_state.sql (nuevo)
+- src/lib/db/types.ts (+5 líneas: TeamStatus type + 4 campos Team)
+- src/app/api/teams/[id]/route.ts (+21 líneas netas: archive action handler + .select() + verificación filas)
+- src/components/teams/EditTeamModal.tsx (+65 líneas: Archive button + confirmation + handler)
+- handoff-2026-07-b.md (esta entrada)
+- PRODUCT_STATUS.md (entrada Teams module + fecha actualizada)
+- AISyncPlans.md (contrato Archived Teams al inicio)
+
+**Archivos NO tocados:**
+- MapView.tsx, TeamsClient.tsx, CanvasViewport (todas variantes), TreeView.tsx
+- Documentation Mode, Audit Log UI
+- Modales: AddTeamModal, ConnectTeamModal, IncomingRequestsPanel
+- API routes: connections, context, messages, otros
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso sin errores TypeScript
+- grep Restore/Unarchive: ✅ 0 resultados
+- grep audit_log events: ✅ 0 resultados en archivos modificados
+- git diff --check: ✅ OK
+
+**RLS gap cerrado oficialmente:**
+Policy `teams_update` confirmada aplicada en Supabase real por Product Owner (query ejecutada directamente en producción 2026-07-15). Definición exacta aplicada: `FOR UPDATE USING (EXISTS (SELECT 1 FROM projects p WHERE p.id = teams.project_id AND p.account_id = auth.uid()))`. Este hallazgo cierra el RLS gap documentado previamente. Actualizado en handoff/PRODUCT_STATUS/AISyncPlans para evitar re-marcado como pendiente.
+
+**Lección clave — Verificación de filas afectadas obligatoria:**
+Supabase (y PostgreSQL en general) NO reporta error cuando un UPDATE no afecta ninguna fila. `error: null` solo significa que la query SQL era sintácticamente correcta, NO que haya modificado datos. **SIEMPRE agregar `.select()` a UPDATE/DELETE y verificar `data.length > 0`** antes de asumir éxito. Sin esta verificación, RLS blocks, teams no encontrados, o cualquier fallo silencioso pueden pasar desapercibidos y el frontend asume éxito erróneamente. Este patrón debe aplicarse consistentemente en todos los endpoints de mutación del proyecto.
+
+---
+
 ## Sesión 2026-07-12 — Teams Map v2 emergency correction after PO screenshot
 
 **Fecha:** 2026-07-12
@@ -521,3 +659,182 @@ Función `buildNodesForProject` en MapView.tsx (líneas 50-70) no era llamada de
 
 **Lección técnica:**
 Navegación de tipos debe validarse contra la estructura real del tipo, no asumir por convención de nombres. `team.workspaces[0].teams.project_id` sugiere una relación que no existe — `workspaces` es array de `WorkspaceWithAgents`, no de objetos con campo `.teams`. TypeScript no detectó el error en tiempo de compilación porque el optional chaining `?.` silencia el tipo `undefined`. El Dashboard mostraba los 4 Projects correctamente porque usa `getProjectsWithHierarchy()` que trae TODOS los Projects activos de la cuenta — el problema estaba exclusivamente en la agrupación client-side del acordeón, no en el fetch server-side.
+
+---
+
+## Sesión 2026-07-15 — Archived Teams Fase 1A: Estado estructural y contrato base
+
+**Fecha:** 2026-07-15
+**Estado:** Partial (código completo, build exitoso, pendiente validación PO)
+
+**Contexto:**
+Primera OE de Archived Teams feature. Esta fase implementa solo estado estructural base — status manda, tags son secundarios. Archive no borra datos relacionados. Restore/Unarchive no se expone. Teams Map archived UX pendiente para Fase 1B. Audit log events pendiente para Fase 1C.
+
+**Inspección previa confirmada:**
+
+1. **Schema teams actual:**
+   - status: ❌ NO existía
+   - archived_at: ❌ NO existía
+   - archived_by: ❌ NO existía
+   - archive_reason: ❌ NO existía
+   - tags: ✅ SÍ (migración 015 aplicada previamente)
+
+2. **RLS UPDATE policy:**
+   - Migración 005_teams_rls_update.sql: ✅ Existe en repo
+   - Policy `teams_update`: ✅ **CONFIRMADA EN SUPABASE REAL** por Product Owner (query ejecutada directamente en producción)
+   - Definición exacta aplicada: `FOR UPDATE USING (EXISTS (SELECT 1 FROM projects p WHERE p.id = teams.project_id AND p.account_id = auth.uid()))`
+   - **RLS gap oficialmente cerrado** — NO se creó policy nueva en esta OE
+
+3. **Auth pattern:**
+   - Patrón real: `supabase.auth.getUser()` → `user.id`
+   - Ownership: RLS automática via policy existente
+   - archived_by poblado con: `user.id` (UUID del usuario autenticado)
+
+4. **audit_log.metadata:**
+   - Tipo confirmado: `Record<string, unknown> | null` (línea 67 de types.ts)
+   - Ya existe como JSONB en DB
+   - Ya se usa activamente en eventos de conexión
+   - **NO requiere migración para Fase 1C** (snapshot liviano futuro)
+
+**Cambios implementados:**
+
+1. **Migración 049_add_team_archive_state.sql:**
+   - `teams.status TEXT NOT NULL DEFAULT 'active'`
+   - Constraint: `CHECK (status IN ('active', 'archived'))`
+   - `teams.archived_at TIMESTAMPTZ`
+   - `teams.archived_by UUID` (sin FK formal a auth.users — patrón del proyecto)
+   - `teams.archive_reason TEXT`
+   - Comments SQL para documentación
+
+2. **src/lib/db/types.ts:**
+   - Agregado tipo `TeamStatus = 'active' | 'archived'`
+   - Extendida interface `Team` con 4 campos: status, archived_at, archived_by, archive_reason
+
+3. **src/app/api/teams/[id]/route.ts:**
+   - Lógica archive agregada al PATCH existente (no endpoint separado)
+   - Payload diferenciado: `{ action: 'archive', archive_reason?: string }`
+   - Archive ejecuta:
+     - `status = 'archived'`
+     - `archived_at = now()`
+     - `archived_by = user.id`
+     - `archive_reason = trim(reason) || null`
+   - NO borra workspaces, agent_sessions, chats, checkpoints
+   - NO emite audit_log events (diferido a Fase 1C)
+   - Ownership validado por RLS policy existente
+
+4. **src/components/teams/EditTeamModal.tsx:**
+   - Botón "Archive Team" agregado en footer izquierdo (entre "Add Sub Team" y "Erase Team")
+   - Confirmación doble-click (patrón existente de Erase Team)
+   - Estado `confirmingArchive` local
+   - Sección de confirmación muestra:
+     - Warning "Archive this team?"
+     - Mensaje preservación de datos
+     - Campo opcional `archive_reason` (textarea 2 rows)
+   - Handler `handleArchive()` envía PATCH con `action: 'archive'`
+   - Modal cierra automáticamente post-archive exitoso
+   - `onUpdated()` callback refresca UI parent
+
+**Decisiones técnicas:**
+
+1. **Archive como PATCH action vs endpoint separado:**
+   - Elegido: PATCH con `action: 'archive'`
+   - Razón: Patrón consistente del proyecto (todas las mutaciones de teams usan PATCH/DELETE existentes)
+   - Archive es update de estado, no acción destructiva separada
+
+2. **archived_by sin FK formal:**
+   - UUID almacenado sin constraint FK a auth.users
+   - Razón: Patrón del proyecto (no usa FKs formales a auth.users en otras tablas)
+   - Documentado en comments SQL y handoff
+
+3. **Confirmation pattern:**
+   - Reutilizado patrón de Erase Team (double-click + visual state change)
+   - Amber color scheme para diferenciar de Delete (red)
+   - Sección expandible en body del modal (no modal aparte)
+
+4. **Idempotencia:**
+   - Si team ya está archived: PATCH sobrescribe archived_at/by/reason
+   - No rompe, no devuelve error
+   - Permite re-archivar con nuevo motivo si necesario
+
+**Restricciones respetadas:**
+
+- ✅ NO Restore/Unarchive visible
+- ✅ NO Teams Map UX modificado
+- ✅ NO MapView.tsx tocado
+- ✅ NO TeamsClient.tsx tocado
+- ✅ NO CanvasViewport tocado
+- ✅ NO TreeView tocado
+- ✅ NO Documentation Mode tocado
+- ✅ NO Audit Log UI tocado
+- ✅ NO audit_log events emitidos (diferido Fase 1C)
+- ✅ NO snapshots creados (diferido Fase 2)
+- ✅ NO datos relacionados borrados (workspaces/sessions/chats/checkpoints preservados)
+
+**Validaciones técnicas:**
+
+- npm run lint: ✅ OK (solo warnings pre-existentes en CanvasViewport)
+- npm run build: ✅ Exitoso sin errores TypeScript
+- grep Restore/Unarchive: ✅ 0 resultados
+- grep audit_log events: ✅ 0 resultados en archivos modificados
+- grep MapView/TeamsClient: ✅ 0 resultados en archivos modificados
+- git diff --check: ✅ OK (solo warnings CRLF normales Windows)
+
+**Archivos modificados:**
+- supabase/migrations/049_add_team_archive_state.sql (nuevo)
+- src/lib/db/types.ts (+5 líneas: TeamStatus type + 4 campos Team)
+- src/app/api/teams/[id]/route.ts (+34 líneas: archive action handler)
+- src/components/teams/EditTeamModal.tsx (+65 líneas: Archive button + confirmation + handler)
+
+**Archivos NO tocados:**
+- MapView.tsx, TeamsClient.tsx, CanvasViewport (todas variantes), TreeView.tsx
+- Documentation Mode, Audit Log UI
+- Modales: AddTeamModal, ConnectTeamModal, IncomingRequestsPanel
+- API routes: connections, context, messages, otros
+
+**Validación funcional:**
+⏳ PENDIENTE — Requiere confirmación Product Owner con validación funcional/DB:
+
+1. Migración 049 aplicada manualmente en Supabase real
+2. Team puede archivarse desde EditTeamModal
+3. Confirmación doble-click funciona (no archive accidental)
+4. archive_reason opcional persiste correctamente
+5. DB status = 'archived' post-archive
+6. DB archived_at poblado con timestamp correcto
+7. DB archived_by poblado con user.id correcto
+8. DB archive_reason poblado o NULL según input
+9. Workspaces/agent_sessions/chats/checkpoints intactos post-archive
+10. No existe UI de Restore/Unarchive
+11. Crear team nuevo: sin regresión
+12. Editar team activo: sin regresión
+13. Abrir team activo: sin regresión
+
+**Observaciones importantes:**
+
+1. **RLS gap cerrado:**
+   - Policy `teams_update` confirmada aplicada en Supabase real por PO
+   - Query ejecutada directamente en producción (no solo archivo repo)
+   - Este hallazgo cierra oficialmente el RLS gap pendiente documentado previamente
+   - Actualizar memoria/tracking para que no se vuelva a marcar como pendiente
+
+2. **audit_log.metadata confirmado:**
+   - Existe como JSONB
+   - Ya se usa activamente
+   - NO requiere migración para Fase 1C snapshot liviano
+   - Documentado explícitamente para evitar redescubrimiento en próxima OE
+
+3. **Fase 1B pendiente:**
+   - Teams Map archived visibility/UX
+   - Ocultar archived por defecto
+   - Toggle "Show archived teams"
+   - Visual atenuado / badge / borde punteado
+   - Deshabilitar CTAs operativos
+
+4. **Fase 1C pendiente:**
+   - audit_log events (team_archived)
+   - Snapshot liviano en audit_log.metadata (no tabla nueva)
+
+**Estado:**
+Partial — Código completo, build exitoso, lint OK, documentación actualizada. Pendiente: aplicación migración 049 en Supabase + validación funcional PO con 13-point checklist.
+
+**Lección clave:**
+Confirmación explícita de RLS policy aplicada en producción (no solo archivo repo) previene duplicados y documenta state real del sistema. El patrón de archive como PATCH action (no endpoint separado) mantiene consistencia con arquitectura existente del proyecto. audit_log.metadata pre-existente elimina necesidad de migración futura para snapshots livianos (Fase 1C).

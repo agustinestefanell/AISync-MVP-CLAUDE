@@ -1,4 +1,5 @@
 export type ProjectStatus = 'active' | 'archived'
+export type TeamStatus = 'active' | 'archived'
 export type TeamType = 'SAT' | 'MAT' | 'isolated'
 export type LockState = 'unlocked' | 'locked'
 export type AgentRole = 'manager' | 'worker1' | 'worker2'
@@ -22,6 +23,10 @@ export interface Team {
   lead_role: 'manager' | 'submanager' | 'worker'
   tags: string[]
   color: string | null
+  status: TeamStatus
+  archived_at: string | null
+  archived_by: string | null
+  archive_reason: string | null
 }
 
 export interface Workspace {
