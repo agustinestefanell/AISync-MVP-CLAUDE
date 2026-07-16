@@ -22,6 +22,7 @@ interface MapViewProps {
   teams: TeamWithWorkspaces[]
   projectName?: string
   projectOptions: Array<{ id: string; name: string }>
+  showArchivedTeams: boolean
   zoomInSignal: number
   zoomOutSignal: number
   resetSignal: number
@@ -42,6 +43,25 @@ interface Connection {
   status: string
   description?: string | null
   color?: string | null
+}
+
+// Filter archived teams respecting hierarchy
+// If a parent is archived and hidden, its children are also hidden to avoid orphan nodes
+function filterArchivedTeams(
+  teams: TeamWithWorkspaces[],
+  showArchived: boolean
+): TeamWithWorkspaces[] {
+  if (showArchived) return teams
+
+  // Keep only active teams
+  const activeTeams = teams.filter(t => t.status !== 'archived')
+  const activeIds = new Set(activeTeams.map(t => t.id))
+
+  // Filter out teams whose parent is not in the visible set
+  return activeTeams.filter(team => {
+    if (!team.parent_id) return true // Root teams are always included if active
+    return activeIds.has(team.parent_id) // Only include if parent is visible
+  })
 }
 
 // Build graph nodes from real TeamWithWorkspaces data
@@ -265,6 +285,12 @@ function ProjectCanvas({
 
             // Worker card (compact)
             if (node.type === 'worker') {
+              // Workers inherit archived status from their parent team
+              // BUG FIX: realTeam was undefined for Workers because it searched by node.id (synthetic)
+              // instead of node.teamId (real team ID)
+              const workerRealTeam = teams.find(t => t.id === node.teamId)
+              const isWorkerArchived = workerRealTeam?.status === 'archived'
+
               return (
                 <TreeWorkspaceCard
                   title={node.label}
@@ -278,6 +304,7 @@ function ProjectCanvas({
                   tags={['Execution', getProviderDisplayName(node.provider)]}
                   metrics={[]}
                   compact
+                  isArchived={isWorkerArchived}
                   actionLabel="Open"
                   onPrimaryAction={() => {
                     if (realTeam?.workspaces?.[0]?.id) {
@@ -290,6 +317,7 @@ function ProjectCanvas({
 
             // Senior Manager card (Team/Subteam)
             const workersCount = graphNodes.filter(n => n.parentId === node.id && n.type === 'worker').length
+            const isArchived = realTeam?.status === 'archived'
 
             return (
               <TreeWorkspaceCard
@@ -319,6 +347,7 @@ function ProjectCanvas({
                   },
                 ]}
                 isSat={node.teamType === 'SAT'}
+                isArchived={isArchived}
                 isConnected={node.isConnected}
                 connectionRole={node.connectionRole}
                 partnerEmail={node.partnerEmail}
@@ -348,6 +377,7 @@ export default function MapView({
   teams,
   projectName,
   projectOptions,
+  showArchivedTeams,
   zoomInSignal,
   zoomOutSignal,
   resetSignal,
@@ -365,7 +395,13 @@ export default function MapView({
       .catch(() => setConnections([]))
   }, [])
 
-  const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])
+  // Filter archived teams respecting parent-child hierarchy
+  const visibleTeams = useMemo(
+    () => filterArchivedTeams(teams, showArchivedTeams),
+    [teams, showArchivedTeams]
+  )
+
+  const teamCodes = useMemo(() => computeTeamCodes(visibleTeams), [visibleTeams])
 
   // Build connection metadata: map isolated team ID → { partnerEmail, role }
   const connectionMetadata = useMemo(() => {
@@ -385,11 +421,11 @@ export default function MapView({
     return map
   }, [connections])
 
-  // Group teams by project
+  // Group teams by project (using visible teams)
   const projectGroups = useMemo(() => {
     const grouped = new Map<string, TeamWithWorkspaces[]>()
 
-    teams.forEach(team => {
+    visibleTeams.forEach(team => {
       const pid = team.project_id
       if (!grouped.has(pid)) grouped.set(pid, [])
       grouped.get(pid)!.push(team)
@@ -405,7 +441,7 @@ export default function MapView({
         count: projectTeams.length,
       }
     })
-  }, [teams, projectName, projectOptions])
+  }, [visibleTeams, projectName, projectOptions])
 
   if (projectGroups.length === 0 || projectGroups.every(g => g.teams.length === 0)) {
     return (

@@ -161,6 +161,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   const [zoomInSignal, setZoomInSignal] = useState(0)
   const [zoomOutSignal, setZoomOutSignal] = useState(0)
   const [resetSignal, setResetSignal] = useState(0)
+  const [showArchivedTeams, setShowArchivedTeams] = useState(false)
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -279,6 +280,9 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
     return sum + (ws.agent_sessions ?? []).filter(a => a.agent_role !== 'manager').length
   }, 0)
 
+  // Archived teams count for Show archived control
+  const archivedCount = teams.filter(t => t.status === 'archived').length
+
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
       <TopRibbon
@@ -375,6 +379,21 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
               Teams {teams.length} / Workers {workerCount}
             </div>
 
+            {/* Show archived control — only if archived teams exist */}
+            {archivedCount > 0 && (
+              <button
+                onClick={() => setShowArchivedTeams(prev => !prev)}
+                className="rounded-[10px] border px-3 py-2 text-xs font-medium transition-colors hover:bg-neutral-50"
+                style={{
+                  borderColor: 'rgba(15,23,42,0.10)',
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(244,247,250,0.95) 100%)',
+                  color: '#64748B',
+                }}
+              >
+                {showArchivedTeams ? 'Hide archived' : `Show archived (${archivedCount})`}
+              </button>
+            )}
+
             {/* Zoom controls */}
             <button
               onClick={() => setZoomOutSignal(prev => prev + 1)}
@@ -433,6 +452,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           teams={sortedTeams}
           projectName={projectName}
           projectOptions={projectOptions}
+          showArchivedTeams={showArchivedTeams}
           zoomInSignal={zoomInSignal}
           zoomOutSignal={zoomOutSignal}
           resetSignal={resetSignal}

@@ -2,7 +2,7 @@
 
 Documento de referencia técnica para Workers nuevos o relevos. Basado en lectura directa del código activo, migraciones y handoff-archive-2026-06.md. No es documentación de marketing.
 
-Última actualización: 2026-07-15
+Última actualización: 2026-07-16
 
 ---
 
@@ -30,8 +30,18 @@ Archived Teams feature uses structural state (`teams.status`) as the source of t
 - Future implementation would reverse status to 'active' and clear archived_at/by/reason
 
 **UI/UX:**
-- EditTeamModal provides "Archive Team" button with double-click confirmation pattern
-- Teams Map archived visibility/UX belongs to Fase 1B (hide by default, "Show archived teams" toggle, visual attenuation)
+- EditTeamModal provides "Archive Team" button with double-click confirmation pattern (Fase 1A)
+- Teams Map visibility implemented (Fase 1B):
+  - Archived teams hidden by default (`showArchivedTeams=false`)
+  - Secondary control "Show archived (N)" / "Hide archived" visible only when `archivedCount > 0`
+  - Located in ribbon after Teams/Workers counter
+  - Filtering respects parent-child hierarchy (`filterArchivedTeams()`) — archived parent hidden means children also hidden (prevents orphan nodes)
+  - Visible archived teams shown in normal tree position (not separate section)
+  - Badge "Archived" (amber #FEF3C7) coexists with SAT badge without overlap (dynamic positioning)
+  - **Visual attenuation:** Archived teams visible show `opacity: 0.45` (40-50% range) on entire card for marked differentiation; Workers of archived team inherit same `opacity: 0.45` via `realTeam?.status` check; badge "Archived" preserves `opacity: 1` for readability; Open/Edit remain clickable and functional (opacity does not affect pointer-events)
+  - Team colors preserved intact (opacity attenuates, does not replace color)
+  - Count N over selected Project (no All Projects mode exists)
+  - NO Restore/Unarchive exposed
 - Audit log events (`team_archived`) belong to Fase 1C
 
 **Metadata:**

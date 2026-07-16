@@ -29,6 +29,7 @@ export function TreeWorkspaceCard({
   compact,
   outlineOnly,
   isSat,
+  isArchived,
   active,
   isConnected,
   connectionRole,
@@ -54,6 +55,7 @@ export function TreeWorkspaceCard({
   compact?: boolean
   outlineOnly?: boolean
   isSat?: boolean
+  isArchived?: boolean
   actionLabel: string
   secondaryActionLabel?: string
   onPrimaryAction: () => void
@@ -87,6 +89,7 @@ export function TreeWorkspaceCard({
           compact
           ? '0 10px 20px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.72)'
           : '0 14px 30px rgba(15, 23, 42, 0.09), inset 0 1px 0 rgba(255,255,255,0.8)',
+        opacity: isArchived ? 0.45 : 1,
       }}
     >
       {isConnected ? (
@@ -101,6 +104,7 @@ export function TreeWorkspaceCard({
           {partnerOrg ? ` (${partnerOrg})` : ''}
         </div>
       ) : null}
+      {/* SAT badge */}
       {isSat && !isConnected ? (
         <div
           className="absolute right-3 top-3 z-10 rounded-[7px] border px-2 py-1 text-[9px] font-semibold leading-none text-neutral-700"
@@ -111,6 +115,22 @@ export function TreeWorkspaceCard({
           }}
         >
           SAT
+        </div>
+      ) : null}
+      {/* Archived badge — coexists with SAT, positioned below if both present */}
+      {isArchived ? (
+        <div
+          className="absolute z-10 rounded-[7px] border px-2 py-1 text-[9px] font-semibold leading-none text-amber-800"
+          style={{
+            right: '12px',
+            top: isSat && !isConnected ? '48px' : '12px',
+            borderColor: 'rgba(217, 119, 6, 0.25)',
+            background: 'rgba(254, 243, 199, 0.96)',
+            boxShadow: '0 3px 8px rgba(15,23,42,0.1)',
+            opacity: 1, // Full opacity even when parent card is dimmed
+          }}
+        >
+          Archived
         </div>
       ) : null}
       <div

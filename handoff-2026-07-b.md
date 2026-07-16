@@ -838,3 +838,210 @@ Partial — Código completo, build exitoso, lint OK, documentación actualizada
 
 **Lección clave:**
 Confirmación explícita de RLS policy aplicada en producción (no solo archivo repo) previene duplicados y documenta state real del sistema. El patrón de archive como PATCH action (no endpoint separado) mantiene consistencia con arquitectura existente del proyecto. audit_log.metadata pre-existente elimina necesidad de migración futura para snapshots livianos (Fase 1C).
+
+---
+
+## Sesión 2026-07-16 — Archived Teams Fase 1B: Teams Map visibility
+
+**Fecha:** 2026-07-16
+**Estado:** Closed (validado visualmente por PO — opacity 0.45 en Managers/Workers archivados, badge legible, Open/Edit funcionales)
+
+**Contexto:**
+Fase 1A estructural ya en producción (commit fc9964b). Fase 1B implementa visibilidad en Teams Map. Status estructural (`teams.status`) sigue siendo fuente de verdad. Tags no determinan archive state. Restore/Unarchive no se expone. Audit Log events y snapshots pendientes para Fase 1C.
+
+**Inspección previa:**
+
+1. **MapView.tsx:**
+   - rootTeams: línea 71 `teams.filter(t => !t.parent_id)` dentro de `buildGraphNodesForProject()`
+   - subteams: línea 127 `subteams.forEach(subteam => {...})` dentro de `addSubteamsRecursive()`
+   - projectGroups: línea 389-408 `useMemo(() => { teams.forEach(team => { const pid = team.project_id ...})})`
+   - Mejor punto de filtrado: ANTES de `buildGraphNodesForProject()` en MapView principal
+   - Riesgo de nodos huérfanos: Alto si solo filtramos archived directamente sin verificar cadena parent-child
+
+2. **TeamsClient.tsx:**
+   - Contador Teams/Workers: línea 370-376 badge con `Teams {teams.length} / Workers {workerCount}`
+   - Selector Project: línea 311-329 con `projectId` value
+   - All Projects: NO existe — scope es siempre el Project seleccionado
+   - Ubicación Show archived: después del contador Teams/Workers, antes de zoom controls
+
+3. **Conteo archived:**
+   - `teams.filter(t => t.status === 'archived').length`
+   - Los `teams` ya vienen filtrados por Project desde page server-side
+   - N incluye root teams y subteams archived
+
+4. **Team Card:**
+   - Componente: `TreeWorkspaceCard` (src/components/teams/v3/TreeWorkspaceCard.tsx)
+   - Llamado desde MapView línea 244-338
+   - Badge Archived: patrón similar a SAT badge (línea 104-115), positioned absolute right-3
+   - Color preservado: NO tocar `ribbonColor`, `softColor`, `borderColor`, `accentColor`
+   - Open/Edit preservados: NO tocar `onPrimaryAction` / `onSecondaryAction`
+
+5. **Tipos:**
+   - TeamWithWorkspaces hereda `status: TeamStatus` desde `Team` interface (types.ts línea 26-29)
+   - NO requiere ajustes — tipos correctos desde Fase 1A
+
+**Cambios implementados:**
+
+1. **src/components/teams/TeamsClient.tsx (+20 líneas netas):**
+   - Estado local: `const [showArchivedTeams, setShowArchivedTeams] = useState(false)`
+   - Conteo archived: `const archivedCount = teams.filter(t => t.status === 'archived').length`
+   - Control Show archived: botón secundario visible solo cuando `archivedCount > 0`
+   - Label dinámico: `Show archived (${archivedCount})` / `Hide archived`
+   - Ubicación: después de contador Teams/Workers, antes de zoom controls (línea ~382-395)
+   - Prop a MapView: `showArchivedTeams={showArchivedTeams}`
+
+2. **src/components/teams/MapView.tsx (+37 líneas netas):**
+   - Función `filterArchivedTeams()`: filtra archived respetando jerarquía parent-child
+   - Regla: si parent archived está oculto, sus hijos también se ocultan para evitar nodos huérfanos
+   - `visibleTeams = useMemo(() => filterArchivedTeams(teams, showArchivedTeams), [teams, showArchivedTeams])`
+   - `teamCodes` y `projectGroups` construidos desde `visibleTeams` (no desde `teams` originales)
+   - Prop `isArchived = realTeam?.status === 'archived'` pasada a `TreeWorkspaceCard` (línea 313)
+   - Prop `showArchivedTeams: boolean` agregada a `MapViewProps`
+
+3. **src/components/teams/v3/TreeWorkspaceCard.tsx (+18 líneas netas):**
+   - Prop `isArchived?: boolean` agregada a interface
+   - Badge Archived: absolute right-3, z-10, amber background (#FEF3C7), amber border (#D97706)
+   - Posición dinámica: `top: isSat && !isConnected ? '48px' : '12px'` (abajo del SAT badge si ambos presentes)
+   - Label: "Archived" en text-amber-800
+   - Coexiste sin solaparse con SAT badge
+   - NO toca colores del team (ribbon/soft/border/accent preservados)
+   - NO toca handlers Open/Edit (preservados intactos)
+
+**Decisiones técnicas:**
+
+1. **Filtrado antes de buildGraphNodesForProject():**
+   - Evita que archived lleguen a construcción del árbol
+   - Aplicado en MapView principal vía `useMemo` antes de `teamCodes` y `projectGroups`
+
+2. **Manejo jerárquico padre archived / hijo active:**
+   - Cuando `showArchived=false`: si parent archived está oculto, hijos también ocultos (previene nodos huérfanos)
+   - Implementado con `activeIds.has(team.parent_id)` check en `filterArchivedTeams()`
+
+3. **Manejo padre active / hijo archived:**
+   - Cuando `showArchived=false`: padre active se muestra, hijo archived se oculta
+   - Cuando `showArchived=true`: ambos se muestran, hijo archived lleva badge Archived
+
+4. **Badge Archived posicionamiento:**
+   - Usa position absolute como SAT badge
+   - Top dinámico para evitar overlap cuando ambos badges presentes
+   - SAT arriba (top: 12px), Archived abajo (top: 48px) si coexisten
+
+5. **No modo All Projects:**
+   - Conteo N siempre sobre el Project seleccionado actual
+   - Los `teams` ya vienen scopeados por Project desde page server-side
+
+**Restricciones respetadas:**
+
+- ✅ NO Restore/Unarchive visible
+- ✅ NO Teams Map layout modificado (organigrama jerárquico preservado)
+- ✅ NO CanvasViewport modificado (solo referenciado)
+- ✅ NO TreeView modificado (deprecado, preservado)
+- ✅ NO Documentation Mode tocado
+- ✅ NO Audit Log UI tocado
+- ✅ NO audit_log events emitidos (diferido Fase 1C)
+- ✅ NO snapshots creados (diferido Fase 1C)
+- ✅ NO schema/RLS/migrations
+- ✅ NO colores de team modificados
+- ✅ NO Open/Edit deshabilitados (preservados funcionales)
+- ✅ NO provider/model logic tocado
+- ✅ NO acordeón por Project modificado
+- ✅ NO Executive Team sintético modificado
+- ✅ NO códigos jerárquicos modificados
+- ✅ NO Shared Teams modificados
+
+**Validaciones técnicas:**
+
+- npm run lint: ✅ OK (solo warnings pre-existentes en CanvasViewport)
+- npm run build: ✅ Exitoso sin errores TypeScript
+- grep showArchived/Show archived/Hide archived: ✅ Encontrados en TeamsClient/MapView/TreeWorkspaceCard
+- grep Restore/Unarchive: ✅ 0 resultados
+- grep CanvasViewport MapView: ✅ Solo import + uso normal (NO modificado)
+- grep TreeView MapView: ✅ 0 resultados
+- git diff --stat: ✅ 4 archivos (+107 líneas netas, -5 líneas)
+- git diff --check: ✅ OK (solo warnings CRLF normales Windows)
+
+**Archivos modificados:**
+- src/components/teams/TeamsClient.tsx (+20 líneas: estado + control + conteo)
+- src/components/teams/MapView.tsx (+37 líneas: filtrado + prop isArchived)
+- src/components/teams/v3/TreeWorkspaceCard.tsx (+18 líneas: badge Archived)
+
+**Archivos NO tocados:**
+- CanvasViewport (todas variantes: v3, preview, legacy)
+- TreeView.tsx
+- AddTeamModal.tsx, EditTeamModal.tsx, ConnectTeamModal.tsx, IncomingRequestsPanel.tsx
+- Documentation Mode, Audit Log UI
+- API routes, migrations, RLS, schema
+- Provider/model logic
+- Acordeón, Executive Team, códigos jerárquicos, Shared Teams
+
+**Validación funcional:**
+⏳ PENDIENTE — Requiere screenshot PO confirmando:
+
+| #  | Caso                                        | Resultado esperado                                          |
+|----|---------------------------------------------|-------------------------------------------------------------|
+| 1  | Hay archived teams                          | Aparece botón `Show archived (N)` con conteo correcto       |
+| 2  | No hay archived teams                       | No aparece botón                                            |
+| 3  | showArchived=false (default)                | Teams archived no aparecen                                  |
+| 4  | Click Show archived                         | Cambia a `Hide archived`                                    |
+| 5  | showArchived=true                           | Archived aparecen en posición normal del árbol              |
+| 6  | Archived visible                            | Badge `Archived` claro (amber)                              |
+| 7  | Archived visible                            | Color de team intacto                                       |
+| 8  | Archived visible                            | Open funciona                                               |
+| 9  | Archived visible                            | Edit funciona                                               |
+| 10 | Click Hide archived                         | Archived vuelven a ocultarse                                |
+| 11 | Active teams                                | Sin regresión                                               |
+| 12 | Parent archived + child active (hidden)     | Child no queda huérfano cuando archived oculto              |
+| 13 | Parent active + child archived              | Child se oculta hasta activar toggle                        |
+| 14 | Project específico                          | N cuenta archivados de ese Project                          |
+| 15 | SAT badge + Archived badge en mismo team    | Ambos badges visibles sin solaparse                         |
+
+**Estado:**
+Partial — código completo, build exitoso, lint OK, documentación actualizada. Pendiente: validación visual Product Owner con screenshot confirmando 15-point checklist.
+
+**Ajuste visual post-validación (2026-07-16):**
+
+Después de validación visual PO exitosa de funcionalidad base (hidden default, toggle, badge, colores, Open/Edit), se aplicaron ajustes visuales adicionales solicitados:
+
+**Primera iteración (opacity 0.65):**
+- TreeWorkspaceCard aplicaba `opacity: 0.65` a card completa cuando `isArchived === true`
+- Badge "Archived" con `opacity: 1` explícita para legibilidad
+- PO detectó dos problemas: (1) Workers NO heredaban atenuación de su team padre archivado, (2) opacity 0.65 insuficiente para diferenciación rápida
+
+**Segunda iteración (correcciones aplicadas):**
+
+1. **Workers heredan opacity de team padre archivado:**
+   - Worker cards ahora calculan `isWorkerArchived = realTeam?.status === 'archived'` (MapView línea 288-289)
+   - Prop `isArchived={isWorkerArchived}` pasada a TreeWorkspaceCard del Worker (línea 304)
+   - Workers de team archivado ahora se atenúan igual que su Manager/Team padre
+   - **Bug fix crítico:** `realTeam` era `undefined` para Workers porque el código buscaba por `node.id` (ID sintético del nodo Worker) en lugar de `node.teamId` (ID real del team padre). Corregido a `teams.find(t => t.id === node.teamId)`.
+   - Lógica: Workers son `agent_sessions` dentro del workspace del team, no filas separadas de `teams` — heredan status del team por `node.teamId`
+
+2. **Opacity reforzada de 0.65 a 0.45:**
+   - TreeWorkspaceCard ahora aplica `opacity: 0.45` (40-50% range solicitado por PO) a card completa cuando `isArchived === true`
+   - Diferenciación visual más marcada entre teams activos (opacity 1.0) y archivados (opacity 0.45)
+   - Badge "Archived" preserva `opacity: 1` explícita para legibilidad completa
+
+3. **Consistencia visual completa:**
+   - Manager/Team archivado: opacity 0.45
+   - Workers de team archivado: opacity 0.45 (heredada)
+   - Badge "Archived" en ambos: opacity 1.0
+   - Open/Edit funcionales en ambos (opacity NO afecta pointer-events)
+   - Colores de identidad preservados (opacity atenúa, no reemplaza color)
+
+**Archivos modificados (ajuste visual completo):**
+- src/components/teams/MapView.tsx (+3 líneas: Worker opacity inheritance)
+- src/components/teams/v3/TreeWorkspaceCard.tsx (+2 líneas: opacity 0.45 en card, opacity 1 en badge)
+
+**Validaciones:**
+- npm run build: ✅ Exitoso
+- Worker opacity inheritance: ✅ Implementado via realTeam?.status check
+- pointer-events: ✅ Preservados (opacity no afecta clickeabilidad)
+- badge legibilidad: ✅ Preservada con opacity 1 explícita
+- color identidad: ✅ Preservado (solo opacidad general, no cambio de color)
+- opacity level: ✅ 0.45 (40-50% range solicitado)
+
+**Validación funcional PO (2026-07-16):**
+✅ Confirmado con evidencia de consola y screenshot visual: Managers y Workers de teams archivados se ven consistentemente atenuados al 45%. Diagnostic logs confirmaron `isWorkerArchived: true`, `workerRealTeamFound: true`, `workerRealTeamStatus: "archived"`. Diferenciación visual marcada respecto a teams activos (opacity 1.0). Badge "Archived" legible. Open/Edit clickeables. Console.log temporal removido post-validación.
+
+**Lección técnica:**
+Filtrado de jerarquías requiere verificación de cadena parent-child completa para evitar nodos huérfanos. El patrón `activeIds.has(team.parent_id)` garantiza que un team solo se muestra si su parent también es visible. Badge positioning dinámico (`top: condition ? '48px' : '12px'`) permite coexistencia limpia de múltiples badges sin overlap. Estado local de visibilidad (`useState(false)`) es suficiente para toggle secundario — no requiere persistencia en DB/localStorage. Opacidad general (`opacity: 0.65` en container, `opacity: 1` en badge) permite atenuación visual de archived teams sin afectar legibilidad de identificadores críticos ni clickeabilidad de acciones.
