@@ -50,6 +50,25 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }, { status: 403 })
     }
 
+    // Register team_archived event in audit_log (fail-open)
+    try {
+      await supabase.from('audit_log').insert({
+        account_id: user.id,
+        workspace_id: null,
+        event_type: 'team_archived',
+        metadata: {
+          team_id: params.id,
+          team_name: updatedData[0].name,
+          project_id: updatedData[0].project_id,
+          team_type: updatedData[0].type,
+          archived_by: user.id,
+          archive_reason: archive_reason?.trim() || null,
+        },
+      })
+    } catch (auditError) {
+      console.error('[archive] Failed to insert team_archived audit event:', auditError)
+    }
+
     const { data: full, error: fullErr } = await supabase
       .from('teams')
       .select('*, workspaces(*, agent_sessions(*))')
