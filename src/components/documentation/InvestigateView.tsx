@@ -89,6 +89,7 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
   const [filterProject,  setFilterProject]  = useState('')
   const [filterTeam,     setFilterTeam]     = useState('')
   const [filterType,     setFilterType]     = useState('')
+  const [filterArchiveStatus, setFilterArchiveStatus] = useState('')
   const [filterDate,     setFilterDate]     = useState('')
 
   const uniqueProjects = useMemo(() => Array.from(new Map(checkpoints.map(c => [c.project_id, c.project_name])).entries()), [checkpoints])
@@ -113,10 +114,11 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
       if (filterProject && c.project_id !== filterProject) return false
       if (filterTeam    && c.team_id    !== filterTeam)    return false
       if (filterType    && c.purpose    !== filterType)    return false
+      if (filterArchiveStatus && c.team_status !== filterArchiveStatus) return false
       if (filterDate    && !c.created_at.startsWith(filterDate)) return false
       return true
     })
-  }, [checkpoints, search, filterProject, filterTeam, filterType, filterDate])
+  }, [checkpoints, search, filterProject, filterTeam, filterType, filterArchiveStatus, filterDate])
 
   // Group by date (YYYY-MM-DD)
   const grouped = useMemo(() => {
@@ -183,10 +185,16 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
             <option value="">All types</option>
             {['Checkpoint', 'Session Backup', 'Handoff', 'Evidence', 'Saved Selection'].map(t => <option key={t} value={t}>{t}</option>)}
           </select>
+          <select value={filterArchiveStatus} onChange={e => setFilterArchiveStatus(e.target.value)}
+            className="bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)]">
+            <option value="">All team statuses</option>
+            <option value="active">Active teams</option>
+            <option value="archived">Archived teams</option>
+          </select>
           <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
             className="bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)]" />
-          {(search || filterProject || filterTeam || filterType || filterDate) && (
-            <button onClick={() => { setSearch(''); setFilterProject(''); setFilterTeam(''); setFilterType(''); setFilterDate('') }}
+          {(search || filterProject || filterTeam || filterType || filterArchiveStatus || filterDate) && (
+            <button onClick={() => { setSearch(''); setFilterProject(''); setFilterTeam(''); setFilterType(''); setFilterArchiveStatus(''); setFilterDate('') }}
               className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-2">
               Clear
             </button>

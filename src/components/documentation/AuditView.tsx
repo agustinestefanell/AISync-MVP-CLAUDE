@@ -58,6 +58,7 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
   const [filterState,  setFilterState]  = useState('')
   const [filterEvent,  setFilterEvent]  = useState('')
   const [filterTeam,   setFilterTeam]   = useState('')
+  const [filterArchiveStatus, setFilterArchiveStatus] = useState('')
   const [filterDate,   setFilterDate]   = useState('')
 
   const [detailCpId,    setDetailCpId]    = useState<string | null>(null)
@@ -98,9 +99,10 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
     if (filterEvent && e.event_type !== filterEvent)     return false
     // Team filter (match team_name directamente — el select usa value={t.name})
     if (filterTeam  && e.team_name  !== filterTeam)     return false
+    if (filterArchiveStatus && e.team_status !== filterArchiveStatus) return false
     if (filterDate  && !e.created_at.startsWith(filterDate)) return false
     return true
-  }), [auditEvents, filterState, filterEvent, filterTeam, filterDate, cpMap])
+  }), [auditEvents, filterState, filterEvent, filterTeam, filterArchiveStatus, filterDate, cpMap])
 
   const stats = {
     records:    auditEvents.length,
@@ -167,10 +169,16 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
             </option>
           ))}
         </select>
+        <select value={filterArchiveStatus} onChange={e => setFilterArchiveStatus(e.target.value)}
+          className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
+          <option value="">All team statuses</option>
+          <option value="active">Active teams</option>
+          <option value="archived">Archived teams</option>
+        </select>
         <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
           className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500" />
-        {(filterState || filterEvent || filterTeam || filterDate) && (
-          <button onClick={() => { setFilterState(''); setFilterEvent(''); setFilterTeam(''); setFilterDate('') }}
+        {(filterState || filterEvent || filterTeam || filterArchiveStatus || filterDate) && (
+          <button onClick={() => { setFilterState(''); setFilterEvent(''); setFilterTeam(''); setFilterArchiveStatus(''); setFilterDate('') }}
             className="text-xs text-gray-500 hover:text-gray-600 px-2">
             Reset Search
           </button>

@@ -18,6 +18,7 @@ export interface DocCheckpoint {
   team_id: string
   team_name: string
   team_type: string
+  team_status: 'active' | 'archived' | null
   project_id:       string
   project_name:     string
   created_at:          string
@@ -32,6 +33,7 @@ export interface DocAuditEvent {
   workspace_name: string | null
   team_id: string | null
   team_name: string | null
+  team_status: 'active' | 'archived' | null
   metadata: Record<string, unknown> | null
   created_at: string
 }
@@ -55,6 +57,7 @@ interface RawCheckpoint {
       id: string
       name: string
       type: string
+      status: string | null
       projects: { id: string; name: string } | null
     } | null
   } | null
@@ -72,7 +75,7 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
       workspaces (
         id, name,
         teams (
-          id, name, type,
+          id, name, type, status,
           projects (id, name)
         )
       )
@@ -93,6 +96,7 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
     team_id:        r.workspaces?.teams?.id ?? '',
     team_name:      r.workspaces?.teams?.name ?? '—',
     team_type:      r.workspaces?.teams?.type ?? 'SAT',
+    team_status:    (r.workspaces?.teams?.status as 'active' | 'archived' | null) ?? null,
     project_id:      r.workspaces?.teams?.projects?.id ?? '',
     project_name:    r.workspaces?.teams?.projects?.name ?? '—',
     created_at:      r.created_at,
@@ -131,6 +135,7 @@ export interface DocHandoffPackage {
   workspace_name: string
   team_id: string | null
   team_name: string | null
+  team_status: 'active' | 'archived' | null
   project_id: string | null
   project_name: string | null
   message_count:    number
@@ -151,7 +156,7 @@ interface RawHandoffPackage {
   created_at: string
   workspaces: {
     name: string
-    teams: { id: string; name: string; projects: { id: string; name: string } | null } | null
+    teams: { id: string; name: string; status: string | null; projects: { id: string; name: string } | null } | null
   } | null
 }
 
@@ -159,7 +164,7 @@ export async function getHandoffPackages(): Promise<DocHandoffPackage[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('handoff_packages')
-    .select('id, name, from_agent, to_agent, status, context, messages, workspace_id, created_at, workspaces(name, teams(id, name, projects(id, name)))')
+    .select('id, name, from_agent, to_agent, status, context, messages, workspace_id, created_at, workspaces(name, teams(id, name, status, projects(id, name)))')
     .order('created_at', { ascending: false })
 
   return ((data ?? []) as unknown as RawHandoffPackage[]).map(r => {
@@ -176,6 +181,7 @@ export async function getHandoffPackages(): Promise<DocHandoffPackage[]> {
       workspace_name: r.workspaces?.name ?? '—',
       team_id:        team?.id        ?? null,
       team_name:      team?.name      ?? null,
+      team_status:    (team?.status as 'active' | 'archived' | null) ?? null,
       project_id:     project?.id     ?? null,
       project_name:   project?.name   ?? null,
       message_count:   Array.isArray(r.messages) ? r.messages.length : 0,
@@ -207,6 +213,7 @@ export interface DocSavedSelection {
   workspace_name: string
   team_id:        string | null
   team_name:      string | null
+  team_status:    'active' | 'archived' | null
   project_id:     string | null
   project_name:   string | null
   created_at:     string
@@ -224,7 +231,7 @@ interface RawSavedSelection {
   user_id:      string
   workspaces: {
     name: string
-    teams: { id: string; name: string; projects: { id: string; name: string } | null } | null
+    teams: { id: string; name: string; status: string | null; projects: { id: string; name: string } | null } | null
   } | null
 }
 
@@ -232,7 +239,7 @@ export async function getSavedSelections(userId: string): Promise<DocSavedSelect
   const supabase = createClient()
   const { data } = await supabase
     .from('saved_selections')
-    .select('id, name, messages, workspace_id, team_id, project_id, created_at, user_id, workspaces(name, teams(id, name, projects(id, name)))')
+    .select('id, name, messages, workspace_id, team_id, project_id, created_at, user_id, workspaces(name, teams(id, name, status, projects(id, name)))')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
@@ -247,6 +254,7 @@ export async function getSavedSelections(userId: string): Promise<DocSavedSelect
       workspace_name: r.workspaces?.name ?? '—',
       team_id:        r.team_id ?? null,
       team_name:      team?.name ?? null,
+      team_status:    (team?.status as 'active' | 'archived' | null) ?? null,
       project_id:     r.project_id ?? null,
       project_name:   project?.name ?? null,
       created_at:     r.created_at,
@@ -261,7 +269,7 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
     .from('audit_log')
     .select(`
       id, event_type, workspace_id, metadata, created_at,
-      workspaces (name, teams (id, name))
+      workspaces (name, teams (id, name, status))
     `)
     .order('created_at', { ascending: false })
     .limit(200)
@@ -272,11 +280,12 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
     workspace_id: string | null
     metadata: Record<string, unknown> | null
     created_at: string
-    workspaces: { name: string; teams: { id: string; name: string } | null } | null
+    workspaces: { name: string; teams: { id: string; name: string; status: string | null } | null } | null
   }>).map(r => {
     // For events without workspace (e.g. connection_accepted), extract team info from metadata if available
     const teamId = r.workspaces?.teams?.id ?? null
     const teamName = r.workspaces?.teams?.name ?? (r.metadata?.requester_team_name as string | null | undefined) ?? null
+    const teamStatus = (r.workspaces?.teams?.status as 'active' | 'archived' | null) ?? null
 
     return {
       id:             r.id,
@@ -285,6 +294,7 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
       workspace_name: r.workspaces?.name ?? null,
       team_id:        teamId,
       team_name:      teamName,
+      team_status:    teamStatus,
       metadata:       r.metadata,
       created_at:     r.created_at,
     }

@@ -380,6 +380,7 @@ export default function RepositoryView({
   const [filterTeam,    setFilterTeam]    = useState('')
   const [filterType,    setFilterType]    = useState('')
   const [filterState,   setFilterState]   = useState('')
+  const [filterArchiveStatus, setFilterArchiveStatus] = useState('')
   const [filterDate,    setFilterDate]    = useState('')
   const [searchQuery,   setSearchQuery]   = useState('')
   const [sortOrder,     setSortOrder]     = useState<'newest' | 'oldest' | 'name'>('newest')
@@ -412,11 +413,17 @@ export default function RepositoryView({
 
     if (item.kind === 'handoff') {
       // Handoffs appear only when type filter is unset or explicitly "Handoff Package"
-      return !filterType || filterType === 'Handoff Package'
+      const h = item.hp
+      if (filterType && filterType !== 'Handoff Package') return false
+      if (filterArchiveStatus && h.team_status !== filterArchiveStatus) return false
+      return true
     }
 
     if (item.kind === 'saved_selection') {
-      return !filterType || filterType === 'Saved Selection'
+      const s = item.ss
+      if (filterType && filterType !== 'Saved Selection') return false
+      if (filterArchiveStatus && s.team_status !== filterArchiveStatus) return false
+      return true
     }
 
     // Checkpoint-specific filters
@@ -425,8 +432,9 @@ export default function RepositoryView({
     if (filterTeam    && c.team_id    !== filterTeam)    return false
     if (filterType && filterType !== 'Handoff Package' && c.purpose !== filterType) return false
     if (filterState   && c.doc_state  !== filterState)   return false
+    if (filterArchiveStatus && c.team_status !== filterArchiveStatus) return false
     return true
-  }), [allItems, filterProject, filterTeam, filterType, filterState, filterDate])
+  }), [allItems, filterProject, filterTeam, filterType, filterState, filterArchiveStatus, filterDate])
 
   // Notify parent with filtered checkpoints only (SM Panel context)
   const isFirstRender = useRef(true)
@@ -495,10 +503,10 @@ export default function RepositoryView({
   }
 
   function resetFilters() {
-    setFilterProject(''); setFilterTeam(''); setFilterType(''); setFilterState(''); setFilterDate('')
+    setFilterProject(''); setFilterTeam(''); setFilterType(''); setFilterState(''); setFilterArchiveStatus(''); setFilterDate('')
     setSearchQuery(''); setSortOrder('newest')
   }
-  const hasFilter = filterProject || filterTeam || filterType || filterState || filterDate || searchQuery
+  const hasFilter = filterProject || filterTeam || filterType || filterState || filterArchiveStatus || filterDate || searchQuery
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -540,6 +548,12 @@ export default function RepositoryView({
               <option value="">All states</option>
               <option value="active">Active</option>
               <option value="locked">Locked</option>
+            </select>
+            <select value={filterArchiveStatus} onChange={e => setFilterArchiveStatus(e.target.value)}
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
+              <option value="">All team statuses</option>
+              <option value="active">Active teams</option>
+              <option value="archived">Archived teams</option>
             </select>
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
               className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500" />

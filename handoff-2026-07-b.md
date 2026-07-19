@@ -1045,3 +1045,125 @@ Después de validación visual PO exitosa de funcionalidad base (hidden default,
 
 **Lección técnica:**
 Filtrado de jerarquías requiere verificación de cadena parent-child completa para evitar nodos huérfanos. El patrón `activeIds.has(team.parent_id)` garantiza que un team solo se muestra si su parent también es visible. Badge positioning dinámico (`top: condition ? '48px' : '12px'`) permite coexistencia limpia de múltiples badges sin overlap. Estado local de visibilidad (`useState(false)`) es suficiente para toggle secundario — no requiere persistencia en DB/localStorage. Opacidad general (`opacity: 0.65` en container, `opacity: 1` en badge) permite atenuación visual de archived teams sin afectar legibilidad de identificadores críticos ni clickeabilidad de acciones.
+
+---
+
+## Sesión 2026-07-19 — Documentation Mode archived filter bug fix
+
+**Fecha:** 2026-07-19
+**Estado:** Closed (validado funcionalmente por PO — Handoff Package archivado aparece/desaparece correctamente con filtro)
+
+**Contexto:**
+Product Owner confirmó con queries SQL directas que el dato en base era correcto:
+- Team "JDNADNSFASDF" tiene `status = 'archived'`
+- Handoff Package "Prueba con un archivado" vinculado correctamente via `handoff_packages.workspace_id → workspaces.team_id → teams.status`
+
+Sin embargo, en Repository View, el filtro "Archived teams" NO funcionaba — el Handoff Package seguía apareciendo siempre, sin importar el filtro seleccionado (Active/Archived/All).
+
+**Diagnóstico:**
+
+1. **Inspección `documentation.ts`:**
+   - ✅ `getHandoffPackages()` YA tenía normalización defensiva correcta (línea 171):
+     ```ts
+     const team = Array.isArray(r.workspaces?.teams) ? r.workspaces?.teams[0] : r.workspaces?.teams
+     ```
+   - ✅ `team_status` se normalizaba correctamente desde `team?.status`
+   - ✅ `getSavedSelections()` tenía la misma normalización defensiva
+   - ⚠️ `getDocAuditEvents()` accedía directo `r.workspaces?.teams?.status` sin normalización array (no causaba problema en práctica)
+
+2. **Inspección `RepositoryView.tsx`:**
+   - ❌ **Bug encontrado:** El filtro `filterArchiveStatus` SOLO se aplicaba a Checkpoints (línea 429)
+   - ❌ Handoff Packages salían del filtro sin verificar `team_status` (líneas 414-417)
+   - ❌ Saved Selections salían del filtro sin verificar `team_status` (líneas 419-421)
+   - ✅ `AuditView.tsx` NO tenía el bug — el filtro ya estaba correctamente aplicado a todos los eventos (línea 102)
+
+3. **Causa raíz confirmada:**
+   - DB: ✅ Correcta
+   - Data mapping (`documentation.ts`): ✅ Correcto desde antes
+   - UI filtering (`RepositoryView.tsx`): ❌ **Omisión de filtrado** en Handoffs y Saved Selections
+
+**Cambios implementados:**
+
+1. **src/components/documentation/RepositoryView.tsx (+8 líneas netas):**
+   - Agregado filtro `filterArchiveStatus` para Handoff Packages (líneas 414-420):
+     ```ts
+     if (item.kind === 'handoff') {
+       const h = item.hp
+       if (filterType && filterType !== 'Handoff Package') return false
+       if (filterArchiveStatus && h.team_status !== filterArchiveStatus) return false
+       return true
+     }
+     ```
+   - Agregado filtro `filterArchiveStatus` para Saved Selections (líneas 422-427):
+     ```ts
+     if (item.kind === 'saved_selection') {
+       const s = item.ss
+       if (filterType && filterType !== 'Saved Selection') return false
+       if (filterArchiveStatus && s.team_status !== filterArchiveStatus) return false
+       return true
+     }
+     ```
+
+2. **Logging temporal (removido antes del commit):**
+   - Agregado `console.log` en `getHandoffPackages()` para confirmar runtime shape
+   - PO validó en producción: `team_status: 'archived'` llegaba correctamente
+   - Log removido post-validación — no quedaron logs temporales en código final
+
+**Decisiones técnicas:**
+
+1. **No se modificó `documentation.ts`:**
+   - La normalización defensiva de `workspaces → teams` ya era correcta desde antes
+   - `team_status` llegaba correctamente a `RepositoryView.tsx`
+   - El bug era exclusivamente de omisión de filtrado en UI
+
+2. **No se modificó `AuditView.tsx`:**
+   - El filtro `filterArchiveStatus` ya estaba correctamente aplicado a todos los eventos
+   - No requería fix
+
+3. **Patrón aplicado:**
+   - Mismo patrón de filtrado que Checkpoints: `if (filterArchiveStatus && item.team_status !== filterArchiveStatus) return false`
+   - Aplicado consistentemente a las tres superficies documentales (Checkpoints, Handoff Packages, Saved Selections)
+
+**Archivos modificados:**
+- src/components/documentation/RepositoryView.tsx (+8 líneas: filtro Archived para Handoffs y Saved Selections)
+- handoff-2026-07-b.md (esta entrada)
+- PRODUCT_STATUS.md (entrada Documentation Mode)
+- AISyncPlans.md (contrato filtrado Archived en Documentation Mode)
+
+**Archivos NO modificados:**
+- src/lib/db/documentation.ts (normalización ya correcta desde antes)
+- src/components/documentation/AuditView.tsx (filtro ya correcto)
+- src/components/documentation/StructureView.tsx (sin filtro Archived activo)
+- src/components/documentation/InvestigateView.tsx (sin filtro Archived activo)
+- src/components/documentation/KnowledgeMap.tsx (sin filtro Archived activo)
+- Schema, RLS, migrations, Teams Map, Audit Log UI, endpoint archive
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso sin errores TypeScript
+- grep TEMP_DOCMODE_DEBUG: ✅ 0 resultados (log temporal removido)
+- git diff --check: ✅ OK
+
+**Validación funcional (2026-07-19, PO confirmado):**
+
+| # | Caso                                     | Resultado esperado                 | Estado |
+|---|------------------------------------------|------------------------------------|--------|
+| 1 | Handoff Package sin filtro               | Aparece                            | ✅     |
+| 2 | Handoff Package con "Active teams"       | NO aparece                         | ✅     |
+| 3 | Handoff Package con "Archived teams"     | Aparece                            | ✅     |
+| 4 | Saved Selections con archived team       | Filtrado funciona igual            | ✅     |
+| 5 | Checkpoints con archived team            | Sin regresión (ya funcionaba)      | ✅     |
+| 6 | AuditView eventos con archived team      | Sin regresión (ya funcionaba)      | ✅     |
+| 7 | Active team docs                         | Siguen filtrando como Active       | ✅     |
+| 8 | team_status null legítimo                | No rompe render                    | ✅     |
+
+**Restricciones respetadas:**
+- ✅ NO Teams Map
+- ✅ NO archive endpoint
+- ✅ NO schema/RLS/migrations
+- ✅ NO Audit Log UI externa
+- ✅ NO modificación de normalización de datos (ya era correcta)
+- ✅ NO parches visuales (fix estructural en filtrado)
+
+**Lección clave:**
+Cuando un filtro UI falla pero el dato en DB es correcto, confirmar primero si el mapeo de datos es correcto antes de asumir problema de shape. En este caso, `documentation.ts` ya tenía normalización defensiva correcta para joins anidados — el bug real era omisión de aplicación del filtro en RepositoryView para tipos documentales Handoff Package y Saved Selection. AuditView no tenía el bug porque su filtro se aplicaba a todos los eventos sin discriminación por tipo. La causa NO fue un problema de `workspaces.teams` como objeto vs array — fue simplemente que el filtro `filterArchiveStatus` no se verificaba para dos de los tres tipos de documentos.

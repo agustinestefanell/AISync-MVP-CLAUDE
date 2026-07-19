@@ -16,6 +16,7 @@ interface Props {
 export default function StructureView({ projects, teamCodes }: Props) {
   const [searchQuery,   setSearchQuery]   = useState('')
   const [filterProject, setFilterProject] = useState('')
+  const [filterArchiveStatus, setFilterArchiveStatus] = useState('')
 
   const allTeams = useMemo(() => projects.flatMap(p => p.teams), [projects])
 
@@ -29,7 +30,7 @@ export default function StructureView({ projects, teamCodes }: Props) {
   const mirrorTeams = useMemo(
     () => allTeams.map(t => {
       const code = teamCodes?.[t.id]
-      return { teamId: t.id, teamLabel: code ? `${code} · ${t.name}` : t.name }
+      return { teamId: t.id, teamLabel: code ? `${code} · ${t.name}` : t.name, teamStatus: t.status }
     }),
     [allTeams, teamCodes],
   )
@@ -64,10 +65,11 @@ export default function StructureView({ projects, teamCodes }: Props) {
     const q = searchQuery.trim().toLowerCase()
     return mirrorTeams.filter(team => {
       if (filterProject && teamProjectMap.get(team.teamId) !== filterProject) return false
+      if (filterArchiveStatus && team.teamStatus !== filterArchiveStatus) return false
       if (q && !team.teamLabel.toLowerCase().includes(q)) return false
       return true
     })
-  }, [mirrorTeams, searchQuery, filterProject, teamProjectMap])
+  }, [mirrorTeams, searchQuery, filterProject, filterArchiveStatus, teamProjectMap])
 
   const filteredTeamIds = useMemo(
     () => new Set(filteredMirrorTeams.map(t => t.teamId)),
@@ -117,9 +119,18 @@ export default function StructureView({ projects, teamCodes }: Props) {
             ))}
           </select>
         )}
-        {(searchQuery || filterProject) && (
+        <select
+          value={filterArchiveStatus}
+          onChange={e => setFilterArchiveStatus(e.target.value)}
+          className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500"
+        >
+          <option value="">All team statuses</option>
+          <option value="active">Active teams</option>
+          <option value="archived">Archived teams</option>
+        </select>
+        {(searchQuery || filterProject || filterArchiveStatus) && (
           <button
-            onClick={() => { setSearchQuery(''); setFilterProject('') }}
+            onClick={() => { setSearchQuery(''); setFilterProject(''); setFilterArchiveStatus('') }}
             className="text-xs text-gray-500 hover:text-gray-600 px-2"
           >
             Reset Search

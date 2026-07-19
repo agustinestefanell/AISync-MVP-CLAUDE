@@ -156,6 +156,7 @@ export default function KnowledgeMap({ checkpoints }: Props) {
   const [mode,          setMode]          = useState<FocusMode>('documents')
   const [filterProject, setFilterProject] = useState('')
   const [filterTeam,    setFilterTeam]    = useState('')
+  const [filterArchiveStatus, setFilterArchiveStatus] = useState('')
 
   const uniqueProjects = useMemo(() => Array.from(new Map(checkpoints.map(c => [c.project_id, c.project_name])).entries()), [checkpoints])
   const uniqueTeams    = useMemo(() => Array.from(new Map(checkpoints.map(c => [c.team_id, c.team_name])).entries()), [checkpoints])
@@ -163,8 +164,9 @@ export default function KnowledgeMap({ checkpoints }: Props) {
   const filtered = useMemo(() => checkpoints.filter(c => {
     if (filterProject && c.project_id !== filterProject) return false
     if (filterTeam    && c.team_id    !== filterTeam)    return false
+    if (filterArchiveStatus && c.team_status !== filterArchiveStatus) return false
     return true
-  }), [checkpoints, filterProject, filterTeam])
+  }), [checkpoints, filterProject, filterTeam, filterArchiveStatus])
 
   const { nodes, edges } = useMemo(() => {
     switch (mode) {
@@ -212,8 +214,14 @@ export default function KnowledgeMap({ checkpoints }: Props) {
             <option value="">All teams</option>
             {uniqueTeams.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
-          {(filterProject || filterTeam) && (
-            <button onClick={() => { setFilterProject(''); setFilterTeam('') }}
+          <select value={filterArchiveStatus} onChange={e => setFilterArchiveStatus(e.target.value)}
+            className="w-full bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-border-focus)]">
+            <option value="">All team statuses</option>
+            <option value="active">Active teams</option>
+            <option value="archived">Archived teams</option>
+          </select>
+          {(filterProject || filterTeam || filterArchiveStatus) && (
+            <button onClick={() => { setFilterProject(''); setFilterTeam(''); setFilterArchiveStatus('') }}
               className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] w-full text-left">
               Clear filters
             </button>

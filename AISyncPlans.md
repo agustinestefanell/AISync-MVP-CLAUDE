@@ -42,6 +42,11 @@ Archived Teams feature uses structural state (`teams.status`) as the source of t
   - Team colors preserved intact (opacity attenuates, does not replace color)
   - Count N over selected Project (no All Projects mode exists)
   - NO Restore/Unarchive exposed
+- **Documentation Mode filtering (2026-07-19):**
+  - Repository View applies `filterArchiveStatus` consistently to Checkpoints, Handoff Packages, and Saved Selections
+  - Filter relies on `team_status` field normalized from `teams.status` in `documentation.ts`
+  - Data mapping (`getHandoffPackages`, `getSavedSelections`) uses defensive normalization for nested `workspaces → teams` joins (handles object or single-item array)
+  - AuditView already had correct filtering — bug was specific to RepositoryView omission for Handoffs/Saved Selections
 - Audit log events (`team_archived`) belong to Fase 1C
 
 **Metadata:**
