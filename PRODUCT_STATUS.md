@@ -140,7 +140,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 
 | Feature | Estado | Evidencia | Notas |
 |---|---|---|---|
-| Agent Panels (SAT/MAT) | ✅ Live | commit d1382f3 | Day markers + timestamps en chat — commit d1382f3. Scroll al final al cargar mensajes históricos — behavior: instant. |
+| Agent Panels (SAT/MAT) | ✅ Live | commit d1382f3 | Day markers + timestamps en chat — commit d1382f3. Scroll al final al cargar mensajes históricos — behavior: instant. **Native text selection fix (2026-07-20):** AgentPanel now preserves native browser text selection inside agent messages; selecting text no longer toggles full-message selection. Click without selection still toggles message as before. Commit pending. |
 | Main Workspace — How to work modal | ✅ Closed | commit feat: add how to use modal to main workspace | Modal principal `How to work in Workspace` accesible desde subtítulo superior via `pageSubtitleOnClick`. Creado `WorkspaceClient.tsx` como thin wrapper (TopRibbon + BottomRibbon + modal). `WorkspaceShell` intacto. |
 | User email en workspace TopRibbon | ✅ Closed | commit ff56050 | Email del usuario activo visible en TopRibbon derecha, entre TokenUsageBadge y borde. Pasado desde workspace page → WorkspaceClient → TopRibbon como `userName` prop. Útil para identificar sesión en screenshots y debugging. |
 | Save Version modal — english labels | ✅ Live | `src/components/workspace/WorkspaceShell.tsx` | Modal translated to English; API error container replaced dark mode residual with light-safe tokens. Purpose dropdown uses English labels (Evidence, Reuse, Resume Later, Documentation, Audit Support). |

@@ -178,6 +178,15 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       })
     }
 
+    // Preserve native text selection: only toggle if user didn't select text
+    function handleMessageClick(i: number) {
+      const selection = window.getSelection()
+      if (selection && selection.toString().length > 0) {
+        return
+      }
+      toggleSelection(i)
+    }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { onSelectionChange(selectedIndices.size) }, [selectedIndices.size])
 
@@ -645,7 +654,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                     {/* Bubble — clickable to select, text is selectable */}
                     <div
                       className={`relative max-w-[88%] cursor-pointer group/msg ${isUser ? 'order-1' : ''}`}
-                      onClick={() => toggleSelection(i)}
+                      onClick={() => handleMessageClick(i)}
                     >
                       <div
                         className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-[0.14em]"

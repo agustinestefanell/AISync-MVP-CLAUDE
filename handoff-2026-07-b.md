@@ -1167,3 +1167,116 @@ Sin embargo, en Repository View, el filtro "Archived teams" NO funcionaba — el
 
 **Lección clave:**
 Cuando un filtro UI falla pero el dato en DB es correcto, confirmar primero si el mapeo de datos es correcto antes de asumir problema de shape. En este caso, `documentation.ts` ya tenía normalización defensiva correcta para joins anidados — el bug real era omisión de aplicación del filtro en RepositoryView para tipos documentales Handoff Package y Saved Selection. AuditView no tenía el bug porque su filtro se aplicaba a todos los eventos sin discriminación por tipo. La causa NO fue un problema de `workspaces.teams` como objeto vs array — fue simplemente que el filtro `filterArchiveStatus` no se verificaba para dos de los tres tipos de documentos.
+
+---
+
+## Sesión 2026-07-20 — AgentPanel native text selection bugfix
+
+**Fecha:** 2026-07-20
+**Estado:** Partial (código completo, build exitoso, pendiente validación PO)
+
+**Contexto:**
+Product Owner reportó que al intentar seleccionar una frase específica dentro de un mensaje de agente en el Workspace para copiarla, la interacción se interpretaba incorrectamente como un click de selección/deselección del mensaje completo. Efectos observados: (1) menú nativo de copiar del navegador no llegaba a aparecer, (2) selección de texto se perdía, (3) re-render provocado por toggleSelection descartaba la selección.
+
+**Inspección previa:**
+
+1. **AgentPanel.tsx:**
+   - Ubicación del bug: línea 648, contenedor `div.relative.max-w-[88%].cursor-pointer` del mensaje
+   - onClick problemático: `onClick={() => toggleSelection(i)}` sin verificación de selección de texto activa
+   - toggleSelection existente: línea 173, función correcta que actualiza `selectedIndices` Set
+   - copyMessage existente: línea 254, copia mensaje completo al clipboard
+   - Causa raíz confirmada: el `onClick` se dispara SIEMPRE al hacer click en el bubble, incluso cuando el usuario está completando una selección de texto — no hay verificación de `window.getSelection()` antes de togglear
+
+2. **HumanChatPanel.tsx (solo lectura):**
+   - Patrón de selección: checkbox separado (`<input type="checkbox">` línea 472-477)
+   - Checkbox desacoplado: ✅ Sí — el checkbox está separado del texto del mensaje
+   - Texto del mensaje (línea 480-523): NO tiene `onClick` que dispare `toggleSelection`
+   - toggleSelection se dispara exclusivamente por `onChange` del checkbox
+   - ❌ HumanChatPanel NO comparte el bug — NO requiere modificación
+
+**Cambios implementados:**
+
+1. **src/components/workspace/AgentPanel.tsx (+10 líneas netas):**
+   - Agregado helper `handleMessageClick(i: number)` después de `toggleSelection` (línea 182-188)
+   - Lógica del helper:
+     ```ts
+     function handleMessageClick(i: number) {
+       const selection = window.getSelection()
+       if (selection && selection.toString().length > 0) {
+         return  // Preserva selección nativa del navegador
+       }
+       toggleSelection(i)  // Click limpio → comportamiento normal
+     }
+     ```
+   - Actualizado `onClick` del contenedor del mensaje (línea 657): `onClick={() => toggleSelection(i)}` → `onClick={() => handleMessageClick(i)}`
+   - toggleSelection: ✅ Intacto (no modificado)
+   - copyMessage: ✅ Intacto (no modificado)
+   - HumanChatPanel: ✅ NO modificado (checkbox separado, no comparte bug)
+
+**Decisiones técnicas:**
+
+1. **Helper local vs global:**
+   - Elegido: helper local en AgentPanel
+   - Razón: el bug es específico de AgentPanel (HumanChatPanel usa checkbox separado). No justifica helper compartido.
+
+2. **window.getSelection() vs preventDefault:**
+   - Elegido: `window.getSelection()` reactivo post-click
+   - Descartado: `preventDefault` — bloquearía selección nativa y menú contextual del navegador
+   - Razón: el helper verifica si YA hay selección activa cuando se dispara el click. Si hay selección, retorna sin togglear. Si no hay selección, es click limpio y togglea normalmente.
+
+3. **Verificación selection.toString().length > 0:**
+   - Detecta selección activa de texto (cualquier cantidad de caracteres)
+   - Click limpio sin selección → `length === 0` → togglea mensaje completo
+   - Click con selección → `length > 0` → preserva selección nativa
+
+4. **No usar timers ni debounce:**
+   - La verificación es instantánea y sincrónica
+   - Sin race conditions, sin interferencia con comportamiento nativo del navegador
+
+**Archivos modificados:**
+- src/components/workspace/AgentPanel.tsx (+10 líneas: helper handleMessageClick + actualización onClick)
+
+**Archivos NO modificados:**
+- src/components/workspace/HumanChatPanel.tsx (patrón correcto, checkbox separado)
+- src/components/workspace/WorkspaceShell.tsx
+- src/app/workspace/[id]/page.tsx
+- Otros componentes del Workspace
+- APIs, migrations, RLS, schema
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso sin errores TypeScript
+- grep handleMessageClick: ✅ 2 resultados (definición línea 182, uso línea 657)
+- git diff --check: ✅ OK (solo warning CRLF normal Windows)
+
+**Validación funcional:**
+⏳ PENDIENTE — Requiere confirmación Product Owner con validación en producción:
+
+| # | Caso | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Seleccionar frase dentro de mensaje de agente | NO togglea mensaje completo | ⏳ |
+| 2 | Selección de texto activa | Se respeta selección nativa | ⏳ |
+| 3 | Menú contextual / copiar nativo | Funciona normalmente | ⏳ |
+| 4 | Click limpio sobre mensaje (sin selección) | Sigue toggleando selección completa | ⏳ |
+| 5 | Selección/deselección repetida | Sin regresión | ⏳ |
+| 6 | HumanChatPanel checkbox | Sin regresión | ⏳ |
+| 7 | Copy message existente (botón) | Sin regresión | ⏳ |
+| 8 | Markdown rendering en mensajes | Sin regresión | ⏳ |
+| 9 | Attachment chips en mensajes | Sin regresión | ⏳ |
+| 10 | Forward/Save Version/Save Selection | Sin regresión | ⏳ |
+
+**Restricciones respetadas:**
+- ✅ NO HumanChatPanel modificado (checkbox separado, no comparte bug)
+- ✅ NO toggleSelection modificado (intacto)
+- ✅ NO copyMessage modificado (intacto)
+- ✅ NO estructura visual modificada
+- ✅ NO APIs/migrations/RLS/schema
+- ✅ NO librerías nuevas agregadas
+- ✅ NO preventDefault sobre selección nativa
+- ✅ NO bloqueo de menú nativo del navegador
+
+**Estado:**
+Partial — código completo, build exitoso, lint OK. Pendiente: validación Product Owner confirmando que seleccionar una frase específica dentro de un mensaje ya no togglea la selección del mensaje completo, el menú/comportamiento nativo de copiar funciona normalmente, y un click normal sin selección sigue toggleando la selección del mensaje como antes.
+
+**Lección clave:**
+`onClick` en contenedores de texto clickeables debe verificar `window.getSelection().toString().length > 0` antes de ejecutar acciones de selección/toggle para preservar el comportamiento nativo del navegador de selección de texto y menú contextual. HumanChatPanel no tenía este problema porque usa checkbox separado — la selección se dispara por `onChange` del checkbox, no por click en el texto. El patrón correcto para mensajes clickeables es: (1) verificar selección activa, (2) si hay selección retornar sin action, (3) si no hay selección ejecutar action normal (toggle/select/etc).
