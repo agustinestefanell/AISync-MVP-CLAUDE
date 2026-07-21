@@ -131,10 +131,35 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
     let reconnectTimeout: NodeJS.Timeout | null = null
     let currentChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null
 
-    const mountTime = Date.now()
-    console.log('[HumanChat] Mount time:', mountTime)
-
     const supabase = createClient()
+
+    // Reusable refetch function: fetch latest messages and merge with dedupe
+    const refetchAndMergeMessages = async () => {
+      try {
+        const { data: refetchedMessages, error: refetchError } = await supabase
+          .from('human_messages')
+          .select('*')
+          .eq('connection_id', connectionId)
+          .order('created_at', { ascending: true })
+
+        if (refetchError) {
+          console.error('[HumanChat] Refetch error:', refetchError)
+        } else if (refetchedMessages && isMounted) {
+          // Merge with existing messages, deduplicating by message.id
+          setMessages((current) => {
+            const byId = new Map(current.map((msg) => [msg.id, msg]))
+            for (const msg of refetchedMessages as HumanMessage[]) {
+              byId.set(msg.id, msg)
+            }
+            return Array.from(byId.values()).sort(
+              (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            )
+          })
+        }
+      } catch (err) {
+        console.error('[HumanChat] Refetch exception:', err)
+      }
+    }
 
     // Reusable function to create and subscribe to channel
     const createAndSubscribeChannel = () => {
@@ -160,17 +185,12 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
             filter: `connection_id=eq.${connectionId}`,
           },
           (payload) => {
-            console.log('[HumanChat] Realtime INSERT received:', payload.new)
             const newMessage = payload.new as HumanMessage
 
             // Deduplicate: only add if message ID doesn't exist
             setMessages((prev) => {
               const exists = prev.some(m => m.id === newMessage.id)
-              if (exists) {
-                console.log('[HumanChat] Message already exists, skipping:', newMessage.id)
-                return prev
-              }
-              console.log('[HumanChat] Adding new message from Realtime:', newMessage.id)
+              if (exists) return prev
               return [...prev, newMessage]
             })
 
@@ -180,63 +200,12 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
 
       currentChannel = channel
 
-      const subscribeStartTime = Date.now()
-      console.log(
-        '[HumanChat] Subscribe start time:',
-        subscribeStartTime,
-        'Elapsed since mount:',
-        subscribeStartTime - mountTime,
-        'ms'
-      )
-
       channel.subscribe(async (status, err) => {
-        console.log('[HumanChat] Subscription status:', status, err)
         if (status === 'SUBSCRIBED') {
           // Reset reconnection counter on successful subscribe
           reconnectAttempts = 0
-
-          const subscribedTime = Date.now()
-          console.log('[HumanChat] Successfully subscribed to human_messages')
-          console.log(
-            '[HumanChat] SUBSCRIBED confirmed at:',
-            subscribedTime,
-            'Elapsed since subscribe():',
-            subscribedTime - subscribeStartTime,
-            'ms',
-            'Total elapsed since mount:',
-            subscribedTime - mountTime,
-            'ms'
-          )
-
-          // Refetch messages once to close the T0→T1 gap (SSR initial load → Realtime subscription)
-          console.log('[HumanChat] Refetching messages to catch any inserted during subscription setup...')
-          try {
-            const { data: refetchedMessages, error: refetchError} = await supabase
-              .from('human_messages')
-              .select('*')
-              .eq('connection_id', connectionId)
-              .order('created_at', { ascending: true })
-
-            if (refetchError) {
-              console.error('[HumanChat] Refetch error:', refetchError)
-            } else if (refetchedMessages && isMounted) {
-              console.log('[HumanChat] Refetched', refetchedMessages.length, 'messages')
-              // Merge with existing messages, deduplicating by message.id
-              setMessages((current) => {
-                const byId = new Map(current.map((msg) => [msg.id, msg]))
-                for (const msg of refetchedMessages as HumanMessage[]) {
-                  byId.set(msg.id, msg)
-                }
-                const merged = Array.from(byId.values()).sort(
-                  (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-                )
-                console.log('[HumanChat] Merged state:', merged.length, 'messages')
-                return merged
-              })
-            }
-          } catch (err) {
-            console.error('[HumanChat] Refetch exception:', err)
-          }
+          // Refetch messages to close the T0→T1 gap (SSR initial load → Realtime subscription)
+          void refetchAndMergeMessages()
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           // Log the error
           if (status === 'CHANNEL_ERROR') {
@@ -248,10 +217,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           }
 
           // Only reconnect if still mounted
-          if (!isMounted) {
-            console.log('[HumanChat] Component unmounted, skipping reconnection')
-            return
-          }
+          if (!isMounted) return
 
           // Progressive backoff: 1s → 2s → 4s → 8s, capped at 10s
           reconnectAttempts++
@@ -259,12 +225,9 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           const exponentialDelay = baseDelay * Math.pow(2, reconnectAttempts - 1)
           const delay = Math.min(exponentialDelay, 10000)
 
-          console.log(`[HumanChat] Reconnecting, attempt ${reconnectAttempts} in ${delay}ms`)
-
           // Schedule reconnection
           reconnectTimeout = setTimeout(() => {
             if (isMounted) {
-              console.log(`[HumanChat] Executing reconnection attempt ${reconnectAttempts}`)
               createAndSubscribeChannel()
             }
           }, delay)
@@ -277,7 +240,6 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
 
     return () => {
       isMounted = false
-      console.log('[HumanChat] Unsubscribing from channel')
 
       // Clear any pending reconnection timeout
       if (reconnectTimeout) {
@@ -290,6 +252,47 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
         supabase.removeChannel(currentChannel)
         currentChannel = null
       }
+    }
+  }, [connectionId])
+
+  // Defensive refetch when tab/window regains focus or visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const supabase = createClient()
+        // Refetch to catch any messages that arrived while tab was hidden
+        void (async () => {
+          try {
+            const { data: refetchedMessages, error: refetchError } = await supabase
+              .from('human_messages')
+              .select('*')
+              .eq('connection_id', connectionId)
+              .order('created_at', { ascending: true })
+
+            if (refetchError) {
+              console.error('[HumanChat] Visibility refetch error:', refetchError)
+            } else if (refetchedMessages) {
+              setMessages((current) => {
+                const byId = new Map(current.map((msg) => [msg.id, msg]))
+                for (const msg of refetchedMessages as HumanMessage[]) {
+                  byId.set(msg.id, msg)
+                }
+                return Array.from(byId.values()).sort(
+                  (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                )
+              })
+            }
+          } catch (err) {
+            console.error('[HumanChat] Visibility refetch exception:', err)
+          }
+        })()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [connectionId])
 
@@ -316,15 +319,10 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   }, [connectionId])
 
   async function handleSend() {
-    console.log('[HumanChat] handleSend called, input:', input.trim())
-    if (!input.trim() || sending) {
-      console.log('[HumanChat] handleSend aborted - empty input or already sending')
-      return
-    }
+    if (!input.trim() || sending) return
 
     setSending(true)
     setError(null)
-    console.log('[HumanChat] Starting POST to /api/human-chat')
 
     try {
       const res = await fetch('/api/human-chat', {
@@ -332,8 +330,6 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ connectionId, content: input.trim() }),
       })
-
-      console.log('[HumanChat] POST response status:', res.status, res.ok)
 
       if (!res.ok) {
         const data = await res.json()
@@ -351,13 +347,8 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
       }
 
       // Optimistic update: add sent message to local state immediately
-      console.log('[HumanChat] Parsing response JSON...')
       const sentMessage = await res.json() as HumanMessage
-      console.log('[HumanChat] Received sentMessage:', sentMessage)
-
-      console.log('[HumanChat] Current messages state before update:', messages.length)
       appendMessageWithDedupe(sentMessage)
-      console.log('[HumanChat] Updated messages state via appendMessageWithDedupe')
 
       setInput('')
       // Auto-resize textarea back to default
@@ -368,7 +359,6 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
       setError('Network error')
       console.error('[HumanChat] Exception in handleSend:', err)
     } finally {
-      console.log('[HumanChat] handleSend finally block - setting sending to false')
       setSending(false)
     }
   }
@@ -408,7 +398,6 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   }
 
   // Group messages by day (only on client to avoid hydration errors)
-  console.log('[HumanChat] Rendering with messages:', messages.length, messages)
   const messagesByDay: { day: string; messages: Array<{ message: HumanMessage; index: number }> }[] = []
 
   if (isMounted) {
@@ -422,8 +411,6 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
       messagesByDay[messagesByDay.length - 1].messages.push({ message: msg, index })
     })
   }
-
-  console.log('[HumanChat] messagesByDay:', messagesByDay)
 
   return (
     <div className="flex flex-col h-full bg-white border border-gray-200 rounded-2xl overflow-hidden">

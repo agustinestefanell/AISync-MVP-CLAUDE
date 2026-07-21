@@ -1280,3 +1280,121 @@ Partial — código completo, build exitoso, lint OK. Pendiente: validación Pro
 
 **Lección clave:**
 `onClick` en contenedores de texto clickeables debe verificar `window.getSelection().toString().length > 0` antes de ejecutar acciones de selección/toggle para preservar el comportamiento nativo del navegador de selección de texto y menú contextual. HumanChatPanel no tenía este problema porque usa checkbox separado — la selección se dispara por `onChange` del checkbox, no por click en el texto. El patrón correcto para mensajes clickeables es: (1) verificar selección activa, (2) si hay selección retornar sin action, (3) si no hay selección ejecutar action normal (toggle/select/etc).
+
+---
+
+## Sesión 2026-07-21 — HumanChatPanel robustness: refetch defensivo + limpieza de logging
+
+**Fecha:** 2026-07-21
+**Estado:** Closed (código completo, build exitoso, lint OK, documentación actualizada)
+
+**Contexto:**
+Product Owner priorizó revisar robustez del chat human-to-human. Inspección reveló que la implementación de Realtime ya era sólida: (1) backoff exponencial 1s→2s→4s→8s cap 10s, (2) dedupe por message.id en múltiples puntos, (3) refetch al SUBSCRIBED, (4) manejo de CHANNEL_ERROR/TIMED_OUT/CLOSED, (5) cleanup correcto de timers y canales. Sin embargo, se identificaron dos mejoras reales y acotadas: (a) faltaba refetch defensivo al recuperar foco/visibilidad de pestaña, (b) quedaba logging masivo de diagnóstico `[HumanChat]` en producción.
+
+**Inspección previa:**
+- **Backoff existente:** ✅ Progressive backoff 1s→2s→4s→8s cap 10s (líneas 256-270)
+- **Dedupe existente:** ✅ En INSERT handler (línea 167-175), appendMessageWithDedupe (línea 88-101), refetch SUBSCRIBED (línea 225-235)
+- **Refetch SUBSCRIBED:** ✅ Inline en callback, líneas 211-239
+- **Timers cleanup:** ✅ reconnectTimeout con clearTimeout (líneas 283-286), channel removal (líneas 289-292)
+- **Estados Realtime:** ✅ SUBSCRIBED, CHANNEL_ERROR, TIMED_OUT, CLOSED manejados
+- **Logging:** 25 console.log masivos `[HumanChat]`, 2 console.warn útiles, 4 console.error útiles
+- **Patrón visibility en proyecto:** ❌ 0 resultados — no hay patrón previo de visibilitychange/focus
+
+**Cambios implementados:**
+
+1. **Extracción de refetch reutilizable (+29 líneas):**
+   - Función `refetchAndMergeMessages()` extraída dentro del useEffect de Realtime (líneas 138-161)
+   - Lógica: fetch `human_messages` + merge con dedupe Map por `message.id` + sort por `created_at`
+   - Reutilizada desde: (a) SUBSCRIBED callback, (b) visibilitychange handler
+   - Preserva exactamente la lógica de merge que ya existía inline
+
+2. **Refetch defensivo en visibilitychange (+37 líneas):**
+   - Nuevo useEffect agregado después del useEffect de Realtime (líneas 261-297)
+   - Evento: `document.visibilitychange` con check `document.visibilityState === 'visible'`
+   - Ejecuta refetch inline (duplica lógica por simplicidad — no usa función extraída del useEffect de Realtime por scope/closure)
+   - Cleanup correcto: `removeEventListener` en return del useEffect
+   - Beneficio: detecta mensajes que llegaron mientras pestaña estaba hidden/minimizada
+   - No agrega `window.focus` para evitar doble refetch sin throttle
+
+3. **Limpieza de logging masivo (-87 líneas netas):**
+   - **Removidos 25 console.log informativos:**
+     - Mount time, Subscribe timing, Elapsed since mount
+     - Realtime INSERT received, Message already exists, Adding new message
+     - Refetched N messages, Merged state, SUBSCRIBED confirmed timing
+     - handleSend timing, POST status, Parsing response, Current messages state
+     - Rendering with messages, messagesByDay
+     - Component unmounted, Reconnecting attempt, Executing reconnection
+     - Unsubscribing from channel
+   - **Preservados 6 console.error/warn útiles:**
+     - Refetch error/exception (Realtime + visibility)
+     - CHANNEL_ERROR (error)
+     - TIMED_OUT (warn)
+     - CLOSED (warn)
+     - POST failed (error)
+     - handleSend exception (error)
+
+**Decisiones técnicas:**
+
+1. **Extracción de refetchAndMergeMessages vs inline duplicado:**
+   - Se extrajo función dentro del useEffect de Realtime para reutilizar en SUBSCRIBED
+   - El handler de visibilitychange duplica la lógica inline (no reutiliza la función extraída) porque vive en useEffect separado con scope distinto
+   - Alternativa descartada: useCallback con deps [connectionId, setMessages] podría compartirse entre useEffects, pero genera stale closure risk — se prefirió duplicación controlada para máxima simplicidad
+
+2. **visibilitychange vs window.focus:**
+   - Elegido: `document.visibilitychange` únicamente
+   - Descartado: `window.focus` — genera doble refetch inmediato sin beneficio claro (visibility cubre alt-tab, minimize, cambio pestaña)
+   - Motivo: visibilitychange es estándar web moderno y cubre todos los casos sin duplicación
+
+3. **Preservación de warnings/errors:**
+   - CHANNEL_ERROR → console.error (crítico)
+   - TIMED_OUT/CLOSED → console.warn (útil para diagnóstico)
+   - Refetch errors → console.error (evita silent failures)
+   - POST errors → console.error (útil para debugging)
+   - Todos los console.log de timing/state → removidos (ruido masivo sin valor en producción)
+
+4. **No modificar lógica de reconexión existente:**
+   - Backoff exponencial preservado intacto
+   - Dedupe preservado intacto
+   - Channel cleanup preservado intacto
+   - Manejo de estados Realtime preservado intacto
+   - Solo se extrajeron funciones reutilizables y se agregó refetch defensivo
+
+**Archivos modificados:**
+- src/components/workspace/HumanChatPanel.tsx (+74 líneas, -87 líneas = -13 líneas netas)
+
+**Archivos NO modificados:**
+- src/components/workspace/AgentPanel.tsx
+- src/components/workspace/WorkspaceShell.tsx
+- src/app/workspace/[id]/page.tsx
+- API routes, migrations, RLS, schema
+- package.json (sin nuevas dependencias)
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso sin errores TypeScript
+- Bundle /workspace/[id]: 63.4 kB (reducción -0.4 kB vs 63.8 kB anterior — logging removido)
+- grep [HumanChat]: ✅ Solo quedan 9 console.error/warn útiles, 0 console.log masivos
+- grep visibilitychange: ✅ 3 líneas (check state, addEventListener, removeEventListener)
+- git diff --check: ✅ OK (solo warning CRLF normal Windows)
+
+**Fuera de alcance respetado:**
+- ✅ NO reescritura de lógica Realtime base
+- ✅ NO AgentPanel modificado
+- ✅ NO API/DB/RLS/migrations
+- ✅ NO librerías nuevas
+- ✅ NO polling periódico
+- ✅ NO heartbeat
+- ✅ NO localStorage
+
+**Restricciones respetadas:**
+- ✅ Solo HumanChatPanel.tsx modificado
+- ✅ Backoff existente intacto
+- ✅ Dedupe existente intacto
+- ✅ CHANNEL_ERROR/TIMED_OUT/CLOSED handlers intactos
+- ✅ Cleanup de timers/canales intacto
+
+**Estado:**
+Closed — código completo, build exitoso, lint OK, documentación actualizada. No requiere validación visual obligatoria del PO (mejora defensiva + cleanup de consola). Validación implícita: (1) chat carga normalmente, (2) Realtime funciona, (3) consola sin ruido masivo, (4) volver a pestaña ejecuta refetch sin romper.
+
+**Lección clave:**
+Refetch defensivo al recuperar visibilidad/foco es patrón útil para componentes Realtime que dependen de conexiones persistentes. El navegador puede pausar timers o conexiones cuando la pestaña está hidden, y `document.visibilitychange` es el estándar moderno para detectar cuando vuelve a estar visible. Logging masivo de diagnóstico `[Component] action...` útil durante desarrollo debe removerse antes de producción — preservar solo `console.error` para errores reales y `console.warn` para señales anómalas. Extracción de funciones reutilizables (refetch/merge) reduce duplicación y facilita agregar nuevos puntos de entrada (visibilitychange, manual refresh, etc.) sin reescribir lógica compleja.
