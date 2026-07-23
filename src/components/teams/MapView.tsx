@@ -28,6 +28,7 @@ interface MapViewProps {
   resetSignal: number
   onEdit: (team: TeamWithWorkspaces) => void
   onOpen: (workspaceId: string) => void
+  onConnect: (projectId: string) => void
 }
 
 interface Connection {
@@ -196,6 +197,7 @@ export default function MapView({
   resetSignal,
   onEdit,
   onOpen,
+  onConnect,
 }: MapViewProps) {
   const [connections, setConnections] = useState<Connection[]>([])
   const [isProjectIndexOpen, setIsProjectIndexOpen] = useState(true)
@@ -377,9 +379,17 @@ export default function MapView({
               >
                 {/* Project header (stable, outside zoom/pan transform) */}
                 <div className="w-full flex items-center justify-between px-6 py-3 bg-white rounded-lg border border-[#DDE6F1] shadow-sm">
-                  <span className="text-base font-semibold text-[#0C1733]">
-                    {project.name}
-                  </span>
+                  <div className="flex items-center gap-4">
+                    <span className="text-base font-semibold text-[#0C1733]">
+                      {project.name}
+                    </span>
+                    <button
+                      onClick={() => onConnect(project.id)}
+                      className="flex items-center gap-1.5 rounded-lg border border-[#BFE7C8] bg-white px-3 py-1.5 text-xs font-medium text-[#63C37D] hover:bg-[#E9F8EE] transition-colors"
+                    >
+                      + Connect
+                    </button>
+                  </div>
                   <span className="text-sm text-[#5C6B82]">
                     {project.count} Team{project.count !== 1 ? 's' : ''}
                   </span>

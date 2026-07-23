@@ -2,7 +2,7 @@
 
 Documento de referencia técnica para Workers nuevos o relevos. Basado en lectura directa del código activo, migraciones y handoff-archive-2026-06.md. No es documentación de marketing.
 
-Última actualización: 2026-07-16
+Última actualización: 2026-07-23
 
 ---
 
@@ -897,6 +897,9 @@ Contrato `ToolExecutor`: `execute()` retorna `Promise<ToolExecutionResult>` con 
 | 045 | `045_add_extraction_error_field.sql` | context_sources: extraction_error (diagnóstico Context Files) |
 | 046 | `046_allow_deleted_context_sources_status.sql` | context_sources status CHECK: permite 'deleted' (Context Files delete real) |
 | 047 | `047_add_messages_update_policy.sql` | messages: política UPDATE faltante (requerida por Attachment AI Summary para persistir `attachment_metadata.ai_summary`) |
+| 048 | `048_web_search_toggle_persistence.sql` | agent_sessions: web_search_enabled BOOLEAN (default true, Runtime Grounding Layer) |
+| 049 | `049_add_team_archive_state.sql` | teams: status + archived_at + archived_by + archive_reason (Archived Teams Fase 1A) |
+| 050 | `050_add_connection_project_bindings.sql` | team_connections: requester_project_id + receiver_project_id (Connect Team active Project binding) |
 
 ### 10.2 Migraciones clave
 
@@ -918,11 +921,20 @@ Migraciones 016–020 aplicadas en Supabase Dashboard. Migración 021 pendiente 
 
 **Decisión arquitectónica:** Connected Teams usa modelo de "dos edificios separados" — cada usuario (Host e Invitado) tiene su propio team, workspace y Manager en su propia cuenta. La conexión entre ambos es únicamente el chat humano (`human_messages`). **No existe lectura cruzada entre el Manager de un usuario y el del otro**.
 
-**Schema actual (migración 042):**
+**Schema actual (migraciones 042 + 050):**
 - `team_connections.host_isolated_team_id` → team/workspace del Manager del Host
 - `team_connections.invitee_isolated_team_id` → team/workspace del Manager del Invitado
+- `team_connections.requester_project_id` → Project activo del Host al crear request (migración 050, NULL para legacy)
+- `team_connections.receiver_project_id` → Project activo del Invitee al aceptar (migración 050, NULL para legacy)
 - `team_connections.scope_isolated_team_id` → **campo legacy ELIMINADO en migración 044**
 - `team_connections.scope_isolated_workspace_id` → **campo legacy ELIMINADO en migración 044**
+
+**Project binding (migración 050, 2026-07-23):**
+- Isolated teams creados para conexiones activas usan el `project_id` del Project activo del usuario
+- Host: isolated team usa `requester_project_id` (capturado en POST `/api/connections`)
+- Invitee: isolated team usa `receiver_project_id` (capturado en PATCH accept)
+- Legacy connections (pre-050): ambos campos NULL, Projects dedicados preservados
+- Constraint: `ON DELETE SET NULL` (conexiones persisten si Project se borra)
 
 **Políticas RLS legacy eliminadas (migración 044):**
 - `"Invitee can read isolated team"` en `teams` (eliminada)

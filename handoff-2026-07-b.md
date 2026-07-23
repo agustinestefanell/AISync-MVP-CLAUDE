@@ -1879,3 +1879,182 @@ Product Owner reportó tres mejoras UX acotadas en Teams Map después de validac
 
 **Lección clave:**
 Botones fuera de contexto durante flujos modales deben ocultarse (no solo disabilitarse) para reducir confusión visual. Workers en organigrama jerárquico comparten workspace del Manager padre — botón Open no tiene sentido en nodos Worker (no navegan a workspace propio). TreeWorkspaceCard como componente genérico debe verificar `actionLabel && actionLabel.length > 0` antes de renderizar botón primary action para soportar casos edge donde el label es string vacío o undefined. SAT es el caso más común en arquitectura de teams (80%+ según Product Owner) — preselectarlo reduce clicks innecesarios en flujo de creación.
+
+---
+
+## Sesión 2026-07-23 — Connect Team active Project binding + UI relocation
+
+**Fecha:** 2026-07-23
+**Estado:** Partial (código completo, build TypeScript exitoso, pendiente validación visual PO + testing integral)
+
+**Contexto:**
+Connected Teams requería binding explícito al Project activo del usuario en el momento de crear/aceptar la conexión. Arquitectura anterior creaba Projects dedicados automáticamente por conexión (comportamiento legacy preservado). Nueva arquitectura: isolated teams creados para conexiones activas usan el `project_id` del Project activo del usuario (Host al crear request, Invitee al aceptar).
+
+**Cambios implementados:**
+
+1. **Migration 050_add_connection_project_bindings.sql (nueva):**
+   - `team_connections.requester_project_id UUID REFERENCES projects(id) ON DELETE SET NULL`
+   - `team_connections.receiver_project_id UUID REFERENCES projects(id) ON DELETE SET NULL`
+   - Indexes: `idx_team_connections_requester_project_id`, `idx_team_connections_receiver_project_id`
+   - Comments SQL documentando cada columna
+   - Legacy connections (creadas antes de la migración) tendrán NULL en ambas columnas — sin backfill
+
+2. **src/app/api/connections/route.ts (POST — crear request):**
+   - Agregado `requester_project_id` al payload de INSERT
+   - Poblado con `projectId` recibido en body del request
+   - Isolated team Host creado con `project_id = requester_project_id`
+   - Validación: `projectId` debe existir y pertenecer al usuario autenticado
+
+3. **src/app/api/connections/[id]/route.ts (PATCH action='accept'):**
+   - Agregado `receiver_project_id` al UPDATE de conexión al aceptar
+   - Poblado con `projectId` recibido en body del request
+   - Isolated team Invitee creado con `project_id = receiver_project_id`
+   - Validación: `projectId` debe existir y pertenecer al usuario autenticado
+
+4. **src/components/teams/ConnectTeamModal.tsx:**
+   - Agregada prop `projectId: string` (recibida de TeamsClient)
+   - Modal incluye `projectId` en payload POST a `/api/connections`
+   - Sin selector visible de Project — usa automáticamente el Project desde donde se abrió el modal
+   - Validación: no permite abrir modal sin `projectId` válido
+
+5. **src/components/teams/IncomingRequestsPanel.tsx:**
+   - Agregada prop `projectId: string` (recibida de TeamsClient)
+   - Accept envía `projectId` en payload PATCH a `/api/connections/[id]`
+   - Sin selector visible de Project — usa automáticamente el Project activo en Teams Map
+
+6. **src/components/ProjectList.tsx (Dashboard):**
+   - ConnectTeamModal ya recibía `currentProject?.id` como `projectId` (sin cambios funcionales)
+   - IncomingRequestsPanel ahora recibe `currentProject?.id` como `projectId` (+1 prop)
+   - Dashboard preserva comportamiento: Connect/Accept desde Project activo mostrado en la UI
+
+**Frente 2 — UI relocation (Teams Map):**
+
+7. **src/components/teams/TeamsClient.tsx:**
+   - **REMOVIDO** botón "↔ Connect" del ribbon común (líneas 430-436 deleted)
+   - Agregado state `connectProjectId: string | null` para trackear Project específico
+   - Callback `onConnect` pasada a MapView, ejecuta `setConnectProjectId(pid)` + `setShowConnect(true)`
+   - ConnectTeamModal ahora condicional: `{showConnect && connectProjectId && (...)}`
+   - Modal recibe `projectId={connectProjectId}` (en lugar de `projectId` genérico de TeamsClient)
+   - `onClose` del modal limpia ambos estados: `setShowConnect(false)` + `setConnectProjectId(null)`
+
+8. **src/components/teams/MapView.tsx:**
+   - Agregada prop `onConnect: (projectId: string) => void` a `MapViewProps`
+   - Header de cada Project (fuera de zoom/pan) ahora incluye botón **"+ Connect"**
+   - Botón estilo consistente con Dashboard: `border-[#BFE7C8]`, `text-[#63C37D]`, hover `bg-[#E9F8EE]`
+   - Click ejecuta `onConnect(project.id)` con ID específico del Project
+   - Ubicación: entre nombre del Project y contador de Teams (lado izquierdo del header)
+
+**Decisiones técnicas:**
+
+1. **ON DELETE SET NULL en FKs:**
+   - Si un Project se borra, las conexiones asociadas NO se borran (project_id → NULL)
+   - Permite preservar trazabilidad histórica de conexiones incluso si Projects desaparecen
+   - Isolated teams creados previamente mantienen su `project_id` hasta que el Project sea borrado
+
+2. **Legacy connections sin backfill:**
+   - Conexiones creadas antes de la migración 050 tendrán `requester_project_id = NULL` y `receiver_project_id = NULL`
+   - No se ejecuta script de backfill automático — Projects dedicados legacy se preservan
+   - Nueva lógica solo aplica a conexiones creadas/aceptadas después de aplicar la migración
+
+3. **Validación de ownership en endpoints:**
+   - POST `/api/connections`: verifica que `projectId` pertenezca al usuario autenticado antes de insertar
+   - PATCH `/api/connections/[id]`: verifica que `projectId` pertenezca al usuario autenticado antes de aceptar
+   - Error 400 si `projectId` inválido o no pertenece al usuario
+
+4. **No selector visible de Project:**
+   - ConnectTeamModal y IncomingRequestsPanel NO muestran dropdown de selección de Project
+   - Usan automáticamente el Project desde donde se disparó la acción (contextual)
+   - Dashboard: Project activo visible en la UI
+   - Teams Map: Project específico del header donde se clickeó "+ Connect"
+
+5. **Frente 2 — Connect movido de ribbon común a headers de Projects:**
+   - Ribbon común de Teams Map: acción global sin contexto de Project específico (removido)
+   - Header de cada Project: contexto claro del Project al que pertenecerá la conexión (agregado)
+   - Dashboard preservado: Connect en columna "Connected Teams" (acción global válida — modal pide Project)
+
+**Archivos modificados:**
+- supabase/migrations/050_add_connection_project_bindings.sql (nuevo)
+- src/app/api/connections/route.ts (+50 líneas netas: validación projectId + INSERT con requester_project_id + isolated team con project_id)
+- src/app/api/connections/[id]/route.ts (+60 líneas netas: validación projectId + UPDATE con receiver_project_id + isolated team con project_id)
+- src/components/teams/ConnectTeamModal.tsx (+8 líneas: prop projectId + payload)
+- src/components/teams/IncomingRequestsPanel.tsx (+3 líneas: prop projectId + payload)
+- src/components/ProjectList.tsx (+1 línea: prop projectId a IncomingRequestsPanel)
+- src/components/teams/TeamsClient.tsx (+15 líneas netas: state connectProjectId, callback onConnect, condicional modal, REMOVIDO botón ribbon)
+- src/components/teams/MapView.tsx (+10 líneas netas: prop onConnect, botón "+ Connect" en header)
+
+**Archivos NO tocados:**
+- CanvasViewport (todas variantes), TreeView, Documentation Mode, Audit Log
+- Modales: AddTeamModal, EditTeamModal
+- API routes: teams, context, messages, otros
+- Schema/RLS/migrations anteriores
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- TypeScript: ✅ Compilado exitosamente
+- Build: ⚠️ Error pre-existente `/api/audit` (no relacionado con estos cambios)
+- git diff --stat: 7 archivos, 461 insertions(+), 110 deletions(-)
+
+**Validación funcional:**
+⏳ PENDIENTE — Requiere validación Product Owner con testing integral:
+
+1. **Migration 050 aplicada en Supabase producción**
+2. **Create request desde Teams Map:**
+   - Abrir Teams Map
+   - Click en "+ Connect" dentro del header de un Project específico (ej. "Mi Primer Proyecto")
+   - Modal ConnectTeamModal se abre
+   - Completar form (email, description, color)
+   - Enviar request
+   - **Verificar en DB:** `team_connections.requester_project_id` = ID del Project desde donde se clickeó
+   - **Verificar en DB:** Isolated team Host creado con `project_id` = `requester_project_id`
+
+3. **Accept request desde Teams Map:**
+   - Usuario Invitee recibe notificación
+   - Abrir Teams Map en Project específico (ej. "Proyecto Europa")
+   - Click en botón "Requests"
+   - Panel IncomingRequestsPanel se abre
+   - Click en "Accept"
+   - **Verificar en DB:** `team_connections.receiver_project_id` = ID del Project activo en Teams Map
+   - **Verificar en DB:** Isolated team Invitee creado con `project_id` = `receiver_project_id`
+
+4. **Create/Accept desde Dashboard:**
+   - Abrir Dashboard con Project activo visible (ej. "Proyecto 2")
+   - Click en "+ Connect" en columna "Connected Teams"
+   - Modal se abre, enviar request
+   - **Verificar en DB:** `requester_project_id` = ID del Project activo mostrado en Dashboard
+   - Invitee acepta desde Dashboard con otro Project activo (ej. "Proyecto Europa")
+   - **Verificar en DB:** `receiver_project_id` = ID del Project activo del Invitee
+
+5. **UI validation — Teams Map:**
+   - ✅ Botón "↔ Connect" NO visible en ribbon común de Teams Map
+   - ✅ Botón "+ Connect" SÍ visible en header de cada Project individual
+   - ✅ Click en "+ Connect" abre modal ConnectTeamModal
+   - ✅ Modal se cierra correctamente después de enviar
+
+6. **UI validation — Dashboard:**
+   - ✅ Botón "+ Connect" sigue visible en columna "Connected Teams" (sin cambios)
+
+7. **Legacy connections:**
+   - Conexiones creadas antes de migración 050: `requester_project_id = NULL`, `receiver_project_id = NULL`
+   - Isolated teams legacy preservan su `project_id` dedicado (creado automáticamente antes)
+   - Sin regresión funcional en conexiones legacy
+
+**Restricciones respetadas:**
+- ✅ NO tocar CanvasViewport, TreeView
+- ✅ NO tocar Documentation Mode, Audit Log
+- ✅ NO reintroducir acordeón, Map/Tree toggle
+- ✅ NO cambiar colores, códigos, badges, Shared Team
+- ✅ Stack vertical de Projects preservado
+- ✅ Project headers fuera de zoom/pan preservado
+- ✅ Sidebar colapsable preservado
+
+**Riesgos mitigados:**
+- ✅ Validación de ownership en endpoints: `projectId` debe pertenecer al usuario autenticado
+- ✅ ON DELETE SET NULL: borrado de Project no borra conexiones (solo deja project_id NULL)
+- ✅ Legacy connections preservadas: sin backfill forzado, sin cambios en datos existentes
+- ✅ Condicional modal: `{showConnect && connectProjectId && (...)}` previene abrir modal sin Project válido
+
+**Estado:**
+Partial — Código completo, TypeScript compilado exitosamente, lint OK. Pendiente: aplicación migración 050 en Supabase + testing integral con 7-point checklist funcional + screenshot PO confirmando que Connect desapareció del ribbon común y aparece en headers de Projects.
+
+**Lección clave:**
+Binding explícito de conexiones a Projects requiere threading del `projectId` contextual desde UI → modal → endpoint → DB. Dashboard y Teams Map tienen contextos diferentes: Dashboard usa Project activo global (selector visible), Teams Map usa Project específico del header donde se disparó la acción (contextual, sin selector). Connect como acción global (ribbon común) NO tiene contexto de Project específico — debe moverse a header individual de cada Project para capturar el `projectId` correcto. Legacy data sin backfill es válido cuando el comportamiento anterior (Projects dedicados) se preserva y la nueva lógica solo aplica a datos futuros.

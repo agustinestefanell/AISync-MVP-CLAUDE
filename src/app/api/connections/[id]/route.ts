@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { MAX_ACTIVE_CONNECTIONS_PER_ACCOUNT } from '@/lib/constants/connectionLimits'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -13,13 +14,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     action: 'accept' | 'reject' | 'disconnect'
     receiver_team_id?: string
     receiver_team_name?: string
+    receiver_project_id?: string
   }
 
   // SEC-010: una sola lectura, autorización por acción — accept/reject opera solo
   // sobre pendientes (receiver), disconnect solo sobre activas (cualquier punta)
   const { data: connection } = await supabase
     .from('team_connections')
-    .select('id, status, receiver_email, receiver_account_id, requester_account_id, requester_email, requester_team_name, receiver_team_name, description')
+    .select('id, status, receiver_email, receiver_account_id, requester_account_id, requester_email, requester_team_name, receiver_team_name, description, requester_project_id, requester_team_id, host_isolated_team_id, invitee_isolated_team_id')
     .eq('id', params.id)
     .single()
 
@@ -43,6 +45,64 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   if (body.action === 'accept') {
+    // Rule 2: Check total active connections count for this account (invitee)
+    const { count: myActiveConnectionsCount } = await supabase
+      .from('team_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'active')
+      .or(`requester_account_id.eq.${user.id},receiver_account_id.eq.${user.id}`)
+
+    if (myActiveConnectionsCount !== null && myActiveConnectionsCount >= MAX_ACTIVE_CONNECTIONS_PER_ACCOUNT) {
+      return NextResponse.json(
+        {
+          error: 'Connection limit reached',
+          message: `You have reached the maximum of ${MAX_ACTIVE_CONNECTIONS_PER_ACCOUNT} active connections for your current plan. Please upgrade your plan or disconnect an existing connection before accepting new requests.`,
+          limit: MAX_ACTIVE_CONNECTIONS_PER_ACCOUNT,
+          current: myActiveConnectionsCount,
+        },
+        { status: 403 }
+      )
+    }
+
+    // Rule 1: Check for existing active connection between this pair of accounts
+    // (This should not happen in practice since the requester already checks this,
+    // but we validate again for defense in depth)
+    const requesterAccountId = connection.requester_account_id
+
+    const { data: existingPairConnection } = await supabase
+      .from('team_connections')
+      .select('id')
+      .eq('status', 'active')
+      .or(`and(requester_account_id.eq.${user.id},receiver_account_id.eq.${requesterAccountId}),and(requester_account_id.eq.${requesterAccountId},receiver_account_id.eq.${user.id})`)
+      .maybeSingle()
+
+    if (existingPairConnection) {
+      return NextResponse.json(
+        {
+          error: 'existing_connection',
+          message: 'An active connection already exists between these accounts. Cannot accept this request.',
+        },
+        { status: 409 }
+      )
+    }
+
+    // Validate receiver_project_id if provided
+    if (body.receiver_project_id) {
+      const { data: receiverProject } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('id', body.receiver_project_id)
+        .eq('account_id', user.id)
+        .single()
+
+      if (!receiverProject) {
+        return NextResponse.json(
+          { error: 'Invalid project. You do not own this project.' },
+          { status: 403 }
+        )
+      }
+    }
+
     // receiver_team_id is now optional — isolated team is created automatically
     const { data, error } = await supabase
       .from('team_connections')
@@ -50,11 +110,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         receiver_account_id: user.id,
         receiver_team_id:    body.receiver_team_id ?? null,
         receiver_team_name:  body.receiver_team_name ?? null,
+        receiver_project_id: body.receiver_project_id ?? null,
         status:              'active',
         updated_at:          new Date().toISOString(),
       })
       .eq('id', params.id)
-      .select('*, requester_account_id, requester_team_id, requester_team_name, requester_email, receiver_email, description, color')
+      .select('*, requester_account_id, requester_team_id, requester_team_name, requester_email, receiver_email, description, color, requester_project_id, receiver_project_id')
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -103,14 +164,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     // Etapa 8: Create separate isolated teams for Host and Invitee
-    // (Legacy "OE A" shared manager code removed 2026-06-30)
+    // Connected Teams Project binding: use active Projects instead of creating dedicated ones
     try {
       // Check if isolated teams already exist (prevent duplicates on retry)
       if (!data.host_isolated_team_id || !data.invitee_isolated_team_id) {
         // Fetch requester team to get default provider/model
         const { data: requesterTeam } = await createAdminClient()
           .from('teams')
-          .select('workspaces(agent_sessions(provider, model))')
+          .select('workspaces(agent_sessions(provider, model)), project_id')
           .eq('id', data.requester_team_id)
           .single()
 
@@ -119,35 +180,52 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         const defaultProvider = firstSession?.provider || 'Anthropic'
         const defaultModel = firstSession?.model || 'Claude 3.5 Sonnet'
 
-        // Create project for Host
-        const { data: hostProject } = await createAdminClient()
+        // Use requester_project_id from team_connections (persisted at request time)
+        // Fallback for legacy pending requests: use project_id of the host team
+        let hostProjectId = data.requester_project_id
+        if (!hostProjectId) {
+          console.warn('[accept] Legacy pending request without requester_project_id. Using fallback: host team project_id.')
+          hostProjectId = requesterTeam?.project_id ?? null
+        }
+
+        // Use receiver_project_id from accept payload (invitee's active Project)
+        const inviteeProjectId = data.receiver_project_id
+
+        if (!hostProjectId || !inviteeProjectId) {
+          console.error('[accept] Missing project IDs. host:', hostProjectId, 'invitee:', inviteeProjectId)
+          return NextResponse.json(
+            { error: 'Failed to create isolated teams. Missing project binding.' },
+            { status: 500 }
+          )
+        }
+
+        // Validate that both projects exist (defense against stale/deleted projects)
+        const { data: hostProjectCheck } = await createAdminClient()
           .from('projects')
-          .insert({
-            account_id: data.requester_account_id,
-            name: `${data.requester_email}+${data.receiver_email ?? user.email}`,
-            status: 'active',
-          })
-          .select()
+          .select('id')
+          .eq('id', hostProjectId)
           .single()
 
-        // Create project for Invitee
-        const { data: inviteeProject } = await createAdminClient()
+        const { data: inviteeProjectCheck } = await createAdminClient()
           .from('projects')
-          .insert({
-            account_id: user.id,
-            name: `${data.receiver_email ?? user.email}+${data.requester_email}`,
-            status: 'active',
-          })
-          .select()
+          .select('id')
+          .eq('id', inviteeProjectId)
           .single()
 
-        if (hostProject && inviteeProject) {
-          // Create Host's isolated team
-          const hostTeamName = `Shared: ${data.requester_team_name} ↔ ${data.receiver_email ?? user.email}`
-          const { data: hostTeam } = await createAdminClient()
-            .from('teams')
-            .insert({
-              project_id: hostProject.id,
+        if (!hostProjectCheck || !inviteeProjectCheck) {
+          console.error('[accept] Project validation failed. host:', !!hostProjectCheck, 'invitee:', !!inviteeProjectCheck)
+          return NextResponse.json(
+            { error: 'Failed to create isolated teams. Invalid project reference.' },
+            { status: 500 }
+          )
+        }
+
+        // Create Host's isolated team (uses requester's active Project)
+        const hostTeamName = `Shared: ${data.requester_team_name} ↔ ${data.receiver_email ?? user.email}`
+        const { data: hostTeam } = await createAdminClient()
+          .from('teams')
+          .insert({
+            project_id: hostProjectId,
               name: hostTeamName,
               type: 'isolated',
               parent_id: null,
@@ -157,12 +235,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             .select()
             .single()
 
-          // Create Invitee's isolated team
+          // Create Invitee's isolated team (uses receiver's active Project)
           const inviteeTeamName = `Shared: ${data.receiver_email ?? user.email} ↔ ${data.requester_email}`
           const { data: inviteeTeam } = await createAdminClient()
             .from('teams')
             .insert({
-              project_id: inviteeProject.id,
+              project_id: inviteeProjectId,
               name: inviteeTeamName,
               type: 'isolated',
               parent_id: null,
@@ -172,7 +250,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             .select()
             .single()
 
-            if (hostTeam && inviteeTeam) {
+          if (hostTeam && inviteeTeam) {
               // Create workspace for Host
               const { data: hostWorkspace } = await createAdminClient()
                 .from('workspaces')
@@ -193,60 +271,59 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
                 .select()
                 .single()
 
-              if (hostWorkspace && inviteeWorkspace) {
-                // Create 3 agent_sessions for Host
-                await createAdminClient().from('agent_sessions').insert([
-                  {
-                    workspace_id: hostWorkspace.id,
-                    agent_role: 'manager',
-                    provider: defaultProvider,
-                    model: defaultModel,
-                  },
-                  {
-                    workspace_id: hostWorkspace.id,
-                    agent_role: 'worker1',
-                    provider: defaultProvider,
-                    model: defaultModel,
-                  },
-                  {
-                    workspace_id: hostWorkspace.id,
-                    agent_role: 'worker2',
-                    provider: defaultProvider,
-                    model: defaultModel,
-                  },
-                ])
+            if (hostWorkspace && inviteeWorkspace) {
+              // Create 3 agent_sessions for Host
+              await createAdminClient().from('agent_sessions').insert([
+                {
+                  workspace_id: hostWorkspace.id,
+                  agent_role: 'manager',
+                  provider: defaultProvider,
+                  model: defaultModel,
+                },
+                {
+                  workspace_id: hostWorkspace.id,
+                  agent_role: 'worker1',
+                  provider: defaultProvider,
+                  model: defaultModel,
+                },
+                {
+                  workspace_id: hostWorkspace.id,
+                  agent_role: 'worker2',
+                  provider: defaultProvider,
+                  model: defaultModel,
+                },
+              ])
 
-                // Create 3 agent_sessions for Invitee
-                await createAdminClient().from('agent_sessions').insert([
-                  {
-                    workspace_id: inviteeWorkspace.id,
-                    agent_role: 'manager',
-                    provider: defaultProvider,
-                    model: defaultModel,
-                  },
-                  {
-                    workspace_id: inviteeWorkspace.id,
-                    agent_role: 'worker1',
-                    provider: defaultProvider,
-                    model: defaultModel,
-                  },
-                  {
-                    workspace_id: inviteeWorkspace.id,
-                    agent_role: 'worker2',
-                    provider: defaultProvider,
-                    model: defaultModel,
-                  },
-                ])
+              // Create 3 agent_sessions for Invitee
+              await createAdminClient().from('agent_sessions').insert([
+                {
+                  workspace_id: inviteeWorkspace.id,
+                  agent_role: 'manager',
+                  provider: defaultProvider,
+                  model: defaultModel,
+                },
+                {
+                  workspace_id: inviteeWorkspace.id,
+                  agent_role: 'worker1',
+                  provider: defaultProvider,
+                  model: defaultModel,
+                },
+                {
+                  workspace_id: inviteeWorkspace.id,
+                  agent_role: 'worker2',
+                  provider: defaultProvider,
+                  model: defaultModel,
+                },
+              ])
 
-                // Update team_connections with both isolated team IDs
-                await createAdminClient()
-                  .from('team_connections')
-                  .update({
-                    host_isolated_team_id: hostTeam.id,
-                    invitee_isolated_team_id: inviteeTeam.id,
-                  })
-                  .eq('id', params.id)
-              }
+              // Update team_connections with both isolated team IDs
+              await createAdminClient()
+                .from('team_connections')
+                .update({
+                  host_isolated_team_id: hostTeam.id,
+                  invitee_isolated_team_id: inviteeTeam.id,
+                })
+                .eq('id', params.id)
             }
           }
         }

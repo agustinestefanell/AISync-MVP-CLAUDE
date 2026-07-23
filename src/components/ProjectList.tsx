@@ -634,18 +634,20 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
 
     </div>
 
-      {showConnectModal && (
+      {showConnectModal && activeProjectId && (
         <ConnectTeamModal
           teams={allTeams}
+          projectId={activeProjectId}
           onClose={() => setShowConnectModal(false)}
           onConnected={() => { setShowConnectModal(false); fetchConnections() }}
         />
       )}
 
-      {showRequestsPanel && (
+      {showRequestsPanel && activeProjectId && (
         <IncomingRequestsPanel
           connections={connections}
           myTeams={allTeams}
+          projectId={activeProjectId}
           onClose={() => setShowRequestsPanel(false)}
           onAccepted={() => { setShowRequestsPanel(false); fetchConnections() }}
           onRejected={() => { setShowRequestsPanel(false); fetchConnections() }}

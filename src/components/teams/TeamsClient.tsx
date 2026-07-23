@@ -162,6 +162,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   const [zoomOutSignal, setZoomOutSignal] = useState(0)
   const [resetSignal, setResetSignal] = useState(0)
   const [showArchivedTeams, setShowArchivedTeams] = useState(false)
+  const [connectProjectId, setConnectProjectId] = useState<string | null>(null)
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -427,14 +428,6 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
               )}
             </button>
 
-            {/* Connect */}
-            <button
-              onClick={() => setShowConnect(true)}
-              className="flex h-9 items-center gap-1.5 rounded-[10px] border border-teal-200 bg-teal-50 px-3 text-xs font-medium text-teal-700 hover:bg-teal-100 transition-colors"
-            >
-              ↔ Connect
-            </button>
-
             {/* Add Team */}
             <button
               onClick={() => setShowAdd(true)}
@@ -458,6 +451,10 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           resetSignal={resetSignal}
           onEdit={team => setEditingTeam(team)}
           onOpen={workspaceId => window.open(`/workspace/${workspaceId}`, '_blank')}
+          onConnect={(pid: string) => {
+            setConnectProjectId(pid)
+            setShowConnect(true)
+          }}
         />
       </div>
 
@@ -484,10 +481,14 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
         />
       )}
 
-      {showConnect && (
+      {showConnect && connectProjectId && (
         <ConnectTeamModal
           teams={teams}
-          onClose={() => setShowConnect(false)}
+          projectId={connectProjectId}
+          onClose={() => {
+            setShowConnect(false)
+            setConnectProjectId(null)
+          }}
           onConnected={handleConnected}
         />
       )}
@@ -496,6 +497,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
         <IncomingRequestsPanel
           connections={connections}
           myTeams={teams}
+          projectId={projectId}
           onClose={() => setShowIncoming(false)}
           onAccepted={handleAccepted}
           onRejected={handleRejected}

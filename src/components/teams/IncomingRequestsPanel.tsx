@@ -7,6 +7,7 @@ import type { Connection } from './ConnectTeamModal'
 interface IncomingRequestsPanelProps {
   connections: Connection[]
   myTeams: TeamWithWorkspaces[] // no longer used (isolated team is created automatically)
+  projectId: string
   onClose: () => void
   onAccepted: (updated: Connection) => void
   onRejected: (id: string) => void
@@ -22,6 +23,7 @@ function formatDate(iso: string) {
 export default function IncomingRequestsPanel({
   connections,
   myTeams: _myTeams,
+  projectId,
   onClose,
   onAccepted,
   onRejected,
@@ -41,10 +43,26 @@ export default function IncomingRequestsPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'accept',
+          receiver_project_id: projectId,
         }),
       })
       if (!res.ok) {
         const d = await res.json()
+
+        // Handle connection limit case (403 Forbidden)
+        if (res.status === 403 && d.error === 'Connection limit reached') {
+          setError(d.message ?? 'Connection limit reached.')
+          setLoading(null)
+          return
+        }
+
+        // Handle existing connection case (409 Conflict) - should not happen in practice
+        if (res.status === 409 && d.error === 'existing_connection') {
+          setError(d.message ?? 'An active connection already exists between these accounts.')
+          setLoading(null)
+          return
+        }
+
         setError(d.error ?? 'Error accepting.')
         return
       }

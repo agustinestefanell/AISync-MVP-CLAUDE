@@ -5,6 +5,7 @@ import type { TeamWithWorkspaces } from '@/lib/db/types'
 
 interface ConnectTeamModalProps {
   teams: TeamWithWorkspaces[]
+  projectId: string
   onClose: () => void
   onConnected: (connection: Connection) => void
 }
@@ -51,12 +52,21 @@ const CONNECTION_COLORS = [
   '#065f46', // Esmeralda oscuro
 ]
 
-export default function ConnectTeamModal({ teams, onClose, onConnected }: ConnectTeamModalProps) {
+interface ExistingConnectionData {
+  connectionId: string
+  partnerEmail: string
+  myProjectName: string
+  theirProjectName: string
+  workspaceId: string | null
+}
+
+export default function ConnectTeamModal({ teams, projectId, onClose, onConnected }: ConnectTeamModalProps) {
   const [receiverEmail, setReceiverEmail] = useState('')
   const [description, setDescription] = useState('')
   const [selectedColor, setSelectedColor] = useState(CONNECTION_COLORS[0])
   const [error, setError]   = useState('')
   const [saving, setSaving] = useState(false)
+  const [existingConnection, setExistingConnection] = useState<ExistingConnectionData | null>(null)
 
   // Use first team automatically (no selector shown to user)
   // Exclude isolated teams (shared teams from connections) — they cannot be used as host for new connections
@@ -83,6 +93,7 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
         body: JSON.stringify({
           requester_team_id:   hostTeamId,
           requester_team_name: hostTeam?.name ?? '',
+          requester_project_id: projectId,
           receiver_email:      receiverEmail.trim(),
           description:         description.trim(),
           color:               selectedColor,
@@ -92,6 +103,21 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
       })
       if (!res.ok) {
         const d = await res.json()
+
+        // Handle existing connection case (409 Conflict)
+        if (res.status === 409 && d.error === 'existing_connection' && d.existingConnection) {
+          setExistingConnection(d.existingConnection)
+          setSaving(false)
+          return
+        }
+
+        // Handle connection limit case (403 Forbidden)
+        if (res.status === 403 && d.error === 'Connection limit reached') {
+          setError(d.message ?? 'Connection limit reached.')
+          setSaving(false)
+          return
+        }
+
         setError(d.error ?? 'Error sending request.')
         return
       }
@@ -103,6 +129,85 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
     }
   }
 
+  function handleOpenExisting() {
+    if (existingConnection?.workspaceId) {
+      window.open(`/workspace/${existingConnection.workspaceId}`, '_blank')
+      onClose()
+    } else {
+      setError('Could not find the shared workspace. Please contact support.')
+    }
+  }
+
+  // Show existing connection confirmation modal
+  if (existingConnection) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      >
+        <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md mx-4 shadow-2xl flex flex-col">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Already connected with {existingConnection.partnerEmail}</h3>
+              <p className="text-xs text-gray-600 mt-0.5">An active connection already exists with this account</p>
+            </div>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-600 text-sm px-2">✕</button>
+          </div>
+
+          {/* Body */}
+          <div className="px-6 py-5 space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-gray-800 font-medium mb-3">Current connection:</p>
+              <div className="space-y-2 text-sm text-gray-700">
+                <div className="flex items-start gap-2">
+                  <span className="text-gray-500 shrink-0">•</span>
+                  <div>
+                    <span className="font-medium">Your Project:</span> {existingConnection.myProjectName}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-gray-500 shrink-0">•</span>
+                  <div>
+                    <span className="font-medium">Their Project:</span> {existingConnection.theirProjectName}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600">
+              You can open the existing shared workspace or cancel this request.
+            </p>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleOpenExisting}
+              disabled={!existingConnection.workspaceId}
+              className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Open shared workspace
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show normal connection form
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
