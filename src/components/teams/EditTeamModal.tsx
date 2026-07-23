@@ -459,13 +459,15 @@ export default function EditTeamModal({ team, allTeams, projects, onClose, onUpd
             >
               Cancel
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="text-sm bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-5 py-2 rounded-lg transition-colors"
-            >
-              {saving ? 'Saving…' : 'Save changes'}
-            </button>
+            {!confirmingArchive && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="text-sm bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-5 py-2 rounded-lg transition-colors"
+              >
+                {saving ? 'Saving…' : 'Save changes'}
+              </button>
+            )}
           </div>
         </div>
       </div>

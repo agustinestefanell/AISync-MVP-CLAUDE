@@ -71,7 +71,7 @@ function ProviderButtons({
 }
 
 export default function AddTeamModal({ projectId, projects, teams, parentTeamId, onClose, onCreated }: AddTeamModalProps) {
-  const [teamMode, setTeamMode]         = useState<'MAT' | 'SAT'>('MAT')
+  const [teamMode, setTeamMode]         = useState<'MAT' | 'SAT'>('SAT')
   const [name, setName]                 = useState('')
   const [description, setDescription]   = useState('')
   const [parentId, setParentId]         = useState(parentTeamId ?? '')

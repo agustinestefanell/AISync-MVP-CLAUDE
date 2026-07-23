@@ -305,12 +305,8 @@ function ProjectCanvas({
                   metrics={[]}
                   compact
                   isArchived={isWorkerArchived}
-                  actionLabel="Open"
-                  onPrimaryAction={() => {
-                    if (realTeam?.workspaces?.[0]?.id) {
-                      onOpen(realTeam.workspaces[0].id)
-                    }
-                  }}
+                  actionLabel=""
+                  onPrimaryAction={() => {}}
                 />
               )
             }

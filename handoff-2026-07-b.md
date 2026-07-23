@@ -1498,3 +1498,131 @@ Product Owner reportó falta de feedback visual en botones críticos durante pro
 
 **Lección clave:**
 Feedback visual en botones async es crítico para UX. El patrón mínimo efectivo: (1) estado loading local, (2) disabled durante proceso, (3) texto dinámico descriptivo, (4) restauración garantizada con `finally`, (5) clases disabled consistentes (`opacity-50`, `cursor-not-allowed`). Reutilizar estados existentes cuando sea posible (`saving` compartido para múltiples acciones). Priorizar consistencia visual sobre precisión técnica del label cuando la UX lo requiere (ej: "Sending..." durante streaming). `finally` es preferible a `setSaving(false)` manual en catch porque garantiza restauración incluso si modal cierra prematuramente.
+
+---
+
+## Mini-OE 2026-07-22 — Archive modal, Worker Open buttons, SAT default
+
+**Fecha:** 2026-07-22
+**Estado:** Closed (validado visualmente por PO — Save desaparece/reaparece, Worker Open oculto, SAT preseleccionado)
+
+**Contexto:**
+Product Owner reportó tres mejoras UX acotadas en Teams Map después de validación visual de la OE de loading feedback: (1) botón "Save changes" desaparece durante Archive confirmation (modal está en modo Archive, Save fuera de contexto), (2) Workers muestran botón "Open" vacío no-funcional (los Workers no tienen workspace propio navegable), (3) AddTeamModal no tiene SAT preseleccionado (forcing unnecessary clicks para el caso más común).
+
+**Diagnóstico:**
+
+1. **EditTeamModal "Save changes" durante Archive:**
+   - `confirmingArchive` estado agregado recientemente (línea 86)
+   - Footer actual mostraba siempre 3 botones: Archive/Cancel/Save, sin condicional de visibilidad
+   - Durante confirmación Archive, los 3 botones coexistían (Archive + "Confirm archive"/"Cancel" + "Save changes")
+   - Save era irrelevante/confuso durante confirmación Archive
+
+2. **Worker Open button:**
+   - MapView.tsx línea 308: Worker card tenía `actionLabel=""` (string vacío)
+   - TreeWorkspaceCard renderizaba botón con `actionLabel.length > 0` check pero sin verificar si está **completamente vacío**
+   - Resultado: botón "Open" se mostraba con label vacío (ancho sin texto) y `onClick` no-op
+   - Workers no tienen workspace propio navegable (comparten workspace del Manager padre)
+   - Open solo tiene sentido en Manager/Submanager/Executive nodes
+
+3. **AddTeamModal SAT default:**
+   - AddTeamModal tenía `teamMode` inicializado en `'MAT'` (línea 62)
+   - SAT es el caso más común (80%+ de teams según Product Owner)
+   - Forcing usuario a cambiar switch manual innecesariamente
+
+**Opciones de implementación evaluadas:**
+
+**Opción A — TreeWorkspaceCard oculta botón cuando actionLabel vacío:**
+- Cambio: `actionLabel && actionLabel.length > 0` → render botón solo si hay texto real
+- Ubicación: TreeWorkspaceCard.tsx (componente genérico)
+- Alcance: afecta TODAS las cards que usan este componente (Manager, Worker, Submanager, Executive)
+- Riesgo: bajo — actionLabel vacío es edge case sin uso legítimo conocido
+
+**Opción B — MapView no pasa actionLabel a Workers:**
+- Cambio: `actionLabel=""` → `actionLabel={undefined}`
+- Ubicación: MapView.tsx (uso específico de Workers)
+- Alcance: solo Workers en Teams Map
+- Riesgo: bajo — requiere ajustar type de prop a `actionLabel?: string` en TreeWorkspaceCard
+
+**Product Owner aprobó Opción A:** Ocultar completamente el botón cuando actionLabel está vacío es más limpio y genérico.
+
+**Cambios implementados:**
+
+1. **src/components/teams/EditTeamModal.tsx (+2 líneas netas):**
+   - Footer Save button: agregado condicional `{!confirmingArchive && (...)}` envolviendo el botón (línea 464-475)
+   - Lógica: botón Save solo visible cuando `confirmingArchive === false`
+   - Durante confirmación Archive: solo Cancel aparece (junto con "Confirm archive" en header de sección amber)
+   - Fuera de confirmación Archive: Save visible normalmente
+
+2. **src/components/teams/v3/TreeWorkspaceCard.tsx (+1 línea neta):**
+   - Primary action button: agregado check `actionLabel && actionLabel.length > 0` antes de renderizar (línea 203)
+   - Lógica: botón solo renderiza si actionLabel tiene texto real (no undefined, not empty string)
+   - Workers (actionLabel=""): botón NO renderiza
+   - Managers/Submanagers (actionLabel="Open"): botón renderiza normalmente
+
+3. **src/components/teams/AddTeamModal.tsx (+1 línea neta):**
+   - Estado `teamMode`: cambiado de `useState<'SAT' | 'MAT'>('MAT')` a `useState<'SAT' | 'MAT'>('SAT')` (línea 62)
+   - Lógica: modal ahora abre con SAT preseleccionado por defecto
+   - Usuario puede cambiar a MAT manualmente si necesita
+
+**Decisiones técnicas:**
+
+1. **Save button condicional vs disabled:**
+   - Elegido: `{!confirmingArchive && (...)}` (ocultar completamente)
+   - Descartado: `disabled={confirmingArchive}` (mostrarlo disabled)
+   - Razón: botón Save no tiene sentido durante flujo Archive — ocultarlo reduce confusión visual
+
+2. **TreeWorkspaceCard Opción A vs B:**
+   - Elegido: Opción A (check `actionLabel && actionLabel.length > 0` en TreeWorkspaceCard)
+   - Descartado: Opción B (actionLabel undefined en MapView)
+   - Razón: Product Owner aprobó explícitamente Opción A — más genérico, afecta todas las cards con actionLabel vacío (no solo Workers)
+
+3. **SAT default:**
+   - Cambio mínimo: solo inversión del default `'MAT'` → `'SAT'`
+   - Lógica restante intacta (switch funciona, validaciones, agentes generados por role)
+
+**Archivos modificados:**
+- src/components/teams/EditTeamModal.tsx (2 líneas: condicional Save button)
+- src/components/teams/v3/TreeWorkspaceCard.tsx (1 línea: check actionLabel antes de render)
+- src/components/teams/AddTeamModal.tsx (1 línea: SAT default)
+
+**Archivos NO modificados:**
+- src/components/teams/MapView.tsx (Worker cards siguen pasando `actionLabel=""` — fix está en TreeWorkspaceCard)
+- src/components/teams/TeamsClient.tsx
+- APIs, schema, RLS, migrations
+- Modales: ConnectTeamModal, IncomingRequestsPanel
+- Documentation Mode, Audit Log, Dashboard
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso sin errores TypeScript
+- grep confirmingArchive: ✅ Usado correctamente en estado, sección Archive, condicional Save button
+- grep actionLabel TreeWorkspaceCard: ✅ Check agregado línea 203
+- grep teamMode AddTeamModal: ✅ Inicializado `'SAT'` línea 62
+- git diff --stat: ✅ 3 archivos, 4 inserciones, 3 deleciones
+
+**Validación funcional (2026-07-22, PO confirmado):**
+
+| # | Caso | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | EditTeamModal abierto normalmente | Save changes visible | ✅ |
+| 2 | Click "Archive Team" | Save changes desaparece | ✅ |
+| 3 | Confirmación Archive activa | Solo Cancel visible en footer (además de "Confirm archive" en sección amber) | ✅ |
+| 4 | Click Cancel durante Archive | Save changes reaparece | ✅ |
+| 5 | Worker card en Teams Map | Botón Open NO visible | ✅ |
+| 6 | Manager/Submanager card | Botón Open visible | ✅ |
+| 7 | AddTeamModal abrir | SAT preseleccionado | ✅ |
+| 8 | Switch manual SAT → MAT | Funciona normalmente | ✅ |
+| 9 | Crear team SAT | Sin regresión | ✅ |
+| 10 | Crear team MAT | Sin regresión | ✅ |
+
+**Fuera de alcance respetado:**
+- ✅ NO MapView layout modificado
+- ✅ NO lógica Archive modificada
+- ✅ NO lógica SAT/MAT modificada
+- ✅ NO APIs/schema/RLS/migrations
+- ✅ NO otros modales
+- ✅ NO Documentation Mode
+- ✅ NO Audit Log
+
+**Lección clave:**
+Botones fuera de contexto durante flujos modales deben ocultarse (no solo disabilitarse) para reducir confusión visual. Workers en organigrama jerárquico comparten workspace del Manager padre — botón Open no tiene sentido en nodos Worker (no navegan a workspace propio). TreeWorkspaceCard como componente genérico debe verificar `actionLabel && actionLabel.length > 0` antes de renderizar botón primary action para soportar casos edge donde el label es string vacío o undefined. SAT es el caso más común en arquitectura de teams (80%+ según Product Owner) — preselectarlo reduce clicks innecesarios en flujo de creación.

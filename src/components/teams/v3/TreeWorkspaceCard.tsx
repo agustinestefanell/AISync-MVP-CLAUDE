@@ -212,24 +212,26 @@ export function TreeWorkspaceCard({
           }`}
           style={{ borderTop: `1px solid ${borderColor}` }}
         >
-          <button
-            type="button"
-            data-pan-block="true"
-            className="ui-button ui-button-primary min-h-9 px-3 text-[11px] text-white"
-            onPointerDown={(event) => {
-              event.stopPropagation()
-            }}
-            onMouseDown={(event) => {
-              event.stopPropagation()
-            }}
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              onPrimaryAction()
-            }}
-          >
-            {actionLabel}
-          </button>
+          {actionLabel && (
+            <button
+              type="button"
+              data-pan-block="true"
+              className="ui-button ui-button-primary min-h-9 px-3 text-[11px] text-white"
+              onPointerDown={(event) => {
+                event.stopPropagation()
+              }}
+              onMouseDown={(event) => {
+                event.stopPropagation()
+              }}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                onPrimaryAction()
+              }}
+            >
+              {actionLabel}
+            </button>
+          )}
           {secondaryActionLabel && (
             <button
               type="button"
