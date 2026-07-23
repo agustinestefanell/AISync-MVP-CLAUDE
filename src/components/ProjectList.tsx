@@ -66,6 +66,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const [currentUserId,     setCurrentUserId]     = useState<string | null>(null)
   const [unreadCounts,      setUnreadCounts]      = useState<Record<string, number>>({})
   const [expandedProject,   setExpandedProject]   = useState<string | null>(null)
+  const [connectProjectId,  setConnectProjectId]  = useState<string | null>(null)
 
   const fetchConnections = useCallback(() => {
     fetch('/api/connections')
@@ -358,7 +359,19 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                       {/* Project metadata card */}
                       <div className="bg-white border border-[#DDE6F1] rounded-[18px] p-5 space-y-4">
                         <div className="flex items-center justify-between">
-                          <h4 className="text-base font-semibold text-[#0C1733]">{project.name}</h4>
+                          <div className="flex items-center gap-3">
+                            <h4 className="text-base font-semibold text-[#0C1733]">{project.name}</h4>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setConnectProjectId(project.id)
+                                setShowConnectModal(true)
+                              }}
+                              className="flex items-center gap-1.5 rounded-lg border border-[#BFE7C8] bg-white px-3 py-1.5 text-xs font-medium text-[#63C37D] hover:bg-[#E9F8EE] transition-colors"
+                            >
+                              + Connect
+                            </button>
+                          </div>
                           <div className="flex items-center gap-2">
                             {project.id === activeProjectId ? (
                               <span className="text-xs font-medium text-[var(--color-accent)] bg-[var(--color-accent-soft)] px-3 py-1.5 rounded-full">
@@ -517,12 +530,6 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                 </span>
               )}
             </button>
-            <button
-              onClick={() => setShowConnectModal(true)}
-              className="bg-white border border-[#BFE7C8] text-[#63C37D] rounded-lg px-3 py-2 text-sm font-semibold hover:bg-[#E9F8EE] transition-colors"
-            >
-              + Connect
-            </button>
           </div>
         </div>
 
@@ -634,12 +641,19 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
 
     </div>
 
-      {showConnectModal && activeProjectId && (
+      {showConnectModal && connectProjectId && (
         <ConnectTeamModal
           teams={allTeams}
-          projectId={activeProjectId}
-          onClose={() => setShowConnectModal(false)}
-          onConnected={() => { setShowConnectModal(false); fetchConnections() }}
+          projectId={connectProjectId}
+          onClose={() => {
+            setShowConnectModal(false)
+            setConnectProjectId(null)
+          }}
+          onConnected={() => {
+            setShowConnectModal(false)
+            setConnectProjectId(null)
+            fetchConnections()
+          }}
         />
       )}
 
