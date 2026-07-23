@@ -662,6 +662,138 @@ Navegación de tipos debe validarse contra la estructura real del tipo, no asumi
 
 ---
 
+## Mini-OE 2026-07-22 — Teams Map Project headers outside zoom/pan layer
+
+**Fecha:** 2026-07-22
+**Estado:** Partial (código completo, build exitoso, pendiente validación visual PO)
+
+**Contexto:**
+Product Owner validó Frente 1 (Teams Map sin acordeón, Projects apilados verticalmente con scroll). Detectó que el título de cada Project quedaba dentro del transform layer de zoom/pan y se volvía ilegible en zoom-out fuerte (al ver 6-8 Projects simultáneamente).
+
+**Diagnóstico confirmado:**
+El header de Project (nombre + contador Teams/Workers) se renderizaba dentro del `<div className="flex flex-col gap-12">` que era child directo de CanvasViewport único, por lo tanto heredaba el `transform: translate(...) scale(...)` aplicado por CanvasViewport. Consecuencia: header se escalaba con zoom y se desplazaba horizontalmente con pan.
+
+**Inspección previa:**
+- MapView actual: CanvasViewport único envolviendo TODOS los Projects apilados (líneas 288-452)
+- Header dentro del transform: SÍ (líneas 316-323 previas, dentro del div transformable)
+- Scroll vertical: contenedor externo `overflow-auto` (línea 286)
+- Pan horizontal: manejado por CanvasViewport via transform
+
+**Estrategia elegida:**
+Opción A modificada — Separar headers fuera del CanvasViewport, mantener árboles dentro. NO usar sticky (simplicidad). Estructura: cada Project = header estable (fuera de transform) + CanvasViewport individual transformable (dentro).
+
+**Cambios realizados:**
+
+**Estructura ANTES (Frente 1):**
+```tsx
+<CanvasViewport único>
+  <div className="flex flex-col gap-12">
+    {allProjectLayouts.map(() => (
+      <div key={project.id}>
+        <div className="header">...</div>  ← AFECTADO POR ZOOM/PAN
+        <TreeLayoutCanvas>...</TreeLayoutCanvas>
+      </div>
+    ))}
+  </div>
+</CanvasViewport>
+```
+
+**Estructura DESPUÉS (Mini-OE):**
+```tsx
+<div className="flex flex-col gap-12">
+  {allProjectLayouts.map(() => (
+    <div key={project.id} className="flex flex-col gap-4">
+      <div className="w-full header">...</div>  ← FUERA DE ZOOM/PAN
+      <CanvasViewport individual>
+        <TreeLayoutCanvas>...</TreeLayoutCanvas>
+      </CanvasViewport>
+    </div>
+  ))}
+</div>
+```
+
+**Detalle técnico:**
+1. Movido CanvasViewport desde nivel superior (único) a nivel individual por Project
+2. Header renderizado como sibling ANTES del CanvasViewport de cada Project
+3. Header con `w-full` para ancho estable del contenedor visible
+4. Cada CanvasViewport recibe props zoom/pan/reset signals (compartidos entre todos)
+5. Gap-12 entre Projects preservado (ahora en contenedor externo, no dentro de CanvasViewport)
+
+**Archivos modificados:**
+- src/components/teams/MapView.tsx (+14 líneas netas: CanvasViewport movido dentro del map, header con w-full)
+
+**Archivos NO modificados:**
+- CanvasViewport v3 (no tocado — reutilizado sin cambios)
+- TreeLayoutCanvas (no tocado)
+- TeamsClient.tsx (no tocado)
+- TreeView, CanvasViewport legacy, Documentation Mode, Audit Log (preservados)
+
+**Decisiones técnicas:**
+
+1. **CanvasViewport único vs individual por Project:**
+   - Elegido: individual por Project
+   - Razón: permite header estable fuera del transform sin complejidad de calcular offsets o coordenadas
+   - Cada CanvasViewport recibe los mismos signals (zoomIn/Out/reset) — zoom/pan sincronizados entre Projects
+
+2. **Sticky vs no-sticky:**
+   - Elegido: no-sticky
+   - Razón: simplicidad, evitar conflictos con scroll container existente, header igualmente visible con scroll vertical
+
+3. **w-full en header:**
+   - Agregado `w-full` explícito para ancho estable del contenedor visible
+   - Ancho NO depende del canvas transformable del árbol
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso sin errores TypeScript
+- git diff --stat: ✅ MapView.tsx único archivo modificado (421 líneas reestructuradas)
+- git diff --check: ✅ OK (warnings CRLF normales Windows)
+
+**Validación funcional:**
+⏳ PENDIENTE — Requiere screenshot PO confirmando:
+
+| # | Caso | Resultado esperado |
+|---|---|---|
+| 1 | Zoom 100% | Header Project legible |
+| 2 | Zoom-out fuerte | Header mantiene tamaño fijo |
+| 3 | Ver 6-8 Projects simultáneos | Headers siguen legibles |
+| 4 | Pan horizontal | Header NO se desplaza con el árbol |
+| 5 | Scroll vertical | Projects siguen apilados correctamente |
+| 6 | Teams tree | Colores/códigos/badges intactos |
+| 7 | Shared Team | Visible y correcto |
+| 8 | Wheel zoom | Funciona |
+| 9 | Pan click izquierdo | Funciona |
+| 10 | No acordeón | Todos los Projects visibles con scroll |
+| 11 | Archived badge/opacity | Funciona si aplica |
+| 12 | Open/Edit | Funcionan |
+
+**Restricciones respetadas:**
+- ✅ NO tocar TreeView
+- ✅ NO tocar CanvasViewport legacy
+- ✅ NO reintroducir Map/Tree toggle
+- ✅ NO reintroducir acordeón
+- ✅ NO tocar TeamsClient
+- ✅ NO tocar Documentation Mode, Audit Log
+- ✅ NO cambiar colores, códigos, badges, Shared Team
+- ✅ NO cambiar tamaño diferenciado de cards
+- ✅ NO cambiar wheel=zoom, pan=click izquierdo
+- ✅ Stack vertical de Projects preservado
+
+**Riesgos mitigados:**
+- ✅ Stack vertical preservado con gap-12 entre Projects
+- ✅ Zoom/pan por Project individual (cada CanvasViewport recibe signals sincronizados)
+- ✅ Scroll vertical intacto (contenedor externo overflow-auto)
+- ✅ Ancho estable header con w-full
+- ✅ Headers múltiples sin conflicto (cada uno fuera de su CanvasViewport)
+
+**Estado:**
+Partial — código completo, build exitoso, lint OK. Pendiente: validación visual Product Owner con screenshot confirmando que títulos de Project mantienen tamaño fijo en zoom-out, no se desplazan con pan horizontal, y todas las features de Teams Map v3 (Frente 1) siguen intactas.
+
+**Lección técnica:**
+Headers estables en UI zoomable/pannable requieren separación explícita del transform layer. Mover CanvasViewport de único (envolviendo todo) a individual por sección permite headers fuera del transform sin complejidad de coordenadas absolutas o sticky positioning. Los signals de zoom/pan se comparten entre CanvasViewports individuales para sincronización visual consistente. Ancho estable del header requiere `w-full` relativo al contenedor visible (no al canvas transformable).
+
+---
+
 ## Sesión 2026-07-15 — Archived Teams Fase 1A: Estado estructural y contrato base
 
 **Fecha:** 2026-07-15

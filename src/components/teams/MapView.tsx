@@ -186,189 +186,6 @@ function addSubteamsRecursive(
   })
 }
 
-// Project Canvas component
-function ProjectCanvas({
-  project,
-  teams,
-  teamCodes,
-  connectionMetadata,
-  zoomInSignal,
-  zoomOutSignal,
-  resetSignal,
-  onEdit,
-  onOpen,
-}: {
-  project: { id: string; name: string; index: number }
-  teams: TeamWithWorkspaces[]
-  teamCodes: Record<string, string>
-  connectionMetadata: Record<string, { partnerEmail: string; role: 'host' | 'invitee' }>
-  zoomInSignal: number
-  zoomOutSignal: number
-  resetSignal: number
-  onEdit: (team: TeamWithWorkspaces) => void
-  onOpen: (workspaceId: string) => void
-}) {
-  const { nodes: graphNodes, rootNode } = useMemo(
-    () => buildGraphNodesForProject(teams, project.id, project.name, project.index, teamCodes, connectionMetadata),
-    [teams, project.id, project.name, project.index, teamCodes, connectionMetadata]
-  )
-
-  const layout = useMemo(() => {
-    if (!rootNode) return null
-    return buildTreeLayout(rootNode, graphNodes, 'map')
-  }, [rootNode, graphNodes])
-
-  if (!layout || !rootNode) {
-    return (
-      <div className="rounded-lg border border-[#D7E2EE] bg-white p-8 text-center">
-        <p className="text-[#64748B]">No data to display for {project.name}</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <CanvasViewport
-        initialZoom={1}
-        minZoom={0.05}
-        maxZoom={1.12}
-        fitFloor={0.5}
-        fitTopOffset={0}
-        alignTopOnFit
-        zoomInSignal={zoomInSignal}
-        zoomOutSignal={zoomOutSignal}
-        resetSignal={resetSignal}
-        contentWidthClass="inline-flex w-max flex-col items-center"
-      >
-        <TreeLayoutCanvas
-          layout={layout}
-          paddingX={MAP_CANVAS_PADDING_X}
-          paddingY={MAP_CANVAS_PADDING_Y}
-          connectorColor="rgba(100, 116, 139, 0.52)"
-          connectorStrokeWidth={2}
-        >
-          {(placement: TreeLayoutPlacement) => {
-            const node = placement.node
-            const colorKey = node.type === 'senior_manager' && node.parentId === rootNode.id
-              ? node.id
-              : node.teamId
-            const theme = getTeamTheme(colorKey)
-            const code = teamCodes[node.id] || ''
-
-            // Find real team for Open/Edit actions
-            const realTeam = teams.find(t => t.id === node.id)
-
-            // General Manager card (synthetic Executive Team)
-            if (node.type === 'general_manager') {
-              return (
-                <TreeWorkspaceCard
-                  title={node.label}
-                  subtitle="Executive Team"
-                  functionLabel="Project Coordination"
-                  brief="Strategic oversight and cross-team alignment for all teams in this project."
-                  ribbonColor="#0B4B78"
-                  softColor="rgba(11, 75, 120, 0.08)"
-                  borderColor="rgba(11, 75, 120, 0.22)"
-                  accentColor="#083854"
-                  tags={['Leadership', 'Strategy', 'Oversight']}
-                  metrics={[]}
-                  isSat
-                  explicitWidth={MAP_ROOT_WIDTH}
-                  actionLabel="Overview"
-                  onPrimaryAction={() => {
-                    // Executive Team overview — placeholder
-                    console.log('Executive Team Overview')
-                  }}
-                />
-              )
-            }
-
-            // Worker card (compact)
-            if (node.type === 'worker') {
-              // Workers inherit archived status from their parent team
-              // BUG FIX: realTeam was undefined for Workers because it searched by node.id (synthetic)
-              // instead of node.teamId (real team ID)
-              const workerRealTeam = teams.find(t => t.id === node.teamId)
-              const isWorkerArchived = workerRealTeam?.status === 'archived'
-
-              return (
-                <TreeWorkspaceCard
-                  title={node.label}
-                  subtitle="Worker"
-                  functionLabel="Execution lane"
-                  brief="Executes assigned tasks and returns compact updates."
-                  ribbonColor={theme.ribbon}
-                  softColor={theme.soft}
-                  borderColor={theme.border}
-                  accentColor={theme.accent}
-                  tags={['Execution', getProviderDisplayName(node.provider)]}
-                  metrics={[]}
-                  compact
-                  isArchived={isWorkerArchived}
-                  actionLabel=""
-                  onPrimaryAction={() => {}}
-                />
-              )
-            }
-
-            // Senior Manager card (Team/Subteam)
-            const workersCount = graphNodes.filter(n => n.parentId === node.id && n.type === 'worker').length
-            const isArchived = realTeam?.status === 'archived'
-
-            return (
-              <TreeWorkspaceCard
-                title={`${code ? `${code} · ` : ''}${node.label}`}
-                subtitle={
-                  node.isConnected
-                    ? 'Connected Team'
-                    : node.parentId === rootNode.id
-                      ? 'Team Manager'
-                      : 'Subteam Manager'
-                }
-                functionLabel="Team coordination"
-                brief="Coordinates delivery lane, manages artifacts, and oversees handoffs."
-                ribbonColor={theme.ribbon}
-                softColor={theme.soft}
-                borderColor={theme.border}
-                accentColor={theme.accent}
-                tags={[
-                  node.teamType,
-                  getProviderDisplayName(node.provider),
-                  'Operations',
-                ]}
-                metrics={[
-                  {
-                    label: 'Workers',
-                    value: String(workersCount),
-                  },
-                ]}
-                isSat={node.teamType === 'SAT'}
-                isArchived={isArchived}
-                isConnected={node.isConnected}
-                connectionRole={node.connectionRole}
-                partnerEmail={node.partnerEmail}
-                partnerOrg={node.partnerOrg}
-                actionLabel="Open"
-                secondaryActionLabel="Edit"
-                onPrimaryAction={() => {
-                  if (realTeam?.workspaces?.[0]?.id) {
-                    onOpen(realTeam.workspaces[0].id)
-                  }
-                }}
-                onSecondaryAction={() => {
-                  if (realTeam) {
-                    onEdit(realTeam)
-                  }
-                }}
-              />
-            )
-          }}
-        </TreeLayoutCanvas>
-      </CanvasViewport>
-    </div>
-  )
-}
-
 export default function MapView({
   teams,
   projectName,
@@ -380,7 +197,6 @@ export default function MapView({
   onEdit,
   onOpen,
 }: MapViewProps) {
-  const [expandedProject, setExpandedProject] = useState<string | null>(null)
   const [connections, setConnections] = useState<Connection[]>([])
 
   // Fetch connections for partner email metadata
@@ -439,6 +255,22 @@ export default function MapView({
     })
   }, [visibleTeams, projectName, projectOptions])
 
+  // Build all project layouts (for stacked rendering)
+  const allProjectLayouts = useMemo(() => {
+    return projectGroups.map(project => {
+      const { nodes: graphNodes, rootNode } = buildGraphNodesForProject(
+        project.teams,
+        project.id,
+        project.name,
+        project.index,
+        teamCodes,
+        connectionMetadata
+      )
+      const layout = rootNode ? buildTreeLayout(rootNode, graphNodes, 'map') : null
+      return { project, layout, rootNode, graphNodes }
+    })
+  }, [projectGroups, teamCodes, connectionMetadata])
+
   if (projectGroups.length === 0 || projectGroups.every(g => g.teams.length === 0)) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -451,70 +283,169 @@ export default function MapView({
   }
 
   return (
-    <div className="w-full h-full overflow-auto p-6 bg-[#F5F7FA]">
-      <div className="mx-auto w-full">
-        <div className="overflow-hidden rounded-[18px] border border-[#DDE6F1] bg-white shadow-[0_8px_24px_rgba(12,23,51,0.05)]">
-          {projectGroups.map((project, idx) => {
-            const isExpanded = expandedProject === project.id
+    <div className="w-full h-full overflow-auto bg-[#F5F7FA]">
+      <div className="mx-auto w-full p-6">
+        <div className="flex flex-col gap-12">
+          {allProjectLayouts.map(({ project, layout, rootNode, graphNodes }) => {
+            if (!layout || !rootNode) {
+              return (
+                <div
+                  key={project.id}
+                  className="rounded-lg border border-[#D7E2EE] bg-white p-8 text-center"
+                >
+                  <p className="text-[#64748B]">No data to display for {project.name}</p>
+                </div>
+              )
+            }
 
             return (
-              <div
-                key={project.id}
-                className={idx > 0 ? 'border-t border-[#DDE6F1]' : ''}
-              >
-                {/* Accordion row header */}
-                <button
-                  onClick={() => setExpandedProject(isExpanded ? null : project.id)}
-                  className="flex h-14 w-full items-center justify-between px-5 transition-colors hover:bg-[#F8FBFF]"
-                >
-                  <div className="flex items-center gap-3">
-                    <svg
-                      className={`h-4 w-4 text-[#5C6B82] transition-transform ${
-                        isExpanded ? 'rotate-90' : ''
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                    <span className="text-base font-semibold text-[#0C1733]">
-                      {project.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#5C6B82]">
-                      {project.count} Team{project.count !== 1 ? 's' : ''}
-                    </span>
-                    {isExpanded && (
-                      <span className="rounded-full bg-[#E9F8EE] px-3 py-1 text-xs font-medium text-[#2F8A47]">
-                        Open
-                      </span>
-                    )}
-                  </div>
-                </button>
+              <div key={project.id} className="flex flex-col gap-4">
+                {/* Project header (stable, outside zoom/pan transform) */}
+                <div className="w-full flex items-center justify-between px-6 py-3 bg-white rounded-lg border border-[#DDE6F1] shadow-sm">
+                  <span className="text-base font-semibold text-[#0C1733]">
+                    {project.name}
+                  </span>
+                  <span className="text-sm text-[#5C6B82]">
+                    {project.count} Team{project.count !== 1 ? 's' : ''}
+                  </span>
+                </div>
 
-                {/* Expanded content — canvas */}
-                {isExpanded && (
-                  <div className="bg-[#F8FBFF] px-5 py-6 min-h-[70vh]">
-                    <ProjectCanvas
-                      project={project}
-                      teams={project.teams}
-                      teamCodes={teamCodes}
-                      connectionMetadata={connectionMetadata}
-                      zoomInSignal={zoomInSignal}
-                      zoomOutSignal={zoomOutSignal}
-                      resetSignal={resetSignal}
-                      onEdit={onEdit}
-                      onOpen={onOpen}
-                    />
-                  </div>
-                )}
+                {/* Project tree canvas (zoomable/pannable) */}
+                <CanvasViewport
+                  initialZoom={1}
+                  minZoom={0.05}
+                  maxZoom={1.12}
+                  fitFloor={0.5}
+                  fitTopOffset={0}
+                  alignTopOnFit
+                  zoomInSignal={zoomInSignal}
+                  zoomOutSignal={zoomOutSignal}
+                  resetSignal={resetSignal}
+                  contentWidthClass="inline-flex w-max flex-col items-center"
+                >
+                  <TreeLayoutCanvas
+                    layout={layout}
+                    paddingX={MAP_CANVAS_PADDING_X}
+                    paddingY={MAP_CANVAS_PADDING_Y}
+                    connectorColor="rgba(100, 116, 139, 0.52)"
+                    connectorStrokeWidth={2}
+                  >
+                    {(placement: TreeLayoutPlacement) => {
+                      const node = placement.node
+                      const colorKey = node.type === 'senior_manager' && node.parentId === rootNode.id
+                        ? node.id
+                        : node.teamId
+                      const theme = getTeamTheme(colorKey)
+                      const code = teamCodes[node.id] || ''
+
+                      // Find real team for Open/Edit actions
+                      const realTeam = project.teams.find(t => t.id === node.id)
+
+                      // General Manager card (synthetic Executive Team)
+                      if (node.type === 'general_manager') {
+                        return (
+                          <TreeWorkspaceCard
+                            title={node.label}
+                            subtitle="Executive Team"
+                            functionLabel="Project Coordination"
+                            brief="Strategic oversight and cross-team alignment for all teams in this project."
+                            ribbonColor="#0B4B78"
+                            softColor="rgba(11, 75, 120, 0.08)"
+                            borderColor="rgba(11, 75, 120, 0.22)"
+                            accentColor="#083854"
+                            tags={['Leadership', 'Strategy', 'Oversight']}
+                            metrics={[]}
+                            isSat
+                            explicitWidth={MAP_ROOT_WIDTH}
+                            actionLabel="Overview"
+                            onPrimaryAction={() => {
+                              // Executive Team overview — placeholder
+                              console.log('Executive Team Overview')
+                            }}
+                          />
+                        )
+                      }
+
+                      // Worker card (compact)
+                      if (node.type === 'worker') {
+                        // Workers inherit archived status from their parent team
+                        const workerRealTeam = project.teams.find(t => t.id === node.teamId)
+                        const isWorkerArchived = workerRealTeam?.status === 'archived'
+
+                        return (
+                          <TreeWorkspaceCard
+                            title={node.label}
+                            subtitle="Worker"
+                            functionLabel="Execution lane"
+                            brief="Executes assigned tasks and returns compact updates."
+                            ribbonColor={theme.ribbon}
+                            softColor={theme.soft}
+                            borderColor={theme.border}
+                            accentColor={theme.accent}
+                            tags={['Execution', getProviderDisplayName(node.provider)]}
+                            metrics={[]}
+                            compact
+                            isArchived={isWorkerArchived}
+                            actionLabel=""
+                            onPrimaryAction={() => {}}
+                          />
+                        )
+                      }
+
+                      // Senior Manager card (Team/Subteam)
+                      const workersCount = graphNodes.filter(n => n.parentId === node.id && n.type === 'worker').length
+                      const isArchived = realTeam?.status === 'archived'
+
+                      return (
+                        <TreeWorkspaceCard
+                          title={`${code ? `${code} · ` : ''}${node.label}`}
+                          subtitle={
+                            node.isConnected
+                              ? 'Connected Team'
+                              : node.parentId === rootNode.id
+                                ? 'Team Manager'
+                                : 'Subteam Manager'
+                          }
+                          functionLabel="Team coordination"
+                          brief="Coordinates delivery lane, manages artifacts, and oversees handoffs."
+                          ribbonColor={theme.ribbon}
+                          softColor={theme.soft}
+                          borderColor={theme.border}
+                          accentColor={theme.accent}
+                          tags={[
+                            node.teamType,
+                            getProviderDisplayName(node.provider),
+                            'Operations',
+                          ]}
+                          metrics={[
+                            {
+                              label: 'Workers',
+                              value: String(workersCount),
+                            },
+                          ]}
+                          isSat={node.teamType === 'SAT'}
+                          isArchived={isArchived}
+                          isConnected={node.isConnected}
+                          connectionRole={node.connectionRole}
+                          partnerEmail={node.partnerEmail}
+                          partnerOrg={node.partnerOrg}
+                          actionLabel="Open"
+                          secondaryActionLabel="Edit"
+                          onPrimaryAction={() => {
+                            if (realTeam?.workspaces?.[0]?.id) {
+                              onOpen(realTeam.workspaces[0].id)
+                            }
+                          }}
+                          onSecondaryAction={() => {
+                            if (realTeam) {
+                              onEdit(realTeam)
+                            }
+                          }}
+                        />
+                      )
+                    }}
+                  </TreeLayoutCanvas>
+                </CanvasViewport>
               </div>
             )
           })}
