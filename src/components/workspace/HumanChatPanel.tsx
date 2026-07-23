@@ -572,7 +572,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
             onClick={handleSend}
             disabled={!input.trim() || sending || isConnectionNoLongerActive}
           >
-            {sending ? '…' : 'Send'}
+            {sending ? 'Sending...' : 'Send'}
           </button>
         </div>
       </div>

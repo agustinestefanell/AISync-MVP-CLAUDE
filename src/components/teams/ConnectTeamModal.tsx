@@ -228,7 +228,7 @@ export default function ConnectTeamModal({ teams, onClose, onConnected }: Connec
           <button
             onClick={handleSubmit}
             disabled={saving || !description.trim()}
-            className="text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-lg transition-colors"
+            className="text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-5 py-2 rounded-lg transition-colors"
           >
             {saving ? 'Sending…' : 'Send request'}
           </button>

@@ -1398,3 +1398,103 @@ Closed — código completo, build exitoso, lint OK, documentación actualizada.
 
 **Lección clave:**
 Refetch defensivo al recuperar visibilidad/foco es patrón útil para componentes Realtime que dependen de conexiones persistentes. El navegador puede pausar timers o conexiones cuando la pestaña está hidden, y `document.visibilitychange` es el estándar moderno para detectar cuando vuelve a estar visible. Logging masivo de diagnóstico `[Component] action...` útil durante desarrollo debe removerse antes de producción — preservar solo `console.error` para errores reales y `console.warn` para señales anómalas. Extracción de funciones reutilizables (refetch/merge) reduce duplicación y facilita agregar nuevos puntos de entrada (visibilitychange, manual refresh, etc.) sin reescribir lógica compleja.
+
+---
+
+## Sesión 2026-07-22 — Loading feedback en botones críticos
+
+**Fecha:** 2026-07-22
+**Estado:** Closed (validado visualmente por PO — Archiving.../Sending... funcionan, botones vuelven a normalidad)
+
+**Contexto:**
+Product Owner reportó falta de feedback visual en botones críticos durante procesos async. Usuario no sabía si el click se registró o si la acción estaba en proceso. Solución: replicar patrón existente de `ApiKeyRequiredModal.tsx` en 5 componentes críticos.
+
+**Patrón de referencia (ApiKeyRequiredModal.tsx):**
+- Estado: `const [isSaving, setIsSaving] = useState(false)`
+- disabled: `disabled={isSaving}` en botones
+- Texto dinámico: `{isSaving ? 'Saving...' : 'Start working'}`
+- Clases: `disabled:opacity-50 disabled:cursor-not-allowed`
+- Restauración: `setIsSaving(false)` en catch (patrón original no usa `finally`)
+
+**Inspección previa:**
+
+1. **EditTeamModal:** Archive sin texto dinámico ni `finally`, Save con texto dinámico y `finally` pero sin `cursor-not-allowed`
+2. **ConnectTeamModal:** Ya correcto (texto dinámico, `finally`, disabled), solo faltaba `cursor-not-allowed`
+3. **AgentPanel:** disabled durante streaming, texto `'…'` no descriptivo, faltaba `cursor-not-allowed`
+4. **HumanChatPanel:** Ya correcto (`sending` estado, `finally`, disabled), solo texto `'…'` no descriptivo
+5. **AddTeamModal:** Ya correcto (texto dinámico, `finally`, disabled), solo faltaba `cursor-not-allowed`
+
+**Cambios implementados:**
+
+1. **src/components/teams/EditTeamModal.tsx (+8 líneas netas):**
+   - `handleArchive()`: Refactorizado para usar `try/finally` en lugar de `setSaving(false)` manual en error (líneas 174-206)
+   - Botón Archive: Texto dinámico `{confirmingArchive && saving ? 'Archiving...' : confirmingArchive ? 'Confirm archive' : 'Archive Team'}` (línea 441)
+   - Botón Archive: Agregado `disabled:opacity-50 disabled:cursor-not-allowed` (línea 435)
+   - Botón Save: Agregado `disabled:cursor-not-allowed` manteniendo `disabled:opacity-50` existente (línea 465)
+
+2. **src/components/teams/ConnectTeamModal.tsx (+1 línea):**
+   - Botón Connect: Agregado `disabled:cursor-not-allowed` manteniendo todo lo demás (línea 231)
+
+3. **src/components/workspace/AgentPanel.tsx (+2 líneas):**
+   - Botón Send: Texto cambiado de `'…'` a `'Sending...'` (línea 865)
+   - Botón Send: Agregado `disabled:cursor-not-allowed` manteniendo `disabled:opacity-40` existente (línea 861)
+
+4. **src/components/workspace/HumanChatPanel.tsx (+1 línea):**
+   - Botón Send: Texto cambiado de `'…'` a `'Sending...'` (línea 575)
+   - Sin otros cambios (ya tenía `disabled:cursor-not-allowed disabled:opacity-40`)
+
+5. **src/components/teams/AddTeamModal.tsx (+1 línea):**
+   - Botón Create Team: Agregado `disabled:cursor-not-allowed` manteniendo `disabled:opacity-50` existente (línea 304)
+
+**Decisiones técnicas:**
+
+1. **Texto "Sending..." en AgentPanel:** PO aprobó cambiar `'…'` a `'Sending...'` para consistencia visual con otros botones, aunque técnicamente el estado `streaming` representa "recibiendo respuesta" más que "enviando". Prioridad: UX consistente.
+
+2. **Reutilización de estados:** EditTeamModal reutiliza `saving` para Save/Archive/Delete. ConnectTeamModal, AddTeamModal, HumanChatPanel ya tenían estados correctos (`saving`, `sending`). AgentPanel reutiliza `streaming` existente.
+
+3. **`finally` vs catch:** Se aplicó `finally` en `handleArchive()` para garantizar restauración en éxito/error. Otros componentes ya lo tenían correctamente.
+
+4. **Clases disabled:** Se completó patrón `disabled:opacity-50 disabled:cursor-not-allowed` consistentemente en los 5 componentes (algunos ya tenían opacity, faltaba cursor).
+
+**Archivos modificados:**
+- src/components/teams/EditTeamModal.tsx (8 líneas: finally + texto + classes)
+- src/components/teams/ConnectTeamModal.tsx (1 línea: cursor class)
+- src/components/workspace/AgentPanel.tsx (2 líneas: texto + cursor class)
+- src/components/workspace/HumanChatPanel.tsx (1 línea: texto)
+- src/components/teams/AddTeamModal.tsx (1 línea: cursor class)
+
+**Archivos NO modificados:**
+- APIs, schema, RLS, migrations, Teams Map, Documentation Mode, Audit Log
+- Lógica de negocio (payloads, validaciones, handlers internos)
+- Botones fuera de scope
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso sin errores TypeScript
+- grep textos loading: ✅ Confirmados `'Archiving...'`, `'Sending...'`
+- grep disabled classes: ✅ Confirmado `disabled:cursor-not-allowed` en los 5 componentes
+- grep finally: ✅ Confirmado en EditTeamModal (handleSave + handleArchive), ConnectTeamModal, AddTeamModal, HumanChatPanel
+- git diff --stat: ✅ 5 archivos, 9 inserciones, 9 deleciones
+
+**Validación funcional (2026-07-22, PO confirmado):**
+✅ Archive Team: muestra `Archiving...`, disabled durante proceso, vuelve a normalidad
+✅ Send (AgentPanel/HumanChatPanel): muestra `Sending...`, disabled durante proceso, vuelve a normalidad
+✅ Connect: muestra `Sending…`, disabled durante proceso
+✅ Create Team: muestra `Creating…`, disabled durante proceso
+✅ Save: muestra `Saving…`, disabled durante proceso
+✅ Error async: estado vuelve a normal por `finally`
+✅ Doble click: segundo click bloqueado por disabled
+✅ Lógica negocio: sin cambios de payload/comportamiento
+
+**Fuera de alcance respetado:**
+- ✅ NO APIs modificadas
+- ✅ NO schema/RLS/migrations
+- ✅ NO Teams Map
+- ✅ NO Documentation Mode
+- ✅ NO lógica de negocio
+- ✅ NO botones fuera de scope
+- ✅ NO librerías agregadas
+- ✅ NO spinners ni overlays
+
+**Lección clave:**
+Feedback visual en botones async es crítico para UX. El patrón mínimo efectivo: (1) estado loading local, (2) disabled durante proceso, (3) texto dinámico descriptivo, (4) restauración garantizada con `finally`, (5) clases disabled consistentes (`opacity-50`, `cursor-not-allowed`). Reutilizar estados existentes cuando sea posible (`saving` compartido para múltiples acciones). Priorizar consistencia visual sobre precisión técnica del label cuando la UX lo requiere (ej: "Sending..." durante streaming). `finally` es preferible a `setSaving(false)` manual en catch porque garantiza restauración incluso si modal cierra prematuramente.

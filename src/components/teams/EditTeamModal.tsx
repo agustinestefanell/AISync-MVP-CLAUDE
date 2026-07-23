@@ -192,7 +192,6 @@ export default function EditTeamModal({ team, allTeams, projects, onClose, onUpd
           error: errorData.error,
         })
         setError(errorData.error ?? 'Error archiving team.')
-        setSaving(false)
         return
       }
       const updatedTeam = await res.json()
@@ -201,6 +200,7 @@ export default function EditTeamModal({ team, allTeams, projects, onClose, onUpd
     } catch (err) {
       console.error('[EditTeamModal] Network error archiving team', err)
       setError('Network error.')
+    } finally {
       setSaving(false)
     }
   }
@@ -432,13 +432,13 @@ export default function EditTeamModal({ team, allTeams, projects, onClose, onUpd
             <button
               onClick={handleArchive}
               disabled={saving}
-              className={`text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
+              className={`text-xs font-medium px-3 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 confirmingArchive
                   ? 'bg-amber-600 hover:bg-amber-500 text-white'
                   : 'border border-amber-600 text-amber-600 hover:text-amber-500 hover:border-amber-500'
               }`}
             >
-              {confirmingArchive ? 'Confirm archive' : 'Archive Team'}
+              {confirmingArchive && saving ? 'Archiving...' : confirmingArchive ? 'Confirm archive' : 'Archive Team'}
             </button>
             <button
               onClick={handleDelete}
@@ -462,7 +462,7 @@ export default function EditTeamModal({ team, allTeams, projects, onClose, onUpd
             <button
               onClick={handleSave}
               disabled={saving}
-              className="text-sm bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-lg transition-colors"
+              className="text-sm bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-5 py-2 rounded-lg transition-colors"
             >
               {saving ? 'Saving…' : 'Save changes'}
             </button>

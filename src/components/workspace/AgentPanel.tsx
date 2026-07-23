@@ -858,11 +858,11 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
               📎
             </button>
             <button
-              className="ui-button ui-button-primary ui-chat-send text-xs text-white disabled:opacity-40"
+              className="ui-button ui-button-primary ui-chat-send text-xs text-white disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={sendMessage}
               disabled={(!input.trim() && !attachments.length) || streaming || workspaceLocked}
             >
-              {streaming ? '…' : 'Send'}
+              {streaming ? 'Sending...' : 'Send'}
             </button>
           </div>
         </div>

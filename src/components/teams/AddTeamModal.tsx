@@ -301,7 +301,7 @@ export default function AddTeamModal({ projectId, projects, teams, parentTeamId,
           <button
             onClick={handleSubmit}
             disabled={saving}
-            className="text-sm bg-neutral-950 hover:bg-neutral-800 disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-lg transition-colors"
+            className="text-sm bg-neutral-950 hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-5 py-2 rounded-lg transition-colors"
           >
             {saving ? 'Creating…' : 'Create Team'}
           </button>
