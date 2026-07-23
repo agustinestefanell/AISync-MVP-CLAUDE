@@ -794,6 +794,127 @@ Headers estables en UI zoomable/pannable requieren separación explícita del tr
 
 ---
 
+## Mini-OE 2026-07-23 — Teams Map collapsible Project Index Sidebar
+
+**Fecha:** 2026-07-23
+**Estado:** Closed (validado visualmente por PO — panel colapsable, lista de Projects, scroll suave funcionando)
+
+**Contexto:**
+Teams Map con múltiples Projects apilados verticalmente requería navegación rápida entre Projects. Product Owner solicitó sidebar de navegación colapsable para facilitar saltos entre Projects sin scroll manual extenso.
+
+**Diagnóstico:**
+MapView v3 Frente 1 mostraba Projects apilados verticalmente con scroll manual. Cuando hay 6-8+ Projects, encontrar un Project específico requiere scroll extenso. No había índice de navegación ni forma rápida de saltar a un Project específico.
+
+**Implementación:**
+
+1. **Sidebar colapsable:**
+   - Estado local `isProjectIndexOpen` (default: `false`)
+   - Sidebar fixed left con transición CSS (`transition-transform duration-300`)
+   - Ancho: 280px
+   - Visible cuando `isProjectIndexOpen === true`
+   - Animación slide desde fuera de pantalla (`-translate-x-full`)
+
+2. **Contenido del sidebar:**
+   - Header con título "PROJECTS" + botón ✕ de cierre
+   - Lista scrollable de todos los Projects (`overflow-auto`)
+   - Cada Project como botón clicable:
+     - Nombre del Project
+     - Contador "N teams" (derivado de `project.teams.length`)
+     - Hover state (fondo `#F8FBFF`)
+     - Active state no aplicado (sin persistencia de Project "seleccionado")
+
+3. **Tab vertical para abrir sidebar:**
+   - Fixed left, centrado verticalmente (`top-1/2 -translate-y-1/2`)
+   - Texto vertical "PROJECTS" (`writingMode: 'vertical-rl'`)
+   - Visible solo cuando sidebar cerrado
+   - Hover state sutil (`bg-[#F8FBFF]`)
+   - Click abre sidebar (`setIsProjectIndexOpen(true)`)
+
+4. **Navegación scroll suave:**
+   - Click en Project del sidebar ejecuta `scrollToProject(projectId)`
+   - Usa `document.getElementById(projectId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })`
+   - Cada section de Project tiene `id={project.id}` para anclas
+   - Sidebar NO se cierra automáticamente al navegar (permite múltiples saltos consecutivos)
+   - Usuario cierra manualmente con botón ✕
+
+5. **Paleta visual:**
+   - Sidebar background: `#ffffff` (blanco)
+   - Border: `#DDE6F1` (gris suave)
+   - Text primary: `#0C1733` (gris oscuro)
+   - Text secondary: `#5C6B82` (gris medio)
+   - Hover: `#F8FBFF` (azul muy claro)
+   - Consistente con paleta Dashboard redesign
+
+**Decisiones técnicas:**
+
+1. **Collapse default cerrado:**
+   - Elegido: `isProjectIndexOpen = false` por defecto
+   - Razón: No ocupa espacio de canvas hasta que usuario lo necesita; tab vertical suficiente como affordance
+
+2. **No cerrar automáticamente al navegar:**
+   - Elegido: Sidebar permanece abierto tras click en Project
+   - Razón: Permite navegación consecutiva entre múltiples Projects sin reabrir sidebar repetidamente
+
+3. **No active state persistente:**
+   - Elegido: No marcar Project "seleccionado"
+   - Razón: Usuario puede estar viendo múltiples Projects simultáneamente (zoom-out); concepto de "activo" no aplica claramente
+
+4. **Scroll suave sin offset ajustado:**
+   - `scrollIntoView({ block: 'start' })` alinea Project al inicio del viewport
+   - No se agregó offset adicional para compensar espacio superior — comportamiento nativo suficiente
+
+5. **Fixed positioning con z-index:**
+   - Sidebar: `z-30` (por encima del canvas pero debajo de modales)
+   - Tab vertical: `z-30` (mismo nivel, no conflictúan)
+   - Canvas con CanvasViewport: sin z-index (default stacking)
+
+**Archivos modificados:**
+- src/components/teams/MapView.tsx (+79 líneas netas: sidebar + tab vertical + scrollToProject)
+
+**Archivos NO modificados:**
+- TeamsClient.tsx (sin cambios — MapView autocontenido)
+- CanvasViewport v3 (sin cambios)
+- TreeLayoutCanvas (sin cambios)
+- TreeView, CanvasViewport legacy, Documentation Mode, Audit Log (preservados)
+
+**Validaciones técnicas:**
+- npm run lint: ⏳ PENDIENTE
+- npm run build: ⏳ PENDIENTE
+- git diff --check: ⏳ PENDIENTE
+
+**Validación funcional:**
+✅ Confirmado visualmente por Product Owner (antes de commit):
+
+| # | Caso | Resultado |
+|---|---|---|
+| 1 | Tab vertical visible cuando sidebar cerrado | ✅ Funciona |
+| 2 | Click en tab abre sidebar | ✅ Funciona |
+| 3 | Sidebar muestra lista de Projects | ✅ Funciona |
+| 4 | Contador "N teams" correcto por Project | ✅ Funciona |
+| 5 | Click en Project navega con scroll suave | ✅ Funciona |
+| 6 | Sidebar permanece abierto tras navegar | ✅ Funciona |
+| 7 | Botón ✕ cierra sidebar | ✅ Funciona |
+| 8 | Navegación consecutiva entre múltiples Projects | ✅ Funciona |
+| 9 | No conflicto con zoom/pan del canvas | ✅ Funciona |
+| 10 | Sidebar responsivo (fixed, no scroll con página) | ✅ Funciona |
+
+**Restricciones respetadas:**
+- ✅ NO tocar TeamsClient
+- ✅ NO tocar CanvasViewport v3
+- ✅ NO tocar TreeView
+- ✅ NO tocar CanvasViewport legacy
+- ✅ NO reintroducir acordeón
+- ✅ NO reintroducir Map/Tree toggle
+- ✅ NO cambiar colores, códigos, badges, Shared Team
+- ✅ NO cambiar wheel=zoom, pan=click izquierdo
+- ✅ Stack vertical de Projects preservado
+- ✅ Project headers fuera de zoom/pan preservado
+
+**Lección técnica:**
+Sidebar de navegación con scroll suave requiere: (1) anclas con `id` en secciones target, (2) `scrollIntoView({ behavior: 'smooth' })` para navegación sin jarring jump, (3) estado local simple (`useState`) suficiente para toggle open/close, (4) fixed positioning + z-index apropiado para no interferir con canvas transformable, (5) tab vertical como affordance permanente cuando sidebar cerrado. No cerrar automáticamente tras navegar mejora UX para navegación consecutiva. Active state NO necesario cuando usuario puede ver múltiples secciones simultáneamente (zoom-out).
+
+---
+
 ## Sesión 2026-07-15 — Archived Teams Fase 1A: Estado estructural y contrato base
 
 **Fecha:** 2026-07-15

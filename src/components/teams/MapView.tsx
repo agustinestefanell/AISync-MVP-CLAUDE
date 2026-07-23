@@ -7,7 +7,7 @@
  * Arquitectura: acordeón por Project + canvas CanvasViewport + tree layout.
  */
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 import { buildTreeLayout } from '@/lib/teams/buildTreeLayout'
@@ -198,6 +198,8 @@ export default function MapView({
   onOpen,
 }: MapViewProps) {
   const [connections, setConnections] = useState<Connection[]>([])
+  const [isProjectIndexOpen, setIsProjectIndexOpen] = useState(true)
+  const projectSectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   // Fetch connections for partner email metadata
   useEffect(() => {
@@ -271,6 +273,14 @@ export default function MapView({
     })
   }, [projectGroups, teamCodes, connectionMetadata])
 
+  // Scroll to project section handler
+  const handleProjectClick = (projectId: string) => {
+    const section = projectSectionRefs.current[projectId]
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
   if (projectGroups.length === 0 || projectGroups.every(g => g.teams.length === 0)) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -283,8 +293,67 @@ export default function MapView({
   }
 
   return (
-    <div className="w-full h-full overflow-auto bg-[#F5F7FA]">
-      <div className="mx-auto w-full p-6">
+    <div className="w-full h-full overflow-auto bg-[#F5F7FA] relative">
+      {/* Project Index Sidebar */}
+      <div
+        className={`fixed left-0 top-0 h-full bg-white border-r border-[#DDE6F1] shadow-lg transition-transform duration-300 z-30 ${
+          isProjectIndexOpen ? 'translate-x-0' : '-translate-x-[240px]'
+        }`}
+        style={{ width: '240px' }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-col h-full">
+          {/* Sidebar header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#DDE6F1]">
+            <span className="text-sm font-semibold text-[#0C1733] uppercase tracking-wide">
+              Projects
+            </span>
+            <button
+              onClick={() => setIsProjectIndexOpen(false)}
+              className="text-[#5C6B82] hover:text-[#0C1733] transition-colors"
+              aria-label="Close projects sidebar"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Projects list */}
+          <div className="flex-1 overflow-y-auto">
+            {projectGroups.map((project) => (
+              <button
+                key={project.id}
+                onClick={() => handleProjectClick(project.id)}
+                className="w-full text-left px-4 py-3 border-b border-[#E2E8F0] hover:bg-[#F8FBFF] transition-colors"
+              >
+                <div className="text-sm font-medium text-[#0C1733] mb-1">
+                  {project.name}
+                </div>
+                <div className="text-xs text-[#5C6B82]">
+                  {project.count} Team{project.count !== 1 ? 's' : ''}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Collapsed tab */}
+      {!isProjectIndexOpen && (
+        <button
+          onClick={() => setIsProjectIndexOpen(true)}
+          className="fixed left-0 top-1/2 -translate-y-1/2 bg-white border border-[#DDE6F1] rounded-r-lg shadow-lg px-2 py-6 z-30 hover:bg-[#F8FBFF] transition-colors"
+          style={{ writingMode: 'vertical-rl' }}
+          aria-label="Open projects sidebar"
+        >
+          <span className="text-xs font-semibold text-[#0C1733] uppercase tracking-wider">
+            Projects
+          </span>
+        </button>
+      )}
+
+      <div className={`mx-auto w-full p-6 transition-all duration-300 ${isProjectIndexOpen ? 'pl-[260px]' : ''}`}>
         <div className="flex flex-col gap-12">
           {allProjectLayouts.map(({ project, layout, rootNode, graphNodes }) => {
             if (!layout || !rootNode) {
@@ -299,7 +368,13 @@ export default function MapView({
             }
 
             return (
-              <div key={project.id} className="flex flex-col gap-4">
+              <div
+                key={project.id}
+                ref={(el) => {
+                  projectSectionRefs.current[project.id] = el
+                }}
+                className="flex flex-col gap-4"
+              >
                 {/* Project header (stable, outside zoom/pan transform) */}
                 <div className="w-full flex items-center justify-between px-6 py-3 bg-white rounded-lg border border-[#DDE6F1] shadow-sm">
                   <span className="text-base font-semibold text-[#0C1733]">
