@@ -2354,3 +2354,58 @@ Bug de "modal no aparece" requirió diagnóstico riguroso sin asumir. Inspecció
 
 **Lección UX — Exclusión precisa vs exclusión amplia:**
 PO aprobó exclusión de `/settings` específicamente (no toda la app "menos login"). Criterio correcto: evitar redundancia donde el modal aparecería encima de la pantalla que resuelve el problema. Exclusión precisa mejora UX sin sacrificar cobertura — usuario siempre tiene escape hatch libre de interrupciones.
+
+---
+
+## Mini-OE 2026-07-24 — API Keys visual guides: step-by-step screenshots
+
+**Fecha:** 2026-07-24
+**Estado:** Partial (código completo, build exitoso, pendiente validación visual PO)
+
+**Contexto:**
+PO validó el fix anterior (modal proactivo + links clickeables) pero identificó que sigue sin ser suficientemente claro para un usuario sin experiencia técnica. Usuarios que llegan a la guía de setup necesitan ver exactamente dónde hacer click en cada plataforma, no solo leer instrucciones textuales.
+
+**Solución aplicada:**
+Integración de 3 capturas de pantalla reales (provistas por PO) con flechas numeradas señalando exactamente dónde hacer click en cada paso del proceso de creación de API key.
+
+**Cambios implementados:**
+
+1. **Imágenes agregadas a `public/setup-guide/`:**
+   - `anthropic-api-key-steps.png` (1280×720, 119KB) — console.anthropic.com con flechas 1/2/3
+   - `openai-api-key-steps.png` (1280×720, 98KB) — platform.openai.com con flechas 1/2/3
+   - `google-api-key-steps.png` (1280×720, 118KB) — aistudio.google.com con flechas 1/2/3
+   - Total agregado: ~335KB en imágenes PNG
+
+2. **SetupGuide.tsx modificado:**
+   - Import `Image` de `next/image` agregado
+   - Campo `imagePath` agregado a 3 secciones cloud (Anthropic, OpenAI, Google)
+   - Bloque de render condicional insertado después de steps, antes de cost
+   - Imagen renderizada solo si `imagePath` existe (Local AI no tiene imagen)
+   - Props Next.js Image: width={1280} height={720} — dimensiones reales
+   - Clases responsive: `w-full h-auto rounded border border-gray-200/60`
+   - Alt text descriptivo: "Step-by-step visual guide for [PROVIDER]"
+
+**Decisión técnica:**
+Usar `next/image` en lugar de `<img>` nativo para aprovechar optimización automática de Next.js (lazy loading, responsive sizes, format conversion). Dimensiones explícitas (1280×720) previenen layout shift durante carga.
+
+**Integración con texto existente:**
+Imágenes complementan los pasos numerados textuales (no los reemplazan). Usuario lee el texto Y ve la imagen — doble refuerzo para máxima claridad.
+
+**Archivos modificados:**
+- `public/setup-guide/anthropic-api-key-steps.png` (nuevo)
+- `public/setup-guide/google-api-key-steps.png` (nuevo)
+- `public/setup-guide/openai-api-key-steps.png` (nuevo)
+- `src/components/settings/SetupGuide.tsx` (+17 líneas: import, 3 imagePath, bloque render)
+
+**Validaciones:**
+- lint ✅ (sin errores nuevos)
+- build ✅ (exitoso, sin warnings nuevos)
+- Screenshot PO ⏳ pendiente — confirmar que las 3 imágenes aparecen correctamente en el modal/panel sin romper layout responsive
+
+**Commit:** 62dc148
+
+**Lección técnica — Next.js Image dimensiones explícitas:**
+`next/image` requiere width/height explícitos para optimización. Usar dimensiones reales del PNG (verificadas con `file`) evita distorsión y permite que Next.js calcule aspect ratio correcto. Clase `w-full h-auto` hace la imagen responsive dentro del contenedor sin romper aspect ratio.
+
+**Lección UX — Visual + texto, no visual O texto:**
+Screenshots no reemplazan instrucciones textuales — las complementan. Usuario que prefiere leer sigue teniendo pasos numerados claros. Usuario que prefiere visual tiene screenshot anotado. Ambos caminos conducen al mismo resultado exitoso.
