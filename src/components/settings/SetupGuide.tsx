@@ -2,6 +2,15 @@
 
 import { useState } from 'react'
 
+type Step = string | {
+  text: string
+  link: string
+  linkText: string
+  suffix?: string
+  link2?: string
+  linkText2?: string
+}
+
 const SECTIONS = [
   {
     name: 'Anthropic',
@@ -9,11 +18,11 @@ const SECTIONS = [
     color: 'text-orange-400',
     dot: 'bg-orange-500',
     steps: [
-      'Entrá a console.anthropic.com',
-      'Clic en "Get API Key" → "Create API Key"',
-      'Copiá la key y pegála acá',
+      { text: 'Go to ', link: 'https://console.anthropic.com', linkText: 'console.anthropic.com' },
+      'Click "Get API Key" → "Create API Key"',
+      'Copy the key and paste it here',
     ],
-    cost: 'Por uso, desde $0.003 por 1000 tokens',
+    cost: 'Pay as you go, starting at $0.003 per 1000 tokens',
   },
   {
     name: 'OpenAI',
@@ -21,12 +30,12 @@ const SECTIONS = [
     color: 'text-green-400',
     dot: 'bg-green-500',
     steps: [
-      'Entrá a platform.openai.com',
-      'Menú → API Keys → "Create new secret key"',
-      'Cargá créditos en Settings → Billing (mínimo $5)',
-      'Copiá la key y pegála acá',
+      { text: 'Go to ', link: 'https://platform.openai.com', linkText: 'platform.openai.com' },
+      'Menu → API Keys → "Create new secret key"',
+      'Add credits in Settings → Billing (minimum $5)',
+      'Copy the key and paste it here',
     ],
-    cost: 'Por uso, desde $0.002 por 1000 tokens',
+    cost: 'Pay as you go, starting at $0.002 per 1000 tokens',
   },
   {
     name: 'Google',
@@ -34,26 +43,26 @@ const SECTIONS = [
     color: 'text-blue-400',
     dot: 'bg-blue-500',
     steps: [
-      'Entrá a aistudio.google.com',
-      'Clic en "Get API Key" (menú izquierdo)',
-      'Copiá la key y pegála acá',
-      'Activá billing en console.cloud.google.com → tu proyecto → Billing',
+      { text: 'Go to ', link: 'https://aistudio.google.com', linkText: 'aistudio.google.com' },
+      'Click "Get API Key" (left menu)',
+      'Copy the key and paste it here',
+      { text: 'Activate billing at ', link: 'https://console.cloud.google.com', linkText: 'console.cloud.google.com', suffix: ' → your project → Billing' },
     ],
-    cost: 'Google ofrece $300 de crédito gratis para nuevas cuentas',
-    note: 'Sin billing activo la API devuelve quota 0 aunque tengas key válida.',
+    cost: 'Google offers $300 free credit for new accounts',
+    note: 'Without active billing, the API returns quota 0 even if you have a valid key.',
   },
   {
     name: 'Local',
-    label: 'IA LOCAL (Ollama / LM Studio)',
+    label: 'LOCAL AI (Ollama / LM Studio)',
     color: 'text-gray-400',
     dot: 'bg-gray-500',
     steps: [
-      'Instalá Ollama (ollama.ai) o LM Studio (lmstudio.ai)',
-      'Descargá el modelo que querés usar',
-      'Copiá la URL local (ej: http://localhost:11434/v1)',
-      'Pegála al crear o editar un equipo en Teams Map',
+      { text: 'Install ', link: 'https://ollama.ai', linkText: 'Ollama', suffix: ' or ', link2: 'https://lmstudio.ai', linkText2: 'LM Studio' },
+      'Download the model you want to use',
+      'Copy the local URL (e.g. http://localhost:11434/v1)',
+      'Paste it when creating or editing a team in Teams Map',
     ],
-    cost: 'Cero — corre en tu propia máquina',
+    cost: 'Free — runs on your own machine',
   },
 ]
 
@@ -89,8 +98,8 @@ export default function SetupGuide() {
         <div className="border-t border-gray-800 px-5 py-5 space-y-6 bg-white/40">
           {/* Intro */}
           <p className="text-xs text-gray-400 leading-relaxed max-w-xl">
-            AISync te permite trabajar con los modelos de IA que vos elegís.
-            La plataforma organiza y gobierna el trabajo — las API keys y el costo de uso son tuyos.
+            AISync lets you work with the AI models you choose.
+            The platform organizes and governs the work — the API keys and usage costs are yours.
           </p>
 
           {/* Provider sections */}
@@ -110,17 +119,45 @@ export default function SetupGuide() {
 
                 {/* Steps */}
                 <ol className="space-y-1">
-                  {s.steps.map((step, i) => (
+                  {s.steps.map((step: Step, i: number) => (
                     <li key={i} className="flex gap-2 text-xs text-gray-400 leading-relaxed">
                       <span className="shrink-0 text-gray-600 w-3">{i + 1}.</span>
-                      <span>{step}</span>
+                      {typeof step === 'string' ? (
+                        <span>{step}</span>
+                      ) : (
+                        <span>
+                          {step.text}
+                          <a
+                            href={step.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:text-blue-400 underline"
+                          >
+                            {step.linkText}
+                          </a>
+                          {step.link2 && step.linkText2 && (
+                            <>
+                              {step.suffix || ''}
+                              <a
+                                href={step.link2}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:text-blue-400 underline"
+                              >
+                                {step.linkText2}
+                              </a>
+                            </>
+                          )}
+                          {!step.link2 && step.suffix}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ol>
 
                 {/* Cost */}
                 <p className="text-xs text-gray-600 pt-0.5">
-                  <span className="text-gray-500">Costo:</span> {s.cost}
+                  <span className="text-gray-500">Cost:</span> {s.cost}
                 </p>
 
                 {/* Nota adicional (ej. billing de Google) */}
@@ -135,8 +172,8 @@ export default function SetupGuide() {
 
           {/* Footer note */}
           <p className="text-xs text-gray-600 border-t border-gray-800 pt-4 leading-relaxed">
-            <span className="text-gray-500 font-medium">Nota:</span> AISync nunca almacena tus
-            keys en texto plano. Tus datos, tu costo, tu control.
+            <span className="text-gray-500 font-medium">Note:</span> AISync never stores your
+            keys in plain text. Your data, your cost, your control.
           </p>
         </div>
       )}

@@ -91,8 +91,11 @@ export default function ApiKeyRequiredModal({ onClose, onSuccess }: Props) {
         </div>
 
         <p className="text-sm text-gray-600 mb-4">
-          AISync uses your own API keys — we don&apos;t charge for AI usage. Select a
-          provider below and paste your API key.
+          Para usar AISync necesitás tu propia clave de acceso a un proveedor de IA (como ChatGPT o Claude). Esto tiene un costo pequeño según el uso, pero muchísimos proveedores dan crédito gratis para empezar.
+        </p>
+
+        <p className="text-xs text-gray-500 mb-4">
+          Elegí un proveedor abajo y pegá tu API key para continuar.
         </p>
 
         <div className="space-y-3 mb-4">

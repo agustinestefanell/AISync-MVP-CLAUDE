@@ -10,21 +10,27 @@ const CLOUD_PROVIDERS = [
     color: 'text-orange-600',
     border: 'border-[var(--color-border-default)]',
     bg: 'bg-[var(--color-surface)]',
-    hint: 'Get your API key at console.anthropic.com',
+    hint: 'Get your API key at',
+    hintLink: 'https://console.anthropic.com',
+    hintLinkText: 'console.anthropic.com',
   },
   {
     name: 'OpenAI',
     color: 'text-green-700',
     border: 'border-[var(--color-border-default)]',
     bg: 'bg-[var(--color-surface)]',
-    hint: 'Starts with sk-…',
+    hint: 'Get your API key at',
+    hintLink: 'https://platform.openai.com',
+    hintLinkText: 'platform.openai.com',
   },
   {
     name: 'Google',
     color: 'text-blue-600',
     border: 'border-[var(--color-border-default)]',
     bg: 'bg-[var(--color-surface)]',
-    hint: 'Google AI Studio API key',
+    hint: 'Get your API key at',
+    hintLink: 'https://aistudio.google.com',
+    hintLinkText: 'aistudio.google.com',
   },
 ]
 
@@ -106,7 +112,7 @@ export default function ApiKeysManager() {
   }
 
   if (loading) {
-    return <p className="text-gray-500 text-sm animate-pulse">Cargando configuración…</p>
+    return <p className="text-gray-500 text-sm animate-pulse">Loading configuration…</p>
   }
 
   return (
@@ -142,13 +148,27 @@ export default function ApiKeysManager() {
                   <p className="text-xs text-gray-500 font-mono mb-3">{saved.masked}</p>
                 )}
 
+                {!saved && p.hintLink && (
+                  <p className="text-xs text-gray-500 mb-2">
+                    {p.hint}{' '}
+                    <a
+                      href={p.hintLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:text-blue-400 underline"
+                    >
+                      {p.hintLinkText}
+                    </a>
+                  </p>
+                )}
+
                 <div className="flex gap-2">
                   <input
                     type="password"
                     value={st.input}
                     onChange={e => setField(p.name, { input: e.target.value })}
                     onKeyDown={e => e.key === 'Enter' && handleSave(p.name)}
-                    placeholder={saved ? 'New key (replaces current)' : p.hint}
+                    placeholder={saved ? 'New key (replaces current)' : 'Paste your API key here'}
                     className="flex-1 bg-[var(--color-input-bg)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] placeholder-gray-400 focus:outline-none focus:border-[var(--color-border-focus)] transition-colors font-mono"
                   />
                   <button

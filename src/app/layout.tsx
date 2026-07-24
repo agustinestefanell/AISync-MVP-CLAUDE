@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { IBM_Plex_Sans, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
+import ClientLayout from '@/components/layout/ClientLayout'
 
 const ibmPlexSans = IBM_Plex_Sans({
   subsets: ['latin'],
@@ -29,7 +30,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${ibmPlexSans.variable} ${jetbrainsMono.variable}`}>
-        {children}
+        <ClientLayout>
+          {children}
+        </ClientLayout>
       </body>
     </html>
   )

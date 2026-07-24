@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import ApiKeyRequiredModal from './ApiKeyRequiredModal'
 
@@ -18,6 +18,22 @@ export default function ChatFirstClient() {
   const [validationMessage, setValidationMessage] = useState('')
   const [isStarting, setIsStarting] = useState(false)
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
+
+  // Check for API keys on mount — show modal proactively if none exist
+  useEffect(() => {
+    const checkApiKeys = async () => {
+      try {
+        const keysRes = await fetch('/api/settings/keys')
+        const keys = await keysRes.json()
+        if (!Array.isArray(keys) || keys.length === 0) {
+          setShowApiKeyModal(true)
+        }
+      } catch {
+        // If check fails, don't block — user will see modal when they try to start
+      }
+    }
+    checkApiKeys()
+  }, [])
 
   const startWithGeneralManager = async () => {
     const initialIntent = message.trim()
