@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 
 type Step = string | {
   text: string
@@ -23,6 +24,7 @@ const SECTIONS = [
       'Copy the key and paste it here',
     ],
     cost: 'Pay as you go, starting at $0.003 per 1000 tokens',
+    imagePath: '/setup-guide/anthropic-api-key-steps.png',
   },
   {
     name: 'OpenAI',
@@ -36,6 +38,7 @@ const SECTIONS = [
       'Copy the key and paste it here',
     ],
     cost: 'Pay as you go, starting at $0.002 per 1000 tokens',
+    imagePath: '/setup-guide/openai-api-key-steps.png',
   },
   {
     name: 'Google',
@@ -50,6 +53,7 @@ const SECTIONS = [
     ],
     cost: 'Google offers $300 free credit for new accounts',
     note: 'Without active billing, the API returns quota 0 even if you have a valid key.',
+    imagePath: '/setup-guide/google-api-key-steps.png',
   },
   {
     name: 'Local',
@@ -154,6 +158,19 @@ export default function SetupGuide() {
                     </li>
                   ))}
                 </ol>
+
+                {/* Visual guide image */}
+                {'imagePath' in s && s.imagePath && (
+                  <div className="pt-2">
+                    <Image
+                      src={s.imagePath}
+                      alt={`Step-by-step visual guide for ${s.label}`}
+                      width={1280}
+                      height={720}
+                      className="w-full h-auto rounded border border-gray-200/60"
+                    />
+                  </div>
+                )}
 
                 {/* Cost */}
                 <p className="text-xs text-gray-600 pt-0.5">
