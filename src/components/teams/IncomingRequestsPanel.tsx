@@ -8,6 +8,7 @@ interface IncomingRequestsPanelProps {
   connections: Connection[]
   myTeams: TeamWithWorkspaces[] // no longer used (isolated team is created automatically)
   projectId: string
+  projects: Array<{ id: string; name: string }>
   onClose: () => void
   onAccepted: (updated: Connection) => void
   onRejected: (id: string) => void
@@ -24,6 +25,7 @@ export default function IncomingRequestsPanel({
   connections,
   myTeams: _myTeams,
   projectId,
+  projects,
   onClose,
   onAccepted,
   onRejected,
@@ -31,6 +33,7 @@ export default function IncomingRequestsPanel({
   const pending = connections.filter(c => c.status === 'pending' && c.direction === 'incoming')
 
   const [acceptingId, setAcceptingId]   = useState<string | null>(null)
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(projectId)
   const [loading, setLoading]           = useState<string | null>(null)
   const [error, setError]               = useState('')
 
@@ -43,7 +46,7 @@ export default function IncomingRequestsPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'accept',
-          receiver_project_id: projectId,
+          receiver_project_id: selectedProjectId,
         }),
       })
       if (!res.ok) {
@@ -135,12 +138,33 @@ export default function IncomingRequestsPanel({
               {acceptingId === conn.id ? (
                 <div className="space-y-2 pt-1 border-t border-gray-200">
                   <p className="text-xs text-gray-500">A shared workspace will be created automatically when you accept.</p>
+
+                  {projects.length > 1 && (
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-gray-700">
+                        Your Project <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={selectedProjectId}
+                        onChange={e => setSelectedProjectId(e.target.value)}
+                        className="w-full text-xs bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 outline-none focus:border-indigo-300 transition-colors"
+                      >
+                        {projects.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500">Choose which of your projects will contain this shared team.</p>
+                    </div>
+                  )}
+
                   {error && <p className="text-xs text-red-400">{error}</p>}
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleAccept(conn)}
                       disabled={!!loading}
-                      className="flex-1 text-xs bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 text-emerald-700 border border-emerald-200 font-semibold py-2 rounded-lg transition-colors"
+                      className="flex-1 text-xs bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-700 border border-emerald-200 font-semibold py-2 rounded-lg transition-colors"
                     >
                       {loading === conn.id ? 'Accepting…' : 'Confirm'}
                     </button>
@@ -155,7 +179,11 @@ export default function IncomingRequestsPanel({
               ) : (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setAcceptingId(conn.id); setError('') }}
+                    onClick={() => {
+                      setAcceptingId(conn.id)
+                      setSelectedProjectId(projectId) // Reset to default Project
+                      setError('')
+                    }}
                     className="flex-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold py-1.5 rounded-lg transition-colors"
                   >
                     Accept

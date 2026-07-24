@@ -35,6 +35,7 @@ export function TreeWorkspaceCard({
   connectionRole,
   partnerEmail,
   partnerOrg,
+  connectionStatus,
   actionLabel,
   secondaryActionLabel,
   onPrimaryAction,
@@ -65,6 +66,7 @@ export function TreeWorkspaceCard({
   connectionRole?: 'host' | 'invitee'
   partnerEmail?: string
   partnerOrg?: string
+  connectionStatus?: string // Status of team_connections ('active', 'cancelled', etc.)
   explicitWidth?: number // Override default width calculation
 }) {
   const shellBackground = outlineOnly ? '#ffffff' : ribbonColor
@@ -76,6 +78,15 @@ export function TreeWorkspaceCard({
     : compact
       ? 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(247,249,252,0.98) 100%)'
       : 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(250,252,254,0.98) 100%)'
+
+  // Determine opacity:
+  // - Archived: 0.45 (applies to Manager + Workers)
+  // - Disconnected: 0.40 (applies ONLY to Manager, NOT Workers)
+  // - Normal: 1.0
+  const isDisconnected = connectionStatus && connectionStatus !== 'active'
+  const cardOpacity = isArchived
+    ? 0.45
+    : (isDisconnected && !compact ? 0.40 : 1)
 
   return (
     <div
@@ -89,7 +100,7 @@ export function TreeWorkspaceCard({
           compact
           ? '0 10px 20px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.72)'
           : '0 14px 30px rgba(15, 23, 42, 0.09), inset 0 1px 0 rgba(255,255,255,0.8)',
-        opacity: isArchived ? 0.45 : 1,
+        opacity: cardOpacity,
       }}
     >
       {isConnected ? (

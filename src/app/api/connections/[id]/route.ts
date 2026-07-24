@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { MAX_ACTIVE_CONNECTIONS_PER_ACCOUNT } from '@/lib/constants/connectionLimits'
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -331,6 +332,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       // Fail-open: log error but don't block accept
       console.error('[accept] Failed to create isolated teams:', isolatedTeamError)
     }
+
+    // Revalidate Teams Map and Dashboard to show new isolated team
+    revalidatePath('/teams')
+    revalidatePath('/')
 
     return NextResponse.json({ ...data, direction: 'incoming' })
   }

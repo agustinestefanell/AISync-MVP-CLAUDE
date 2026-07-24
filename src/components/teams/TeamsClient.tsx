@@ -243,6 +243,8 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
 
   function handleAccepted(updated: Connection) {
     setConnections(prev => prev.map(c => c.id === updated.id ? updated : c))
+    // Refresh to load newly created isolated team
+    router.refresh()
   }
 
   function handleRejected(id: string) {
@@ -498,6 +500,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           connections={connections}
           myTeams={teams}
           projectId={projectId}
+          projects={projectOptions}
           onClose={() => setShowIncoming(false)}
           onAccepted={handleAccepted}
           onRejected={handleRejected}

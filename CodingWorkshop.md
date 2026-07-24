@@ -1546,3 +1546,94 @@ ConnectTeamModal ahora filtra teams elegibles con `const eligibleTeams = teams.f
 **Lección:**
 Los teams aislados/shared no deben poder actuar como origen de nuevas conexiones. El filtro debe aplicarse antes de la selección automática, no después. El nombre corrupto ya existente en teams viejos, previo a este fix, no se corrige retroactivamente — si aparece un team con nombre duplicado tipo "Shared: Shared: ...", requiere corrección manual de datos, no solo el fix de código. La validación de tipo de team es responsabilidad del componente que selecciona el team, no del backend que lo recibe.
 
+---
+
+## Errores frecuentes de diagnóstico por escala
+
+### #26 — Inspección incompleta: encontrar el dato pero no comunicarlo con claridad
+
+**Fecha:** 2026-07-23  
+**Contexto:** Frente 3 Parte 2 — Opacity visual para conexiones desconectadas
+
+**Problema:**
+El Product Owner reportó que el botón "Disconnect" existía en el Dashboard y lo confirmó con screenshot. La inspección inicial SÍ encontró el botón en ProjectList.tsx (líneas 597-633, función `handleDisconnect` líneas 190-210), pero el reporte verbal no lo dejó suficientemente claro, generando confusión sobre si faltaba construirlo desde cero.
+
+**Causa raíz:**
+El reporte de inspección incluyó los hallazgos técnicos correctos (ubicación del botón, endpoint llamado, status resultante) pero no los resumió con claridad suficiente en la conclusión. El reporte decía "✅ SÍ EXISTE" pero estaba mezclado entre otros hallazgos, sin destacar que el alcance de implementación se simplificaba drásticamente al confirmar su existencia.
+
+**Consecuencia:**
+- Confusión sobre el alcance real de la OE
+- Tiempo perdido redescubriendo algo ya inspeccionado
+- Necesidad de re-clarificación del Product Owner
+- Pérdida de confianza en la validez del reporte de inspección
+
+**Proceso de solución:**
+El Product Owner señaló explícitamente que el botón SÍ existía y que la inspección previa debió haberlo encontrado. Se re-leyó la inspección original y se confirmó que los datos técnicos ESTABAN presentes (ubicación exacta del componente, handler, endpoint, payload, resultado en DB), pero la comunicación del hallazgo no fue lo suficientemente clara. El error no fue de búsqueda incompleta sino de reporte poco claro.
+
+**Solución final:**
+Se reformuló el reporte de inspección con estructura clara:
+1. **Hallazgo principal destacado:** "✅ Disconnect YA EXISTE"
+2. **Ubicación exacta:** Archivo, líneas, sección del UI
+3. **Qué hace:** Flow completo (handler → endpoint → cambio de status)
+4. **Implicación para alcance:** "NO se requiere construirlo"
+5. **Alcance simplificado:** Lista explícita de qué SÍ y qué NO hace falta hacer
+
+**Lección:**
+Inspección y reporte son dos responsabilidades distintas. Encontrar el dato correcto NO es suficiente si el reporte no lo comunica con claridad operativa. Los reportes de inspección deben:
+
+1. **Destacar hallazgos clave al inicio:** No mezclar conclusiones importantes entre detalles técnicos.
+2. **Traducir hallazgos a implicaciones de alcance:** "Esto existe" debe convertirse inmediatamente en "entonces NO hace falta construir X".
+3. **Usar formato consistente para hallazgos:** ✅/❌ con título claro, ubicación exacta, implicación directa.
+4. **Separar inspección técnica de comunicación ejecutiva:** Los datos técnicos (líneas de código, nombres de funciones) van después de la conclusión operativa, no antes.
+
+Dos formas de fallar en inspección:
+- **(A) Buscar en la superficie equivocada:** Inspeccionar Teams Map cuando el botón vive en Dashboard — error de alcance de búsqueda.
+- **(B) Encontrar el dato correcto pero no comunicarlo con claridad:** Inspección técnicamente correcta, reporte operativamente inútil — error de comunicación.
+
+Ambos errores producen el mismo resultado práctico: pérdida de tiempo, confusión de alcance, y necesidad de re-clarificación. La solución es diferente: (A) requiere ampliar el alcance de búsqueda, (B) requiere reformular el reporte con claridad ejecutiva.
+
+**Archivos afectados:**
+- Ninguno (fue error de reporte, no de código)
+
+**Commit:**
+N/A (hallazgo metodológico)
+
+---
+
+### #27 — Búsqueda de un botón/feature dado por "no existente" cuando en realidad vive en otra superficie del sistema
+
+**Fecha:** 2026-07-23  
+**Contexto:** Frente 3 Parte 2 — Opacity visual para conexiones desconectadas
+
+**Problema:**
+Se necesitaba diagnosticar por qué no era posible "desconectar" una conexión activa entre Connected Teams para aplicarle una señal visual (opacidad). La inspección concluyó que el botón "Disconnect" NO EXISTÍA en ningún lugar de la aplicación, y se llegó a proponer construirlo desde cero como parte de la solución.
+
+**Causa raíz:**
+La inspección se limitó a los archivos donde estaba el foco del trabajo en curso (MapView.tsx, TeamsClient.tsx — Teams Map), sin ampliar la búsqueda a otras superficies del sistema donde la misma funcionalidad podía existir. El botón "Disconnect" sí existía, en Dashboard (ProjectList.tsx, card de "Connected Teams") — una pantalla distinta a la que estaba bajo análisis.
+
+**Consecuencia:**
+Se estuvo a punto de construir una funcionalidad duplicada desde cero (un nuevo botón Disconnect) para resolver un problema que ya tenía solución existente en otra parte del sistema. Esto habría generado dos caminos distintos para la misma acción, con el riesgo de que no actualicen el estado de forma consistente entre sí.
+
+**Proceso de solución:**
+El Product Owner, con conocimiento directo del producto, señaló con un screenshot que el botón sí existía en Dashboard. Esto evitó la construcción duplicada.
+
+**Solución final:**
+Redirigir la inspección hacia el componente real (ProjectList.tsx) para entender su comportamiento actual antes de extender la lógica, en vez de asumir ausencia total de la feature.
+
+**Lección:**
+AISync es un proyecto grande, con funcionalidad distribuida en múltiples superficies (Dashboard, Teams Map, Workspace, Documentation Mode, Audit Log). Concluir "esto no existe en ningún lado" basándose en la inspección de una sola superficie es un error de diagnóstico por escala, no necesariamente un hallazgo correcto. Antes de concluir que una funcionalidad no existe:
+
+1. Consultar AISyncPlans.md para ver si ya está documentada en otro sector del sistema
+2. Si aun así no se encuentra evidencia clara, formular la conclusión bajo la etiqueta explícita **"no existe en el sector donde se está trabajando"** en vez de "no existe en el sistema"
+3. Agregar la sugerencia **"se sugiere subir uno o dos niveles el diagnóstico"** — esa frase es la señal acordada con el Product Owner para indicar que el problema puede ser de escala (búsqueda acotada a una superficie) y no de ausencia real de la funcionalidad
+
+**Archivos afectados:**
+- Ninguno (fue error de diagnóstico, no de código)
+
+**Commit:**
+N/A (hallazgo metodológico)
+
+---
+
+
+---

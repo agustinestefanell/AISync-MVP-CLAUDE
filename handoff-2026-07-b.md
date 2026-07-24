@@ -2061,3 +2061,201 @@ Binding explícito de conexiones a Projects requiere threading del `projectId` c
 
 **Follow-up 2026-07-23 — Dashboard Connect relocation:**
 Mismo criterio aplicado a Dashboard (ProjectList.tsx). Connect button REMOVIDO de columna genérica "Connected Teams" (líneas 520-525 deleted). Connect button AGREGADO dentro de metadata card de cada Project individual (junto al nombre del Project, línea ~360). State `connectProjectId` trackea desde qué Project se disparó la acción. Modal condicional: `{showConnectModal && connectProjectId && (...)}`. `onClose` y `onConnected` limpian ambos estados. ProjectList ahora consistente con Teams Map: Connect contextual por Project, no global. Validaciones: lint ✅, build ✅ (sin error `/api/audit`). Total ProjectList: +20 líneas netas (state + botón + cleanup).
+
+
+---
+
+## Sesión 2026-07-23 — Connect Team complete chain: Project binding + Duplicate prevention + UI polish
+
+**Fecha:** 2026-07-23
+**Estado:** Closed (validado funcionalmente por PO — selector Project Invitee, sincronización Teams Map, Project visible Dashboard, opacity desconexión 40% solo Manager)
+
+**Contexto:**
+Cadena completa de trabajo sobre Connect Team cubriendo 5 frentes principales: Teams Map layout (Frente 1), Project binding Host (Frente 2), Duplicate prevention + connection limits (Frente 3 Parte 1), Disconnected team opacity (Frente 3 Parte 2), Project binding Invitee (Mini-OE final). Esta sesión cierra toda la feature de Connect Team activo Project binding con validación funcional completa.
+
+**═══════════════════════════════════════**
+**PARTE 1 — Selector de Project explícito (Invitee)**
+**═══════════════════════════════════════**
+
+**Problema identificado:**
+El lado Invitee (quien acepta conexión) NO tenía forma de elegir a qué Project propio se asociaría la conexión — se asumía automáticamente su Project activo. Esto generaba confusión real cuando el Invitee tenía múltiples Projects y quería asociar la conexión a uno específico distinto del activo.
+
+**Inspección previa confirmada:**
+1. IncomingRequestsPanel ya recibía `projectId` fijo (Project activo)
+2. Payload ya enviaba `receiver_project_id` → backend ya validaba y persistía correctamente
+3. TeamsClient y ProjectList ya tenían lista de Projects disponible (`projectOptions`)
+4. Solo faltaba UI de selección explícita
+
+**Cambios implementados:**
+
+1. **src/components/teams/IncomingRequestsPanel.tsx (+34 líneas):**
+   - Props: agregado `projects: Array<{ id: string; name: string }>`
+   - State: agregado `selectedProjectId` inicializado con `projectId` default
+   - UI: selector Project visible solo cuando `projects.length > 1`
+   - Label: "Your Project *" con copy "Choose which of your projects will contain this shared team."
+   - Reset: `selectedProjectId` se resetea al `projectId` default cuando Accept se presiona
+   - Payload: envía `receiver_project_id: selectedProjectId`
+   - Loading feedback: `disabled:cursor-not-allowed` agregado a botón Confirm
+
+2. **src/components/teams/TeamsClient.tsx (+4 líneas):**
+   - Pasa `projectOptions` (ya existía en state) a IncomingRequestsPanel como prop `projects`
+   - Agregado `router.refresh()` en `handleAccepted()` (AJUSTE 1)
+
+3. **src/components/ProjectList.tsx (+10 líneas):**
+   - Pasa `projects.map(p => ({ id: p.id, name: p.name }))` a IncomingRequestsPanel
+   - Deriva `ownProjectName` según rol para mostrar en Connected Teams card (AJUSTE 2)
+
+4. **src/components/teams/ConnectTeamModal.tsx (+2 líneas):**
+   - Tipo `Connection`: agregado `requester_project_id?: string | null` y `receiver_project_id?: string | null`
+
+**Decisiones técnicas:**
+- **Selector condicional:** Solo visible cuando `projects.length > 1` — evita UI innecesaria
+- **Default automático:** Si hay 1 Project, se usa automáticamente sin interacción
+- **Reset al abrir:** Previene que un Project seleccionado en confirmación previa quede activo en nueva
+- **Backend sin cambios:** Ya estaba preparado desde Frente 3 Parte 1
+
+**═══════════════════════════════════════**
+**PARTE 2 — Mini-OE 3 ajustes de emergencia**
+**═══════════════════════════════════════**
+
+### AJUSTE 1 — Bug de sincronización Teams Map
+
+**Diagnóstico confirmado:**
+
+**Causa raíz:** Race condition entre respuesta HTTP y creación async de isolated teams.
+
+**Timeline del bug:**
+1. Frontend envía PATCH accept
+2. Backend actualiza `team_connections.status = 'active'` (línea 114)
+3. Backend devuelve 200 OK inmediatamente (línea 335 original)
+4. Frontend cierra modal y **NO refresca** `/teams` explícitamente
+5. Backend continúa creando isolated teams en bloque try/catch (líneas 168-333) → puede tardar 2-5 segundos
+6. Usuario recarga `/teams` con F5 → isolated teams AÚN NO existen en DB
+7. Usuario va a Dashboard → nueva carga de datos captura isolated teams ya creados
+
+**El problema NO era caché de Next.js** (`force-dynamic` línea 9 de page.tsx) — era falta de refresh client-side.
+
+**Solución aplicada (doble capa):**
+
+1. **Client-side (TeamsClient.tsx +3 líneas en handleAccepted):**
+   - Línea 247: agregado `router.refresh()` después de `handleAccepted()`
+   - Refresca Server Component `/teams` para obtener isolated team recién creado
+
+2. **Server-side (src/app/api/connections/[id]/route.ts +5 líneas):**
+   - Líneas 338-339 (antes de return): agregado `revalidatePath('/teams')` y `revalidatePath('/')`
+   - Invalida caché de Next.js para ambas rutas
+
+**Beneficio doble garantía:**
+- Server: invalida caché → próximo fetch trae datos frescos
+- Client: fuerza re-fetch inmediato → isolated team aparece sin esperar
+
+**Comportamiento aceptado por PO:**
+- F5 manual necesario en ambos casos (no tiempo real) — NO bloqueante
+- Realtime updates diferido para iteración futura
+
+---
+
+### AJUSTE 2 — Project visible en Connected Teams card (Dashboard)
+
+**Problema:**
+Dashboard columna "Connected Teams" no mostraba a qué Project propio estaba asociada cada conexión.
+
+**Solución (ProjectList.tsx +9 líneas totales en PARTE 2):**
+
+Deriva Project propio según rol y muestra en Connected Teams card debajo del email de contraparte.
+
+---
+
+### AJUSTE 3 — Opacidad de desconexión ajustada
+
+**Cambio de criterio confirmado:**
+- Opacidad de **DESCONEXIÓN** (`team_connections.status !== 'active'`): bajar de 0.70 a **0.40**, aplicar ÚNICAMENTE a Manager (NO heredar a Workers)
+- Opacidad de **ARCHIVADO** (`teams.status='archived'`): **SIN CAMBIOS**, sigue en 0.45 y heredándose a Workers
+
+**Motivo:** Diferenciar visualmente de un vistazo "desconectado" (solo Manager atenuado) de "archivado" (todo el team atenuado) — señales distintas, visuales distintas.
+
+**Código (TreeWorkspaceCard.tsx +13 líneas):**
+
+Lógica refinada: `isArchived ? 0.45 : (isDisconnected && !compact ? 0.40 : 1)`
+
+**Explicación:**
+- `!compact` → Manager (`compact=false`)
+- Workers (`compact=true`) NO reciben opacity de desconexión
+- Archived sigue afectando ambos (Manager + Workers)
+
+**═══════════════════════════════════════**
+**VALIDACIONES TÉCNICAS**
+**═══════════════════════════════════════**
+
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso (caché limpio)
+- TypeScript: ✅ Sin errores
+- git diff --stat: 6 archivos, +62 líneas netas
+
+**Resumen de cambios completos esta sesión:**
+- src/app/api/connections/[id]/route.ts (+5 líneas: revalidatePath)
+- src/components/ProjectList.tsx (+10 líneas: Project name + derivación + paso prop)
+- src/components/teams/ConnectTeamModal.tsx (+2 líneas: tipo Connection extendido)
+- src/components/teams/IncomingRequestsPanel.tsx (+34 líneas: selector Project)
+- src/components/teams/TeamsClient.tsx (+4 líneas: router.refresh + paso prop)
+- src/components/teams/v3/TreeWorkspaceCard.tsx (+13 líneas: opacity refinada)
+
+**═══════════════════════════════════════**
+**VALIDACIÓN FUNCIONAL PO**
+**═══════════════════════════════════════**
+
+**Checklist 7 puntos confirmados:**
+
+| # | Área | Caso | Resultado |
+|---|---|---|---|
+| 1 | IncomingRequestsPanel | Invitee con 1 Project | Selector NO visible, accept automático ✅ |
+| 2 | IncomingRequestsPanel | Invitee con múltiples Projects | Selector visible con todos ✅ |
+| 3 | SQL | Elige Project A | `receiver_project_id` = Project A ✅ |
+| 4 | Teams Map | Accept nueva conexión | Isolated team aparece inmediatamente (sin ir a Dashboard) ✅ |
+| 5 | Dashboard | Connected Teams card | Muestra "Your Project: [nombre]" ✅ |
+| 6 | Teams Map | Team desconectado | Manager opacity 0.40, Workers opacity 1.0 ✅ |
+| 7 | Teams Map | Team archivado | Manager + Workers opacity 0.45 (sin cambios) ✅ |
+
+**═══════════════════════════════════════**
+**ARCHIVOS MODIFICADOS**
+**═══════════════════════════════════════**
+
+- src/app/api/connections/[id]/route.ts
+- src/components/ProjectList.tsx
+- src/components/teams/ConnectTeamModal.tsx
+- src/components/teams/IncomingRequestsPanel.tsx
+- src/components/teams/TeamsClient.tsx
+- src/components/teams/v3/TreeWorkspaceCard.tsx
+
+**Archivos NO modificados:**
+- CanvasViewport (todas variantes)
+- TreeView.tsx
+- MapView.tsx (cambios de sesión previa NO incluidos en este commit)
+- Documentation Mode, Audit Log
+- RLS, schema (migración 050 ya committed, pendiente aplicación manual)
+
+**═══════════════════════════════════════**
+**RESTRICCIONES RESPETADAS**
+**═══════════════════════════════════════**
+
+- ✅ NO tocar RLS, CanvasViewport (legacy), TreeView
+- ✅ Lógica disconnected vs archived mantenida independiente
+- ✅ NO mezclar opacity de desconexión con archivado
+- ✅ Backend PATCH ya preparado (solo agregado revalidatePath)
+- ✅ Schema sin cambios en este commit (migración 050 ya existía)
+
+**═══════════════════════════════════════**
+**LECCIÓN CLAVE**
+**═══════════════════════════════════════**
+
+**Race condition en creación async de recursos:**
+Backend que devuelve 200 OK inmediatamente pero continúa creando recursos en background (isolated teams) puede generar "fantasmas" — frontend asume éxito y refresca, pero recursos aún no existen en DB. Solución doble capa: (1) server invalida caché explícitamente con `revalidatePath()`, (2) client fuerza refresh inmediato con `router.refresh()`. F5 manual aceptado como comportamiento temporal — Realtime diferido.
+
+**Selector condicional de UI:**
+Mostrar selector solo cuando hay elección real (`projects.length > 1`) evita UI innecesaria y confusión. Preseleccionar única opción automáticamente reduce fricción. Reset al abrir previene estado residual entre acciones.
+
+**Diferenciación visual por señal semántica:**
+Desconectado (0.40, solo Manager) vs Archivado (0.45, Manager + Workers) — dos estados distintos requieren visuales distintas. Herencia de opacity apropiada según contexto: archivado afecta todo el team (contexto estructural), desconectado afecta solo la cabeza visible (contexto de conexión externa).
+
+**Doble garantía server + client:**
+`revalidatePath()` server-side + `router.refresh()` client-side — complementarios, no redundantes. Server invalida caché para próximos fetches, client fuerza fetch inmediato sin esperar invalidación natural.

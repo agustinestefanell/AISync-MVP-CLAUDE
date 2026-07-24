@@ -16,10 +16,12 @@ export interface Connection {
   requester_email: string
   requester_team_id: string
   requester_team_name: string
+  requester_project_id?: string | null
   receiver_email: string
   receiver_account_id: string | null
   receiver_team_id: string | null
   receiver_team_name: string | null
+  receiver_project_id?: string | null
   connection_type: string
   scope: string
   status: string

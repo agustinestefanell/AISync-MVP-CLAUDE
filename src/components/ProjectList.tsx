@@ -550,6 +550,11 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
               const initials     = getInitials(partnerEmail, teamName)
               const avatarBg     = getAvatarColor(c.id)
 
+              // Derive own project name based on role
+              const ownProjectId = c.direction === 'outgoing' ? c.requester_project_id : c.receiver_project_id
+              const ownProject = ownProjectId ? projects.find(p => p.id === ownProjectId) : null
+              const ownProjectName = ownProject?.name ?? 'Unknown Project'
+
               return (
                 <div key={c.id} className="bg-white border border-[#DDE6F1] rounded-[18px] shadow-[0_8px_24px_rgba(12,23,51,0.05)] p-[18px] space-y-3">
                   <div className="flex items-start gap-3">
@@ -565,6 +570,9 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-[#0C1733] truncate">{displayName}</p>
                       <p className="text-xs text-[#8A97AA] truncate">{partnerEmail}</p>
+                      <p className="text-xs text-[#5C6B82] mt-0.5">
+                        Your Project: <span className="font-medium text-[#0C1733]">{ownProjectName}</span>
+                      </p>
                       {c.description && (
                         <p className="text-xs text-[#5C6B82] mt-1 italic">{c.description}</p>
                       )}
@@ -662,6 +670,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
           connections={connections}
           myTeams={allTeams}
           projectId={activeProjectId}
+          projects={projects.map(p => ({ id: p.id, name: p.name }))}
           onClose={() => setShowRequestsPanel(false)}
           onAccepted={() => { setShowRequestsPanel(false); fetchConnections() }}
           onRejected={() => { setShowRequestsPanel(false); fetchConnections() }}
