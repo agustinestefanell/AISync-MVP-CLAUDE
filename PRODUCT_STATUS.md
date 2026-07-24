@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-07-23 (Connect Team complete chain: Project binding Invitee + sync fix + UI polish — closed)
+Last updated: 2026-07-24 (API Keys clarity: proactive modal + clickable links — closed)
 
 ---
 
@@ -130,6 +130,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 
 | Feature | Estado | Evidencia | Notas |
 |---|---|---|---|
+| **API Keys proactive modal + clarity** | ✅ Closed | commit ed1e309 | **Mini-OE 2026-07-24:** Modal automático proactivo cuando usuario sin keys navega a rutas principales. ClientLayout.tsx con lista explícita de inclusión: /, /teams, /workspace, /audit, /documentation, /context, /start. Exclusión aprobada: /settings (evita redundancia). Mensaje reescrito "para dummies" en ApiKeyRequiredModal (español, aprobado por PO): requisito obligatorio + costo pequeño + créditos gratis. Links clickeables en SetupGuide.tsx (console.anthropic.com, platform.openai.com, aistudio.google.com, etc.) + copy traducido inglés. Hints en ApiKeysManager.tsx convertidos a links clickeables. Console.log diagnóstico para validación PO. Validaciones: lint ✅, build ✅. Pendiente: 25-point functional checklist validation. Ver handoff-2026-07-b.md 2026-07-24. |
 | API Keys (cloud providers) | ✅ Live | commit 472caf9 | Light mode fixed — commit 472caf9 |
 | Custom Providers | ✅ Live | commit 472caf9 | Light mode fixed — commit 472caf9 |
 | Setup Guide | ✅ Live | `src/components/settings/SetupGuide.tsx` | |

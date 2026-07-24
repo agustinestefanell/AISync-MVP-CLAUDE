@@ -2259,3 +2259,98 @@ Desconectado (0.40, solo Manager) vs Archivado (0.45, Manager + Workers) — dos
 
 **Doble garantía server + client:**
 `revalidatePath()` server-side + `router.refresh()` client-side — complementarios, no redundantes. Server invalida caché para próximos fetches, client fuerza fetch inmediato sin esperar invalidación natural.
+
+---
+
+## Mini-OE 2026-07-24 — API Keys clarity: proactive modal + clickable links
+
+**Fecha:** 2026-07-24
+**Estado:** Closed (validado visualmente por PO — pendiente confirmación funcional con 25-point checklist)
+
+**Contexto:**
+Testing con usuario real reveló que el onboarding no comunicaba con suficiente claridad que AISync requiere API key propia del usuario. Usuario asumió que el producto no funcionaba. Esta Mini-OE implementa la corrección de más alto impacto antes de evaluar sistemas de trial con créditos (proyecto separado pendiente).
+
+**Diagnóstico de causa raíz (bug reportado por PO):**
+Modal de "falta API key" NO aparecía automáticamente en Dashboard/Workspace. Causa: trigger proactivo implementado ÚNICAMENTE en ChatFirstClient.tsx (solo se monta en `/start`). Usuario navegó a Dashboard (`/`) → ChatFirstClient NO montado → useEffect proactivo nunca ejecutado → modal nunca apareció.
+
+**Solución aplicada:**
+Trigger movido a ClientLayout.tsx (componente global en root layout) con lista explícita de rutas de inclusión (NO exclusión).
+
+**Cambios implementados:**
+
+1. **ClientLayout.tsx (nuevo componente global):**
+   - Client component wrapper integrado en `src/app/layout.tsx`
+   - Lista explícita de rutas con API key check: `/`, `/teams`, `/workspace/*`, `/audit`, `/documentation`, `/context`, `/start`
+   - Exclusión aprobada por PO: `/settings` (evita modal redundante encima de la pantalla donde se resuelve el problema)
+   - Console.log de diagnóstico: `[ClientLayout] API Key check: { pathname, keysCount, hasKeys, willShowModal }`
+   - usePathname() + useEffect proactivo con fetch a `/api/settings/keys`
+   - Manejo de errores graceful (no bloquea si fetch falla)
+
+2. **ApiKeyRequiredModal.tsx — mensaje reescrito (aprobado por PO):**
+   - Texto anterior (técnico): "AISync uses your own API keys — we don't charge for AI usage..."
+   - Texto nuevo ("para dummies"): "Para usar AISync necesitás tu propia clave de acceso a un proveedor de IA (como ChatGPT o Claude). Esto tiene un costo pequeño según el uso, pero muchísimos proveedores dan crédito gratis para empezar."
+   - Comunica: requisito obligatorio, costo asociado, créditos gratis disponibles
+   - Links clickeables preservados: Google/Anthropic/OpenAI con "Get key →" (target="_blank")
+
+3. **SetupGuide.tsx — links clickeables + traducción inglés:**
+   - Todos los nombres de sitios convertidos a links: console.anthropic.com, platform.openai.com, aistudio.google.com, console.cloud.google.com, ollama.ai, lmstudio.ai
+   - Copy traducido de español a inglés: "Entrá a..." → "Go to...", "Copiá la key..." → "Copy the key...", "Costo:" → "Cost:", "Nota:" → "Note:"
+   - Type `Step` creado para steps con links opcionales (soporte para múltiples links por step)
+
+4. **ApiKeysManager.tsx — hints con links clickeables:**
+   - Hints convertidos de placeholders (texto plano) a párrafos separados con links
+   - Anthropic: "Get your API key at [console.anthropic.com]"
+   - OpenAI: "Get your API key at [platform.openai.com]"
+   - Google: "Get your API key at [aistudio.google.com]"
+   - Texto traducido: "Cargando configuración…" → "Loading configuration…"
+
+5. **ChatFirstClient.tsx:**
+   - Trigger proactivo `/start` preservado sin modificar (useEffect original intacto)
+   - Complementario con ClientLayout — doble capa de seguridad para onboarding
+
+**Decisión arquitectónica — /settings excluido:**
+Criterio aprobado por PO: `/settings` NO dispara modal proactivo. Razones: (1) Redundancia visual — modal aparecería encima de la misma pantalla donde se agregan keys, (2) Flujo natural — usuario que llega a `/settings` ya tiene contexto de configuración, (3) Escape hatch — garantiza ruta libre de interrupciones para configurar keys.
+
+**Archivos modificados:**
+- src/components/layout/ClientLayout.tsx (nuevo +82 líneas)
+- src/app/layout.tsx (+4 líneas: wrapper ClientLayout)
+- src/components/onboarding/ApiKeyRequiredModal.tsx (+7 líneas: mensaje reescrito)
+- src/components/settings/SetupGuide.tsx (+50 líneas: links + traducción + type Step)
+- src/components/settings/ApiKeysManager.tsx (+23 líneas: hints con links + traducción)
+- src/components/onboarding/ChatFirstClient.tsx (+18 líneas: trigger /start preservado)
+
+**Archivos NO modificados:**
+- RLS, schema, migraciones
+- Lógica de billing/facturación
+- Modal "How Connected Teams work"
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso sin errores TypeScript
+- Bundle size: Sin impacto significativo (ClientLayout en layout root, no duplicado)
+
+**Validación funcional PO — 25-point checklist:**
+
+**Rutas con modal (7 puntos):**
+- `/` (Dashboard), `/teams`, `/workspace/*`, `/audit`, `/documentation`, `/context`, `/start` → modal debe aparecer automáticamente
+- Console.log esperado: `pathname: "/...", keysCount: 0, hasKeys: false, willShowModal: true`
+
+**Rutas sin modal (3 puntos):**
+- `/settings`, `/login`, `/auth/callback` → modal NO debe aparecer
+- Console.log: sin output (rutas excluidas)
+
+**Links clickeables (14 puntos):**
+- Modal: 3 providers (Google/Anthropic/OpenAI) con "Get key →" abriendo en nueva pestaña
+- SetupGuide: 6 sitios (console.anthropic.com, platform.openai.com, aistudio.google.com, console.cloud.google.com, ollama.ai, lmstudio.ai) clickeables
+- ApiKeysManager: 3 hints con links clickeables por provider
+
+**Mensaje modal (4 puntos):**
+- Texto claro "necesitás tu propia clave", "costo pequeño", "crédito gratis"
+- Español según redacción aprobada
+- 3 providers visibles con links "Get key →"
+
+**Lección clave — Diagnóstico sin asumir:**
+Bug de "modal no aparece" requirió diagnóstico riguroso sin asumir. Inspección completa reveló que trigger estaba implementado en componente correcto (ChatFirstClient) pero montado en ruta incorrecta (solo `/start`). Usuario navegaba a rutas donde ChatFirstClient NO se montaba → useEffect nunca ejecutado. Solución: mover trigger a componente global (ClientLayout) que se monta en todas las rutas. Console.log instrumentado para validación PO con evidencia real (no solo "debería andar según el código").
+
+**Lección UX — Exclusión precisa vs exclusión amplia:**
+PO aprobó exclusión de `/settings` específicamente (no toda la app "menos login"). Criterio correcto: evitar redundancia donde el modal aparecería encima de la pantalla que resuelve el problema. Exclusión precisa mejora UX sin sacrificar cobertura — usuario siempre tiene escape hatch libre de interrupciones.
