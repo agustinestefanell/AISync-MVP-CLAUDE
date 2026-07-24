@@ -2477,4 +2477,45 @@ No usar persistencia client-side para "recordar cierre". El único state es `sho
 Aplicar `bg-[color]` en contenedor padre afecta TODO el árbol DOM (header + body cuando se expande). Para estilos condicionales por sección, aplicar directamente en el elemento target (`<button>` trigger), no en su ancestro. La corrección de regresión movió fondo azul de `<div>` exterior a `<button>` trigger — body expandido quedó intacto con su `bg-white/40` original.
 
 **Lección UX — Contraste de color y accesibilidad:**
+Advertencias sobre fondos oscuros requieren verificación de ratios de contraste WCAG. `text-amber-600/80` sobre fondo oscuro no cumplía AA (~3.2:1). `text-yellow-300` alcanza AAA (~7.5:1) y preserva semántica de warning sin sacrificar legibilidad.
+
+---
+
+## Commit 2026-07-24 — Disconnected connection opacity propagation (Teams Map)
+
+**Fecha:** 2026-07-24
+**Estado:** Closed (validado visualmente en sesión anterior, commit delayed)
+
+**Contexto:**
+Cambios de opacidad de desconexión (Frente 3 Parte 2, AJUSTE 3) quedaron sin commitear al final de la sesión 2026-07-23. El código ya había sido validado visualmente por el Product Owner con screenshot confirmando Manager desconectado con opacity 0.40 y Workers sin heredar esa opacidad (solo Archived hereda a Workers, Disconnected no).
+
+**Cambios confirmados en diff:**
+
+1. **src/components/teams/MapView.tsx (+22 líneas netas):**
+   - `connectionStatus` map agregado como `useMemo` derivado de `connections[]`
+   - Mapea isolated team ID → `team_connections.status` ('active', 'cancelled', 'disconnected')
+   - Propagado como parámetro a `buildGraphNodesForProject()` y `addSubteamsRecursive()`
+   - Cada nodo `TeamsGraphNode` recibe `connectionStatus` como prop
+   - Pasado a `TreeWorkspaceCard` como prop `connectionStatus`
+
+2. **src/lib/teams/teamsMapLayoutTypes.ts (+1 línea):**
+   - Interface `TeamsGraphNode` extendida con `connectionStatus?: string`
+   - Comentario documental: "Status of team_connections ('active', 'cancelled', etc.)"
+
+**Validación técnica:**
+- git diff ✅ coincide exactamente con lógica de opacidad validada
+- npm run lint ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build ✅ Exitoso sin errores TypeScript
+- Validación visual PO ✅ completada en sesión anterior (2026-07-23)
+
+**Archivos modificados:**
+- `src/components/teams/MapView.tsx`
+- `src/lib/teams/teamsMapLayoutTypes.ts`
+
+**Archivos NO modificados:**
+- `src/components/teams/v3/TreeWorkspaceCard.tsx` — lógica de opacity ya committeada en sesión anterior (commit 445f228)
+- TeamsClient, modales, API routes, migrations, RLS, schema — preservados
+
+**Lección operativa — Commit delayed por cierre temprano de sesión:**
+Cuando una sesión cierra con código funcionalmente validado pero sin commit, el diff debe re-verificarse en sesión posterior antes de commitear. El tiempo transcurrido y commits intermedios (Connect Team, API Keys) podrían haber tocado código relacionado. En este caso: lint ✅, build ✅, diff coincide con spec validada → seguro para commit.
 `yellow-300` (#FDE047) cumple WCAG AAA sobre fondo oscuro amber. `amber-600/80` fallaba AA. Siempre verificar ratios de contraste en advertencias/alerts — el mensaje debe ser legible incluso bajo condiciones adversas (luz solar directa, discapacidad visual leve).

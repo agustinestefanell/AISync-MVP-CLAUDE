@@ -20,6 +20,7 @@ export interface TeamsGraphNode {
   connectionRole?: 'host' | 'invitee'
   partnerEmail?: string
   partnerOrg?: string
+  connectionStatus?: string // Status of team_connections ('active', 'cancelled', etc.)
 }
 
 export interface TeamTheme {

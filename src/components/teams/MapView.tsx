@@ -72,7 +72,8 @@ function buildGraphNodesForProject(
   projectName: string,
   projectIndex: number,
   teamCodes: Record<string, string>,
-  connectionMetadata: Record<string, { partnerEmail: string; role: 'host' | 'invitee' }>
+  connectionMetadata: Record<string, { partnerEmail: string; role: 'host' | 'invitee' }>,
+  connectionStatus: Record<string, string>
 ): { nodes: TeamsGraphNode[]; rootNode: TeamsGraphNode } {
   const nodes: TeamsGraphNode[] = []
 
@@ -111,11 +112,12 @@ function buildGraphNodesForProject(
       connectionRole: connMeta?.role,
       partnerEmail: connMeta?.partnerEmail,
       partnerOrg: undefined, // Not available in current data model
+      connectionStatus: connectionStatus[team.id],
     }
     nodes.push(teamNode)
 
     // Add subteams recursively
-    addSubteamsRecursive(team.id, teams, nodes, teamCodes, connectionMetadata)
+    addSubteamsRecursive(team.id, teams, nodes, teamCodes, connectionMetadata, connectionStatus)
 
     // Add workers for this team (MAX 2)
     const workers = team.workspaces?.[0]?.agent_sessions?.filter(s => s.agent_role !== 'manager') ?? []
@@ -141,7 +143,8 @@ function addSubteamsRecursive(
   allTeams: TeamWithWorkspaces[],
   nodes: TeamsGraphNode[],
   teamCodes: Record<string, string>,
-  connectionMetadata: Record<string, { partnerEmail: string; role: 'host' | 'invitee' }>
+  connectionMetadata: Record<string, { partnerEmail: string; role: 'host' | 'invitee' }>,
+  connectionStatus: Record<string, string>
 ) {
   const subteams = allTeams.filter(t => t.parent_id === parentId)
 
@@ -164,11 +167,12 @@ function addSubteamsRecursive(
       connectionRole: connMeta?.role,
       partnerEmail: connMeta?.partnerEmail,
       partnerOrg: undefined,
+      connectionStatus: connectionStatus[subteam.id],
     }
     nodes.push(subteamNode)
 
     // Recursive subteams
-    addSubteamsRecursive(subteam.id, allTeams, nodes, teamCodes, connectionMetadata)
+    addSubteamsRecursive(subteam.id, allTeams, nodes, teamCodes, connectionMetadata, connectionStatus)
 
     // Workers for subteam (MAX 2)
     const workers = subteam.workspaces?.[0]?.agent_sessions?.filter(s => s.agent_role !== 'manager') ?? []
@@ -237,6 +241,22 @@ export default function MapView({
     return map
   }, [connections])
 
+  // Build connection status map: isolated team ID → connection status
+  const connectionStatus = useMemo(() => {
+    const map: Record<string, string> = {}
+
+    connections.forEach(conn => {
+      const isHost = conn.direction === 'outgoing'
+      const myTeamId = isHost ? conn.host_isolated_team_id : conn.invitee_isolated_team_id
+
+      if (myTeamId) {
+        map[myTeamId] = conn.status
+      }
+    })
+
+    return map
+  }, [connections])
+
   // Group teams by project (using visible teams)
   const projectGroups = useMemo(() => {
     const grouped = new Map<string, TeamWithWorkspaces[]>()
@@ -268,12 +288,13 @@ export default function MapView({
         project.name,
         project.index,
         teamCodes,
-        connectionMetadata
+        connectionMetadata,
+        connectionStatus
       )
       const layout = rootNode ? buildTreeLayout(rootNode, graphNodes, 'map') : null
       return { project, layout, rootNode, graphNodes }
     })
-  }, [projectGroups, teamCodes, connectionMetadata])
+  }, [projectGroups, teamCodes, connectionMetadata, connectionStatus])
 
   // Scroll to project section handler
   const handleProjectClick = (projectId: string) => {
@@ -514,6 +535,7 @@ export default function MapView({
                           connectionRole={node.connectionRole}
                           partnerEmail={node.partnerEmail}
                           partnerOrg={node.partnerOrg}
+                          connectionStatus={node.connectionStatus}
                           actionLabel="Open"
                           secondaryActionLabel="Edit"
                           onPrimaryAction={() => {
