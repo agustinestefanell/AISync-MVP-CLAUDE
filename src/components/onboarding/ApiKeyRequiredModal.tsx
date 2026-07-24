@@ -171,9 +171,17 @@ export default function ApiKeyRequiredModal({ onClose, onSuccess }: Props) {
           </div>
           <a
             href="/settings"
-            className="block text-center text-sm text-blue-600 hover:text-blue-700 underline"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-center text-sm font-medium text-blue-600 hover:text-blue-700 underline"
           >
-            Manage API Keys →
+            How to connect your AI agents? Quick setup guide →
+          </a>
+          <a
+            href="/settings"
+            className="block text-center text-xs text-gray-500 hover:text-gray-700 underline"
+          >
+            Manage API Keys
           </a>
         </div>
       </div>

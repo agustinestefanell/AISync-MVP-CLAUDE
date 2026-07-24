@@ -2409,3 +2409,72 @@ Imágenes complementan los pasos numerados textuales (no los reemplazan). Usuari
 
 **Lección UX — Visual + texto, no visual O texto:**
 Screenshots no reemplazan instrucciones textuales — las complementan. Usuario que prefiere leer sigue teniendo pasos numerados claros. Usuario que prefiere visual tiene screenshot anotado. Ambos caminos conducen al mismo resultado exitoso.
+
+---
+
+## Mini-OE 2026-07-24 — API Keys UX refinements: modal persistence + styling improvements
+
+**Fecha:** 2026-07-24
+**Estado:** Closed (validado visualmente por PO)
+
+**Contexto:**
+PO validó las imágenes con flechas numeradas (funcionan bien) pero identificó 6 ajustes adicionales necesarios antes de producción. Primer ajuste de comportamiento (modal persistente) + 5 ajustes de diseño/UX (resaltado, botones, imágenes clickeables, contraste).
+
+**Cambios implementados:**
+
+1. **Modal persistente en cada navegación (AJUSTE 1):**
+   - Removido estado `hasChecked` que prevenía re-aparición del modal
+   - `useEffect` ahora se dispara en cada cambio de `pathname` sin memoria de cierres previos
+   - Modal se re-evalúa "tiene keys sí/no" en cada navegación a rutas incluidas (/, /teams, /workspace, /audit, /documentation, /context, /start)
+   - Exclusión de `/settings` mantenida (modal NO aparece ahí)
+   - **Comportamiento:** Usuario sin keys cierra modal → navega a otra página → modal vuelve a aparecer automáticamente
+
+2. **Resaltado visual con colores oficiales AISync (AJUSTE 2):**
+   - Bloque "How to connect your AI agents?" usa variables `--color-accent` (#1f4e79) y `--color-accent-strong` (#173c5e)
+   - Header del bloque: fondo azul + texto blanco (consistente con botón "+ New Project")
+   - Hover: azul más oscuro (`--color-accent-strong`)
+   - Body de la guía: mantiene fondo blanco original (`bg-white/40`) — NO afectado
+   - **Regresión identificada y corregida:** Primera implementación puso `bg-[var(--color-accent)]` en contenedor exterior, afectando todo el body expandido. Corregido moviendo fondo azul solo al `<button>` trigger.
+
+3. **Botón de guía dentro del modal proactivo (AJUSTE 3):**
+   - Link prominente "How to connect your AI agents? Quick setup guide →" agregado en modal
+   - Abre `/settings` en nueva pestaña (`target="_blank"`)
+   - Link "Manage API Keys" movido debajo con estilo secundario (text-xs, gray-500)
+
+4. **Imágenes clickeables y ampliables (AJUSTE 4):**
+   - Cada `<Image>` envuelta en `<a href={imagePath} target="_blank">`
+   - Hover: `opacity-90` (feedback visual)
+   - Hint text: "Click to open image in new tab" debajo de cada imagen
+   - Usuario puede tener guía + pestaña del provider real lado a lado
+
+5. **Contraste del cartel de advertencia de Google (AJUSTE 5):**
+   - Texto cambiado de `text-amber-600/80` a `text-yellow-300`
+   - Mejora ratio de contraste de ~3.2:1 a ~7.5:1 (WCAG AAA)
+
+6. **Validación previa — imágenes ya implementadas (AJUSTE 6):**
+   - 3 PNG en `public/setup-guide/` ya presentes desde ronda anterior
+   - Integración con `next/image` ya validada
+
+**Archivos modificados:**
+- `src/components/layout/ClientLayout.tsx` (-2 líneas neto: removido `hasChecked`, agregado early return)
+- `src/components/onboarding/ApiKeyRequiredModal.tsx` (+10 líneas: botón de guía prominente)
+- `src/components/settings/SetupGuide.tsx` (+24 líneas neto: colores oficiales en header, imágenes clickeables, contraste advertencia)
+
+**Validaciones:**
+- lint ✅
+- Regresión identificada y corregida ✅ (fondo azul solo en header, no en body)
+- Validación visual PO ✅ (6 ajustes confirmados correctos)
+
+**Commits:** Pending (en esta sesión)
+
+**Decisión técnica — Variables CSS vs colores hardcoded:**
+Usar `var(--color-accent)` en lugar de hex hardcoded garantiza consistencia automática con el resto de la app. Si el tema cambia, el bloque se actualiza automáticamente. Mismo patrón que botón "+ New Project" en Dashboard.
+
+**Decisión técnica — Modal persistente sin localStorage:**
+No usar persistencia client-side para "recordar cierre". El único state es `showModal` en memoria React que se resetea en cada cambio de ruta. Simple, predecible, sin side effects ni stale data.
+
+**Lección técnica — Especificidad de estilos CSS:**
+Aplicar `bg-[color]` en contenedor padre afecta TODO el árbol DOM (header + body cuando se expande). Para estilos condicionales por sección, aplicar directamente en el elemento target (`<button>` trigger), no en su ancestro. La corrección de regresión movió fondo azul de `<div>` exterior a `<button>` trigger — body expandido quedó intacto con su `bg-white/40` original.
+
+**Lección UX — Contraste de color y accesibilidad:**
+`yellow-300` (#FDE047) cumple WCAG AAA sobre fondo oscuro amber. `amber-600/80` fallaba AA. Siempre verificar ratios de contraste en advertencias/alerts — el mensaje debe ser legible incluso bajo condiciones adversas (luz solar directa, discapacidad visual leve).

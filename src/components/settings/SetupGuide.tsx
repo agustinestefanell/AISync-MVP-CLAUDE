@@ -74,22 +74,22 @@ export default function SetupGuide() {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
+    <div className="border border-[var(--color-accent)] rounded-xl overflow-hidden shadow-sm">
       {/* Trigger */}
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 text-left bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] transition-colors"
       >
         <div className="flex items-center gap-2.5">
-          <span className="text-sm font-semibold text-gray-800">
+          <span className="text-sm font-semibold text-white">
             How to connect your AI agents?
           </span>
-          <span className="text-xs text-gray-600 hidden sm:inline">
+          <span className="text-xs text-white/80 hidden sm:inline">
             Quick setup guide
           </span>
         </div>
         <span
-          className={`text-gray-500 text-lg leading-none transition-transform duration-200 ${
+          className={`text-white/90 text-lg leading-none transition-transform duration-200 ${
             open ? 'rotate-180' : ''
           }`}
         >
@@ -162,13 +162,23 @@ export default function SetupGuide() {
                 {/* Visual guide image */}
                 {'imagePath' in s && s.imagePath && (
                   <div className="pt-2">
-                    <Image
-                      src={s.imagePath}
-                      alt={`Step-by-step visual guide for ${s.label}`}
-                      width={1280}
-                      height={720}
-                      className="w-full h-auto rounded border border-gray-200/60"
-                    />
+                    <a
+                      href={s.imagePath}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block cursor-pointer hover:opacity-90 transition-opacity"
+                    >
+                      <Image
+                        src={s.imagePath}
+                        alt={`Step-by-step visual guide for ${s.label}`}
+                        width={1280}
+                        height={720}
+                        className="w-full h-auto rounded border border-gray-200/60"
+                      />
+                    </a>
+                    <p className="text-xs text-gray-500 mt-1 text-center">
+                      Click to open image in new tab
+                    </p>
                   </div>
                 )}
 
@@ -179,7 +189,7 @@ export default function SetupGuide() {
 
                 {/* Nota adicional (ej. billing de Google) */}
                 {'note' in s && s.note && (
-                  <p className="text-xs text-amber-600/80 bg-amber-950/30 border border-amber-900/40 rounded px-2 py-1 leading-relaxed">
+                  <p className="text-xs text-yellow-300 bg-amber-950/30 border border-amber-900/40 rounded px-2 py-1 leading-relaxed">
                     ⚠ {s.note}
                   </p>
                 )}

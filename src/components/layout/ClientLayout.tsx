@@ -26,7 +26,6 @@ const ROUTES_WITH_API_KEY_CHECK = [
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [showModal, setShowModal] = useState(false)
-  const [hasChecked, setHasChecked] = useState(false)
 
   // Check if current route should trigger API key check
   const shouldCheckApiKeys = ROUTES_WITH_API_KEY_CHECK.some(route => {
@@ -37,7 +36,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   })
 
   useEffect(() => {
-    if (!shouldCheckApiKeys || hasChecked) return
+    if (!shouldCheckApiKeys) {
+      setShowModal(false)
+      return
+    }
 
     const checkApiKeys = async () => {
       try {
@@ -54,17 +56,17 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
         if (!Array.isArray(keys) || keys.length === 0) {
           setShowModal(true)
+        } else {
+          setShowModal(false)
         }
-        setHasChecked(true)
       } catch (error) {
         console.error('[ClientLayout] Failed to check API keys:', error)
-        setHasChecked(true)
         // Don't block on error — user will see modal when they try to use AI
       }
     }
 
     checkApiKeys()
-  }, [shouldCheckApiKeys, hasChecked, pathname])
+  }, [shouldCheckApiKeys, pathname])
 
   return (
     <>
