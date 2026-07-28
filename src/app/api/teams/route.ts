@@ -57,17 +57,24 @@ export async function POST(req: Request) {
     agents: Array<{ role: string; provider: string; model: string; config?: Record<string, unknown> }>
   }
 
+  console.log('[POST /api/teams] Payload received:', { name, projectId, description })
+
   if (!name?.trim() || !projectId || !agents?.length) {
     return NextResponse.json({ error: 'Incomplete data.' }, { status: 400 })
   }
 
   const teamType = computeType(agents)
 
+  const trimmedDescription = description?.trim() || null
+  console.log('[POST /api/teams] Description to insert:', trimmedDescription)
+
   const { data: team, error: teamErr } = await supabase
     .from('teams')
-    .insert({ project_id: projectId, name: name.trim(), type: teamType, parent_id: parentId ?? null, description: description?.trim() || null })
+    .insert({ project_id: projectId, name: name.trim(), type: teamType, parent_id: parentId ?? null, description: trimmedDescription })
     .select()
     .single()
+
+  console.log('[POST /api/teams] Team created:', team)
   if (teamErr) return NextResponse.json({ error: teamErr.message }, { status: 500 })
 
   const { data: workspace, error: wsErr } = await supabase
@@ -84,6 +91,7 @@ export async function POST(req: Request) {
       provider:     a.provider,
       model:        a.model,
       config:       a.config ?? null,
+      description:  a.role === 'manager' ? trimmedDescription : null,
     }))
   )
   if (agentsErr) return NextResponse.json({ error: agentsErr.message }, { status: 500 })

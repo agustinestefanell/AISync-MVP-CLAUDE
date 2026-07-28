@@ -478,12 +478,17 @@ export default function MapView({
                         const workerRealTeam = project.teams.find(t => t.id === node.teamId)
                         const isWorkerArchived = workerRealTeam?.status === 'archived'
 
+                        // Find the actual agent_session for this worker to get individual description
+                        const workerSession = workerRealTeam?.workspaces?.[0]?.agent_sessions?.find(
+                          s => s.agent_role === (node.label === 'Worker 1' ? 'worker1' : 'worker2')
+                        )
+
                         return (
                           <TreeWorkspaceCard
                             title={node.label}
                             subtitle="Worker"
                             functionLabel="Execution lane"
-                            brief="Executes assigned tasks and returns compact updates."
+                            brief={workerSession?.description ?? "Executes assigned tasks and returns compact updates."}
                             ribbonColor={theme.ribbon}
                             softColor={theme.soft}
                             borderColor={theme.border}
@@ -513,7 +518,7 @@ export default function MapView({
                                 : 'Subteam Manager'
                           }
                           functionLabel="Team coordination"
-                          brief="Coordinates delivery lane, manages artifacts, and oversees handoffs."
+                          brief={realTeam?.description ?? "Coordinates delivery lane, manages artifacts, and oversees handoffs."}
                           ribbonColor={theme.ribbon}
                           softColor={theme.soft}
                           borderColor={theme.border}

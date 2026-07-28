@@ -2519,3 +2519,78 @@ Cambios de opacidad de desconexiÃ³n (Frente 3 Parte 2, AJUSTE 3) quedaron sin co
 **LecciÃ³n operativa â€” Commit delayed por cierre temprano de sesiÃ³n:**
 Cuando una sesiÃ³n cierra con cÃ³digo funcionalmente validado pero sin commit, el diff debe re-verificarse en sesiÃ³n posterior antes de commitear. El tiempo transcurrido y commits intermedios (Connect Team, API Keys) podrÃ­an haber tocado cÃ³digo relacionado. En este caso: lint âœ…, build âœ…, diff coincide con spec validada â†’ seguro para commit.
 `yellow-300` (#FDE047) cumple WCAG AAA sobre fondo oscuro amber. `amber-600/80` fallaba AA. Siempre verificar ratios de contraste en advertencias/alerts â€” el mensaje debe ser legible incluso bajo condiciones adversas (luz solar directa, discapacidad visual leve).
+
+---
+
+## Sesión 2026-07-27 — Combined Project + Team creation with description fix
+
+**Fecha:** 2026-07-27
+**Estado:** Closed (validated functionally by PO — description only on Manager, Worker edits persist correctly)
+
+**Contexto:**
+Flujo "+ New Project" requería crear Project y Team por separado. Se combinó en modal único con SAT default y agregaron loading states. Durante validación funcional se detectaron 3 problemas con descripciones de agentes.
+
+**Problemas diagnosticados y resueltos:**
+
+1. **Ajuste 1 — Descripción solo para Manager en creación (bug):**
+   - **Bug:** Al crear un Team, el campo "Description" del formulario se replicaba al Manager Y a ambos Workers (INSERT compartía el mismo valor para los 3 agentes).
+   - **Decisión de producto:** La descripción del formulario debe aplicarse SOLO al Manager. Los Workers deben crearse con descripción vacía/null, para completarse después individualmente desde EditTeamModal.
+   - **Fix:** Endpoint POST `/api/teams` modificado — agregado `description: a.role === 'manager' ? trimmedDescription : null` en el map de `agent_sessions`.
+
+2. **Ajuste 2 — Persistencia de descripciones individuales de Workers (falso bug):**
+   - **Reporte:** Al editar un Team existente en EditTeamModal, cambiar la descripción de un Worker específico y confirmar "Save changes" no persistía el cambio — Teams Map seguía mostrando la descripción vieja.
+   - **Diagnóstico:** Código backend SÍ procesaba descripciones individuales correctamente (línea 127 de `teams/[id]/route.ts`). Frontend SÍ enviaba descripciones individuales por Worker (línea 152 de `EditTeamModal.tsx`). El Ajuste 2 NO requirió cambios — ya funcionaba correctamente, solo requería validación del PO para confirmar.
+
+3. **Ajuste 3 — Loading feedback (falso bug):**
+   - **Reporte:** Loading states en ribbon inferior no se notaban.
+   - **Diagnóstico:** Loading.tsx de cada página funciona correctamente. En localhost con datos cacheados la transición es demasiado rápida para notarse visualmente. Confirmado con throttling de red en DevTools (3G slow) que el mecanismo está bien implementado. NO requirió cambios.
+
+**Cambios implementados:**
+
+**Archivo:** `src/app/api/teams/route.ts`
+- Agregado `description: a.role === 'manager' ? trimmedDescription : null` en inserción de `agent_sessions` (línea 93)
+- Console.log de diagnóstico preservados (no eliminados tras fix)
+
+**Archivos NO modificados (ya funcionaban correctamente):**
+- `src/components/teams/EditTeamModal.tsx` — Payload ya incluye descripciones individuales
+- `src/app/api/teams/[id]/route.ts` — PATCH ya procesa descripciones individuales
+- `src/app/loading.tsx` + variantes por página — Loading states funcionales
+
+**Validaciones técnicas:**
+- npm run lint: ? OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ? Exitoso sin errores TypeScript
+- git diff --stat: ? 1 archivo modificado (+2 líneas netas funcionales)
+
+**Validación funcional (PO 2026-07-27):**
+
+| # | Escenario | Resultado |
+|---|---|---|
+| 1 | Crear Team nuevo con descripción "Descripción del Manager" | ? Manager tiene "Descripción del Manager", Worker 1 y Worker 2 tienen `description: null` en DB |
+| 2 | Editar Worker 1, cambiar descripción a "Worker 1 personalizado", guardar | ? Worker 1 persiste "Worker 1 personalizado" en DB |
+| 3 | Editar Worker 2, cambiar descripción a "Worker 2 personalizado", guardar | ? Worker 2 persiste "Worker 2 personalizado" en DB |
+| 4 | Teams Map muestra descripciones correctas post-edición | ? Workers muestran descripciones personalizadas (no la del Manager) |
+
+**Restricciones respetadas:**
+- ? NO EditTeamModal modificado (payload ya correcto)
+- ? NO endpoint PATCH modificado (lógica ya correcta)
+- ? NO loading.tsx modificado (funciona correctamente)
+- ? NO schema/RLS/migrations
+- ? NO modales relacionados (AddTeamModal, ConnectTeamModal)
+- ? NO Teams Map layout/rendering
+- ? NO tipos/interfaces
+
+**Archivos relacionados con el contexto completo de esta ronda (pending commit):**
+- `src/app/api/teams/route.ts` (modificado — Ajuste 1)
+- `src/components/ProjectList.tsx` (modificado — modal combinado)
+- `src/components/teams/MapView.tsx` (modificado — integración)
+- `src/components/AddProjectWithTeamModal.tsx` (nuevo — modal combinado)
+- `src/app/loading.tsx` + variantes por página (nuevos — loading states)
+- `src/components/LoadingSpinner.tsx` (nuevo — componente reutilizable)
+- `src/app/api/projects/route.ts` (nuevo — endpoint POST Projects)
+
+**Estado:**
+Closed — Ajustes 1, 2 y 3 validados funcionalmente por Product Owner. Build exitoso, lint OK. Listo para commit.
+
+**Lección técnica:**
+Descripciones de agentes requieren diferenciación explícita por rol en creación (Manager vs Workers) pero persistencia individual agnóstica de rol en edición. La confusión surge cuando el formulario de creación muestra UN campo "Description" pero internamente debe aplicarse solo al Manager — el fix requiere lógica condicional `a.role === 'manager' ? desc : null` en el map de INSERT. La edición ya funcionaba correctamente porque cada Worker tiene su propio campo de descripción en EditTeamModal y el payload envía descripciones individuales. Loading states funcionan correctamente pero pueden no notarse en localhost con datos cacheados — validar con throttling de red en DevTools antes de asumir bug.
+

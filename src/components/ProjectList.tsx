@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useTransition, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { createProjectAction } from '@/app/actions'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import ConnectTeamModal, { type Connection } from '@/components/teams/ConnectTeamModal'
 import IncomingRequestsPanel from '@/components/teams/IncomingRequestsPanel'
 import HowConnectedTeamsModal from '@/components/teams/HowConnectedTeamsModal'
 import EditTeamModal from '@/components/teams/EditTeamModal'
+import AddProjectWithTeamModal from '@/components/AddProjectWithTeamModal'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 import { getUserIsolatedWorkspaceId } from '@/lib/db/connections'
 
@@ -45,9 +45,7 @@ function getAvatarColor(id: string): string {
 
 export default function ProjectList({ projects }: { projects: ProjectWithTeams[] }) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
-  const [showForm,          setShowForm]          = useState(false)
-  const [name,              setName]              = useState('')
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false)
   const [connections,       setConnections]       = useState<Connection[]>([])
   const [showConnectModal,  setShowConnectModal]  = useState(false)
   const [showRequestsPanel, setShowRequestsPanel] = useState(false)
@@ -177,14 +175,9 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
     }
   }
 
-  function handleCreate() {
-    if (!name.trim() || isPending) return
-    startTransition(async () => {
-      await createProjectAction(name)
-      setName('')
-      setShowForm(false)
-      router.refresh()
-    })
+  function handleProjectCreated() {
+    setShowNewProjectModal(false)
+    router.refresh()
   }
 
   async function handleDisconnect(id: string) {
@@ -269,7 +262,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
             <h2 className="text-lg font-bold text-[#0C1733]">My Projects</h2>
           </div>
           <button
-            onClick={() => setShowForm(v => !v)}
+            onClick={() => setShowNewProjectModal(true)}
             className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
           >
             + New Project
@@ -282,33 +275,6 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
 
         {projectError && (
           <p className="text-xs text-[#C64F4F]">{projectError}</p>
-        )}
-
-        {showForm && (
-          <div className="bg-white border border-[#DDE6F1] rounded-[18px] shadow-[0_8px_24px_rgba(12,23,51,0.05)] p-5 flex items-center gap-3">
-            <input
-              autoFocus
-              type="text"
-              placeholder="Project name..."
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleCreate() }}
-              className="flex-1 bg-[#F8FBFF] border border-[#DDE6F1] rounded-lg px-4 py-2.5 text-sm text-[#0C1733] placeholder-[#8A97AA] outline-none focus:border-[var(--color-accent)] transition-colors"
-            />
-            <button
-              onClick={handleCreate}
-              disabled={!name.trim() || isPending}
-              className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-40 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
-            >
-              {isPending ? 'Creating…' : 'Create'}
-            </button>
-            <button
-              onClick={() => { setShowForm(false); setName('') }}
-              className="text-[#5C6B82] hover:text-[#0C1733] text-sm px-3 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
         )}
 
         {projects.length === 0 && (
@@ -699,6 +665,13 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
             setEditingTeam(null)
             router.refresh()
           }}
+        />
+      )}
+
+      {showNewProjectModal && (
+        <AddProjectWithTeamModal
+          onClose={() => setShowNewProjectModal(false)}
+          onCreated={handleProjectCreated}
         />
       )}
     </>
