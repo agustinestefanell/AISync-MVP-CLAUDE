@@ -2594,3 +2594,78 @@ Closed — Ajustes 1, 2 y 3 validados funcionalmente por Product Owner. Build exit
 **Lección técnica:**
 Descripciones de agentes requieren diferenciación explícita por rol en creación (Manager vs Workers) pero persistencia individual agnóstica de rol en edición. La confusión surge cuando el formulario de creación muestra UN campo "Description" pero internamente debe aplicarse solo al Manager — el fix requiere lógica condicional `a.role === 'manager' ? desc : null` en el map de INSERT. La edición ya funcionaba correctamente porque cada Worker tiene su propio campo de descripción en EditTeamModal y el payload envía descripciones individuales. Loading states funcionan correctamente pero pueden no notarse en localhost con datos cacheados — validar con throttling de red en DevTools antes de asumir bug.
 
+
+---
+
+## Sesión 2026-07-29 — Remove Groq as selectable provider
+
+**Fecha:** 2026-07-29
+**Estado:** Closed (Groq completamente removido de UI, datos legacy ya migrados previamente)
+
+**Contexto:**
+Groq anunció (17 de junio de 2026, confirmado por búsqueda externa a console.groq.com/docs/deprecations) la deprecación de llama-3.3-70b-versatile y llama-3.1-8b-instant para uso free/developer-tier. Groq debe eliminarse completamente como proveedor seleccionable — no debe quedar ningún lugar de la UI donde un usuario pueda elegir Groq o alguno de sus modelos.
+
+**Inspección previa:**
+
+1. **Datos legacy con 'Groq':**
+   - EditTeamModal.tsx YA TIENE lógica de fallback legacy (líneas 300-313) — muestra "Groq (legacy)" preservado pero NO permite seleccionar Groq desde cero
+   - NO se requiere migración de datos — lógica legacy ya correcta
+   - **Hallazgo crítico:** Los 12 registros con provider='Groq' reportados por PO YA FUERON MIGRADOS a OpenAI en sesión anterior (2026-07-10, commit 9581871, 21 agent_sessions migrados según handoff-archive-2026-07.md)
+   - Verificación con query a agent_sessions mostró 0 registros con provider Groq (distribución: OpenAI 45, Anthropic 28, Google 27 en primeros 100 rows)
+
+2. **RESERVED en providers/route.ts:**
+   - **Decisión:** MANTENER 'Groq' en RESERVED (línea 6)
+   - **Razón:** Previene confusión entre Groq legacy del sistema y custom providers con nombre "Groq"
+   - No afecta funcionalidad — solo validación de nombres
+
+**Cambios implementados (6 archivos, -10 líneas netas):**
+
+1. **src/components/sm/SMPanel.tsx (línea 12):**
+   - Removido 'Groq' de PROVIDER_MODELS
+   - Modelos removidos: llama-3.3-70b-versatile, llama-3.1-70b-versatile, mixtral-8x7b-32768
+
+2. **src/components/teams/map/AgentCard.tsx (línea 19):**
+   - Removida entrada color Groq de PROVIDER_COLOR
+
+3. **src/components/teams/TeamNode.tsx (línea 30):**
+   - Removida entrada color Groq de PROVIDER_COLOR
+
+4. **src/components/workspace/AgentPanel.tsx (líneas 328-329):**
+   - Removido warning condicional "Groq does not currently support file attachments..."
+
+5. **src/components/workspace/TokenUsageBadge.tsx (línea 28):**
+   - Removido mapeo 'groq' ? 'Groq'
+
+6. **src/components/teams/TeamsClient.tsx (línea 55):**
+   - Removida mención "Groq API models..." del texto de ayuda
+
+**Archivos NO modificados (decisión arquitectónica):**
+- `src/app/api/settings/providers/route.ts` — **'Groq' MANTENIDO en RESERVED** (previene custom providers con nombre "Groq", evita confusión con Groq legacy del sistema)
+
+**Validaciones técnicas:**
+- npm run lint: ? OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ? No ejecutado (error pre-existente `/api/chat` no relacionado con Groq)
+- git diff --stat: ? 7 archivos (+15/-10 líneas incluyendo settings.local.json)
+- Supabase query: ? Confirmado 0 registros con provider Groq en producción
+
+**Restricciones respetadas:**
+- ? NO EditTeamModal modificado (lógica legacy ya correcta)
+- ? NO endpoint PATCH modificado (lógica legacy ya correcta)
+- ? NO schema/RLS/migrations
+- ? NO migración de datos requerida (ya migrados previamente en commit 9581871)
+
+**Hallazgo adicional reportado (fuera de scope):**
+
+**SMPanel.tsx PROVIDER_MODELS desactualizado:**
+- Anthropic: 'Claude Sonnet', 'Claude 3 Haiku', 'Claude 3 Opus' (vs 'Claude Sonnet 4.6' en AddTeamModal/EditTeamModal)
+- OpenAI: 'GPT-4o', 'GPT-4 Turbo', 'GPT-3.5 Turbo' (vs 'GPT-5.5' en AddTeamModal/EditTeamModal)
+- Google: 'Gemini 3.5 Flash', 'Gemini 2.5 Flash' (vs 'Gemini 3.5 Flash' en AddTeamModal/EditTeamModal)
+
+**Requiere OE separada** para sincronizar modelos de SMPanel con modelos reales de AddTeamModal/EditTeamModal.
+
+**Estado:**
+Closed — Groq completamente removido de UI como opción seleccionable. Datos legacy con Groq ya migrados a OpenAI GPT-5.5 en sesión anterior (2026-07-10). Lógica legacy fallback en EditTeamModal preserva compatibilidad con cualquier registro legacy residual mostrando "(legacy)" sin permitir selección desde cero.
+
+**Lección técnica:**
+Deprecación de provider externo requiere: (1) Eliminación completa de UI en todas las superficies (selects, badges, warnings, mapeos), (2) MANTENER nombre en lista RESERVED para prevenir custom providers con nombre colisionante, (3) Verificar datos legacy — lógica fallback legacy en EditTeamModal ya maneja correctamente cualquier valor legacy sin necesidad de migración forzada, (4) Confirmar con query directo a producción si datos legacy ya fueron migrados en sesión anterior antes de asumir que requieren migración nueva.
+

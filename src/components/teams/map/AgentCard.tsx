@@ -16,7 +16,6 @@ const PROVIDER_COLOR: Record<string, { text: string; bg: string }> = {
   Anthropic: { text: '#c2410c', bg: 'rgba(194,65,12,0.10)'  },
   OpenAI:    { text: '#16a34a', bg: 'rgba(22,163,74,0.10)'  },
   Google:    { text: '#2563eb', bg: 'rgba(37,99,235,0.10)'  },
-  Groq:      { text: '#7c3aed', bg: 'rgba(124,58,237,0.10)' },
 }
 
 interface Props {

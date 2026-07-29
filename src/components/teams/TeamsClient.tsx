@@ -51,8 +51,7 @@ General reference — subject to change as models evolve
 
 OpenAI API models: strong general-purpose option for reasoning, coding, and broad task coverage.
 Claude API models: especially strong for long-running execution, larger codebases, code review, debugging, and disciplined work over long context.
-Gemini API models: especially strong for long-context and multimodal work, including documents, images, audio, and broader context-heavy flows.
-Groq API models: especially useful when low latency, fast iteration, and quick response cycles matter most.`
+Gemini API models: especially strong for long-context and multimodal work, including documents, images, audio, and broader context-heavy flows.`
 
 const CREATE_TEAMS_GUIDE = `How to create a new team
 Use this when the new team should start as its own branch.
