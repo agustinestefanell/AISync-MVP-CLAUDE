@@ -1,4 +1,4 @@
-# handoff-2026-07-b.md â€” Memoria operativa del proyecto AISync MVP
+ï»¿# handoff-2026-07-b.md â€” Memoria operativa del proyecto AISync MVP
 
 **Archivo activo desde:** 2026-07-12 (rotaciÃ³n proactiva desde handoff-archive-2026-07-a.md)
 
@@ -2522,57 +2522,57 @@ Cuando una sesiÃ³n cierra con cÃ³digo funcionalmente validado pero sin commit, e
 
 ---
 
-## Sesión 2026-07-27 — Combined Project + Team creation with description fix
+## Sesiï¿½n 2026-07-27 ï¿½ Combined Project + Team creation with description fix
 
 **Fecha:** 2026-07-27
-**Estado:** Closed (validated functionally by PO — description only on Manager, Worker edits persist correctly)
+**Estado:** Closed (validated functionally by PO ï¿½ description only on Manager, Worker edits persist correctly)
 
 **Contexto:**
-Flujo "+ New Project" requería crear Project y Team por separado. Se combinó en modal único con SAT default y agregaron loading states. Durante validación funcional se detectaron 3 problemas con descripciones de agentes.
+Flujo "+ New Project" requerï¿½a crear Project y Team por separado. Se combinï¿½ en modal ï¿½nico con SAT default y agregaron loading states. Durante validaciï¿½n funcional se detectaron 3 problemas con descripciones de agentes.
 
 **Problemas diagnosticados y resueltos:**
 
-1. **Ajuste 1 — Descripción solo para Manager en creación (bug):**
-   - **Bug:** Al crear un Team, el campo "Description" del formulario se replicaba al Manager Y a ambos Workers (INSERT compartía el mismo valor para los 3 agentes).
-   - **Decisión de producto:** La descripción del formulario debe aplicarse SOLO al Manager. Los Workers deben crearse con descripción vacía/null, para completarse después individualmente desde EditTeamModal.
-   - **Fix:** Endpoint POST `/api/teams` modificado — agregado `description: a.role === 'manager' ? trimmedDescription : null` en el map de `agent_sessions`.
+1. **Ajuste 1 ï¿½ Descripciï¿½n solo para Manager en creaciï¿½n (bug):**
+   - **Bug:** Al crear un Team, el campo "Description" del formulario se replicaba al Manager Y a ambos Workers (INSERT compartï¿½a el mismo valor para los 3 agentes).
+   - **Decisiï¿½n de producto:** La descripciï¿½n del formulario debe aplicarse SOLO al Manager. Los Workers deben crearse con descripciï¿½n vacï¿½a/null, para completarse despuï¿½s individualmente desde EditTeamModal.
+   - **Fix:** Endpoint POST `/api/teams` modificado ï¿½ agregado `description: a.role === 'manager' ? trimmedDescription : null` en el map de `agent_sessions`.
 
-2. **Ajuste 2 — Persistencia de descripciones individuales de Workers (falso bug):**
-   - **Reporte:** Al editar un Team existente en EditTeamModal, cambiar la descripción de un Worker específico y confirmar "Save changes" no persistía el cambio — Teams Map seguía mostrando la descripción vieja.
-   - **Diagnóstico:** Código backend SÍ procesaba descripciones individuales correctamente (línea 127 de `teams/[id]/route.ts`). Frontend SÍ enviaba descripciones individuales por Worker (línea 152 de `EditTeamModal.tsx`). El Ajuste 2 NO requirió cambios — ya funcionaba correctamente, solo requería validación del PO para confirmar.
+2. **Ajuste 2 ï¿½ Persistencia de descripciones individuales de Workers (falso bug):**
+   - **Reporte:** Al editar un Team existente en EditTeamModal, cambiar la descripciï¿½n de un Worker especï¿½fico y confirmar "Save changes" no persistï¿½a el cambio ï¿½ Teams Map seguï¿½a mostrando la descripciï¿½n vieja.
+   - **Diagnï¿½stico:** Cï¿½digo backend Sï¿½ procesaba descripciones individuales correctamente (lï¿½nea 127 de `teams/[id]/route.ts`). Frontend Sï¿½ enviaba descripciones individuales por Worker (lï¿½nea 152 de `EditTeamModal.tsx`). El Ajuste 2 NO requiriï¿½ cambios ï¿½ ya funcionaba correctamente, solo requerï¿½a validaciï¿½n del PO para confirmar.
 
-3. **Ajuste 3 — Loading feedback (falso bug):**
+3. **Ajuste 3 ï¿½ Loading feedback (falso bug):**
    - **Reporte:** Loading states en ribbon inferior no se notaban.
-   - **Diagnóstico:** Loading.tsx de cada página funciona correctamente. En localhost con datos cacheados la transición es demasiado rápida para notarse visualmente. Confirmado con throttling de red en DevTools (3G slow) que el mecanismo está bien implementado. NO requirió cambios.
+   - **Diagnï¿½stico:** Loading.tsx de cada pï¿½gina funciona correctamente. En localhost con datos cacheados la transiciï¿½n es demasiado rï¿½pida para notarse visualmente. Confirmado con throttling de red en DevTools (3G slow) que el mecanismo estï¿½ bien implementado. NO requiriï¿½ cambios.
 
 **Cambios implementados:**
 
 **Archivo:** `src/app/api/teams/route.ts`
-- Agregado `description: a.role === 'manager' ? trimmedDescription : null` en inserción de `agent_sessions` (línea 93)
-- Console.log de diagnóstico preservados (no eliminados tras fix)
+- Agregado `description: a.role === 'manager' ? trimmedDescription : null` en inserciï¿½n de `agent_sessions` (lï¿½nea 93)
+- Console.log de diagnï¿½stico preservados (no eliminados tras fix)
 
 **Archivos NO modificados (ya funcionaban correctamente):**
-- `src/components/teams/EditTeamModal.tsx` — Payload ya incluye descripciones individuales
-- `src/app/api/teams/[id]/route.ts` — PATCH ya procesa descripciones individuales
-- `src/app/loading.tsx` + variantes por página — Loading states funcionales
+- `src/components/teams/EditTeamModal.tsx` ï¿½ Payload ya incluye descripciones individuales
+- `src/app/api/teams/[id]/route.ts` ï¿½ PATCH ya procesa descripciones individuales
+- `src/app/loading.tsx` + variantes por pï¿½gina ï¿½ Loading states funcionales
 
-**Validaciones técnicas:**
+**Validaciones tï¿½cnicas:**
 - npm run lint: ? OK (solo warnings pre-existentes CanvasViewport)
 - npm run build: ? Exitoso sin errores TypeScript
-- git diff --stat: ? 1 archivo modificado (+2 líneas netas funcionales)
+- git diff --stat: ? 1 archivo modificado (+2 lï¿½neas netas funcionales)
 
-**Validación funcional (PO 2026-07-27):**
+**Validaciï¿½n funcional (PO 2026-07-27):**
 
 | # | Escenario | Resultado |
 |---|---|---|
-| 1 | Crear Team nuevo con descripción "Descripción del Manager" | ? Manager tiene "Descripción del Manager", Worker 1 y Worker 2 tienen `description: null` en DB |
-| 2 | Editar Worker 1, cambiar descripción a "Worker 1 personalizado", guardar | ? Worker 1 persiste "Worker 1 personalizado" en DB |
-| 3 | Editar Worker 2, cambiar descripción a "Worker 2 personalizado", guardar | ? Worker 2 persiste "Worker 2 personalizado" en DB |
-| 4 | Teams Map muestra descripciones correctas post-edición | ? Workers muestran descripciones personalizadas (no la del Manager) |
+| 1 | Crear Team nuevo con descripciï¿½n "Descripciï¿½n del Manager" | ? Manager tiene "Descripciï¿½n del Manager", Worker 1 y Worker 2 tienen `description: null` en DB |
+| 2 | Editar Worker 1, cambiar descripciï¿½n a "Worker 1 personalizado", guardar | ? Worker 1 persiste "Worker 1 personalizado" en DB |
+| 3 | Editar Worker 2, cambiar descripciï¿½n a "Worker 2 personalizado", guardar | ? Worker 2 persiste "Worker 2 personalizado" en DB |
+| 4 | Teams Map muestra descripciones correctas post-ediciï¿½n | ? Workers muestran descripciones personalizadas (no la del Manager) |
 
 **Restricciones respetadas:**
 - ? NO EditTeamModal modificado (payload ya correcto)
-- ? NO endpoint PATCH modificado (lógica ya correcta)
+- ? NO endpoint PATCH modificado (lï¿½gica ya correcta)
 - ? NO loading.tsx modificado (funciona correctamente)
 - ? NO schema/RLS/migrations
 - ? NO modales relacionados (AddTeamModal, ConnectTeamModal)
@@ -2580,79 +2580,80 @@ Flujo "+ New Project" requería crear Project y Team por separado. Se combinó en 
 - ? NO tipos/interfaces
 
 **Archivos relacionados con el contexto completo de esta ronda (pending commit):**
-- `src/app/api/teams/route.ts` (modificado — Ajuste 1)
-- `src/components/ProjectList.tsx` (modificado — modal combinado)
-- `src/components/teams/MapView.tsx` (modificado — integración)
-- `src/components/AddProjectWithTeamModal.tsx` (nuevo — modal combinado)
-- `src/app/loading.tsx` + variantes por página (nuevos — loading states)
-- `src/components/LoadingSpinner.tsx` (nuevo — componente reutilizable)
-- `src/app/api/projects/route.ts` (nuevo — endpoint POST Projects)
+- `src/app/api/teams/route.ts` (modificado ï¿½ Ajuste 1)
+- `src/components/ProjectList.tsx` (modificado ï¿½ modal combinado)
+- `src/components/teams/MapView.tsx` (modificado ï¿½ integraciï¿½n)
+- `src/components/AddProjectWithTeamModal.tsx` (nuevo ï¿½ modal combinado)
+- `src/app/loading.tsx` + variantes por pï¿½gina (nuevos ï¿½ loading states)
+- `src/components/LoadingSpinner.tsx` (nuevo ï¿½ componente reutilizable)
+- `src/app/api/projects/route.ts` (nuevo ï¿½ endpoint POST Projects)
 
 **Estado:**
-Closed — Ajustes 1, 2 y 3 validados funcionalmente por Product Owner. Build exitoso, lint OK. Listo para commit.
+Closed ï¿½ Ajustes 1, 2 y 3 validados funcionalmente por Product Owner. Build exitoso, lint OK. Listo para commit.
 
-**Lección técnica:**
-Descripciones de agentes requieren diferenciación explícita por rol en creación (Manager vs Workers) pero persistencia individual agnóstica de rol en edición. La confusión surge cuando el formulario de creación muestra UN campo "Description" pero internamente debe aplicarse solo al Manager — el fix requiere lógica condicional `a.role === 'manager' ? desc : null` en el map de INSERT. La edición ya funcionaba correctamente porque cada Worker tiene su propio campo de descripción en EditTeamModal y el payload envía descripciones individuales. Loading states funcionan correctamente pero pueden no notarse en localhost con datos cacheados — validar con throttling de red en DevTools antes de asumir bug.
+**Lecciï¿½n tï¿½cnica:**
+Descripciones de agentes requieren diferenciaciï¿½n explï¿½cita por rol en creaciï¿½n (Manager vs Workers) pero persistencia individual agnï¿½stica de rol en ediciï¿½n. La confusiï¿½n surge cuando el formulario de creaciï¿½n muestra UN campo "Description" pero internamente debe aplicarse solo al Manager ï¿½ el fix requiere lï¿½gica condicional `a.role === 'manager' ? desc : null` en el map de INSERT. La ediciï¿½n ya funcionaba correctamente porque cada Worker tiene su propio campo de descripciï¿½n en EditTeamModal y el payload envï¿½a descripciones individuales. Loading states funcionan correctamente pero pueden no notarse en localhost con datos cacheados ï¿½ validar con throttling de red en DevTools antes de asumir bug.
 
 
 ---
 
-## Sesión 2026-07-29 — Remove Groq as selectable provider
+## Sesiï¿½n 2026-07-29 ï¿½ Remove Groq as selectable provider
 
 **Fecha:** 2026-07-29
 **Estado:** Closed (Groq completamente removido de UI, datos legacy ya migrados previamente)
 
 **Contexto:**
-Groq anunció (17 de junio de 2026, confirmado por búsqueda externa a console.groq.com/docs/deprecations) la deprecación de llama-3.3-70b-versatile y llama-3.1-8b-instant para uso free/developer-tier. Groq debe eliminarse completamente como proveedor seleccionable — no debe quedar ningún lugar de la UI donde un usuario pueda elegir Groq o alguno de sus modelos.
+Groq anunciï¿½ (17 de junio de 2026, confirmado por bï¿½squeda externa a console.groq.com/docs/deprecations) la deprecaciï¿½n de llama-3.3-70b-versatile y llama-3.1-8b-instant para uso free/developer-tier. Groq debe eliminarse completamente como proveedor seleccionable ï¿½ no debe quedar ningï¿½n lugar de la UI donde un usuario pueda elegir Groq o alguno de sus modelos.
 
-**Inspección previa:**
+**Inspecciï¿½n previa:**
 
 1. **Datos legacy con 'Groq':**
-   - EditTeamModal.tsx YA TIENE lógica de fallback legacy (líneas 300-313) — muestra "Groq (legacy)" preservado pero NO permite seleccionar Groq desde cero
-   - NO se requiere migración de datos — lógica legacy ya correcta
-   - **Hallazgo crítico:** Los 12 registros con provider='Groq' reportados por PO YA FUERON MIGRADOS a OpenAI en sesión anterior (2026-07-10, commit 9581871, 21 agent_sessions migrados según handoff-archive-2026-07.md)
-   - Verificación con query a agent_sessions mostró 0 registros con provider Groq (distribución: OpenAI 45, Anthropic 28, Google 27 en primeros 100 rows)
+   - EditTeamModal.tsx YA TIENE lï¿½gica de fallback legacy (lï¿½neas 300-313) ï¿½ muestra "Groq (legacy)" preservado pero NO permite seleccionar Groq desde cero
+   - NO se requiere migraciï¿½n de datos ï¿½ lï¿½gica legacy ya correcta
+   - **Hallazgo crï¿½tico:** Los 12 registros con provider='Groq' reportados por PO YA FUERON MIGRADOS a OpenAI en sesiï¿½n anterior (2026-07-10, commit 9581871, 21 agent_sessions migrados segï¿½n handoff-archive-2026-07.md)
+   - Verificaciï¿½n con query a agent_sessions mostrï¿½ 0 registros con provider Groq (distribuciï¿½n: OpenAI 45, Anthropic 28, Google 27 en primeros 100 rows)
+   - **Groq data migration verified complete (2026-07-29):** SELECT directo a producciÃ³n devolviÃ³ 0 filas con provider='groq'. La migraciÃ³n de datos estaba completa desde antes (commit 9581871, 2026-07-10). No queda ningÃºn registro sin migrar.
 
 2. **RESERVED en providers/route.ts:**
-   - **Decisión:** MANTENER 'Groq' en RESERVED (línea 6)
-   - **Razón:** Previene confusión entre Groq legacy del sistema y custom providers con nombre "Groq"
-   - No afecta funcionalidad — solo validación de nombres
+   - **Decisiï¿½n:** MANTENER 'Groq' en RESERVED (lï¿½nea 6)
+   - **Razï¿½n:** Previene confusiï¿½n entre Groq legacy del sistema y custom providers con nombre "Groq"
+   - No afecta funcionalidad ï¿½ solo validaciï¿½n de nombres
 
-**Cambios implementados (6 archivos, -10 líneas netas):**
+**Cambios implementados (6 archivos, -10 lï¿½neas netas):**
 
-1. **src/components/sm/SMPanel.tsx (línea 12):**
+1. **src/components/sm/SMPanel.tsx (lï¿½nea 12):**
    - Removido 'Groq' de PROVIDER_MODELS
    - Modelos removidos: llama-3.3-70b-versatile, llama-3.1-70b-versatile, mixtral-8x7b-32768
 
-2. **src/components/teams/map/AgentCard.tsx (línea 19):**
+2. **src/components/teams/map/AgentCard.tsx (lï¿½nea 19):**
    - Removida entrada color Groq de PROVIDER_COLOR
 
-3. **src/components/teams/TeamNode.tsx (línea 30):**
+3. **src/components/teams/TeamNode.tsx (lï¿½nea 30):**
    - Removida entrada color Groq de PROVIDER_COLOR
 
-4. **src/components/workspace/AgentPanel.tsx (líneas 328-329):**
+4. **src/components/workspace/AgentPanel.tsx (lï¿½neas 328-329):**
    - Removido warning condicional "Groq does not currently support file attachments..."
 
-5. **src/components/workspace/TokenUsageBadge.tsx (línea 28):**
+5. **src/components/workspace/TokenUsageBadge.tsx (lï¿½nea 28):**
    - Removido mapeo 'groq' ? 'Groq'
 
-6. **src/components/teams/TeamsClient.tsx (línea 55):**
-   - Removida mención "Groq API models..." del texto de ayuda
+6. **src/components/teams/TeamsClient.tsx (lï¿½nea 55):**
+   - Removida menciï¿½n "Groq API models..." del texto de ayuda
 
-**Archivos NO modificados (decisión arquitectónica):**
-- `src/app/api/settings/providers/route.ts` — **'Groq' MANTENIDO en RESERVED** (previene custom providers con nombre "Groq", evita confusión con Groq legacy del sistema)
+**Archivos NO modificados (decisiï¿½n arquitectï¿½nica):**
+- `src/app/api/settings/providers/route.ts` ï¿½ **'Groq' MANTENIDO en RESERVED** (previene custom providers con nombre "Groq", evita confusiï¿½n con Groq legacy del sistema)
 
-**Validaciones técnicas:**
+**Validaciones tï¿½cnicas:**
 - npm run lint: ? OK (solo warnings pre-existentes CanvasViewport)
 - npm run build: ? No ejecutado (error pre-existente `/api/chat` no relacionado con Groq)
-- git diff --stat: ? 7 archivos (+15/-10 líneas incluyendo settings.local.json)
-- Supabase query: ? Confirmado 0 registros con provider Groq en producción
+- git diff --stat: ? 7 archivos (+15/-10 lï¿½neas incluyendo settings.local.json)
+- Supabase query: ? Confirmado 0 registros con provider Groq en producciï¿½n
 
 **Restricciones respetadas:**
-- ? NO EditTeamModal modificado (lógica legacy ya correcta)
-- ? NO endpoint PATCH modificado (lógica legacy ya correcta)
+- ? NO EditTeamModal modificado (lï¿½gica legacy ya correcta)
+- ? NO endpoint PATCH modificado (lï¿½gica legacy ya correcta)
 - ? NO schema/RLS/migrations
-- ? NO migración de datos requerida (ya migrados previamente en commit 9581871)
+- ? NO migraciï¿½n de datos requerida (ya migrados previamente en commit 9581871)
 
 **Hallazgo adicional reportado (fuera de scope):**
 
@@ -2664,8 +2665,8 @@ Groq anunció (17 de junio de 2026, confirmado por búsqueda externa a console.gro
 **Requiere OE separada** para sincronizar modelos de SMPanel con modelos reales de AddTeamModal/EditTeamModal.
 
 **Estado:**
-Closed — Groq completamente removido de UI como opción seleccionable. Datos legacy con Groq ya migrados a OpenAI GPT-5.5 en sesión anterior (2026-07-10). Lógica legacy fallback en EditTeamModal preserva compatibilidad con cualquier registro legacy residual mostrando "(legacy)" sin permitir selección desde cero.
+Closed ï¿½ Groq completamente removido de UI como opciï¿½n seleccionable. Datos legacy con Groq ya migrados a OpenAI GPT-5.5 en sesiï¿½n anterior (2026-07-10). Lï¿½gica legacy fallback en EditTeamModal preserva compatibilidad con cualquier registro legacy residual mostrando "(legacy)" sin permitir selecciï¿½n desde cero.
 
-**Lección técnica:**
-Deprecación de provider externo requiere: (1) Eliminación completa de UI en todas las superficies (selects, badges, warnings, mapeos), (2) MANTENER nombre en lista RESERVED para prevenir custom providers con nombre colisionante, (3) Verificar datos legacy — lógica fallback legacy en EditTeamModal ya maneja correctamente cualquier valor legacy sin necesidad de migración forzada, (4) Confirmar con query directo a producción si datos legacy ya fueron migrados en sesión anterior antes de asumir que requieren migración nueva.
+**Lecciï¿½n tï¿½cnica:**
+Deprecaciï¿½n de provider externo requiere: (1) Eliminaciï¿½n completa de UI en todas las superficies (selects, badges, warnings, mapeos), (2) MANTENER nombre en lista RESERVED para prevenir custom providers con nombre colisionante, (3) Verificar datos legacy ï¿½ lï¿½gica fallback legacy en EditTeamModal ya maneja correctamente cualquier valor legacy sin necesidad de migraciï¿½n forzada, (4) Confirmar con query directo a producciï¿½n si datos legacy ya fueron migrados en sesiï¿½n anterior antes de asumir que requieren migraciï¿½n nueva.
 
