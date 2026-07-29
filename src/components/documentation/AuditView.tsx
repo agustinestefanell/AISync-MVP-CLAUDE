@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { DocCheckpoint, DocAuditEvent } from '@/lib/db/documentation'
 
 const EVENT_CONFIG: Record<string, { label: string; dotColor: string; badgeClass: string }> = {
@@ -349,11 +351,56 @@ export default function AuditView({ checkpoints, auditEvents, teamCodes }: Props
                       </div>
                       <div className="p-3 space-y-2 overflow-y-auto max-h-72">
                         {g.messages.map((msg, i) => (
-                          <div key={i} className={`text-xs rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap ${
+                          <div key={i} className={`text-xs rounded-lg px-3 py-2 leading-relaxed ${
                             msg.role === 'user' ? 'bg-[var(--color-badge-structural-bg)] text-[var(--color-text-primary)] ml-3' : 'bg-[var(--color-surface-soft)] text-[var(--color-text-secondary)] mr-3'
                           }`}>
                             <span className="font-medium text-[var(--color-text-muted)] block mb-0.5">{msg.role === 'user' ? 'User' : 'Agent'}</span>
-                            {msg.content}
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                                strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                em: ({ children }) => <em className="italic">{children}</em>,
+                                ul: ({ children }) => <ul className="mb-1 list-disc pl-4">{children}</ul>,
+                                ol: ({ children }) => <ol className="mb-1 list-decimal pl-4">{children}</ol>,
+                                li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                                table: ({ children }) => (
+                                  <div className="my-1 overflow-x-auto">
+                                    <table className="w-full border-collapse text-left text-[10px]">{children}</table>
+                                  </div>
+                                ),
+                                thead: ({ children }) => <thead className="bg-gray-50">{children}</thead>,
+                                th: ({ children }) => (
+                                  <th className="border border-gray-300 px-1 py-0.5 font-semibold">
+                                    {children}
+                                  </th>
+                                ),
+                                td: ({ children }) => (
+                                  <td className="border border-gray-300 px-1 py-0.5">
+                                    {children}
+                                  </td>
+                                ),
+                                code: ({ children, className }) => {
+                                  const isInline = !className
+                                  return isInline ? (
+                                    <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] font-mono">
+                                      {children}
+                                    </code>
+                                  ) : (
+                                    <code className="block bg-gray-100 p-1.5 rounded text-[10px] font-mono overflow-x-auto my-1">
+                                      {children}
+                                    </code>
+                                  )
+                                },
+                                blockquote: ({ children }) => (
+                                  <blockquote className="border-l-2 border-gray-300 pl-2 my-1 italic text-gray-700">
+                                    {children}
+                                  </blockquote>
+                                ),
+                              }}
+                            >
+                              {msg.content}
+                            </ReactMarkdown>
                           </div>
                         ))}
                       </div>

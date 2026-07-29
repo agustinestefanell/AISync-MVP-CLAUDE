@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { DocCheckpoint, DocHandoffPackage, DocSavedSelection } from '@/lib/db/documentation'
 
 // ── Discriminated union for the unified list ──────────────────────────────
@@ -336,7 +338,52 @@ function MiniChatPreview({
                 ? 'bg-[var(--color-accent)] text-white'
                 : 'bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)]'
             }`}>
-              {msg.content.slice(0, 300)}{msg.content.length > 300 ? '…' : ''}
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                  em: ({ children }) => <em className="italic">{children}</em>,
+                  ul: ({ children }) => <ul className="mb-1 list-disc pl-4">{children}</ul>,
+                  ol: ({ children }) => <ol className="mb-1 list-decimal pl-4">{children}</ol>,
+                  li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                  table: ({ children }) => (
+                    <div className="my-1 overflow-x-auto">
+                      <table className="w-full border-collapse text-left text-[10px]">{children}</table>
+                    </div>
+                  ),
+                  thead: ({ children }) => <thead className="bg-gray-50">{children}</thead>,
+                  th: ({ children }) => (
+                    <th className="border border-gray-300 px-1 py-0.5 font-semibold">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="border border-gray-300 px-1 py-0.5">
+                      {children}
+                    </td>
+                  ),
+                  code: ({ children, className }) => {
+                    const isInline = !className
+                    return isInline ? (
+                      <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] font-mono">
+                        {children}
+                      </code>
+                    ) : (
+                      <code className="block bg-gray-100 p-1.5 rounded text-[10px] font-mono overflow-x-auto my-1">
+                        {children}
+                      </code>
+                    )
+                  },
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-2 border-gray-300 pl-2 my-1 italic text-gray-700">
+                      {children}
+                    </blockquote>
+                  ),
+                }}
+              >
+                {msg.content.length > 300 ? msg.content.slice(0, 300) + '…' : msg.content}
+              </ReactMarkdown>
             </div>
           </div>
         </div>
@@ -665,9 +712,39 @@ export default function RepositoryView({
                           </div>
                           {/* Preview */}
                           {item.cp.content_preview && (
-                            <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)] leading-relaxed line-clamp-3">
-                              {item.cp.content_preview}
-                            </p>
+                            <div className="mt-1.5 text-[10px] text-[var(--color-text-muted)] leading-relaxed line-clamp-3">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  p: ({ children }) => <span className="inline">{children}</span>,
+                                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                  em: ({ children }) => <em className="italic">{children}</em>,
+                                  ul: ({ children }) => <span className="inline">{children}</span>,
+                                  ol: ({ children }) => <span className="inline">{children}</span>,
+                                  li: ({ children }) => <span className="inline">{children} </span>,
+                                  table: ({ children: _children }) => <span className="inline">[table]</span>,
+                                  code: ({ children, className }) => {
+                                    const isInline = !className
+                                    return isInline ? (
+                                      <code className="bg-gray-100 px-0.5 rounded font-mono">
+                                        {children}
+                                      </code>
+                                    ) : (
+                                      <span className="inline">[code block]</span>
+                                    )
+                                  },
+                                  blockquote: ({ children }) => <span className="inline italic">{children}</span>,
+                                  h1: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                  h2: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                  h3: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                  h4: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                  h5: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                  h6: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                }}
+                              >
+                                {item.cp.content_preview}
+                              </ReactMarkdown>
+                            </div>
                           )}
                           {/* Bottom strip: metadata + buttons */}
                           <div className="mt-2 flex flex-wrap items-end justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2">
@@ -771,9 +848,39 @@ export default function RepositoryView({
                           </div>
                           {/* Preview */}
                           {item.hp.content_preview && (
-                            <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)] leading-relaxed line-clamp-3">
-                              {item.hp.content_preview}
-                            </p>
+                            <div className="mt-1.5 text-[10px] text-[var(--color-text-muted)] leading-relaxed line-clamp-3">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  p: ({ children }) => <span className="inline">{children}</span>,
+                                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                  em: ({ children }) => <em className="italic">{children}</em>,
+                                  ul: ({ children }) => <span className="inline">{children}</span>,
+                                  ol: ({ children }) => <span className="inline">{children}</span>,
+                                  li: ({ children }) => <span className="inline">{children} </span>,
+                                  table: ({ children: _children }) => <span className="inline">[table]</span>,
+                                  code: ({ children, className }) => {
+                                    const isInline = !className
+                                    return isInline ? (
+                                      <code className="bg-gray-100 px-0.5 rounded font-mono">
+                                        {children}
+                                      </code>
+                                    ) : (
+                                      <span className="inline">[code block]</span>
+                                    )
+                                  },
+                                  blockquote: ({ children }) => <span className="inline italic">{children}</span>,
+                                  h1: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                  h2: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                  h3: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                  h4: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                  h5: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                  h6: ({ children }) => <span className="inline font-semibold">{children}</span>,
+                                }}
+                              >
+                                {item.hp.content_preview}
+                              </ReactMarkdown>
+                            </div>
                           )}
                           {/* Bottom strip: metadata + buttons */}
                           <div className="mt-2 flex flex-wrap items-end justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2">

@@ -2670,3 +2670,103 @@ Closed � Groq completamente removido de UI como opci�n seleccionable. Datos 
 **Lecci�n t�cnica:**
 Deprecaci�n de provider externo requiere: (1) Eliminaci�n completa de UI en todas las superficies (selects, badges, warnings, mapeos), (2) MANTENER nombre en lista RESERVED para prevenir custom providers con nombre colisionante, (3) Verificar datos legacy � l�gica fallback legacy en EditTeamModal ya maneja correctamente cualquier valor legacy sin necesidad de migraci�n forzada, (4) Confirmar con query directo a producci�n si datos legacy ya fueron migrados en sesi�n anterior antes de asumir que requieren migraci�n nueva.
 
+
+---
+
+## Sesión 2026-07-29 — Markdown rendering en chat de agentes y Documentation Mode
+
+**Fecha:** 2026-07-29
+**Estado:** Closed (validado visualmente por PO — tablas renderizadas correctamente en Workspace y Documentation Mode)
+
+**Contexto:**
+AgentPanel.tsx (chat de agentes en Workspace) YA tenía ReactMarkdown implementado desde commit de21877 (2026-07-11), pero Documentation Mode seguía mostrando contenido Markdown crudo (símbolos `##`, `**`, barras `|` de tablas pegadas). PO confirmó bug en documento "Tabla de m2/dormitorio": (1) cards preview en lista mostraban texto crudo, (2) panel detalle derecha mostraba conversación cruda.
+
+**Diagnóstico:**
+
+Búsqueda exhaustiva con `grep` confirmó que 2 de las 5 vistas de Documentation Mode tenían el problema:
+
+1. **RepositoryView.tsx:**
+   - MiniChatPreview component (líneas 341-389): Panel detalle conversación — YA tenía ReactMarkdown desde primer intento de fix
+   - Cards preview checkpoints (líneas 714-718): `{item.cp.content_preview}` renderizado como texto crudo
+   - Cards preview handoff packages (líneas 820-824): `{item.hp.content_preview}` renderizado como texto crudo
+
+2. **AuditView.tsx:**
+   - Message expanded (línea 356): `{msg.content}` renderizado como texto crudo en mensajes expandidos
+
+3. **StructureView.tsx / KnowledgeMap.tsx / InvestigateView.tsx:**
+   - ✅ NO renderizan contenido de mensajes — confirmado con `grep "\.content"` → 0 resultados
+
+**Cambios implementados:**
+
+1. **src/components/documentation/RepositoryView.tsx (+121 líneas, -2 líneas):**
+   - Imports: ReactMarkdown + remarkGfm (líneas 4-5)
+   - MiniChatPreview (líneas 341-389): ReactMarkdown con config **full rendering** — p, strong, em, ul, ol, li, table (overflow-x-auto), code (inline/block), blockquote. Tamaños reducidos `text-[10px]` para tablas/code. Spacing compacto `mb-1`, `pl-4`. Truncado preservado a 300 chars.
+   - Cards preview checkpoints (líneas 714-747): ReactMarkdown con config **inline-only** — todos los elementos colapsados a `<span className="inline">` para compatibilidad con `line-clamp-3`. Tablas/code blocks complejos muestran placeholders textuales `[table]`/`[code block]`. Strong/em/code inline renderizados normalmente.
+   - Cards preview handoff packages (líneas 848-883): Config idéntica a checkpoints preview (inline-only).
+
+2. **src/components/documentation/AuditView.tsx (+51 líneas, -1 línea):**
+   - Imports: ReactMarkdown + remarkGfm (líneas 4-5)
+   - Message expanded (líneas 358-405): ReactMarkdown con config **full rendering** (idéntica a MiniChatPreview). Componentes: p, strong, em, ul, ol, li, table, code, blockquote. Tamaños `text-[10px]`. Spacing compacto `mb-1`, `px-1 py-0.5`.
+   - Removido: `whitespace-pre-wrap` (línea 354) — innecesario con ReactMarkdown que maneja newlines.
+
+**Decisiones técnicas:**
+
+1. **Preview inline-only vs panel full rendering:**
+   - Cards preview usan `line-clamp-3` CSS — elementos block (p, ul, table) rompen el clamp
+   - Solución: colapsar todo a `<span className="inline">` + placeholders `[table]`/`[code block]` para contenido complejo
+   - Panel detalle usa full rendering con tablas HTML completas + overflow-x-auto
+
+2. **Patrón consistente con AgentPanel/HumanChatPanel:**
+   - `remarkPlugins={[remarkGfm]}` — GitHub Flavored Markdown
+   - Componentes Tailwind explícitos (NO rehype-raw, NO dangerouslySetInnerHTML)
+   - Security: safe para Connected Teams content de otras cuentas
+
+3. **Linting fix:**
+   - `children` sin usar en componente `table` (inline preview) → `_children` para satisfacer ESLint
+
+**Archivos modificados:**
+- src/components/documentation/RepositoryView.tsx (+121 líneas, -2 líneas)
+- src/components/documentation/AuditView.tsx (+51 líneas, -1 línea)
+
+**Archivos NO modificados:**
+- src/components/workspace/AgentPanel.tsx (YA tenía ReactMarkdown desde de21877)
+- src/components/workspace/HumanChatPanel.tsx (patrón de referencia preservado)
+- src/components/documentation/StructureView.tsx (sin contenido de mensajes — grep confirmado)
+- src/components/documentation/KnowledgeMap.tsx (sin contenido de mensajes — grep confirmado)
+- src/components/documentation/InvestigateView.tsx (sin contenido de mensajes)
+- Schema, RLS, migrations, API routes
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso (17.9 kB `/documentation`, sin cambio significativo de bundle)
+- TypeScript: ✅ Sin errores
+- Security: ✅ NO rehype-raw, NO dangerouslySetInnerHTML
+
+**Validación funcional PO (2026-07-29, producción):**
+✅ Cards preview lista: Documento "Tabla de m2/dormitorio" muestra preview inline sin `|` crudos, headings sin `##`, bold/italic renderizados
+✅ Panel detalle derecha: Click en documento muestra tabla HTML completa bien formada
+✅ AuditView expandido: Mensajes con Markdown renderizados correctamente
+✅ Workspace AgentPanel: Sin regresión (ya funcionaba)
+✅ line-clamp-3: Preview trunca a 3 líneas sin romper layout
+✅ Scroll horizontal: Tablas anchas hacen scroll sin romper layout
+
+**Superficies corregidas:**
+
+| Superficie | Estado anterior | Estado actual |
+|---|---|---|
+| Workspace AgentPanel | ✅ Markdown (de21877) | ✅ Sin cambios |
+| Doc Mode panel detalle | ❌ Texto crudo | ✅ Markdown full |
+| Doc Mode cards preview | ❌ Texto crudo | ✅ Markdown inline |
+| Doc Mode AuditView | ❌ Texto crudo | ✅ Markdown full |
+| Doc Mode StructureView | N/A (sin mensajes) | N/A |
+| Doc Mode KnowledgeMap | N/A (sin mensajes) | N/A |
+| Doc Mode InvestigateView | N/A (sin mensajes) | N/A |
+
+**Estado:**
+Closed — Markdown renderizado correctamente en AgentPanel (Workspace) y en las 5 vistas de Documentation Mode (RepositoryView, StructureView, AuditView, InvestigateView, KnowledgeMap). Validado visualmente por PO en documento "Tabla de m2/dormitorio" donde se confirmó el bug original.
+
+**Lección técnica:**
+Diagnóstico exhaustivo con `grep` es crítico para identificar TODOS los lugares donde se renderiza contenido — asumir que "Documentation Mode" es un solo componente genera fixes incompletos. RepositoryView tenía 3 puntos de rendering distintos (MiniChatPreview + 2 cards preview). Preview compacto con `line-clamp-3` requiere inline-only rendering con placeholders textuales para elementos complejos (tablas/code blocks) — elementos block rompen el clamp CSS. Panel detalle puede usar full rendering con tablas HTML completas + overflow-x-auto.
+
+---
+
