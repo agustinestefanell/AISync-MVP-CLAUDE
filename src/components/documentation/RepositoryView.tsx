@@ -202,10 +202,14 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
         <div className="space-y-3">
-          <Row label="From → To">
+          <Row label={hp.to_agent ? "From → To" : "From"}>
             <span className="font-medium">{AGENT_LABEL[hp.from_agent] ?? hp.from_agent}</span>
-            <span className="text-[var(--color-text-muted)]"> → </span>
-            <span className="font-medium">{AGENT_LABEL[hp.to_agent] ?? hp.to_agent}</span>
+            {hp.to_agent && (
+              <>
+                <span className="text-[var(--color-text-muted)]"> → </span>
+                <span className="font-medium">{AGENT_LABEL[hp.to_agent] ?? hp.to_agent}</span>
+              </>
+            )}
           </Row>
           <Row label="Status">
             <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold uppercase ${STATUS_BADGE[hp.status] ?? STATUS_BADGE.draft}`}>
@@ -840,7 +844,7 @@ export default function RepositoryView({
                           {/* Pills: agents + workspace */}
                           <div className="mt-1.5 flex flex-wrap gap-1.5">
                             <span className="inline-flex items-center rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-2 py-0.5 text-[9px] font-medium text-[var(--color-text-secondary)]">
-                              {AGENT_LABEL[item.hp.from_agent] ?? item.hp.from_agent} → {AGENT_LABEL[item.hp.to_agent] ?? item.hp.to_agent}
+                              {AGENT_LABEL[item.hp.from_agent] ?? item.hp.from_agent}{item.hp.to_agent ? ` → ${AGENT_LABEL[item.hp.to_agent] ?? item.hp.to_agent}` : ''}
                             </span>
                             <span className="inline-flex items-center rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-2 py-0.5 text-[9px] font-medium text-[var(--color-text-secondary)]">
                               {item.hp.workspace_name}

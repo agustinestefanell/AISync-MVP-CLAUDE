@@ -126,6 +126,13 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
 
   // Realtime subscription with automatic reconnection
   useEffect(() => {
+    // DEFENSIVE: Only subscribe if connectionId is valid
+    // (Component should not mount without valid connectionId, but extra safety)
+    if (!connectionId) {
+      console.warn('[HumanChat] Skipping Realtime subscription — no connectionId provided')
+      return
+    }
+
     let isMounted = true
     let reconnectAttempts = 0
     let reconnectTimeout: NodeJS.Timeout | null = null
@@ -257,6 +264,9 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
 
   // Defensive refetch when tab/window regains focus or visibility
   useEffect(() => {
+    // DEFENSIVE: Skip if no connectionId (should not happen, but extra safety)
+    if (!connectionId) return
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         const supabase = createClient()
@@ -620,15 +630,18 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           >
             Refresh Session
           </button>
-          <button
-            className="ui-button px-2 text-[11px] disabled:opacity-40"
-            style={{ color: 'var(--color-text-secondary)' }}
-            onClick={onSaveVersion}
-            disabled={!onSaveVersion || messages.length === 0}
-            title="Save a checkpoint of this human chat"
-          >
-            Save Version
-          </button>
+          {/* Save Version hidden — redundant with checkpoint system (logic preserved for potential future use) */}
+          {false && (
+            <button
+              className="ui-button px-2 text-[11px] disabled:opacity-40"
+              style={{ color: 'var(--color-text-secondary)' }}
+              onClick={onSaveVersion}
+              disabled={!onSaveVersion || messages.length === 0}
+              title="Save a checkpoint of this human chat"
+            >
+              Save Version
+            </button>
+          )}
           <button
             className="ui-button px-2 text-[11px] disabled:opacity-40"
             style={{ color: hasSelection ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)' }}

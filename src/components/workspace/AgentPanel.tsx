@@ -937,15 +937,18 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
               >
                 Refresh Session
               </button>
-              <button
-                className="ui-button px-2 text-[11px] disabled:opacity-40"
-                style={{ color: 'var(--color-text-secondary)' }}
-                onClick={onSaveVersion}
-                disabled={!onSaveVersion || messages.length === 0}
-                title="Save a checkpoint of this session"
-              >
-                Save Version
-              </button>
+              {/* Save Version hidden — redundant with checkpoint system (logic preserved for potential future use) */}
+              {false && (
+                <button
+                  className="ui-button px-2 text-[11px] disabled:opacity-40"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                  onClick={onSaveVersion}
+                  disabled={!onSaveVersion || messages.length === 0}
+                  title="Save a checkpoint of this session"
+                >
+                  Save Version
+                </button>
+              )}
               <button
                 className="ui-button px-2 text-[11px] disabled:opacity-40"
                 style={{ color: hasSelection ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)' }}

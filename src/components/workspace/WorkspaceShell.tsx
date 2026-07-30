@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AgentPanel, { type AgentPanelHandle } from './AgentPanel'
-import HandoffPackageModal from './HandoffPackageModal'
+// HandoffPackageModal removed — handoff packages now created immediately without modal
 import HumanChatPanel, { type HumanChatPanelHandle } from './HumanChatPanel'
 import type { AgentSession, Checkpoint, WorkspaceWithAgents, Message, HumanMessage } from '@/lib/db/types'
 import type { ChatMessage } from '@/lib/providers/types'
@@ -52,7 +52,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const [saveStatus, setSaveStatus]     = useState<SaveStatus>('idle')
   const [_resumingId, setResumingId]    = useState<string | null>(null)
   const [_totalSelected, setTotalSelected]        = useState(0)
-  const [showHandoffModal, setShowHandoffModal]   = useState(false)
+  // showHandoffModal removed — handoff packages now created immediately
 
   // Modal de Save Version
   const [showSaveModal, setShowSaveModal]   = useState(false)
@@ -117,8 +117,59 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   }, [workspace.id])
 
 
-  function getAgentMessages(sessionId: string) {
-    return panelRefs.current[sessionId]?.getAllMessages() ?? []
+  // ── Create Handoff Package ────────────────────────────────────────────────
+  async function handleCreateHandoff(sessionId: string, agentRole: string) {
+    const panel = panelRefs.current[sessionId]
+    if (!panel) {
+      console.error('[WorkspaceShell] Panel ref not found for session', sessionId)
+      return
+    }
+
+    const selectedMessages = panel.getSelectedMessages()
+    if (selectedMessages.length === 0) {
+      console.warn('[WorkspaceShell] No messages selected for handoff')
+      return
+    }
+
+    // Auto-generate name with timestamp
+    const timestamp = new Date().toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    const agentLabel = AGENT_LABEL[agentRole] ?? agentRole
+    const name = `Handoff from ${agentLabel} - ${timestamp}`
+
+    try {
+      const res = await fetch('/api/handoff-package', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          workspaceId: workspace.id,
+          fromAgent:   agentRole,
+          toAgent:     null, // No specific recipient
+          context:     null,
+          messages:    selectedMessages,
+        }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json()
+        console.error('[WorkspaceShell] Failed to create handoff package:', body.error)
+        // Could show toast/notification here in future
+        return
+      }
+
+      // Success — clear selection
+      panel.clearSelection()
+      console.log('[WorkspaceShell] Handoff package created:', name)
+      // Could show success toast here in future
+    } catch (err) {
+      console.error('[WorkspaceShell] Error creating handoff package:', err)
+    }
   }
 
   // ── Lock / Unlock ─────────────────────────────────────────────────────────
@@ -540,7 +591,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                         .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
                 }
                 onForward={(messages, targetRole) => handlePanelForward(managerSession, messages, targetRole)}
-                onCreateHandoff={() => setShowHandoffModal(true)}
+                onCreateHandoff={() => handleCreateHandoff(managerSession.id, managerSession.agent_role)}
                 onSaveVersion={openSaveModal}
                 onOpenSaveSelection={openSaveSelectionModal}
                 teamId={workspace.team_id}
@@ -565,7 +616,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                 .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
               }
               onForward={(messages, targetRole) => handlePanelForward(session, messages, targetRole)}
-              onCreateHandoff={() => setShowHandoffModal(true)}
+              onCreateHandoff={() => handleCreateHandoff(session.id, session.agent_role)}
               onSaveVersion={openSaveModal}
               onOpenSaveSelection={openSaveSelectionModal}
               teamId={workspace.team_id}
@@ -636,16 +687,6 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
             </div>
           </div>
         </div>
-      )}
-
-      {/* ── Modal de Handoff Package ── */}
-      {showHandoffModal && (
-        <HandoffPackageModal
-          workspace={workspace}
-          getAgentMessages={getAgentMessages}
-          onClose={() => setShowHandoffModal(false)}
-          onCreated={() => setShowHandoffModal(false)}
-        />
       )}
 
       {/* ── Modal de Save Version ── */}
