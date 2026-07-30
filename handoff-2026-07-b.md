@@ -2770,3 +2770,73 @@ Diagnóstico exhaustivo con `grep` es crítico para identificar TODOS los lugare
 
 ---
 
+### Sesión 2026-07-30 — Documentation Mode payload optimization
+
+**Fecha:** 2026-07-30
+**Estado:** Closed
+**Commit:** 44f0315
+
+**Problema resuelto:**
+Documentation Mode estaba trayendo arrays completos de mensajes para todos los objetos (checkpoints, handoff packages, saved selections) aunque solo mostraba previews de ~200 caracteres en las cards del listado. Para workspaces con ~210 mensajes distribuidos en 15 objetos documentales, esto significaba ~105KB de payload innecesario en cada carga de Documentation Mode.
+
+**Decisión técnica:**
+Reducción de payload mediante stripMarkdown() + lazy loading:
+1. Queries de listado traen solo metadata + preview truncado a ~200 chars
+2. Panels de detalle cargan contenido completo on-demand vía API endpoints
+3. stripMarkdown() para eliminar sintaxis Markdown y truncar inteligentemente (word-boundary)
+
+**Por qué stripMarkdown() vs AI summarization:**
+- Costo: Zero tokens vs ~$0.003 por objeto con Claude Haiku
+- Latencia: Instantáneo vs 1-2s por objeto
+- Fidelidad: Texto original sin distorsión vs interpretación AI
+- Escalabilidad: Lineal vs costo/latency compuesto
+
+**Archivos modificados:**
+- `src/lib/text/stripMarkdown.ts` (nuevo) — Helper de stripping + truncado inteligente
+- `src/lib/db/documentation.ts` — Interfaces sin arrays de mensajes, queries usan stripMarkdown(200)
+- `src/app/api/documentation/checkpoint/[id]/route.ts` (nuevo) — Endpoint para fetch on-demand
+- `src/app/api/documentation/handoff/[id]/route.ts` (nuevo)
+- `src/app/api/documentation/selection/[id]/route.ts` (nuevo)
+- `src/components/documentation/RepositoryView.tsx` — Detail panels con lazy loading (useEffect)
+- `src/components/documentation/InvestigateView.tsx` — Actualizado a message_count
+
+**Cambios en interfaces:**
+- `DocCheckpoint`: sin checkpoint_messages array, +message_count, +content_preview
+- `DocHandoffPackage`: sin messages array, +message_count, +content_preview
+- `DocSavedSelection`: sin messages array, +message_count, +content_preview
+
+**Patrón implementado:**
+```typescript
+// Detail panels ahora lazy-load
+const [messages, setMessages] = useState([])
+const [loading, setLoading] = useState(true)
+useEffect(() => {
+  fetch(`/api/documentation/checkpoint/${id}`)
+    .then(res => res.json())
+    .then(setMessages)
+    .finally(() => setLoading(false))
+}, [id])
+```
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK
+- npm run build: ✅ Exitoso
+- TypeScript: ✅ Sin errores
+
+**Pendiente validación PO:**
+1. Payload comparison (before/after) en BARRIO HIPICO workspace
+2. Cards preview legibles con 200 chars
+3. Detail panels cargan contenido completo correctamente
+4. Filters y search funcionan con contenido truncado
+5. No regresión en performance workspace
+
+**Impacto estimado:**
+- Reducción ~95% en payload de Documentation Mode para workspaces típicos
+- List queries: metadata only (~2-3KB para 15 objetos)
+- Detail fetches: on-demand (~7KB promedio por objeto cuando se abre panel)
+
+**Nota operativa:**
+Este fix resuelve el "acople operativo" detectado entre workspace y Documentation Mode — workspace ahora opera independiente del volumen documental en el repositorio.
+
+---
+

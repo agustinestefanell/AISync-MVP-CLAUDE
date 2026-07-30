@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-07-29 (Markdown rendering in Workspace and Documentation Mode)
+Last updated: 2026-07-30 (Documentation Mode payload optimization)
 
 ---
 
@@ -91,6 +91,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 
 | Feature | Estado | Evidencia | Notas |
 |---|---|---|---|
+| **Payload optimization — stripMarkdown + lazy loading** | ✅ Closed | commit 44f0315 | Reducción ~95% payload: queries de listado traen solo metadata + preview de 200 chars via stripMarkdown(), detail panels cargan contenido completo on-demand con useEffect. Interfaces modificadas (sin arrays de mensajes). Pendiente validación PO de legibilidad y performance en workspace. Ver handoff-2026-07-b.md 2026-07-30. |
 | Repository View | ✅ Live | commit ec30d6f | How to use guides updated for all 5 views (Repository, Structure, Audit, Investigate, Knowledge Map). |
 | Documentation Mode — How to use guides | ✅ Live | `src/components/documentation/DocClient.tsx` | Search bar + sort (newest/oldest/name) + unified uniqueTeams — commit daeb732. Saved Selections integrated as third document type — commit 4ec8d2d. Purpose labels translated, preview uses last message 600 chars — commit 91b72fa. Handoff Package content_preview added — commit 708980c. Handoff vs Handoff Package labels distinguished — commit d227cc1. Checkpoint content_preview added — commit 98b38ca. Mini chat preview in detail panels — commit 0ec5b85. Open Workspace navigation in Handoff and Saved Selection panels — commit 8971d28. Actor labels (You/AI/agentLabel) in MiniChatPreview bubbles — commit 0da77ce. CheckpointDetailPanel two-column layout — commit d23ee93. Hierarchical metadata (Project/Team) in Handoff and Saved Selection panels — commit 20c42b8. Agent role labels in checkpoint MiniChatPreview and Secondary Metadata — commit ec30d6f. Bifurcated empty states: empty account / active filter + Clear filters / edge case. |
 | **Structure View — DocumentationMirrorTree** | ✅ Closed | commit 2ba4a49 | Pan/zoom/drag mirror tree + search/project filter — commit 2ba4a49 |
