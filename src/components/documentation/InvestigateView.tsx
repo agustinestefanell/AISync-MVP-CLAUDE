@@ -344,7 +344,7 @@ function SavedSelectionCard({ s }: { s: import('@/lib/db/documentation').DocSave
           <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{s.workspace_name}{s.team_name ? ` · ${s.team_name}` : ''}</p>
         </div>
         <span className="shrink-0 text-[9px] px-2 py-0.5 rounded-full border font-semibold uppercase text-amber-700 bg-amber-50 border-amber-200">
-          {s.messages.length} msgs
+          {s.message_count} msgs
         </span>
       </div>
       <div className="mt-2 flex gap-x-6 gap-y-0.5 flex-wrap border-t border-[var(--color-border-subtle)] pt-2">

@@ -59,14 +59,6 @@ const PURPOSE_LABELS: Record<string, string> = {
   'Evidencia':             'Evidence',
 }
 
-function getMessagePreview(messages: unknown[]): string {
-  const last = messages[messages.length - 1] as Record<string, unknown> | undefined
-  if (!last) return ''
-  const content = last.content ?? last.text ?? last.message ?? ''
-  if (typeof content !== 'string') return ''
-  return content.length > 600 ? content.slice(0, 600) + '…' : content
-}
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-US', {
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -99,6 +91,22 @@ function MetaRow({ label, value, mono }: { label: string; value: string; mono?: 
 }
 
 function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCheckpoint; userName: string; onClose: () => void; teamCodes?: Record<string, string> }) {
+  const [messages, setMessages] = useState<{ role: string; content: string; position: number; agent_role?: string }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchMessages() {
+      try {
+        const res = await fetch(`/api/documentation/checkpoint/${cp.id}`)
+        const data = await res.json()
+        setMessages(Array.isArray(data) ? data : [])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMessages()
+  }, [cp.id])
+
   return (
     <div className="h-full min-h-0 flex flex-col border-l border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
       <div className="shrink-0 px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-start justify-between gap-4">
@@ -146,7 +154,7 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
               <MetaRow label="Workspace"     value={cp.workspace_name} />
               <MetaRow label="Checkpoint ID" value={cp.id} mono />
               {(() => {
-                const firstAssistant = cp.checkpoint_messages.find(m => m.role === 'assistant')
+                const firstAssistant = messages.find(m => m.role === 'assistant')
                 if (!firstAssistant?.agent_role) return null
                 return <MetaRow label="AI Agent" value={AGENT_LABEL[firstAssistant.agent_role] ?? firstAssistant.agent_role} />
               })()}
@@ -155,12 +163,14 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
         </div>
 
         {/* Full width: conversation */}
-        {cp.checkpoint_messages.length > 0 && (
+        {loading ? (
+          <div className="text-xs text-[var(--color-text-secondary)]">Loading conversation...</div>
+        ) : messages.length > 0 ? (
           <div>
             <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Conversation</p>
-            <MiniChatPreview messages={cp.checkpoint_messages.map(m => ({ ...m, agentRole: m.agent_role }))} />
+            <MiniChatPreview messages={messages.map(m => ({ ...m, agentRole: m.agent_role }))} />
           </div>
-        )}
+        ) : null}
 
         {/* Full width: action buttons */}
         <div className="flex gap-2 pt-1">
@@ -185,6 +195,22 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
 }
 
 function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: () => void }) {
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchMessages() {
+      try {
+        const res = await fetch(`/api/documentation/handoff/${hp.id}`)
+        const data = await res.json()
+        setMessages(Array.isArray(data) ? data : [])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMessages()
+  }, [hp.id])
+
   return (
     <div className="h-full min-h-0 flex flex-col border-l border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
       <div className="shrink-0 px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-start justify-between gap-4">
@@ -234,15 +260,17 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
           </div>
         )}
 
-        {hp.messages.length > 0 && (
+        {loading ? (
+          <div className="text-xs text-[var(--color-text-secondary)]">Loading conversation...</div>
+        ) : messages.length > 0 ? (
           <div>
             <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Conversation</p>
             <MiniChatPreview
-              messages={hp.messages}
+              messages={messages}
               agentLabel={AGENT_LABEL[hp.from_agent as keyof typeof AGENT_LABEL] ?? 'AI'}
             />
           </div>
-        )}
+        ) : null}
 
         <div className="flex gap-2 pt-1">
           <button
@@ -266,6 +294,22 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
 }
 
 function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSelection; onClose: () => void; teamCodes?: Record<string, string> }) {
+  const [messages, setMessages] = useState<{ role?: string; content?: string; agent_role?: string }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchMessages() {
+      try {
+        const res = await fetch(`/api/documentation/selection/${ss.id}`)
+        const data = await res.json()
+        setMessages(Array.isArray(data) ? data : [])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMessages()
+  }, [ss.id])
+
   return (
     <div className="h-full min-h-0 flex flex-col border-l border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
       <div className="shrink-0 px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-start justify-between gap-4">
@@ -282,24 +326,26 @@ function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSel
       </div>
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
         <div className="space-y-3">
-          <Row label="Messages">{ss.messages.length} message{ss.messages.length !== 1 ? 's' : ''} saved</Row>
+          <Row label="Messages">{ss.message_count} message{ss.message_count !== 1 ? 's' : ''} saved</Row>
           <Row label="Project">{ss.project_name ?? '—'}</Row>
           <Row label="Team">{ss.team_name ? (ss.team_id ? teamLabel(ss.team_id, ss.team_name, teamCodes) : ss.team_name) : '—'}</Row>
           <Row label="Workspace">{ss.workspace_name}</Row>
           <Row label="Created" suppressWarn>{formatDate(ss.created_at)}</Row>
         </div>
-        {ss.messages.length > 0 && (
+        {loading ? (
+          <div className="text-xs text-[var(--color-text-secondary)]">Loading conversation...</div>
+        ) : messages.length > 0 ? (
           <div>
             <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Conversation</p>
             <MiniChatPreview
-              messages={(ss.messages as { role?: string; content?: string; agent_role?: string }[]).map(m => ({
+              messages={messages.map(m => ({
                 role:      m.role      ?? 'user',
                 content:   m.content   ?? '',
                 agentRole: m.agent_role ?? undefined,
               }))}
             />
           </div>
-        )}
+        ) : null}
 
         <div className="flex gap-2 pt-1">
           <button
@@ -788,13 +834,13 @@ export default function RepositoryView({
                               </div>
                             </div>
                             <span className="shrink-0 text-[9px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-[0.08em] text-amber-700 bg-amber-50 border-amber-200">
-                              {item.ss.messages.length} msgs
+                              {item.ss.message_count} msgs
                             </span>
                           </div>
                           {/* Preview */}
-                          {getMessagePreview(item.ss.messages) && (
+                          {item.ss.content_preview && (
                             <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
-                              {getMessagePreview(item.ss.messages)}
+                              {item.ss.content_preview}
                             </p>
                           )}
                           {/* Pills: team + workspace */}

@@ -3,6 +3,7 @@
 // treated as migratable client property. See src/lib/db/planes.ts
 
 import { createClient } from '@/lib/supabase/server'
+import { stripMarkdown } from '@/lib/text/stripMarkdown'
 
 export interface DocCheckpoint {
   id: string
@@ -23,7 +24,8 @@ export interface DocCheckpoint {
   project_name:     string
   created_at:          string
   content_preview?:    string
-  checkpoint_messages: { role: string; content: string; position: number; agent_role?: string }[]
+  message_count:       number
+  // checkpoint_messages removed from list interface — fetch individual detail with getCheckpointDetail()
 }
 
 export interface DocAuditEvent {
@@ -71,7 +73,7 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
       id, name, purpose,
       doc_state, object_type, sensitivity, version_label, responsible,
       workspace_id, created_at,
-      checkpoint_messages(content, role, position, session_id, agent_sessions(agent_role)),
+      checkpoint_messages(content, role, position),
       workspaces (
         id, name,
         teams (
@@ -100,6 +102,7 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
     project_id:      r.workspaces?.teams?.projects?.id ?? '',
     project_name:    r.workspaces?.teams?.projects?.name ?? '—',
     created_at:      r.created_at,
+    message_count:   Array.isArray(r.checkpoint_messages) ? r.checkpoint_messages.length : 0,
     content_preview: (() => {
       const msgs = Array.isArray(r.checkpoint_messages) ? r.checkpoint_messages : []
       const assistantMsgs = msgs.filter(m => m.role === 'assistant')
@@ -107,20 +110,32 @@ export async function getDocCheckpoints(): Promise<DocCheckpoint[]> {
       const last = sorted[sorted.length - 1]
       if (!last) return undefined
       const content = last.content ?? ''
-      return content.length > 0
-        ? content.slice(0, 600) + (content.length > 600 ? '…' : '')
-        : undefined
+      return content.length > 0 ? stripMarkdown(content, 200) : undefined
     })(),
-    checkpoint_messages: Array.isArray(r.checkpoint_messages)
-      ? [...r.checkpoint_messages]
-          .sort((a, b) => a.position - b.position)
-          .map(m => ({
-            role:       m.role,
-            content:    m.content,
-            position:   m.position,
-            agent_role: m.agent_sessions?.agent_role ?? undefined,
-          }))
-      : [],
+    // checkpoint_messages array NOT returned — use getCheckpointDetail(id) to fetch full content
+  }))
+}
+
+// Fetch full checkpoint detail with all messages (for panel detalle)
+export async function getCheckpointDetail(checkpointId: string) {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('checkpoint_messages')
+    .select('role, content, position, session_id, agent_sessions(agent_role)')
+    .eq('checkpoint_id', checkpointId)
+    .order('position', { ascending: true })
+
+  return ((data ?? []) as unknown as Array<{
+    role: string
+    content: string
+    position: number
+    session_id: string | null
+    agent_sessions: { agent_role: string } | null
+  }>).map(m => ({
+    role:       m.role,
+    content:    m.content,
+    position:   m.position,
+    agent_role: m.agent_sessions?.agent_role ?? undefined,
   }))
 }
 
@@ -140,8 +155,8 @@ export interface DocHandoffPackage {
   project_name: string | null
   message_count:    number
   content_preview?: string
-  messages:         { role: string; content: string }[]
   created_at:       string
+  // messages removed from list interface — fetch with getHandoffDetail(id)
 }
 
 interface RawHandoffPackage {
@@ -191,24 +206,38 @@ export async function getHandoffPackages(): Promise<DocHandoffPackage[]> {
         if (!last) return undefined
         const content = last.content ?? last.text ?? last.message ?? ''
         return typeof content === 'string' && content.length > 0
-          ? content.slice(0, 600) + (content.length > 600 ? '…' : '')
+          ? stripMarkdown(content, 200)
           : undefined
       })(),
-      messages: Array.isArray(r.messages)
-        ? (r.messages as Record<string, unknown>[]).map(m => ({
-            role:    typeof m.role    === 'string' ? m.role    : 'user',
-            content: typeof m.content === 'string' ? m.content : '',
-          }))
-        : [],
       created_at:      r.created_at,
+      // messages array NOT returned — use getHandoffDetail(id) to fetch full content
     }
   })
+}
+
+// Fetch full handoff package detail with all messages (for panel detalle)
+export async function getHandoffDetail(handoffId: string) {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('handoff_packages')
+    .select('messages')
+    .eq('id', handoffId)
+    .single()
+
+  if (!data) return []
+
+  const messages = Array.isArray(data.messages) ? data.messages : []
+  return (messages as Record<string, unknown>[]).map(m => ({
+    role:    typeof m.role    === 'string' ? m.role    : 'user',
+    content: typeof m.content === 'string' ? m.content : '',
+  }))
 }
 
 export interface DocSavedSelection {
   id:             string
   name:           string
-  messages:       unknown[]
+  message_count:  number
+  content_preview?: string
   workspace_id:   string
   workspace_name: string
   team_id:        string | null
@@ -218,6 +247,7 @@ export interface DocSavedSelection {
   project_name:   string | null
   created_at:     string
   user_id:        string
+  // messages removed from list interface — fetch with getSavedSelectionDetail(id)
 }
 
 interface RawSavedSelection {
@@ -246,10 +276,17 @@ export async function getSavedSelections(userId: string): Promise<DocSavedSelect
   return ((data ?? []) as unknown as RawSavedSelection[]).map(r => {
     const team    = Array.isArray(r.workspaces?.teams) ? r.workspaces?.teams[0] : r.workspaces?.teams
     const project = Array.isArray(team?.projects)      ? team?.projects[0]      : team?.projects
+    const messages = Array.isArray(r.messages) ? r.messages : []
+    const last = messages[messages.length - 1] as Record<string, unknown> | undefined
+    const content = last?.content ?? last?.text ?? last?.message ?? ''
+
     return {
       id:             r.id,
       name:           r.name,
-      messages:       Array.isArray(r.messages) ? r.messages : [],
+      message_count:  messages.length,
+      content_preview: typeof content === 'string' && content.length > 0
+        ? stripMarkdown(content, 200)
+        : undefined,
       workspace_id:   r.workspace_id,
       workspace_name: r.workspaces?.name ?? '—',
       team_id:        r.team_id ?? null,
@@ -259,8 +296,24 @@ export async function getSavedSelections(userId: string): Promise<DocSavedSelect
       project_name:   project?.name ?? null,
       created_at:     r.created_at,
       user_id:        r.user_id,
+      // messages array NOT returned — use getSavedSelectionDetail(id) to fetch full content
     }
   })
+}
+
+// Fetch full saved selection detail with all messages (for panel detalle)
+export async function getSavedSelectionDetail(selectionId: string) {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('saved_selections')
+    .select('messages')
+    .eq('id', selectionId)
+    .single()
+
+  if (!data) return []
+
+  const messages = Array.isArray(data.messages) ? data.messages : []
+  return messages as { role?: string; content?: string; agent_role?: string }[]
 }
 
 export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
