@@ -3117,3 +3117,34 @@ NO soportar .ppt binario pre-2007 — sin librería JS liviana confiable (las 2 
 
 ---
 
+## OE 2026-07-31 — npm audit fix: saneamiento de vulnerabilidades transitivas (Grupo A)
+
+**Fecha:** 2026-07-31
+**Estado:** Closed (Grupo A) — validado con lint + build completos; Grupo B (Next 16) diferido a evaluación aparte por directiva
+
+**Problema:**
+npm audit reportaba 10 vulnerabilidades high, todas en dependencias transitivas, ninguna introducida por trabajo del proyecto. Directiva del PO: separar en Grupo A (fix sin salto mayor — atacar) y Grupo B (atado a Next 16 — no tocar).
+
+**Ejecución y hallazgos:**
+- Clasificación confirmada con `npm audit --json` (campo isSemVerMajor): **Grupo A real = 4 paquetes con fix simple** (axios, form-data, ws, js-yaml). **brace-expansion, pre-clasificada en Grupo A por la directiva, resultó ser Grupo B** — sus copias restantes viven bajo eslint@8/glob y su fix requiere eslint@10/eslint-config-next@16 (breaking).
+- `npm audit fix` SIN --force: axios 1.17.0→1.19.0, form-data 4.0.5→4.0.6, ws 8.20.0→8.21.1, js-yaml 4.1.1→4.3.0. **package.json intacto** — solo package-lock.json. Next.js NO tocado (verificado por git diff).
+- **Uso directo en código propio: CERO** (grep de imports en src/ sin matches). Consumidores reales: axios/form-data → @tavily/core (web search del chat); ws → Supabase Realtime + SDK OpenAI; js-yaml y brace-expansion → ESLint (solo dev, no llegan a producción).
+- **Conteo post-fix: 16 high (subió de 10) — es inflación de cadena, no regresión:** solo 4 raíces con advisory propio (brace-expansion, glob, next, postcss); las otras 12 son dependientes de la cadena ESLint/Next que npm marca en cascada. Superficie real del Grupo B: idéntica a antes.
+
+**Validaciones (punto 3 de la directiva — evidencia real, no etiqueta de npm):**
+- npm run lint: ✅ OK (solo warnings pre-existentes CanvasViewport)
+- npm run build: ✅ Exitoso, output y tamaños de bundle idénticos
+- Funcional: js-yaml/brace-expansion son dev-only — el lint pasando ES su prueba funcional. Para axios/ws (Tavily web search, Realtime, OpenAI) la prueba runtime real requiere producción — incluida en checklist de validación PO post-deploy.
+
+**Riesgos conocidos / deuda técnica:**
+- Grupo B pendiente: next@14.2.35 acumula 21 advisories cuyo fix es next@16.2.12 (major) — OE de evaluación aparte con cuidado (breaking changes de framework).
+- Ver AUDIT_REPORT DEP-002 (nuevo) y actualización de DEP-001 (xlsx ahora SÍ parsea archivos subidos — sin riesgo nuevo, la 0.20.3 del CDN tiene los fixes).
+
+**AISyncPlans.md: sin cambios** — solo versiones transitivas en lockfile, sin cambios de schema, API, componentes ni patrones.
+**DECISIONS.md: sin entrada** — la decisión (Grupo A/B, sin --force) venía dada en la directiva del PO; lo ejecutado y sus hallazgos quedan en esta entrada y en AUDIT_REPORT DEP-002.
+**CodingWorkshop.md: sin entrada** — no hubo bug de código propio.
+
+**Archivos modificados:** package-lock.json (único cambio de código/deps), AUDIT_REPORT.md (DEP-002 + addendum DEP-001), handoff, PRODUCT_STATUS.md.
+
+---
+

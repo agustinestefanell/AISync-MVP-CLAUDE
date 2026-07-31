@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-07-31 (PPTX con extracción de texto real — completa la fase de adjuntos Office)
+Last updated: 2026-07-31 (PPTX con extracción real + npm audit fix Grupo A: axios/form-data/ws/js-yaml saneadas)
 
 ---
 
@@ -31,6 +31,8 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Tarea | Detalle | Estimación | Estado |
 |---|---|---|---|
 | Migraciones 023+024 | Confirmar aplicadas en Supabase (ya están, solo documentar) | 5 min | ✅ Done |
+| npm audit — Grupo A (sin salto mayor) | axios/form-data/ws/js-yaml actualizadas vía npm audit fix; brace-expansion reclasificada a Grupo B (cadena eslint) | Mini OE | ✅ Done 2026-07-31 — ver AUDIT_REPORT DEP-002 |
+| npm audit — Grupo B (Next 16) | next@16.2.12 + postcss/glob/brace-expansion (cadena ESLint/Next); 21 advisories de next incluidos | 1 sesión+ | ⏳ Pendiente — evaluación aparte con cuidado (major) |
 | TAVILY_API_KEY en Vercel | Confirmar configurada (ya está) | 5 min | ⏳ Pendiente |
 | Audit de páginas | Recorrer toda la app como usuario nuevo y anotar friction points | 1 sesión | ⏳ Pendiente |
 

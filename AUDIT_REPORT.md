@@ -195,4 +195,18 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Impacto potencial:** Los advisories afectan principalmente el PARSEO de archivos no confiables. AISync solo GENERA archivos desde JSON propio (no parsea spreadsheets subidos), por lo que la superficie real era baja — pero 11 findings high en npm audit permanentes son ruido que enmascara alertas futuras.
 - **Resolución aplicada:** Instalación desde el tarball oficial de SheetJS: `npm install https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`. `package.json` referencia la URL del CDN. npm audit quedó limpio de xlsx. Aprobado explícitamente por el PO (2026-07-30).
 - **Deuda residual:** El lockfile depende de una URL externa (cdn.sheetjs.com) para builds — si SheetJS retomara la publicación en npm con fix, migrar de vuelta al registro estándar.
+- **Actualización 2026-07-31:** Desde la OE de adjuntos Office, AISync SÍ parsea spreadsheets subidos por usuarios (`XLSX.read()` en extractText.ts) — el argumento "solo genera, no parsea" ya no aplica. Sin riesgo nuevo: la 0.20.3 instalada del CDN contiene los fixes de ambos advisories (por eso se eligió esa versión). Se deja constancia para que la evaluación de superficie siga siendo correcta.
 - **Estado:** CLOSED — mismo commit de la feature (feat: add Save as Excel and Save as Word export from Save Selection).
+
+### DEP-002 🟡 PARTIAL — npm audit: 10 high transitivas; Grupo A saneado, Grupo B atado a Next 16
+
+- **Severidad:** 🟡 Medium (todas transitivas, ninguna con uso directo en código propio)
+- **Fecha:** 2026-07-31
+- **Área:** Dependencies / Supply Chain
+- **Detectado en:** npm audit durante la OE de PPTX (2026-07-31) — ninguna vulnerabilidad introducida por trabajo del proyecto
+- **Descripción y clasificación (confirmada con npm audit --json):**
+  - **Grupo A — fix simple sin salto mayor (RESUELTO en esta OE):** axios 1.17.0→1.19.0, form-data 4.0.5→4.0.6, ws 8.20.0→8.21.1, js-yaml 4.1.1→4.3.0. Aplicado con `npm audit fix` (SIN --force). Todas 100% transitivas: axios/form-data vía @tavily/core (web search), ws vía Supabase Realtime + SDK OpenAI, js-yaml vía ESLint (dev-only). Cero imports directos en src/ (verificado por grep).
+  - **Grupo B — requiere salto mayor, NO tocado (evaluación aparte):** next@14.2.35 (21 advisories, fix = next@16.2.12), postcss (bundled en next), glob (vía @next/eslint-plugin-next), brace-expansion (copias 1.1.18/2.1.4 bajo eslint@8 — su fix requiere eslint@10/eslint-config-next@16). **Nota:** brace-expansion estaba pre-clasificada en Grupo A por la directiva, pero la inspección real la reclasificó a Grupo B.
+- **Sobre el conteo post-fix (16 > 10):** npm audit reporta ahora 16 high, pero solo 4 son raíces con advisory propio (brace-expansion, glob, next, postcss) — las otras 12 son inflación de cadena (npm marca vulnerable a cada dependiente de la cadena ESLint/Next: eslint, minimatch, rimraf, flat-cache, etc.). Superficie real de Grupo B: la misma de antes, nada nuevo.
+- **Validación:** lint ✅ y build ✅ completos post-fix con output idéntico. package.json intacto — solo package-lock.json (versiones transitivas). Next.js NO tocado.
+- **Estado:** PARTIAL — Grupo A CLOSED; Grupo B pendiente de la evaluación de upgrade a Next 16 (OE aparte con más cuidado — incluye los 21 advisories de next).
