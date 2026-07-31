@@ -88,6 +88,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const [saveSelectionName, setSaveSelectionName]               = useState('')
   const [pendingSelectionMessages, setPendingSelectionMessages] = useState<ChatMessage[]>([])
   const [savingSelection, setSavingSelection]                   = useState(false)
+  const [saveSelectionError, setSaveSelectionError]             = useState<string | null>(null)
 
   const panelRefs       = useRef<Record<string, AgentPanelHandle | null>>({})
   const humanChatRef    = useRef<HumanChatPanelHandle | null>(null)
@@ -399,14 +400,16 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     if (allMessages.length === 0) return
     setPendingSelectionMessages(allMessages)
     setSaveSelectionName('')
+    setSaveSelectionError(null)
     setShowSaveSelectionModal(true)
   }, [workspace.agent_sessions, isConnectedWorkspace, connectionContext, currentUserId])
 
   const handleSaveSelection = async () => {
     if (!saveSelectionName.trim() || pendingSelectionMessages.length === 0) return
     setSavingSelection(true)
+    setSaveSelectionError(null)
     try {
-      await fetch('/api/save-selection', {
+      const res = await fetch('/api/save-selection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -417,9 +420,28 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           messages:     pendingSelectionMessages,
         }),
       })
+
+      if (!res.ok) {
+        // Guardado fallido: mantener modal abierto y la selección intacta
+        const body = await res.json().catch(() => null)
+        setSaveSelectionError(body?.error ?? `Failed to save selection (${res.status})`)
+        return
+      }
+
       setShowSaveSelectionModal(false)
       setSaveSelectionName('')
       setPendingSelectionMessages([])
+
+      // Guardado exitoso: limpiar la selección en todos los paneles — mismo
+      // patrón que Review & Forward y Create Handoff Package. Sin esto, la
+      // selección anterior queda "oculta" pero activa y se cuela en la
+      // próxima acción de selección.
+      for (const session of workspace.agent_sessions) {
+        panelRefs.current[session.id]?.clearSelection()
+      }
+      humanChatRef.current?.clearSelection()
+    } catch {
+      setSaveSelectionError('Network error — your selection was kept, try again.')
     } finally {
       setSavingSelection(false)
     }
@@ -717,6 +739,11 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                 className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none transition-colors focus:border-[var(--color-border-focus)]"
               />
             </div>
+            {saveSelectionError && (
+              <p className="text-xs bg-[var(--color-error-bg,#fee2e2)] border border-[var(--color-error-border,#fca5a5)] text-[var(--color-error-text,#991b1b)] rounded-lg px-3 py-2">
+                {saveSelectionError}
+              </p>
+            )}
             <div className="flex gap-3 pt-1">
               <button
                 onClick={handleSaveSelection}

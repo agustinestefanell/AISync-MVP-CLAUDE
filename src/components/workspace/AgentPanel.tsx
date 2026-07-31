@@ -219,17 +219,22 @@ const MessageBubble = memo(function MessageBubble({
             } ${isSelected ? 'ui-message-bubble-selected' : ''}`}
           >
             {/* Enterprise: copy button visibility configurable via workspace settings */}
-            <button
-              className="absolute top-1 right-1 p-0.5 rounded opacity-0 group-hover/msg:opacity-100 transition-opacity"
-              style={{ color: 'var(--color-text-muted)' }}
-              onClick={e => { e.stopPropagation(); onCopy(index, msg.content) }}
-              title="Copy message"
-            >
-              {copied
-                ? <Check size={12} />
-                : <Copy size={12} />
-              }
-            </button>
+            {/* sticky: el botón acompaña el scroll del panel mientras este mensaje
+                siga en pantalla (mensajes largos). h-0 + pointer-events-none evitan
+                ocupar layout o bloquear clicks/selección del texto debajo. */}
+            <div className="sticky top-1 z-10 h-0 flex justify-end pointer-events-none">
+              <button
+                className="pointer-events-auto p-0.5 rounded bg-white/85 shadow-sm opacity-0 group-hover/msg:opacity-100 transition-opacity"
+                style={{ color: 'var(--color-text-muted)' }}
+                onClick={e => { e.stopPropagation(); onCopy(index, msg.content) }}
+                title="Copy message"
+              >
+                {copied
+                  ? <Check size={12} />
+                  : <Copy size={12} />
+                }
+              </button>
+            </div>
             <div className="select-text pr-4 text-xs leading-relaxed">
               <ReactMarkdown
                 remarkPlugins={REMARK_PLUGINS}

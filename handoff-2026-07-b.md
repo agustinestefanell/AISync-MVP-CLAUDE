@@ -2893,3 +2893,41 @@ Estado de input de alta frecuencia (tipeo, streaming) nunca debe convivir en el 
 
 ---
 
+## Mini-OE 2026-07-30 — Save Selection reset + botón de copiar sticky
+
+**Fecha:** 2026-07-30
+**Estado:** Closed — push directo a producción por decisión del PO (localhost sin datos reales de conversación); validación visual pendiente en producción
+
+**Problema resuelto (2 ajustes UX detectados por el PO en uso intensivo):**
+1. Save Selection no limpiaba la selección después de guardar — la selección anterior quedaba "oculta" pero activa y se colaba en el próximo Save Selection o Create Handoff Package.
+2. El botón de copiar mensaje (posición absolute top del mensaje) quedaba fuera de vista al scrollear dentro de una respuesta larga.
+
+**Cambios implementados:**
+1. **WorkspaceShell.tsx — handleSaveSelection:**
+   - Limpieza de selección en TODOS los paneles (`clearSelection()` vía panelRefs + humanChatRef) SOLO en el camino de éxito — mismo patrón que Review & Forward y Create Handoff Package. Cubre ambos caminos de entrada (botón del panel y barra global).
+   - **Fix relacionado encontrado por inspección:** el guardado no chequeaba `res.ok` — el modal se cerraba silenciosamente aunque la API fallara. Ahora: fallo → modal abierto + error visible (`saveSelectionError`) + selección intacta; éxito → cierra modal + limpia selección. Sin este fix, limpiar la selección habría destruido datos del usuario en guardados fallidos.
+2. **AgentPanel.tsx — MessageBubble:** botón de copiar envuelto en contenedor `sticky top-1 z-10 h-0 flex justify-end pointer-events-none` como primer hijo de la burbuja. El botón (`pointer-events-auto`) se pega al borde superior del viewport del panel mientras la burbuja siga en pantalla. Fondo `bg-white/85 shadow-sm` agregado (flota sobre texto al scrollear). Hover behavior preservado (`group-hover/msg`).
+
+**Decisión técnica y por qué:**
+- `position: sticky` (no fixed/JS): se ancla al scroller de react-virtuoso sin JavaScript adicional ni tocar la virtualización. Compatibilidad verificada: Virtuoso usa sticky internamente para group headers, y `ui-message-bubble` no tiene `overflow: hidden` en tokens.css (única condición que lo rompería).
+- Limpieza de selección post-éxito (no pre-guardado): requisito explícito del PO — un guardado fallido no debe perder la selección.
+
+**Alternativas descartadas:**
+- Limpiar la selección al abrir el modal o antes del fetch: perdería la selección si el guardado falla.
+- `position: fixed` + cálculo JS de visibilidad del mensaje: complejidad innecesaria; sticky lo resuelve nativo.
+- Duplicar el botón al final del mensaje: dos targets para la misma acción, ruido visual.
+
+**Archivos modificados:**
+- src/components/workspace/WorkspaceShell.tsx (+saveSelectionError state, res.ok check, clearSelection en éxito, error UI en modal)
+- src/components/workspace/AgentPanel.tsx (sticky wrapper del botón de copiar en MessageBubble)
+
+**Riesgos conocidos:**
+- El botón sticky flota sobre el contenido al scrollear — mitigado con fondo semitransparente y sombra; validar legibilidad sobre tablas en producción.
+- Al limpiar también la selección del human chat tras un Save Selection global, un usuario con selecciones simultáneas en ambos contextos las pierde juntas — comportamiento deliberado (consistencia post-guardado).
+
+**Validaciones técnicas:** lint ✅, build ✅ (/workspace/[id] 38.9 kB). Validación visual PO pendiente en producción: (1) checkboxes vacíos tras Save Selection, (2) botón de copiar visible al scrollear dentro de mensaje largo.
+
+**AISyncPlans.md: sin cambios** — sin cambios de schema, API routes, dependencias ni patrones estructurales (ajustes de UI locales a 2 componentes).
+
+---
+

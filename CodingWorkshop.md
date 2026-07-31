@@ -1655,3 +1655,13 @@ N/A (hallazgo metodológico)
 6. Benchmark con el contenido REAL del usuario (fetch de DB + renderToStaticMarkup en Node) convierte "debería estar mejor" en "395ms → ~0ms por tecla" — evidencia antes del deploy.
 
 **Referencia:** handoff-2026-07-b.md 2026-07-30, DECISIONS.md 2026-07-30.
+
+## 2026-07-30 — fetch sin chequeo de res.ok: fallo silencioso que se disfraza de éxito
+
+**Síntoma potencial:** Save Selection cerraba el modal "exitosamente" aunque la API fallara — el usuario creía haber guardado y no había nada en el repositorio.
+
+**Causa:** `handleSaveSelection` hacía `await fetch(...)` y seguía directo al camino de éxito (cerrar modal, limpiar estado) sin chequear `res.ok`. `fetch` solo rechaza por errores de red — un 400/500 resuelve normalmente.
+
+**Lección:** todo `fetch` cuyo resultado dispara efectos de UI (cerrar modal, limpiar selección, resetear formulario) DEBE chequear `res.ok` y separar camino de éxito y de fallo. Regla práctica: si una acción destruye estado del usuario (una selección, un texto escrito), solo puede ejecutarse en el camino de éxito confirmado. Detectado al implementar el reset de selección post-guardado: sin el chequeo, un guardado fallido habría borrado la selección del usuario.
+
+**Referencia:** handoff-2026-07-b.md Mini-OE 2026-07-30.
