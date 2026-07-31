@@ -1,7 +1,7 @@
 'use client'
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { createClient } from '@/lib/supabase/client'
 import type { HumanMessage } from '@/lib/db/types'
@@ -47,6 +47,105 @@ function formatDayMarker(date: Date): string {
 function formatMessageTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
+
+// ── Markdown config (module-level: stable identity across renders) ──────────
+const REMARK_PLUGINS = [remarkGfm]
+
+const MARKDOWN_COMPONENTS: Components = {
+  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  ul: ({ children }) => <ul className="mb-2 list-disc pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-2 list-decimal pl-5">{children}</ol>,
+  li: ({ children }) => <li className="mb-1">{children}</li>,
+  table: ({ children }) => (
+    <div className="my-2 overflow-x-auto">
+      <table className="w-full border-collapse text-left text-xs">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-gray-50">{children}</thead>,
+  th: ({ children }) => (
+    <th className="border border-gray-300 px-2 py-1 font-semibold">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border border-gray-300 px-2 py-1">
+      {children}
+    </td>
+  ),
+  code: ({ children, className }) => {
+    const isInline = !className
+    return isInline ? (
+      <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">
+        {children}
+      </code>
+    ) : (
+      <code className="block bg-gray-100 p-2 rounded text-xs font-mono overflow-x-auto my-2">
+        {children}
+      </code>
+    )
+  },
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 border-gray-300 pl-3 my-2 italic text-gray-700">
+      {children}
+    </blockquote>
+  ),
+}
+
+// ── Memoized message bubble ──────────────────────────────────────────────────
+// El Markdown de un mensaje humano nunca cambia: se parsea una sola vez,
+// no en cada tecla del composer ni en cada mensaje nuevo del canal.
+interface HumanBubbleProps {
+  message:        HumanMessage
+  index:          number
+  isMe:           boolean
+  isSelected:     boolean
+  otherUserEmail: string
+  onToggle:       (index: number) => void
+}
+
+const HumanMessageBubble = memo(function HumanMessageBubble({
+  message, index, isMe, isSelected, otherUserEmail, onToggle,
+}: HumanBubbleProps) {
+  return (
+    <div className="flex items-start gap-2 group">
+      {/* Selection checkbox */}
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={() => onToggle(index)}
+        className="mt-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+      />
+
+      {/* Message bubble */}
+      <div
+        className={`flex-1 rounded-lg px-3 py-2 ${
+          isMe
+            ? 'bg-blue-50 border border-blue-200'
+            : 'bg-gray-50 border border-gray-200'
+        } ${isSelected ? 'ring-2 ring-blue-400' : ''}`}
+      >
+        <div className="flex items-baseline justify-between gap-2 mb-1">
+          <span className="text-xs font-medium text-gray-700">
+            {isMe ? 'You' : otherUserEmail}
+          </span>
+          <span className="text-[10px] text-gray-400">
+            {formatMessageTime(message.created_at)}
+          </span>
+        </div>
+        <div className="text-sm text-gray-900 break-words leading-relaxed">
+          <ReactMarkdown
+            remarkPlugins={REMARK_PLUGINS}
+            components={MARKDOWN_COMPONENTS}
+          >
+            {message.content}
+          </ReactMarkdown>
+        </div>
+      </div>
+    </div>
+  )
+})
 
 const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanChatPanel({
   connectionId,
@@ -373,7 +472,8 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
     }
   }
 
-  function toggleSelection(index: number) {
+  // useCallback: identidad estable requerida por HumanMessageBubble (React.memo)
+  const toggleSelection = useCallback((index: number) => {
     setSelectedIndices((prev) => {
       const next = new Set(prev)
       if (next.has(index)) {
@@ -383,7 +483,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
       }
       return next
     })
-  }
+  }, [])
 
   function handleForward() {
     if (!onForward || !hasSelection) return
@@ -459,88 +559,17 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
               </div>
 
               {/* Messages for this day */}
-              {group.messages.map(({ message, index }) => {
-                const isMe = message.from_account_id === currentUserId
-                const isSelected = selectedIndices.has(index)
-
-                return (
-                  <div key={message.id} className="flex items-start gap-2 group">
-                    {/* Selection checkbox */}
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelection(index)}
-                      className="mt-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                    />
-
-                    {/* Message bubble */}
-                    <div
-                      className={`flex-1 rounded-lg px-3 py-2 ${
-                        isMe
-                          ? 'bg-blue-50 border border-blue-200'
-                          : 'bg-gray-50 border border-gray-200'
-                      } ${isSelected ? 'ring-2 ring-blue-400' : ''}`}
-                    >
-                      <div className="flex items-baseline justify-between gap-2 mb-1">
-                        <span className="text-xs font-medium text-gray-700">
-                          {isMe ? 'You' : otherUserEmail}
-                        </span>
-                        <span className="text-[10px] text-gray-400">
-                          {formatMessageTime(message.created_at)}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-900 break-words leading-relaxed">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                            strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                            em: ({ children }) => <em className="italic">{children}</em>,
-                            ul: ({ children }) => <ul className="mb-2 list-disc pl-5">{children}</ul>,
-                            ol: ({ children }) => <ol className="mb-2 list-decimal pl-5">{children}</ol>,
-                            li: ({ children }) => <li className="mb-1">{children}</li>,
-                            table: ({ children }) => (
-                              <div className="my-2 overflow-x-auto">
-                                <table className="w-full border-collapse text-left text-xs">{children}</table>
-                              </div>
-                            ),
-                            thead: ({ children }) => <thead className="bg-gray-50">{children}</thead>,
-                            th: ({ children }) => (
-                              <th className="border border-gray-300 px-2 py-1 font-semibold">
-                                {children}
-                              </th>
-                            ),
-                            td: ({ children }) => (
-                              <td className="border border-gray-300 px-2 py-1">
-                                {children}
-                              </td>
-                            ),
-                            code: ({ children, className }) => {
-                              const isInline = !className
-                              return isInline ? (
-                                <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">
-                                  {children}
-                                </code>
-                              ) : (
-                                <code className="block bg-gray-100 p-2 rounded text-xs font-mono overflow-x-auto my-2">
-                                  {children}
-                                </code>
-                              )
-                            },
-                            blockquote: ({ children }) => (
-                              <blockquote className="border-l-2 border-gray-300 pl-3 my-2 italic text-gray-700">
-                                {children}
-                              </blockquote>
-                            ),
-                          }}
-                        >
-                          {message.content}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
+              {group.messages.map(({ message, index }) => (
+                <HumanMessageBubble
+                  key={message.id}
+                  message={message}
+                  index={index}
+                  isMe={message.from_account_id === currentUserId}
+                  isSelected={selectedIndices.has(index)}
+                  otherUserEmail={otherUserEmail}
+                  onToggle={toggleSelection}
+                />
+              ))}
             </div>
           ))
         )}
@@ -659,4 +688,10 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   )
 })
 
-export default HumanChatPanel
+// memo: el panel solo se re-renderiza cuando cambian sus props (todas
+// estabilizadas en WorkspaceShell) — el tipeo/streaming de los AgentPanel
+// hermanos ya no propaga renders a este panel.
+const MemoizedHumanChatPanel = memo(HumanChatPanel)
+MemoizedHumanChatPanel.displayName = 'HumanChatPanel'
+
+export default MemoizedHumanChatPanel

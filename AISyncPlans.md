@@ -98,6 +98,7 @@ The product owner has determined that workflows requiring more than 2 Workers pe
 | Deploy | Vercel |
 | Fuentes | IBM Plex Sans (UI) + JetBrains Mono (código) — cargadas en `layout.tsx` |
 | Auth | Supabase Auth — middleware en `src/middleware.ts` |
+| Virtualización de listas | `react-virtuoso@4.18.11` — viewport de mensajes en AgentPanel (2026-07-30) |
 
 Variables de entorno requeridas:
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -349,16 +350,18 @@ WorkspaceShell (Client Component)
 Secciones internas (de arriba a abajo):
 
 ```
-AgentPanel (forwardRef → AgentPanelHandle)
+AgentPanel (memo(forwardRef) → AgentPanelHandle)
   1. Header          ← displayLabel + provider + model + description + selection count
   2. Tools row       ← Prompt Library | Add Context File
-  3. Viewport        ← Messages + day markers + streaming indicator
+  3. Viewport        ← Virtuoso (virtualizado): MessageBubble (memo) + day markers + streaming como item virtual
   4. Composer        ← textarea + Send
   5. Forward section ← select destino + Review & Forward + Create Handoff Package
   6. Actions grid    ← Refresh Session | Save Version | Selection(N) | Audit AI
   └── PromptLibrary modal (Fragment, fuera del panel)
   └── ContextFilePanel modal (Fragment, fuera del panel)
 ```
+
+**Performance del panel (2026-07-30):** AgentPanel y HumanChatPanel están envueltos en `React.memo`; cada mensaje se renderiza vía `MessageBubble` / `HumanMessageBubble` (también `memo`) con la config de ReactMarkdown a nivel módulo, y el viewport de AgentPanel usa `react-virtuoso` (solo mensajes visibles montados). **Regla obligatoria:** toda prop nueva que se pase a estos paneles desde WorkspaceShell debe tener identidad estable entre renders (useCallback/useMemo o constante de módulo — ver `panelBindings` en WorkspaceShell). Una flecha inline o un array literal en JSX rompe el memo y reintroduce la lentitud de tipeo (395ms/tecla documentada en CodingWorkshop 2026-07-30). La selección por checkbox y Save Selection viven en estado React (no DOM) y funcionan con mensajes fuera de pantalla; la selección nativa de texto (drag) solo alcanza los mensajes renderizados en la ventana visible.
 
 **Prompt Library modal:** no debe cerrarse por click en backdrop (`onClick={e => e.stopPropagation()}`); el cierre depende solo de acciones explícitas (`CANCEL` o `✕`). El textarea de prompt usa `rows={10}` y `resize-y` para edición extensa.
 

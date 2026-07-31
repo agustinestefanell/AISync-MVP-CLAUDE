@@ -1092,3 +1092,18 @@ ivo:** Con la arquitectura de dos edificios completamente implementada y validad
 
 - **Estado:** Etapas 8b y 8c COMPLETADAS (c�digo + schema), validaci�n en vivo PENDIENTE (2026-06-30)
 
+
+## 2026-07-30 — Workspace performance: props estables vs comparador custom; react-virtuoso vs react-window
+
+**Contexto:** Lentitud progresiva del Workspace (tipeo demorado) causada por re-parseo de todo el Markdown histórico en cada tecla/chunk de streaming. Fix en 3 capas: burbujas memoizadas + React.memo a nivel panel + virtualización.
+
+**Decisión 1 — Estabilizar props reales en lugar de comparador custom en React.memo:**
+El pedido original contemplaba un comparador custom que ignorara props "irrelevantes" (funciones). Se descartó: ignorar la identidad de funciones en la comparación puede congelar closures viejas (el panel seguiría usando handlers que capturan estado obsoleto) — bug sutil y difícil de diagnosticar. En su lugar, TODAS las props que WorkspaceShell pasa a los paneles se estabilizaron (useCallback en handlers, useMemo `panelBindings` por sesión, constantes de módulo para arrays vacíos/fijos), y los paneles usan memo con comparación shallow estándar.
+
+**Decisión 2 — react-virtuoso en lugar de react-window:**
+Los mensajes del Workspace tienen alturas extremadamente variables (1 línea hasta tablas Markdown de 23KB). react-window exige alturas conocidas o estimadas por item; react-virtuoso las mide automáticamente y trae `followOutput` (scroll pegado al fondo) e `initialTopMostItemIndex`, exactamente el patrón chat. Dependencia nueva: react-virtuoso@4.18.11 (MIT, sin dependencias transitivas).
+
+**Decisión 3 — HumanChatPanel sin virtualizar (solo memo + burbuja memoizada):**
+Los mensajes humanos son cortos; el costo dominante era el contenido de agentes. Virtualizar la estructura agrupada por día era más invasivo que el beneficio en esta ronda.
+
+**Referencia:** handoff-2026-07-b.md 2026-07-30, CodingWorkshop 2026-07-30.

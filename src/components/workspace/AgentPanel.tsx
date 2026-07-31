@@ -1,9 +1,10 @@
 'use client'
 
-import { Fragment, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { Fragment, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Copy, Check, FileText, Image as ImageIcon } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 import type { AgentSession, Message } from '@/lib/db/types'
 import type { ChatMessage, ChatAttachment } from '@/lib/providers/types'
 import PromptLibrary from './PromptLibrary'
@@ -91,6 +92,170 @@ function formatMessageTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
+// ── Markdown config (module-level: stable identity across renders) ──────────
+const REMARK_PLUGINS = [remarkGfm]
+
+const MARKDOWN_COMPONENTS: Components = {
+  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  ul: ({ children }) => <ul className="mb-2 list-disc pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-2 list-decimal pl-5">{children}</ol>,
+  li: ({ children }) => <li className="mb-1">{children}</li>,
+  table: ({ children }) => (
+    <div className="my-2 overflow-x-auto">
+      <table className="w-full border-collapse text-left text-[11px]">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-gray-50">{children}</thead>,
+  th: ({ children }) => (
+    <th className="border border-gray-300 px-2 py-1 font-semibold">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border border-gray-300 px-2 py-1">
+      {children}
+    </td>
+  ),
+  code: ({ children, className }) => {
+    const isInline = !className
+    return isInline ? (
+      <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] font-mono">
+        {children}
+      </code>
+    ) : (
+      <code className="block bg-gray-100 p-2 rounded text-[10px] font-mono overflow-x-auto my-2">
+        {children}
+      </code>
+    )
+  },
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 border-gray-300 pl-3 my-2 italic text-gray-700">
+      {children}
+    </blockquote>
+  ),
+}
+
+// Header/Footer spacers for the virtualized list (padding must not live on the
+// scroller element — Virtuoso measures scrollHeight there)
+const VIRTUOSO_SPACERS = {
+  Header: () => <div style={{ height: 8 }} />,
+  Footer: () => <div style={{ height: 8 }} />,
+}
+
+// ── Memoized message bubble ──────────────────────────────────────────────────
+// El Markdown de un mensaje histórico nunca cambia: React.memo garantiza que
+// se parsea/renderiza UNA sola vez, no en cada tecla ni en cada chunk de stream.
+interface MessageBubbleProps {
+  msg:           DisplayMessage
+  index:         number
+  isSelected:    boolean
+  copied:        boolean
+  showDayMarker: boolean
+  displayLabel:  string
+  onToggle:      (i: number) => void
+  onBubbleClick: (i: number) => void
+  onCopy:        (i: number, content: string) => void
+}
+
+const MessageBubble = memo(function MessageBubble({
+  msg, index, isSelected, copied, showDayMarker, displayLabel,
+  onToggle, onBubbleClick, onCopy,
+}: MessageBubbleProps) {
+  const isUser = msg.role === 'user'
+
+  return (
+    <div className="px-3 pb-3">
+      {showDayMarker && (
+        <div className="flex items-center gap-3 my-2">
+          <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
+          <span
+            className="text-[10px] font-semibold tracking-[0.1em] uppercase px-2 py-0.5 rounded-full border shrink-0"
+            style={{
+              color: 'var(--color-text-tertiary)',
+              borderColor: 'var(--color-border)',
+              background: 'var(--color-surface-muted)',
+            }}
+            suppressHydrationWarning
+          >
+            {formatDayMarker(new Date(msg.created_at!))}
+          </span>
+          <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
+        </div>
+      )}
+
+      <div className={`group flex items-start gap-2 ${isUser ? 'flex-row-reverse' : ''}`}>
+        {/* Selection toggle */}
+        <button
+          onClick={() => onToggle(index)}
+          className={`ui-message-select mt-0.5 shrink-0 transition-opacity ${
+            isSelected
+              ? 'ui-message-select-selected opacity-100'
+              : 'opacity-0 group-hover:opacity-100'
+          }`}
+          aria-label={isSelected ? 'Deselect message' : 'Select message'}
+        >
+          {isSelected && <span className="ui-message-select-tick">✓</span>}
+        </button>
+
+        {/* Bubble — clickable to select, text is selectable */}
+        <div
+          className={`relative max-w-[88%] cursor-pointer group/msg ${isUser ? 'order-1' : ''}`}
+          onClick={() => onBubbleClick(index)}
+        >
+          <div
+            className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-[0.14em]"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            <span>{isUser ? 'User' : displayLabel}</span>
+            {msg.created_at && (
+              <span suppressHydrationWarning>{formatMessageTime(msg.created_at)}</span>
+            )}
+          </div>
+          <div
+            className={`relative ui-message-bubble px-3 py-2 text-xs leading-5 ${
+              isUser ? 'ui-message-bubble-user' : ''
+            } ${isSelected ? 'ui-message-bubble-selected' : ''}`}
+          >
+            {/* Enterprise: copy button visibility configurable via workspace settings */}
+            <button
+              className="absolute top-1 right-1 p-0.5 rounded opacity-0 group-hover/msg:opacity-100 transition-opacity"
+              style={{ color: 'var(--color-text-muted)' }}
+              onClick={e => { e.stopPropagation(); onCopy(index, msg.content) }}
+              title="Copy message"
+            >
+              {copied
+                ? <Check size={12} />
+                : <Copy size={12} />
+              }
+            </button>
+            <div className="select-text pr-4 text-xs leading-relaxed">
+              <ReactMarkdown
+                remarkPlugins={REMARK_PLUGINS}
+                components={MARKDOWN_COMPONENTS}
+              >
+                {msg.content}
+              </ReactMarkdown>
+            </div>
+            {msg.attachments?.map((att, j) => (
+              <div key={j} className="mt-1.5 flex items-center gap-1.5 text-[10px] opacity-60 border border-current/20 rounded px-1.5 py-0.5 w-fit">
+                {att.type === 'image' ? <ImageIcon size={10} /> : <FileText size={10} />}
+                <span>{att.name || att.media_type || 'File attached'}</span>
+              </div>
+            ))}
+            {msg.attachments && msg.attachments.length > 0 && (
+              <div className="mt-1 text-[9px] opacity-50 italic">
+                File content is analyzed but not stored — only metadata and AI summary are kept (see Audit Log / Doc Mode).
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+})
+
 // ── Public interface ─────────────────────────────────────────────────────────
 export interface AgentPanelHandle {
   getLastAssistantMessage(): string | undefined
@@ -126,7 +291,10 @@ interface Props {
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
-const AgentPanel = forwardRef<AgentPanelHandle, Props>(
+// memo: el panel solo se re-renderiza cuando cambian SUS props (todas
+// estabilizadas en WorkspaceShell) — el estado de los paneles hermanos
+// (tipeo, streaming, selección) ya no propaga renders entre paneles.
+const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
   ({
     session, initialMessages, workspaceLocked, onSelectionChange,
     forwardTargets, onForward, onCreateHandoff, onSaveVersion, onOpenSaveSelection,
@@ -162,7 +330,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     )
     const [attachments, setAttachments] = useState<ChatAttachment[]>([])
     const [isDragging,  setIsDragging]  = useState(false)
-    const bottomRef    = useRef<HTMLDivElement>(null)
+    const virtuosoRef  = useRef<VirtuosoHandle>(null)
     const textareaRef  = useRef<HTMLTextAreaElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -170,22 +338,23 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     const hasSelection  = selectedCount > 0
 
     // ── Selection ────────────────────────────────────────────────────────────
-    function toggleSelection(i: number) {
+    // useCallback: identidad estable requerida por MessageBubble (React.memo)
+    const toggleSelection = useCallback((i: number) => {
       setSelectedIndices(prev => {
         const next = new Set(prev)
         if (next.has(i)) { next.delete(i) } else { next.add(i) }
         return next
       })
-    }
+    }, [])
 
     // Preserve native text selection: only toggle if user didn't select text
-    function handleMessageClick(i: number) {
+    const handleMessageClick = useCallback((i: number) => {
       const selection = window.getSelection()
       if (selection && selection.toString().length > 0) {
         return
       }
       toggleSelection(i)
-    }
+    }, [toggleSelection])
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { onSelectionChange(selectedIndices.size) }, [selectedIndices.size])
@@ -196,13 +365,6 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
         setInput(initialInput)
       }
     }, [initialInput])
-
-    // Scroll al final al montar — carga inicial de mensajes históricos
-    useEffect(() => {
-      if (initialMessages.length > 0) {
-        setTimeout(() => { bottomRef.current?.scrollIntoView({ behavior: 'instant' }) }, 100)
-      }
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Imperative handle ────────────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
@@ -260,11 +422,11 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       onSelectionChange(0)
     }
 
-    async function copyMessage(index: number, content: string) {
+    const copyMessage = useCallback(async (index: number, content: string) => {
       await navigator.clipboard.writeText(content)
       setCopiedIndex(index)
       setTimeout(() => setCopiedIndex(null), 1500)
-    }
+    }, [])
 
     async function handleRefreshSession() {
       setApiMessages([])
@@ -281,7 +443,9 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
     }
 
     function scrollToBottom() {
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      setTimeout(() => {
+        virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end', behavior: 'auto' })
+      }, 50)
     }
 
     function handleDragOver(e: React.DragEvent) {
@@ -567,14 +731,11 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
           </div>
         </div>
 
-        {/* ── SECTION 3: Viewport (messages) ────────────────────────────── */}
-        <div
-          className="ui-chat-viewport scrollbar-thin flex-1 overflow-y-auto px-3 py-2"
-          style={{ minHeight: 0 }}
-        >
-          {/* Empty state */}
-          {messages.length === 0 && !streaming && (
-            <div className="h-full flex items-center justify-center py-8">
+        {/* ── SECTION 3: Viewport (messages, virtualized) ───────────────── */}
+        <div className="ui-chat-viewport flex-1" style={{ minHeight: 0 }}>
+          {messages.length === 0 && !streaming ? (
+            /* Empty state */
+            <div className="h-full flex items-center justify-center px-3 py-8">
               <div className="ui-empty-state w-full max-w-xs">
                 <div className="ui-empty-state-title text-sm" style={{ color: role.accentColor }}>
                   {session.agent_role === 'manager' ? 'Define el objetivo' : 'Pide una tarea concreta'}
@@ -600,191 +761,83 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
                 </div>
               </div>
             </div>
-          )}
-
-          {/* Messages */}
-          <div className="flex flex-col gap-3">
-            {messages.map((msg, i) => {
-              const isSelected = selectedIndices.has(i)
-              const isUser     = msg.role === 'user'
-
-              const showDayMarker = !!msg.created_at && (
-                i === 0 ||
-                !messages[i - 1]?.created_at ||
-                new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at!).toDateString()
-              )
-
-              return (
-                <Fragment key={i}>
-                  {showDayMarker && (
-                    <div className="flex items-center gap-3 my-2">
-                      <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
-                      <span
-                        className="text-[10px] font-semibold tracking-[0.1em] uppercase px-2 py-0.5 rounded-full border shrink-0"
-                        style={{
-                          color: 'var(--color-text-tertiary)',
-                          borderColor: 'var(--color-border)',
-                          background: 'var(--color-surface-muted)',
-                        }}
-                        suppressHydrationWarning
-                      >
-                        {formatDayMarker(new Date(msg.created_at!))}
-                      </span>
-                      <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
-                    </div>
-                  )}
-
-                  <div className={`group flex items-start gap-2 ${isUser ? 'flex-row-reverse' : ''}`}>
-                    {/* Selection toggle */}
-                    <button
-                      onClick={() => toggleSelection(i)}
-                      className={`ui-message-select mt-0.5 shrink-0 transition-opacity ${
-                        isSelected
-                          ? 'ui-message-select-selected opacity-100'
-                          : 'opacity-0 group-hover:opacity-100'
-                      }`}
-                      aria-label={isSelected ? 'Deselect message' : 'Select message'}
-                    >
-                      {isSelected && <span className="ui-message-select-tick">✓</span>}
-                    </button>
-
-                    {/* Bubble — clickable to select, text is selectable */}
-                    <div
-                      className={`relative max-w-[88%] cursor-pointer group/msg ${isUser ? 'order-1' : ''}`}
-                      onClick={() => handleMessageClick(i)}
-                    >
-                      <div
-                        className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-[0.14em]"
-                        style={{ color: 'var(--color-text-muted)' }}
-                      >
-                        <span>{isUser ? 'User' : role.displayLabel}</span>
-                        {msg.created_at && (
-                          <span suppressHydrationWarning>{formatMessageTime(msg.created_at)}</span>
-                        )}
-                      </div>
-                      <div
-                        className={`relative ui-message-bubble px-3 py-2 text-xs leading-5 ${
-                          isUser ? 'ui-message-bubble-user' : ''
-                        } ${isSelected ? 'ui-message-bubble-selected' : ''}`}
-                      >
-                        {/* Enterprise: copy button visibility configurable via workspace settings */}
-                        <button
-                          className="absolute top-1 right-1 p-0.5 rounded opacity-0 group-hover/msg:opacity-100 transition-opacity"
-                          style={{ color: 'var(--color-text-muted)' }}
-                          onClick={e => { e.stopPropagation(); copyMessage(i, msg.content) }}
-                          title="Copy message"
-                        >
-                          {copiedIndex === i
-                            ? <Check size={12} />
-                            : <Copy size={12} />
-                          }
-                        </button>
-                        <div className="select-text pr-4 text-xs leading-relaxed">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                              em: ({ children }) => <em className="italic">{children}</em>,
-                              ul: ({ children }) => <ul className="mb-2 list-disc pl-5">{children}</ul>,
-                              ol: ({ children }) => <ol className="mb-2 list-decimal pl-5">{children}</ol>,
-                              li: ({ children }) => <li className="mb-1">{children}</li>,
-                              table: ({ children }) => (
-                                <div className="my-2 overflow-x-auto">
-                                  <table className="w-full border-collapse text-left text-[11px]">{children}</table>
-                                </div>
-                              ),
-                              thead: ({ children }) => <thead className="bg-gray-50">{children}</thead>,
-                              th: ({ children }) => (
-                                <th className="border border-gray-300 px-2 py-1 font-semibold">
-                                  {children}
-                                </th>
-                              ),
-                              td: ({ children }) => (
-                                <td className="border border-gray-300 px-2 py-1">
-                                  {children}
-                                </td>
-                              ),
-                              code: ({ children, className }) => {
-                                const isInline = !className
-                                return isInline ? (
-                                  <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] font-mono">
-                                    {children}
-                                  </code>
-                                ) : (
-                                  <code className="block bg-gray-100 p-2 rounded text-[10px] font-mono overflow-x-auto my-2">
-                                    {children}
-                                  </code>
-                                )
-                              },
-                              blockquote: ({ children }) => (
-                                <blockquote className="border-l-2 border-gray-300 pl-3 my-2 italic text-gray-700">
-                                  {children}
-                                </blockquote>
-                              ),
-                            }}
-                          >
-                            {msg.content}
-                          </ReactMarkdown>
+          ) : (
+            /* Virtualized list: only visible messages stay mounted in the DOM.
+               Selection state lives in React (selectedIndices), not in the DOM,
+               so Save Selection / Forward keep working for off-screen messages. */
+            <Virtuoso
+              ref={virtuosoRef}
+              className="scrollbar-thin"
+              style={{ height: '100%' }}
+              totalCount={messages.length + (streaming ? 1 : 0)}
+              followOutput="auto"
+              initialTopMostItemIndex={Math.max(0, messages.length - 1)}
+              increaseViewportBy={{ top: 600, bottom: 600 }}
+              components={VIRTUOSO_SPACERS}
+              itemContent={i => {
+                // Virtual extra item at the end while streaming
+                if (i >= messages.length) {
+                  return (
+                    <div className="px-3 pb-3 flex items-start gap-2">
+                      <div className="ui-message-select opacity-0 shrink-0 mt-0.5" aria-hidden="true" />
+                      <div className="max-w-[88%]">
+                        <div className="mb-1 text-[10px] uppercase tracking-[0.14em]"
+                          style={{ color: 'var(--color-text-muted)' }}>
+                          {role.displayLabel}
                         </div>
-                        {msg.attachments?.map((att, j) => (
-                          <div key={j} className="mt-1.5 flex items-center gap-1.5 text-[10px] opacity-60 border border-current/20 rounded px-1.5 py-0.5 w-fit">
-                            {att.type === 'image' ? <ImageIcon size={10} /> : <FileText size={10} />}
-                            <span>{att.name || att.media_type || 'File attached'}</span>
+                        <div className="ui-message-bubble px-3 py-2 text-xs leading-5">
+                          <div className="whitespace-pre-wrap">
+                            {streamingContent || (
+                              <span className="animate-pulse" style={{ color: 'var(--color-text-muted)' }}>▊</span>
+                            )}
+                            {streamingContent && (
+                              <span className="animate-pulse" style={{ color: 'var(--color-text-muted)' }}>▊</span>
+                            )}
                           </div>
-                        ))}
-                        {msg.attachments && msg.attachments.length > 0 && (
-                          <div className="mt-1 text-[9px] opacity-50 italic">
-                            File content is analyzed but not stored — only metadata and AI summary are kept (see Audit Log / Doc Mode).
-                          </div>
-                        )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Fragment>
-              )
-            })}
+                  )
+                }
 
-            {/* Streaming indicator */}
-            {streaming && (
-              <div className="flex items-start gap-2">
-                <div className="ui-message-select opacity-0 shrink-0 mt-0.5" aria-hidden="true" />
-                <div className="max-w-[88%]">
-                  <div className="mb-1 text-[10px] uppercase tracking-[0.14em]"
-                    style={{ color: 'var(--color-text-muted)' }}>
-                    {role.displayLabel}
-                  </div>
-                  <div className="ui-message-bubble px-3 py-2 text-xs leading-5">
-                    <div className="whitespace-pre-wrap">
-                      {streamingContent || (
-                        <span className="animate-pulse" style={{ color: 'var(--color-text-muted)' }}>▊</span>
-                      )}
-                      {streamingContent && (
-                        <span className="animate-pulse" style={{ color: 'var(--color-text-muted)' }}>▊</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+                const msg = messages[i]
+                const showDayMarker = !!msg.created_at && (
+                  i === 0 ||
+                  !messages[i - 1]?.created_at ||
+                  new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at!).toDateString()
+                )
 
-            {/* Error */}
-            {error && (
-              <div
-                className="rounded-lg px-3 py-2 text-xs border"
-                style={{
-                  background: 'var(--color-danger-soft)',
-                  borderColor: 'rgba(180,35,24,0.22)',
-                  color: 'var(--color-danger)',
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
+                return (
+                  <MessageBubble
+                    msg={msg}
+                    index={i}
+                    isSelected={selectedIndices.has(i)}
+                    copied={copiedIndex === i}
+                    showDayMarker={showDayMarker}
+                    displayLabel={role.displayLabel}
+                    onToggle={toggleSelection}
+                    onBubbleClick={handleMessageClick}
+                    onCopy={copyMessage}
+                  />
+                )
+              }}
+            />
+          )}
         </div>
+
+        {/* Error — fuera del área virtualizada, siempre visible */}
+        {error && (
+          <div
+            className="shrink-0 mx-3 mb-1.5 rounded-lg px-3 py-2 text-xs border"
+            style={{
+              background: 'var(--color-danger-soft)',
+              borderColor: 'rgba(180,35,24,0.22)',
+              color: 'var(--color-danger)',
+            }}
+          >
+            {error}
+          </div>
+        )}
 
         {/* ── SECTION 4: Composer ────────────────────────────────────────── */}
         <div
@@ -995,7 +1048,7 @@ const AgentPanel = forwardRef<AgentPanelHandle, Props>(
       </Fragment>
     )
   }
-)
+))
 
 AgentPanel.displayName = 'AgentPanel'
 export default AgentPanel

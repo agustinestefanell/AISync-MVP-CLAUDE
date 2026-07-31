@@ -2840,3 +2840,56 @@ Este fix resuelve el "acople operativo" detectado entre workspace y Documentatio
 
 ---
 
+## Sesión 2026-07-30 — Workspace performance: memoización + virtualización de mensajes
+
+**Fecha:** 2026-07-30
+**Estado:** Closed — commit directo a producción por decisión explícita del PO; validación visual bajo uso intensivo pendiente en producción
+
+**Problema resuelto:**
+Workspace BARRIO HIPICO / "$ PROPUESTA DE NEGOCIOS" (workspace_id 64df73d2-f417-4735-a80e-18cd25478962) progresivamente lento con el uso continuado — incluso el tipeo se sentía demorado. No se aliviaba con F5 ni con Refresh Session; independiente de Documentation Mode (2 hipótesis previas ya corregidas en efbdd35 y 44f0315 sin resolver el síntoma).
+
+**Diagnóstico multinivel (2 niveles coincidentes):**
+- Nivel 2 (código): en AgentPanel.tsx el input de texto y la lista completa de mensajes vivían en el MISMO componente sin ninguna memoización. Cada tecla (setInput) y cada chunk de streaming (setStreamingContent) re-renderizaba el panel entero → ReactMarkdown + remarkGfm re-parseaban TODOS los mensajes históricos desde cero.
+- Nivel 3 (datos, consulta directa a Supabase): 44 mensajes vivos totales (~242KB). Panel Manager: 26 mensajes / ~173KB, promedio ~6.8KB por mensaje, máximo 23KB (documentos con tablas Markdown). Benchmark con el contenido real: ~395ms de CPU de parsing Markdown POR TECLA.
+- Coherencia con síntomas: F5 no alivia porque page.tsx recarga el historial completo desde DB (costo se reconstruye idéntico); Refresh Session no alivia porque solo limpia apiMessages (contexto IA), la lista visible queda intacta.
+- Descartados con evidencia: setInterval (no hay en Workspace), TokenUsageBadge (solo fetch al montar/abrir modal), leaks de listeners, canal Realtime (no se monta en teams de 3 paneles).
+
+**Decisión técnica y por qué (3 capas):**
+1. MessageBubble / HumanMessageBubble extraídos como componentes React.memo con config Markdown a nivel módulo — el Markdown de un mensaje histórico nunca cambia: se parsea UNA vez, no en cada tecla ni chunk.
+2. React.memo a nivel panel (AgentPanel + HumanChatPanel) + estabilización de TODAS las props en WorkspaceShell: useCallback en todos los handlers, useMemo panelBindings por sesión (setRef, onSelectionChange, onForward, onCreateHandoff, getOtherPanelsSnapshot, forwardTargets), constantes de módulo EMPTY_MESSAGES / EMPTY_HUMAN_MESSAGES / HUMAN_FORWARD_TARGETS. El tipeo/streaming/selección de un panel ya no propaga renders a los hermanos.
+3. Virtualización del viewport de AgentPanel con react-virtuoso@4.18.11 — solo mensajes visibles + overscan 600px montados en DOM; streaming como item virtual extra al final; scroll vía scrollToIndex('LAST') + followOutput="auto" + initialTopMostItemIndex; error movido fuera del área virtualizada (siempre visible).
+
+**Alternativas descartadas y por qué:**
+- Comparador custom en React.memo que ignore identidad de funciones: riesgo de closures congeladas (bug sutil); más seguro estabilizar las props reales.
+- react-window: exige alturas conocidas/estimadas por item — inviable con mensajes que van de 1 línea a tablas de 23KB. react-virtuoso mide alturas automáticamente y trae followOutput para chat.
+- Virtualizar también HumanChatPanel: descartado en esta ronda — mensajes humanos cortos (el costo dominante es contenido de agentes); se aplicó solo memo + burbuja memoizada.
+- Paginación/límite de carga inicial de mensajes: fuera de alcance — cambiaría la semántica de getAllMessages/checkpoints/snapshots.
+
+**Métricas (benchmark Node + renderToStaticMarkup con contenido real del panel Manager):**
+- Trabajo de Markdown por tecla: ~395ms → ~0ms
+- Trabajo de Markdown por chunk de stream: ~395ms → ~0ms
+- Mount inicial: ~395ms → ~65ms (ventana visible ~8 mensajes)
+- Nodos-mensaje montados en DOM: 26 (todos) → ~8-12 (visibles + overscan)
+
+**Archivos modificados:**
+- src/components/workspace/AgentPanel.tsx — MessageBubble memo, MARKDOWN_COMPONENTS/REMARK_PLUGINS/VIRTUOSO_SPACERS módulo, Virtuoso en viewport, memo(forwardRef), useCallback en toggleSelection/handleMessageClick/copyMessage, scrollToBottom→scrollToIndex
+- src/components/workspace/WorkspaceShell.tsx — useCallback en todos los handlers pasados a paneles, panelBindings useMemo, PanelBinding/PanelSnapshot interfaces, constantes módulo
+- src/components/workspace/HumanChatPanel.tsx — HumanMessageBubble memo, config Markdown módulo, memo(panel), toggleSelection useCallback
+- package.json / package-lock.json — +react-virtuoso@4.18.11
+
+**Riesgos conocidos / deuda técnica:**
+- Selección nativa de texto (arrastrar el mouse) limitada a los mensajes renderizados en la ventana visible — tradeoff inherente a la virtualización. La selección por checkbox, Save Selection, Review & Forward y getAllMessages NO están afectadas (estado React, no DOM).
+- Comportamiento de scroll (apertura en último mensaje, followOutput durante streaming, carga hacia arriba sin saltos) validado solo por build — requiere validación visual del PO en producción bajo uso intensivo.
+- apiMessages sigue creciendo sin límite y se envía completo en cada /api/chat (costo tokens/red creciente) — fuera de alcance de esta OE, candidata a OE futura.
+- Push directo a producción sin validación en localhost — decisión explícita del PO (plataforma pre-lanzamiento).
+
+**Validaciones técnicas:**
+- npm run lint: ✅ OK (solo warnings pre-existentes de CanvasViewport)
+- npm run build: ✅ Exitoso (/workspace/[id] 38.8 kB First Load, +react-virtuoso)
+- Save Selection / Forward con virtualización: verificado seguro por diseño (selección en estado React, no en DOM)
+
+**Lección técnica:**
+Estado de input de alta frecuencia (tipeo, streaming) nunca debe convivir en el mismo componente que una lista de contenido caro de renderizar sin memoización — el costo se paga completo por evento. Ver CodingWorkshop 2026-07-30.
+
+---
+

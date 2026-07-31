@@ -1637,3 +1637,21 @@ N/A (hallazgo metodológico)
 
 
 ---
+
+## 2026-07-30 — Estado de input de alta frecuencia junto a lista de render caro: 395ms de CPU por tecla
+
+**Síntoma:** Workspace progresivamente lento con el uso; el tipeo se sentía demorado. No se aliviaba con F5 ni Refresh Session — descartaba leaks y apuntaba a costo proporcional al contenido acumulado.
+
+**Causa raíz:** En AgentPanel.tsx, el estado del input (`setInput` en cada tecla) y la lista completa de mensajes vivían en el MISMO componente sin memoización. Cada tecla re-renderizaba el panel entero, y `messages.map()` re-ejecutaba ReactMarkdown + remarkGfm sobre TODOS los mensajes históricos. Con 26 mensajes / 173KB de Markdown denso (tablas): ~395ms de CPU por tecla, medidos con el contenido real. Lo mismo ocurría con cada chunk de streaming (`setStreamingContent`).
+
+**Por qué no se detectó antes:** El costo crece silenciosamente con el contenido — con conversaciones cortas es imperceptible. El Markdown rendering se agregó el 2026-07-11 y funcionó bien hasta que un workspace acumuló mensajes largos con tablas.
+
+**Lecciones:**
+1. Estado de alta frecuencia (tipeo, streaming) NUNCA debe convivir en el mismo componente que una lista de contenido caro sin memoizar — el costo total de la lista se paga por CADA evento.
+2. ReactMarkdown es parsing real (remark/micromark), no un render barato: memoizar cada mensaje como componente `React.memo` propio, con la config de `components` y `remarkPlugins` a nivel módulo (un objeto/array inline en JSX rompe la memoización).
+3. `React.memo` a nivel panel es inútil si el padre pasa flechas inline o arrays literales (`?? []` incluido) — primero estabilizar las props (useCallback/useMemo/constantes de módulo), después memoizar.
+4. Un comparador custom de memo que ignora funciones parece atajo pero congela closures — estabilizar las props reales es lo correcto.
+5. Síntoma que persiste tras F5 = costo proporcional a datos persistidos, no leak de sesión. Ese solo dato descarta media lista de hipótesis.
+6. Benchmark con el contenido REAL del usuario (fetch de DB + renderToStaticMarkup en Node) convierte "debería estar mejor" en "395ms → ~0ms por tecla" — evidencia antes del deploy.
+
+**Referencia:** handoff-2026-07-b.md 2026-07-30, DECISIONS.md 2026-07-30.

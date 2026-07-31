@@ -24,12 +24,34 @@ const PURPOSES = [
 ] as const
 
 
+// Referencias estables a nivel módulo — evitan crear arrays nuevos por render
+// (un `?? []` inline rompe la comparación shallow de React.memo en los paneles)
+const EMPTY_MESSAGES: Message[] = []
+const EMPTY_HUMAN_MESSAGES: HumanMessage[] = []
+const HUMAN_FORWARD_TARGETS = [{ role: 'manager', label: 'Manager' }]
+
 interface ConnectionContext {
   connectionId:   string
   isHost:         boolean
   otherUserEmail: string
   otherUserName?: string
   status:         string
+}
+
+interface PanelSnapshot {
+  role:         string
+  panel:        string
+  lastMessages: { role: 'user' | 'assistant'; content: string }[]
+}
+
+// Callbacks y arrays por sesión con identidad estable (ver panelBindings)
+interface PanelBinding {
+  setRef:                 (el: AgentPanelHandle | null) => void
+  onSelectionChange:      (count: number) => void
+  onForward:              (messages: ChatMessage[], targetRole: string) => void
+  onCreateHandoff:        () => void
+  getOtherPanelsSnapshot: () => PanelSnapshot[]
+  forwardTargets:         { role: string; label: string }[]
 }
 
 interface Props {
@@ -44,7 +66,7 @@ interface Props {
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-export default function WorkspaceShell({ workspace, initialMessages, initialCheckpointId, prefillMessage, connectionContext, initialHumanMessages = [], currentUserId = '' }: Props) {
+export default function WorkspaceShell({ workspace, initialMessages, initialCheckpointId, prefillMessage, connectionContext, initialHumanMessages = EMPTY_HUMAN_MESSAGES, currentUserId = '' }: Props) {
   const isConnectedWorkspace = !!connectionContext
   const [lockState, setLockState]       = useState(workspace.lock_state)
   const [_lockLoading, setLockLoading]  = useState(false)
@@ -118,7 +140,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
 
 
   // ── Create Handoff Package ────────────────────────────────────────────────
-  async function handleCreateHandoff(sessionId: string, agentRole: string) {
+  const handleCreateHandoff = useCallback(async (sessionId: string, agentRole: string) => {
     const panel = panelRefs.current[sessionId]
     if (!panel) {
       console.error('[WorkspaceShell] Panel ref not found for session', sessionId)
@@ -170,7 +192,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     } catch (err) {
       console.error('[WorkspaceShell] Error creating handoff package:', err)
     }
-  }
+  }, [workspace.id])
 
   // ── Lock / Unlock ─────────────────────────────────────────────────────────
   async function _handleLockToggle() {
@@ -186,14 +208,19 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   }
 
   // ── Contador reactivo de selección ──────────────────────────────────────
-  function handleSelectionChange(sessionId: string, count: number) {
+  const handleSelectionChange = useCallback((sessionId: string, count: number) => {
     selectionCounts.current[sessionId] = count
     // Exclude 'human-chat' from total for global bar (human chat has its own controls)
     const total = Object.entries(selectionCounts.current)
       .filter(([id]) => id !== 'human-chat')
       .reduce((sum, [, count]) => sum + count, 0)
     setTotalSelected(total)
-  }
+  }, [])
+
+  const handleHumanSelectionChange = useCallback(
+    (count: number) => handleSelectionChange('human-chat', count),
+    [handleSelectionChange]
+  )
 
   function _clearAllSelections() {
     for (const session of workspace.agent_sessions) {
@@ -203,7 +230,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   }
 
   // ── Panel-level Review & Forward ─────────────────────────────────────────
-  async function handlePanelForward(fromSession: AgentSession, messages: ChatMessage[], targetRole: string) {
+  const handlePanelForward = useCallback(async (fromSession: AgentSession, messages: ChatMessage[], targetRole: string) => {
     // Special case: forward to human chat in isolated teams
     if (targetRole === 'human_chat' && connectionContext) {
       const label = AGENT_LABEL[fromSession.agent_role] ?? fromSession.agent_role
@@ -283,10 +310,10 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
         metadata:     { from: fromSession.agent_role, to: targetRole },
       }),
     }).catch(console.error)
-  }
+  }, [connectionContext, workspace.agent_sessions, workspace.id])
 
   // ── Human chat Review & Forward ──────────────────────────────────────────
-  function handleHumanForward(messages: HumanMessage[], targetRole: string) {
+  const handleHumanForward = useCallback((messages: HumanMessage[], targetRole: string) => {
     const targetSession = workspace.agent_sessions.find(s => s.agent_role === targetRole)
     if (!targetSession) return
     const targetRef = panelRefs.current[targetSession.id]
@@ -316,16 +343,16 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
         },
       }),
     }).catch(console.error)
-  }
+  }, [workspace.agent_sessions, workspace.id, currentUserId, connectionContext])
 
   // ── Save Version → abre modal con nombre y propósito ─────────────────────
-  function openSaveModal() {
+  const openSaveModal = useCallback(() => {
     setSaveName('')
     setSavePurpose(PURPOSES[0])
     setNameError(false)
     setSaveModalError(null)
     setShowSaveModal(true)
-  }
+  }, [])
 
   function closeSaveModal() {
     setShowSaveModal(false)
@@ -334,7 +361,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   }
 
   // ── Save Selection ────────────────────────────────────────────────────────
-  const openSaveSelectionModal = () => {
+  const openSaveSelectionModal = useCallback(() => {
     const allMessages: ChatMessage[] = []
 
     // Collect selected messages from agent panels only
@@ -373,7 +400,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     setPendingSelectionMessages(allMessages)
     setSaveSelectionName('')
     setShowSaveSelectionModal(true)
-  }
+  }, [workspace.agent_sessions, isConnectedWorkspace, connectionContext, currentUserId])
 
   const handleSaveSelection = async () => {
     if (!saveSelectionName.trim() || pendingSelectionMessages.length === 0) return
@@ -536,6 +563,42 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     })
   }
 
+  // ── Bindings estables por sesión ──────────────────────────────────────────
+  // Callbacks y arrays con identidad estable entre renders: requisito para que
+  // React.memo en AgentPanel pueda saltear re-renders cuando cambia el estado
+  // de un panel hermano (tipeo, streaming, selección) o del shell (modales).
+  const panelBindings = useMemo(() => {
+    const map: Record<string, PanelBinding> = {}
+    for (const session of workspace.agent_sessions) {
+      const isIsolatedManagerConnected =
+        isConnectedWorkspace &&
+        session.agent_role === 'manager' &&
+        workspace.teams?.type === 'isolated'
+
+      if (isIsolatedManagerConnected && !connectionContext) {
+        console.warn('[WorkspaceShell] Missing connectionContext/otherUserEmail for isolated forward target')
+      }
+
+      const forwardTargets = isIsolatedManagerConnected
+        ? (connectionContext
+            ? [{ role: 'human_chat', label: connectionContext.otherUserEmail }]
+            : []) // No targets available in anomalous case
+        : workspace.agent_sessions
+            .filter(s => s.id !== session.id)
+            .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
+
+      map[session.id] = {
+        setRef:                 el => { panelRefs.current[session.id] = el },
+        onSelectionChange:      count => handleSelectionChange(session.id, count),
+        onForward:              (messages, targetRole) => handlePanelForward(session, messages, targetRole),
+        onCreateHandoff:        () => handleCreateHandoff(session.id, session.agent_role),
+        getOtherPanelsSnapshot: () => buildOtherPanelsSnapshot(session.id),
+        forwardTargets,
+      }
+    }
+    return map
+  }, [workspace.agent_sessions, workspace.teams?.type, isConnectedWorkspace, connectionContext, handleSelectionChange, handlePanelForward, handleCreateHandoff, buildOtherPanelsSnapshot])
+
   const locked = lockState === 'locked'
 
   return (
@@ -559,10 +622,10 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
               otherUserEmail={connectionContext.otherUserEmail}
               otherUserName={connectionContext.otherUserName}
               initialMessages={initialHumanMessages}
-              onSelectionChange={count => handleSelectionChange('human-chat', count)}
+              onSelectionChange={handleHumanSelectionChange}
               onSaveVersion={openSaveModal}
               onOpenSaveSelection={openSaveSelectionModal}
-              forwardTargets={[{ role: 'manager', label: 'Manager' }]}
+              forwardTargets={HUMAN_FORWARD_TARGETS}
               onForward={handleHumanForward}
               workspaceLocked={locked}
               connectionStatus={connectionContext.status}
@@ -572,32 +635,20 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
             {managerSession && (
               <AgentPanel
                 key={managerSession.id}
-                ref={el => { panelRefs.current[managerSession.id] = el }}
+                ref={panelBindings[managerSession.id].setRef}
                 session={managerSession}
-                initialMessages={initialMessages[managerSession.id] ?? []}
+                initialMessages={initialMessages[managerSession.id] ?? EMPTY_MESSAGES}
                 workspaceLocked={locked}
-                onSelectionChange={count => handleSelectionChange(managerSession.id, count)}
-                forwardTargets={
-                  // In isolated teams, Manager can only forward to the connected human user
-                  workspace.teams?.type === 'isolated'
-                    ? connectionContext
-                      ? [{ role: 'human_chat', label: connectionContext.otherUserEmail }]
-                      : (() => {
-                          console.warn('[WorkspaceShell] Missing connectionContext/otherUserEmail for isolated forward target')
-                          return [] // No targets available in anomalous case
-                        })()
-                    : workspace.agent_sessions
-                        .filter(s => s.id !== managerSession.id)
-                        .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
-                }
-                onForward={(messages, targetRole) => handlePanelForward(managerSession, messages, targetRole)}
-                onCreateHandoff={() => handleCreateHandoff(managerSession.id, managerSession.agent_role)}
+                onSelectionChange={panelBindings[managerSession.id].onSelectionChange}
+                forwardTargets={panelBindings[managerSession.id].forwardTargets}
+                onForward={panelBindings[managerSession.id].onForward}
+                onCreateHandoff={panelBindings[managerSession.id].onCreateHandoff}
                 onSaveVersion={openSaveModal}
                 onOpenSaveSelection={openSaveSelectionModal}
                 teamId={workspace.team_id}
                 projectId={workspace.teams?.project_id ?? undefined}
                 teamType={teamType}
-                getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(managerSession.id)}
+                getOtherPanelsSnapshot={panelBindings[managerSession.id].getOtherPanelsSnapshot}
                 initialInput={prefillMessage}
               />
             )}
@@ -606,23 +657,20 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           workspace.agent_sessions.map(session => (
             <AgentPanel
               key={session.id}
-              ref={el => { panelRefs.current[session.id] = el }}
+              ref={panelBindings[session.id].setRef}
               session={session}
-              initialMessages={initialMessages[session.id] ?? []}
+              initialMessages={initialMessages[session.id] ?? EMPTY_MESSAGES}
               workspaceLocked={locked}
-              onSelectionChange={count => handleSelectionChange(session.id, count)}
-              forwardTargets={workspace.agent_sessions
-                .filter(s => s.id !== session.id)
-                .map(s => ({ role: s.agent_role, label: AGENT_LABEL[s.agent_role] ?? s.agent_role }))
-              }
-              onForward={(messages, targetRole) => handlePanelForward(session, messages, targetRole)}
-              onCreateHandoff={() => handleCreateHandoff(session.id, session.agent_role)}
+              onSelectionChange={panelBindings[session.id].onSelectionChange}
+              forwardTargets={panelBindings[session.id].forwardTargets}
+              onForward={panelBindings[session.id].onForward}
+              onCreateHandoff={panelBindings[session.id].onCreateHandoff}
               onSaveVersion={openSaveModal}
               onOpenSaveSelection={openSaveSelectionModal}
               teamId={workspace.team_id}
               projectId={workspace.teams?.project_id ?? undefined}
               teamType={teamType}
-              getOtherPanelsSnapshot={() => buildOtherPanelsSnapshot(session.id)}
+              getOtherPanelsSnapshot={panelBindings[session.id].getOtherPanelsSnapshot}
               initialInput={session.agent_role === 'manager' ? prefillMessage : undefined}
             />
           ))
