@@ -89,6 +89,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const [pendingSelectionMessages, setPendingSelectionMessages] = useState<ChatMessage[]>([])
   const [savingSelection, setSavingSelection]                   = useState(false)
   const [saveSelectionError, setSaveSelectionError]             = useState<string | null>(null)
+  const [exportingFormat, setExportingFormat]                   = useState<'excel' | 'word' | null>(null)
 
   const panelRefs       = useRef<Record<string, AgentPanelHandle | null>>({})
   const humanChatRef    = useRef<HumanChatPanelHandle | null>(null)
@@ -447,6 +448,51 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     }
   }
 
+  // ── Export selection as Excel / Word ─────────────────────────────────────
+  // No guarda en DB ni limpia la selección: el usuario puede exportar en ambos
+  // formatos y/o hacer Save Selection después, desde el mismo modal.
+  const handleExportSelection = async (format: 'excel' | 'word') => {
+    if (pendingSelectionMessages.length === 0 || exportingFormat) return
+    setExportingFormat(format)
+    setSaveSelectionError(null)
+    try {
+      const res = await fetch(`/api/export/${format}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name:     saveSelectionName.trim() || undefined,
+          messages: pendingSelectionMessages,
+        }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setSaveSelectionError(body?.error ?? `Export failed (${res.status})`)
+        return
+      }
+
+      // Descarga estándar del navegador: blob + link temporal
+      const blob = await res.blob()
+      const disposition = res.headers.get('Content-Disposition') ?? ''
+      const filenameMatch = disposition.match(/filename="([^"]+)"/)
+      const fallbackExt = format === 'excel' ? 'xlsx' : 'docx'
+      const filename = filenameMatch?.[1] ?? `selection.${fallbackExt}`
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      setSaveSelectionError('Network error — export failed, try again.')
+    } finally {
+      setExportingFormat(null)
+    }
+  }
+
   async function confirmSave() {
     if (!saveName.trim()) {
       setNameError(true)
@@ -744,17 +790,36 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                 {saveSelectionError}
               </p>
             )}
+
+            {/* Export to file — no guarda en el repositorio, solo descarga */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleExportSelection('excel')}
+                disabled={savingSelection || exportingFormat !== null}
+                className="flex-1 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                {exportingFormat === 'excel' ? 'Generating…' : 'Save as Excel'}
+              </button>
+              <button
+                onClick={() => handleExportSelection('word')}
+                disabled={savingSelection || exportingFormat !== null}
+                className="flex-1 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                {exportingFormat === 'word' ? 'Generating…' : 'Save as Word'}
+              </button>
+            </div>
+
             <div className="flex gap-3 pt-1">
               <button
                 onClick={handleSaveSelection}
-                disabled={!saveSelectionName.trim() || savingSelection}
+                disabled={!saveSelectionName.trim() || savingSelection || exportingFormat !== null}
                 className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
               >
                 {savingSelection ? 'Saving...' : 'Save Selection(s)'}
               </button>
               <button
                 onClick={() => setShowSaveSelectionModal(false)}
-                disabled={savingSelection}
+                disabled={savingSelection || exportingFormat !== null}
                 className="px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 text-sm rounded-lg transition-colors disabled:opacity-50"
               >
                 Cancel

@@ -184,3 +184,15 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Resolución aplicada:** Migración `027_active_project.sql` — `accounts.active_project_id` (FK `ON DELETE SET NULL`) + RPC `set_active_project` SECURITY DEFINER con ownership check (`projects.account_id = auth.uid()` + `status = 'active'`), REVOKE de PUBLIC. `getActiveProjectId()` lee la selección persistida validándola y cae al primer proyecto activo (deployable pre-migración: el select de la columna inexistente falla silencioso al fallback). `active-workspace` consume el helper — muere la lógica duplicada. Route `GET/PATCH /api/projects/active`. Dashboard: badge real + botón "Set active". Teams Map: dropdown de proyecto en el ribbon operativo.
 - **Interacción con SEC-002:** la lectura de `accounts.active_project_id` con cliente de usuario es exactamente el SELECT que SEC-002 sospecha roto por recursión RLS. **La prueba post-migración del switch duplica como verificación de SEC-002:** si el switch nunca persiste (siempre vuelve al primer proyecto), la recursión está confirmada y el fix de SEC-002 (función `is_admin()` security definer en la política) pasa a bloquear esta feature.
 - **Estado:** CLOSED (repo) — commit `feat: add active project switching with persistent selection` (2026-06-12). Aplicación manual de la 027 pendiente.
+
+### DEP-001 🟡 CLOSED — xlsx de npm con 2 vulnerabilidades altas sin fix en el registro
+
+- **Severidad:** 🟡 Medium (mitigada antes de llegar a producción)
+- **Fecha:** 2026-07-30
+- **Área:** Dependencies / Supply Chain / Export
+- **Detectado en:** npm audit al instalar xlsx para la feature Save as Excel (Fase 1 de export)
+- **Descripción:** `xlsx@0.18.5` (última versión publicada en npm) tiene 2 advisories altos sin fix disponible en el registro: Prototype Pollution (GHSA-4r6h-8v6p-xvw6) y ReDoS (GHSA-5pgg-2g8v-p4x9). SheetJS abandonó npm como canal de distribución — las versiones corregidas solo se publican en su registro propio (cdn.sheetjs.com).
+- **Impacto potencial:** Los advisories afectan principalmente el PARSEO de archivos no confiables. AISync solo GENERA archivos desde JSON propio (no parsea spreadsheets subidos), por lo que la superficie real era baja — pero 11 findings high en npm audit permanentes son ruido que enmascara alertas futuras.
+- **Resolución aplicada:** Instalación desde el tarball oficial de SheetJS: `npm install https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`. `package.json` referencia la URL del CDN. npm audit quedó limpio de xlsx. Aprobado explícitamente por el PO (2026-07-30).
+- **Deuda residual:** El lockfile depende de una URL externa (cdn.sheetjs.com) para builds — si SheetJS retomara la publicación en npm con fix, migrar de vuelta al registro estándar.
+- **Estado:** CLOSED — mismo commit de la feature (feat: add Save as Excel and Save as Word export from Save Selection).

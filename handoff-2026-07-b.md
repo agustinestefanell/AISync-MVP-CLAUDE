@@ -2931,3 +2931,52 @@ Estado de input de alta frecuencia (tipeo, streaming) nunca debe convivir en el 
 
 ---
 
+## Sesión 2026-07-30 — Fase 1: Save as Excel / Save as Word desde Save Selection
+
+**Fecha:** 2026-07-30
+**Estado:** Closed — validación PO en producción pendiente (abrir archivos reales en Excel/Word)
+
+**Feature:**
+2 botones nuevos en el modal de Save Selection: "Save as Excel" y "Save as Word". Exportan los mensajes seleccionados a archivos .xlsx/.docx descargables. Decisión de producto: botones explícitos en vez de menú contextual con detección de tipo (descartado por complejidad y casos borde de contenido mixto).
+
+**Arquitectura:**
+- Server-side vía endpoints nuevos `POST /api/export/excel` y `POST /api/export/word` (auth de sesión, sin escritura en DB) — las librerías no entran al bundle del cliente (0 B client-side, verificado en build).
+- Cliente: fetch → blob → link temporal de descarga (patrón estándar). Los botones NO guardan en el repositorio ni limpian la selección — el usuario puede exportar ambos formatos y/o hacer Save Selection normal desde el mismo modal.
+- Nombre de archivo: del input del modal (sanitizado, preserva acentos/ñ) o `selection-YYYY-MM-DD` por defecto.
+
+**Excel (sin fallback — parser completo implementado):**
+- Hoja "Messages": una fila por mensaje (#, Agent, Content limpio).
+- Cada tabla Markdown detectada (header + separador |---|) se extrae a hoja propia "Table N" con filas/columnas reales; en el mensaje queda la referencia `[Table N — see sheet "Table N"]`.
+- Probado con contenido real: el mensaje más largo del Manager de BARRIO HIPICO contiene 10 tablas — las 10 extraídas y verificadas releyendo el archivo generado (headers "Concepto"/"Monto", etc.).
+
+**Word:**
+- Por mensaje: etiqueta del emisor (bold, caps), headings #/## como HeadingLevel, listas como bullets, **negrita** inline real, tablas Markdown como tablas reales de Word (header bold). Fidelidad básica deliberada según directiva.
+
+**Decisiones técnicas y por qué:**
+1. **xlsx instalado desde CDN oficial de SheetJS (v0.20.3), NO desde npm:** xlsx@0.18.5 de npm tiene 2 vulnerabilidades altas conocidas (Prototype Pollution GHSA-4r6h-8v6p-xvw6 + ReDoS GHSA-5pgg-2g8v-p4x9) SIN fix publicado en npm — SheetJS solo publica versiones corregidas en su registro propio (cdn.sheetjs.com). `package.json` referencia el tarball del CDN. npm audit quedó limpio de xlsx. Aprobado explícitamente por el PO. Registrado en AUDIT_REPORT (DEP-001).
+2. **Helper nuevo `src/lib/export/markdown.ts` en vez de reusar stripMarkdown():** la función existente está diseñada para previews de cards — trunca a 200 chars, colapsa saltos de línea y reemplaza filas de tabla por "[table row]". Usarla habría corrompido los exports. El helper nuevo aplica la misma limpieza inline SIN truncar, preserva estructura de líneas, y agrega `splitMarkdownBlocks()` (parser de tablas), `exportMessageLabel()` y `sanitizeFilename()`.
+3. **docx@9.7.1** para Word — API declarativa (Document/Paragraph/TextRun/Table), server-side sin fricción.
+
+**Alternativas descartadas:**
+- Menú contextual con detección automática de tipo: decisión de producto previa (complejidad, contenido mixto).
+- Generación client-side: cargaría xlsx+docx en el bundle del browser; server-side más simple de mantener.
+- Fallback "todo como texto en una columna" para tablas: no hizo falta — el parser completo entró en el tiempo disponible.
+- Tablas inline en la hoja Messages: hojas separadas son más limpias y utilizables (ordenar/filtrar).
+
+**Archivos:**
+- src/lib/export/markdown.ts (nuevo) — splitMarkdownBlocks, stripInlineMarkdown, stripBlockMarkdownKeepLines, exportMessageLabel, sanitizeFilename
+- src/app/api/export/excel/route.ts (nuevo)
+- src/app/api/export/word/route.ts (nuevo)
+- src/components/workspace/WorkspaceShell.tsx — handleExportSelection + 2 botones + estado exportingFormat (sin tocar reset de selección ni sticky de hoy)
+- package.json / package-lock.json — xlsx@0.20.3 (SheetJS CDN tarball) + docx@9.7.1
+
+**Riesgos conocidos / deuda técnica:**
+- xlsx referenciado como tarball de CDN externo: el build de Vercel debe poder descargarlo (estándar npm, pero es una URL externa en el lockfile). Si SheetJS publicara fix en npm, migrar de vuelta.
+- Parser de tablas: cubre tablas GFM bien formadas (header + |---|); tablas malformadas quedan como texto plano (comportamiento deliberado, no rompe el export).
+- Sin rate limiting específico en los endpoints de export (auth de sesión solamente) — el costo de cómputo es bajo y el contenido viene del propio cliente; evaluar si se abre a payloads grandes.
+- Endpoints no validan ownership de workspace (no reciben workspace_id — el contenido viaja del cliente y vuelve al mismo cliente como archivo; no hay lectura de DB).
+
+**Validaciones técnicas:** lint ✅, build ✅ (endpoints 0 B client bundle), test funcional con datos reales de Supabase ✅ (XLSX 55KB con 12 hojas verificado releyéndolo; DOCX 17KB; magic bytes ZIP OK en ambos). Fix de compilación: flag regex 'u' literal no soportado por el target TS — RegExp constructor.
+
+---
+

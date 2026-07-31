@@ -1107,3 +1107,21 @@ Los mensajes del Workspace tienen alturas extremadamente variables (1 línea has
 Los mensajes humanos son cortos; el costo dominante era el contenido de agentes. Virtualizar la estructura agrupada por día era más invasivo que el beneficio en esta ronda.
 
 **Referencia:** handoff-2026-07-b.md 2026-07-30, CodingWorkshop 2026-07-30.
+
+## 2026-07-30 — Export Fase 1: server-side, xlsx desde CDN de SheetJS, helper de Markdown propio
+
+**Contexto:** Feature "Save as Excel / Save as Word" desde el modal de Save Selection (botones explícitos — el menú contextual con detección automática de tipo fue descartado por decisión de producto previa).
+
+**Decisión 1 — Generación server-side (endpoints /api/export/excel y /api/export/word):**
+Las librerías xlsx y docx viven solo en el servidor (0 B en el bundle cliente, verificado en build). Client-side habría sumado ambas librerías al bundle del browser para una acción esporádica. Los endpoints requieren sesión y no escriben en DB — reciben los mensajes del cliente y devuelven el archivo.
+
+**Decisión 2 — xlsx@0.20.3 desde el CDN oficial de SheetJS, no desde npm:**
+xlsx@0.18.5 (npm) tiene 2 vulnerabilidades altas sin fix en el registro; SheetJS solo publica versiones corregidas en cdn.sheetjs.com. Aprobado por el PO. Ver AUDIT_REPORT DEP-001. Deuda residual: URL externa en el lockfile.
+
+**Decisión 3 — Helper nuevo src/lib/export/markdown.ts en vez de reusar stripMarkdown():**
+stripMarkdown() está diseñada para previews (trunca a 200 chars, colapsa newlines, reemplaza tablas por "[table row]") — usarla habría corrompido los exports. El helper de export limpia sin truncar, preserva líneas y parsea tablas GFM a filas/columnas reales. Las dos funciones coexisten con propósitos distintos — no unificar sin revisar ambos consumidores.
+
+**Decisión 4 — Tablas Markdown como hojas separadas en Excel ("Table N"):**
+Más limpias y utilizables (ordenar/filtrar) que incrustadas inline en la hoja de mensajes; el mensaje conserva la referencia [Table N — see sheet "Table N"]. El parser completo entró en el tiempo disponible — el fallback "todo texto en una columna" contemplado en la directiva no fue necesario.
+
+**Referencia:** handoff-2026-07-b.md 2026-07-30, AUDIT_REPORT DEP-001.

@@ -99,6 +99,8 @@ The product owner has determined that workflows requiring more than 2 Workers pe
 | Fuentes | IBM Plex Sans (UI) + JetBrains Mono (código) — cargadas en `layout.tsx` |
 | Auth | Supabase Auth — middleware en `src/middleware.ts` |
 | Virtualización de listas | `react-virtuoso@4.18.11` — viewport de mensajes en AgentPanel (2026-07-30) |
+| Export a Excel | `xlsx@0.20.3` — **instalado desde el CDN oficial de SheetJS** (`cdn.sheetjs.com`), NO desde npm: la versión de npm (0.18.5) tiene 2 vulnerabilidades altas (Prototype Pollution + ReDoS) sin fix publicado en npm. Ver AUDIT_REPORT DEP-001 (2026-07-30) |
+| Export a Word | `docx@9.7.1` (2026-07-30) |
 
 Variables de entorno requeridas:
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -641,6 +643,8 @@ Ver sección 10.
 | POST | `/api/handoff-package` | handoff_packages | Session |
 | POST | `/api/messages` | messages, audit_log (attachment_summary_generated) | Session — fire-and-forget AI summary generation for attachments |
 | POST | `/api/save-selection` | saved_selections, audit_log | Session |
+| POST | `/api/export/excel` | — (genera .xlsx, no escribe en DB) | Session |
+| POST | `/api/export/word` | — (genera .docx, no escribe en DB) | Session |
 | GET/POST/DELETE | `/api/settings/keys` | user_api_keys | Session |
 | GET/POST/DELETE | `/api/settings/providers` | user_custom_providers | Session |
 | POST | `/api/sm-doc-chat` | — (streaming) | Session |
@@ -648,6 +652,8 @@ Ver sección 10.
 | PATCH/DELETE | `/api/teams/[id]` | teams, agent_sessions | Session |
 | POST | `/api/workspace/[id]/lock` | workspaces | Session |
 | GET/POST | `/api/admin/prompts` | prompt_library | Admin role |
+
+**Export a archivos (2026-07-30):** `/api/export/excel` y `/api/export/word` reciben los mensajes seleccionados del cliente y devuelven el archivo generado (Content-Disposition attachment) — las librerías xlsx/docx viven solo server-side (0 B en bundle cliente). La limpieza de Markdown usa `src/lib/export/markdown.ts` (nuevo), NO `stripMarkdown()` de `src/lib/text/`: esa función es para previews de cards (trunca a 200 chars, colapsa saltos de línea, reemplaza filas de tabla por "[table row]") y corrompería un export. El helper de export limpia sin truncar, preserva líneas y parsea tablas Markdown a filas/columnas reales (`splitMarkdownBlocks`).
 
 ### 6.2 Patrón estándar de route
 
