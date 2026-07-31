@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { MAX_CONTEXT_FILE_BYTES, fileTooLargeMessage, payloadTooLargeMessage } from '@/lib/upload/limits'
 
 interface ContextSource {
   id:                       string
@@ -88,8 +89,23 @@ export default function ContextFilePanel({
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  function handleFileChange(selected: File | null) {
+    if (selected && selected.size > MAX_CONTEXT_FILE_BYTES) {
+      setFile(null)
+      setUploadError(fileTooLargeMessage(selected.name, selected.size, MAX_CONTEXT_FILE_BYTES))
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+    setUploadError(null)
+    setFile(selected)
+  }
+
   async function handleUpload() {
     if (!file) return
+    if (file.size > MAX_CONTEXT_FILE_BYTES) {
+      setUploadError(fileTooLargeMessage(file.name, file.size, MAX_CONTEXT_FILE_BYTES))
+      return
+    }
     setUploading(true)
     setUploadError(null)
     setUploadDone(false)
@@ -106,6 +122,11 @@ export default function ContextFilePanel({
 
       const res = await fetch('/api/context', { method: 'POST', body: fd })
       if (!res.ok && res.status !== 207) {
+        // Vercel rejects bodies over ~4.5 MB with a 413 before the API runs —
+        // the response is not JSON, so handle it before the generic parse.
+        if (res.status === 413) {
+          throw new Error(payloadTooLargeMessage(MAX_CONTEXT_FILE_BYTES))
+        }
         let errorMsg = 'Upload failed'
         try {
           const body = await res.json()
@@ -191,9 +212,9 @@ export default function ContextFilePanel({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  onChange={e => setFile(e.target.files?.[0] ?? null)}
+                  onChange={e => handleFileChange(e.target.files?.[0] ?? null)}
                   className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none"
-                  accept=".txt,.md,.pdf,.docx,.doc,.csv,.json,.html"
+                  accept=".txt,.md,.pdf,.docx,.doc,.csv,.json,.html,.xlsx,.xls,.pptx,.ppt"
                 />
                 {file && (
                   <p className="text-[10px] text-gray-500 mt-1">
@@ -266,7 +287,7 @@ export default function ContextFilePanel({
               </div>
 
               <p className="text-[10px] text-gray-600">
-                Supported: TXT, MD, PDF, DOCX, CSV, JSON, HTML. Text is extracted automatically when possible.
+                Supported: TXT, MD, PDF, DOCX, XLSX, XLS, CSV, JSON, HTML. Maximum file size: 4 MB. Text is extracted automatically when possible. PPT/PPTX and legacy DOC files are stored, but their content cannot be analyzed yet.
               </p>
             </div>
           </div>

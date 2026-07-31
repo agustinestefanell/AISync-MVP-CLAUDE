@@ -162,7 +162,12 @@ export default function SMPanel({
       })
 
       if (!res.ok) {
-        const body = await res.json()
+        // Vercel rejects bodies over ~4.5 MB with a 413 before the API runs
+        // (response is not JSON) — can happen with very large page context.
+        if (res.status === 413) {
+          throw new Error('The request is too large for the server (4 MB limit). Please try a shorter question or a page with less content.')
+        }
+        const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? 'Server error')
       }
 

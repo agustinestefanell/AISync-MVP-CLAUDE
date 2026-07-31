@@ -1125,3 +1125,28 @@ stripMarkdown() está diseñada para previews (trunca a 200 chars, colapsa newli
 Más limpias y utilizables (ordenar/filtrar) que incrustadas inline en la hoja de mensajes; el mensaje conserva la referencia [Table N — see sheet "Table N"]. El parser completo entró en el tiempo disponible — el fallback "todo texto en una columna" contemplado en la directiva no fue necesario.
 
 **Referencia:** handoff-2026-07-b.md 2026-07-30, AUDIT_REPORT DEP-001.
+
+
+## 2026-07-31 — Límites de tamaño por flujo: 4 MB Context Files vs 3 MB adjuntos de chat
+
+**Contexto:** El límite duro de Vercel Serverless (4.5 MB/request, HTTP 413, no configurable) devolvía "Server error" genérico. OE de mensajes claros + validación client-side; Vercel Blob (subida directa a storage, eliminaría el límite) diferido a proyecto aparte por decisión de producto.
+
+**Decisión — límites distintos según cómo viaja el archivo:**
+Context Files envía el archivo binario vía FormData (payload ≈ tamaño real) → límite 4 MB. Los adjuntos del chat viajan en base64 dentro del JSON (~33% más grandes: 4 MB de archivo → ~5.3 MB de payload, seguiría dando 413) → límite 3 MB. La directiva original pedía 4 MB parejo; se ajustó el flujo de chat para respetar la intención real (margen de seguridad contra el límite de Vercel). Mensajes centralizados en src/lib/upload/limits.ts, en inglés (regla UI 100% inglés, sobre el texto sugerido en español).
+
+**Referencia:** handoff-2026-07-b.md OE 2026-07-31.
+
+## 2026-07-31 — Adjuntos Office: conversión uniforme del lado AISync, nunca depender del provider
+
+**Contexto:** PO pidió adjuntar Word/Excel/PPT. Confirmado con los 3 providers reales que ninguno acepta Office nativo: Anthropic 400 explícito, OpenAI fallo silencioso, Gemini degrada a texto de baja calidad.
+
+**Decisión 1 — Extracción de texto server-side ANTES de la bifurcación por provider:**
+src/lib/chat/inlineAttachments.ts se aplica en /api/chat sobre el historial antes del ensamblado: Word/Excel → texto inline en el mensaje; imágenes/PDF pasan nativos. Una sola solución para los 3 providers. Descartado: solución por provider (triple mantenimiento) y extracción client-side (librerías pesadas al bundle).
+
+**Decisión 2 — PPT diferido a fase siguiente (decisión PO 2026-07-31):**
+Investigación reportada antes de instalar: jszip 3.10.1 ya está en node_modules (dep de docx), extracción propia de <a:t> prototipada OK (~30 líneas). PPT/PPTX y .doc legacy quedan sin análisis, con nota honesta al usuario (hint del modal) y al modelo ([Attached file: X — cannot be analyzed automatically yet]).
+
+**Decisión 3 — Tope de 150K caracteres por adjunto inyectado al chat:**
+Un Excel de 3 MB puede producir varios MB de CSV — sin tope reventaría la ventana de contexto del modelo. Context Files no necesita tope nuevo (truncateContextText ya corta a 35K en runtime).
+
+**Referencia:** handoff-2026-07-b.md OE 2026-07-31.

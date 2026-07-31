@@ -3001,3 +3001,82 @@ Estado de input de alta frecuencia (tipeo, streaming) nunca debe convivir en el 
 
 ---
 
+## OE 2026-07-31 — Mensaje claro de error por límite de tamaño de archivo (413 de Vercel)
+
+**Fecha:** 2026-07-31
+**Estado:** Implementado — deploy a producción autorizado por PO; validación visual PO pendiente en producción
+
+**Problema resuelto:**
+Subir un archivo de 31.5 MB devolvía un "Server error" genérico. Causa: límite duro de infraestructura de Vercel Serverless Functions (4.5 MB por request, HTTP 413, no configurable). Los 413 aparecían en /api/chat y /api/messages (flujo de adjuntos del chat — los archivos viajan en base64 dentro del JSON) y potencialmente en /api/context.
+
+**Decisión técnica y por qué:**
+- Validación EN EL CLIENTE antes de cualquier request + captura específica del status 413 como red de seguridad, con mensajes centralizados en helper nuevo `src/lib/upload/limits.ts`.
+- **Límites distintos por flujo:** 4 MB en Context Files (el archivo viaja binario vía FormData ≈ tamaño real) pero **3 MB en adjuntos del chat** — base64 infla ~33% (un archivo de 4 MB produce ~5.3 MB de payload y seguiría dando 413). 3 MB → ~4 MB base64 + resto del payload < 4.5 MB. Esto ajusta la directiva original de "4 MB parejo" para respetar su intención real (margen de seguridad contra el límite de Vercel).
+- Mensaje en inglés (regla del proyecto: UI 100% inglés) mostrando nombre, tamaño real del archivo y límite.
+- SMPanel (Documentation Mode chat): también mostraba 'Server error' genérico y su `res.json()` sin catch habría explotado con un 413 (respuesta no-JSON) — mismo tratamiento agregado, detectado por grep exhaustivo pre-cierre.
+
+**Alternativas descartadas:**
+- Subida directa a storage (Vercel Blob) que elimina el límite: explícitamente fuera de alcance por decisión de producto — proyecto aparte futuro.
+- Validar 4 MB también en adjuntos del chat: seguiría dando 413 para archivos de 3-4 MB por la inflación base64.
+
+**Archivos modificados:**
+- src/lib/upload/limits.ts (nuevo) — constantes MAX_CONTEXT_FILE_BYTES / MAX_ATTACHMENT_FILE_BYTES + formatMB + mensajes
+- src/components/workspace/ContextFilePanel.tsx — handleFileChange con validación al seleccionar, guard en handleUpload, catch 413, hint "Maximum file size: 4 MB"
+- src/components/workspace/AgentPanel.tsx — filtro de archivos >3 MB en handleFileSelect (los válidos se adjuntan igual), catch 413 en sendPrompt
+- src/components/sm/SMPanel.tsx — catch 413 + res.json() con fallback
+
+**Riesgos conocidos / deuda técnica:**
+- Varios adjuntos de <3 MB cada uno pueden sumar >4.5 MB en conjunto — el caso lo cubre la red de seguridad 413 con mensaje claro, no la validación preventiva.
+- El límite real desaparecerá cuando se implemente la subida directa a storage (proyecto futuro).
+
+**Validaciones:** lint ✅, build ✅.
+
+---
+
+## OE 2026-07-31 — Adjuntos Word/Excel: extracción de texto uniforme antes de cualquier provider
+
+**Fecha:** 2026-07-31
+**Estado:** Implementado — deploy a producción autorizado por PO; validación visual PO pendiente en producción. PPT diferido a fase siguiente por decisión PO.
+
+**Problema resuelto:**
+El PO pidió adjuntar Word/Excel/PPT en el chat y Context Files. Inspección confirmó que ampliar el `accept` no alcanzaba: los adjuntos del chat viajan crudos (base64) a la API del provider, y **ningún provider acepta formatos Office nativamente** — Anthropic rechaza con 400 ("Input should be 'application/pdf'"), OpenAI falla silenciosamente, Gemini los degrada a texto plano de baja calidad. Confirmado por el PO probando los 3 providers en producción (contra el código viejo).
+
+**Decisión técnica y por qué:**
+- **Conversión uniforme del lado de AISync, antes de la bifurcación por provider:** helper server-only nuevo `src/lib/chat/inlineAttachments.ts`, aplicado en /api/chat sobre el historial antes del ensamblado de mensajes. Word/Excel → texto extraído inline en el mensaje (`[Attached file: X]\n<texto>`); imágenes y PDF siguen pasando nativos. Una sola solución para los 3 providers, no una por API.
+- **Excel con análisis real:** rama nueva en extractText.ts para .xlsx/.xls reutilizando la librería `xlsx` ya instalada (export). Cada hoja → CSV con nombre (`[Sheet: N]`). Smoke test con la librería real: OK (2 hojas + formato .xls legacy).
+- **Tope de 150.000 caracteres por adjunto** al inyectar en el chat (un Excel de 3 MB puede producir varios MB de CSV — protege la ventana de contexto). En Context Files no hay tope nuevo: el runtime ya trunca con truncateContextText (35K).
+- **Nunca rompe el chat:** archivo no analizable → nota honesta al modelo (`cannot be analyzed automatically yet`); error de extracción → catch con nota; data vacía (historial recargado) → referencia por nombre.
+- El trazado de adjuntos (session_attachments + audit_log attachment_uploaded) sigue usando los mensajes originales — registra los adjuntos reales.
+- accepts ampliados: chat +.docx/.doc/.xlsx/.xls/.pptx/.ppt; Context Files +.xlsx/.xls/.pptx/.ppt. Hint honesto en Context Files sobre PPT/DOC legacy sin análisis.
+
+**Investigación PPT (reportada antes de instalar, según directiva):**
+Recomendación: jszip 3.10.1 (**ya presente en node_modules** como dependencia de `docx`) + extracción propia de tags `<a:t>` de los XMLs de slides (~30 líneas). Prototipo verificado OK en scratchpad (extrae texto por slide). Alternativas descartadas: officeparser (dependencia nueva redundante), pptx-parser (sin mantenimiento), .ppt legacy binario (sin librería JS liviana confiable). **PO decidió diferir PPT a fase siguiente** — PPT/PPTX se adjuntan/guardan con nota honesta, sin análisis.
+
+**Reporte honesto de completitud (requisito de cierre):**
+- Word .docx: se adjunta y SE ANALIZA (chat + Context Files) ✅
+- Excel .xlsx/.xls: se adjunta y SE ANALIZA (chat + Context Files) ✅
+- PPT/PPTX: se adjunta/guarda SIN análisis (nota honesta a usuario y modelo) ⚠️
+- Word .doc legacy: SIN análisis — mammoth solo lee .docx; nunca se analizó, ahora está documentado ⚠️
+
+**Alternativas descartadas:**
+- Depender del soporte nativo de cada provider: confirmado inviable por el PO con los 3 providers.
+- Extracción client-side (mammoth/xlsx en browser): sumaría librerías pesadas al bundle; server-side las mantiene en 0 B cliente.
+- Solución distinta por provider: más superficie de mantenimiento; la conversión uniforme pre-provider es un solo punto.
+
+**Archivos modificados:**
+- src/lib/chat/inlineAttachments.ts (nuevo) — inlineOfficeAttachments()
+- src/lib/context/extractText.ts — rama Excel (SheetJS dynamic import) + mimes xls/ppt en detectMimeType
+- src/app/api/chat/route.ts — historyMessages = await inlineOfficeAttachments(rawMessages) antes del ensamblado
+- src/components/workspace/AgentPanel.tsx — accept ampliado
+- src/components/workspace/ContextFilePanel.tsx — accept ampliado + hint honesto
+
+**Riesgos conocidos / deuda técnica:**
+- Los adjuntos viven en el historial del cliente y se re-envían en cada turno → la extracción se re-ejecuta por request (CPU menor, mismo patrón que los PDF re-enviados). Se resolvería con la futura OE de límite de apiMessages.
+- De Excel se extraen valores de celdas (no gráficos/formato); de Word texto (no imágenes). Fidelidad equivalente a la de PDF actual.
+- OpenAI + PDF: limitación pre-existente intacta (solo imágenes nativas — PDF va con notice, comportamiento no tocado).
+- PPT y .doc legacy: sin análisis hasta fase siguiente (jszip ya investigado y prototipado).
+
+**Validaciones:** lint ✅, build ✅, smoke test Excel real ✅, prototipo PPTX (para fase siguiente) ✅.
+
+---
+

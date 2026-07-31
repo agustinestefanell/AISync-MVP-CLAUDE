@@ -10,6 +10,7 @@ import type { ChatMessage, ChatAttachment } from '@/lib/providers/types'
 import PromptLibrary from './PromptLibrary'
 import ContextFilePanel from './ContextFilePanel'
 import { createClient } from '@/lib/supabase/client'
+import { MAX_ATTACHMENT_FILE_BYTES, fileTooLargeMessage, payloadTooLargeMessage } from '@/lib/upload/limits'
 
 // ── Role configuration ───────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, {
@@ -476,7 +477,20 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
     }
 
     async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-      const files = Array.from(e.target.files ?? [])
+      const allFiles = Array.from(e.target.files ?? [])
+      // Attachments travel base64-encoded inside the JSON body (~33% larger
+      // than the file) — validate before reading to avoid a 413 from Vercel.
+      const tooLarge = allFiles.filter(f => f.size > MAX_ATTACHMENT_FILE_BYTES)
+      const files    = allFiles.filter(f => f.size <= MAX_ATTACHMENT_FILE_BYTES)
+      if (tooLarge.length > 0) {
+        setError(tooLarge
+          .map(f => fileTooLargeMessage(f.name, f.size, MAX_ATTACHMENT_FILE_BYTES))
+          .join(' '))
+      }
+      if (files.length === 0) {
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        return
+      }
       const newAtts: ChatAttachment[] = await Promise.all(
         files.map(file => new Promise<ChatAttachment>(resolve => {
           const reader = new FileReader()
@@ -559,6 +573,11 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
         })
 
         if (!res.ok) {
+          // Vercel rejects bodies over ~4.5 MB with a 413 before the API runs —
+          // show an actionable message instead of the generic server error.
+          if (res.status === 413) {
+            throw new Error(payloadTooLargeMessage(MAX_ATTACHMENT_FILE_BYTES))
+          }
           let msg = 'Server error'
           try {
             const body = await res.json()
@@ -854,7 +873,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+            accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt"
             multiple
             className="hidden"
             onChange={handleFileSelect}

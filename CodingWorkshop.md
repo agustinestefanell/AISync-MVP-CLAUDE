@@ -1665,3 +1665,17 @@ N/A (hallazgo metodológico)
 **Lección:** todo `fetch` cuyo resultado dispara efectos de UI (cerrar modal, limpiar selección, resetear formulario) DEBE chequear `res.ok` y separar camino de éxito y de fallo. Regla práctica: si una acción destruye estado del usuario (una selección, un texto escrito), solo puede ejecutarse en el camino de éxito confirmado. Detectado al implementar el reset de selección post-guardado: sin el chequeo, un guardado fallido habría borrado la selección del usuario.
 
 **Referencia:** handoff-2026-07-b.md Mini-OE 2026-07-30.
+
+## 2026-07-31 — Adjuntos que viajan al provider: el accept del input no define el soporte real
+
+**Síntoma:** Adjuntar Word/Excel al chat parecía cuestión de ampliar el accept del `<input type="file">`. En producción: Anthropic 400 explícito ("Input should be 'application/pdf'"), OpenAI fallo silencioso ("se queda en blanco y al rato server error"), Gemini degradación de calidad documentada.
+
+**Causa raíz:** Los adjuntos del chat viajan crudos (base64) hasta la API del provider, y cada API tiene su propia lista corta de formatos nativos (Anthropic: imágenes+PDF; OpenAI: imágenes; Gemini: imágenes+PDF+texto). El accept del input solo filtra el file picker del browser — no convierte nada.
+
+**Lecciones:**
+1. Antes de "aceptar" un tipo de archivo en la UI, seguir el camino completo del dato hasta el último consumidor (la API externa) y confirmar qué acepta ESE consumidor. El punto de entrada nunca define el soporte real.
+2. Base64 infla ~33%: cualquier límite de payload sobre archivos embebidos en JSON debe calcularse sobre el tamaño inflado, no el del archivo (de ahí 3 MB de límite en chat vs 4 MB en FormData).
+3. Los tres providers fallaron de forma DISTINTA (400 explícito / silencio / degradación) ante la misma causa — un síntoma inconsistente entre providers apunta a que el problema es nuestro payload, no un bug de un provider.
+4. La conversión uniforme en un solo punto (antes de la bifurcación por provider) evita mantener tres soluciones distintas que divergen con el tiempo.
+
+**Referencia:** handoff-2026-07-b.md OE 2026-07-31, DECISIONS.md 2026-07-31.

@@ -78,7 +78,31 @@ export async function extractTextFromBuffer(
     }
   }
 
-  // Tipo no soportado — guardar referencia sin extracción
+  // XLSX / XLS — SheetJS (misma librería ya instalada para el export a Excel)
+  if (
+    type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    type === 'application/vnd.ms-excel'
+  ) {
+    try {
+      const XLSX = await import('xlsx')
+      const workbook = XLSX.read(buffer, { type: 'buffer' })
+      const parts = workbook.SheetNames.map(name => {
+        const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[name])
+        return `[Sheet: ${name}]\n${csv}`.trim()
+      })
+      const text = parts.join('\n\n').trim()
+      return { text: text || null, supported: true }
+    } catch (error) {
+      console.error('[Context Files] Excel text extraction error', {
+        extraction_error: error instanceof Error ? error.message : String(error),
+        stack:            error instanceof Error ? error.stack : undefined,
+      })
+      throw error
+    }
+  }
+
+  // Tipo no soportado (PPT/PPTX, DOC legacy, imágenes, etc.) —
+  // guardar referencia sin extracción
   return { text: null, supported: false }
 }
 
@@ -95,7 +119,9 @@ export function detectMimeType(fileName: string): string {
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     doc:  'application/msword',
     xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    xls:  'application/vnd.ms-excel',
     pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ppt:  'application/vnd.ms-powerpoint',
     png:  'image/png',
     jpg:  'image/jpeg',
     jpeg: 'image/jpeg',

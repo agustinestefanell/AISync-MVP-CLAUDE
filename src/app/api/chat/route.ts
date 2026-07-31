@@ -7,6 +7,7 @@ import { getSystemPrompt } from '@/lib/db/system-prompts'
 import { listActivePromptsForContext } from '@/lib/db/prompts'
 import { getContextSourcesForRuntime } from '@/lib/db/context'
 import { getTool, webSearchTool } from '@/lib/tools'
+import { inlineOfficeAttachments } from '@/lib/chat/inlineAttachments'
 import type { ChatMessage } from '@/lib/providers/types'
 import type { ToolResult } from '@/lib/tools'
 import { AnthropicProvider } from '@/lib/providers/anthropic'
@@ -203,6 +204,12 @@ export async function POST(req: Request) {
     }
   }
 
+  // ── Adjuntos Office (Word/Excel/PPT) → texto extraído inline ──────────────
+  // Los providers solo aceptan imágenes/PDF como adjuntos nativos; el resto
+  // se convierte a texto acá. El trazado (session_attachments/audit_log) usa
+  // rawMessages para registrar los adjuntos originales.
+  const historyMessages = await inlineOfficeAttachments(rawMessages)
+
   // ── Assemble final message array (order: role → runtime grounding → team → prompt library → context files → snapshot → history) ──
   const messages: ChatMessage[] = [
     ...rolePromptParts,
@@ -211,7 +218,7 @@ export async function POST(req: Request) {
     ...promptLibraryParts,
     ...contextFilesParts,
     ...snapshotParts,
-    ...rawMessages,
+    ...historyMessages,
   ]
 
   // ── Trazar adjuntos — awaited via Promise.allSettled (serverless-safe) ────────
