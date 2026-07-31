@@ -2980,3 +2980,24 @@ Estado de input de alta frecuencia (tipeo, streaming) nunca debe convivir en el 
 
 ---
 
+## Fix directo 2026-07-30 — Export cierra modal y limpia selección al completarse
+
+**Fecha:** 2026-07-30
+**Estado:** Closed — autorizado por el PO sin validación previa (feature base ya validada en producción: tablas en hojas separadas y formato Word confirmados funcionando)
+
+**Ajuste:**
+"Save as Excel" / "Save as Word" ahora cierran el modal y limpian la selección de todos los paneles al completarse la descarga — mismo comportamiento que Save Selection normal (fix de hoy). Antes, los exports dejaban el modal abierto y la selección activa deliberadamente; el PO decidió unificar el comportamiento tras validar la feature.
+
+**Implementación:**
+- Helper compartido `finishSelectionAction()` en WorkspaceShell: cierra modal + resetea nombre/pending + `clearSelection()` en todos los paneles y human chat. Lo usan handleSaveSelection y handleExportSelection — un solo código para el mismo comportamiento.
+- Secuencia segura confirmada: `res.blob()` resuelve recién cuando el archivo llegó COMPLETO del servidor; el cierre/limpieza se dispara después de disparar el link de descarga. Un fallo (HTTP o red) mantiene el modal abierto con error visible y la selección intacta — mismo criterio "solo limpiar en camino de éxito" del fix de Save Selection.
+
+**Archivos modificados:**
+- src/components/workspace/WorkspaceShell.tsx (helper finishSelectionAction + llamada en éxito de export; refactor de handleSaveSelection para usar el mismo helper)
+
+**Riesgos:** ninguno nuevo — refactor de código ya validado + una llamada adicional en camino de éxito.
+
+**Validaciones:** lint ✅, build ✅.
+
+---
+

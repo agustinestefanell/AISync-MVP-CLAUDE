@@ -429,18 +429,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
         return
       }
 
-      setShowSaveSelectionModal(false)
-      setSaveSelectionName('')
-      setPendingSelectionMessages([])
-
-      // Guardado exitoso: limpiar la selección en todos los paneles — mismo
-      // patrón que Review & Forward y Create Handoff Package. Sin esto, la
-      // selección anterior queda "oculta" pero activa y se cuela en la
-      // próxima acción de selección.
-      for (const session of workspace.agent_sessions) {
-        panelRefs.current[session.id]?.clearSelection()
-      }
-      humanChatRef.current?.clearSelection()
+      finishSelectionAction()
     } catch {
       setSaveSelectionError('Network error — your selection was kept, try again.')
     } finally {
@@ -448,9 +437,26 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     }
   }
 
+  // Cierre + limpieza compartidos por Save Selection y los exports (Excel/Word).
+  // Solo se invoca en el camino de éxito confirmado — un fallo mantiene el
+  // modal abierto y la selección intacta.
+  const finishSelectionAction = () => {
+    setShowSaveSelectionModal(false)
+    setSaveSelectionName('')
+    setPendingSelectionMessages([])
+    // Mismo patrón que Review & Forward y Create Handoff Package. Sin esto,
+    // la selección anterior queda "oculta" pero activa y se cuela en la
+    // próxima acción de selección.
+    for (const session of workspace.agent_sessions) {
+      panelRefs.current[session.id]?.clearSelection()
+    }
+    humanChatRef.current?.clearSelection()
+  }
+
   // ── Export selection as Excel / Word ─────────────────────────────────────
-  // No guarda en DB ni limpia la selección: el usuario puede exportar en ambos
-  // formatos y/o hacer Save Selection después, desde el mismo modal.
+  // No guarda en DB. Al completarse la descarga, cierra el modal y limpia la
+  // selección (mismo comportamiento que Save Selection); un fallo mantiene
+  // el modal abierto con error y la selección intacta.
   const handleExportSelection = async (format: 'excel' | 'word') => {
     if (pendingSelectionMessages.length === 0 || exportingFormat) return
     setExportingFormat(format)
@@ -486,6 +492,10 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       a.click()
       a.remove()
       URL.revokeObjectURL(url)
+
+      // El archivo ya llegó completo (res.blob() resolvió) y la descarga fue
+      // disparada — recién ahora cerrar y limpiar, igual que Save Selection.
+      finishSelectionAction()
     } catch {
       setSaveSelectionError('Network error — export failed, try again.')
     } finally {
