@@ -3080,3 +3080,40 @@ Recomendación: jszip 3.10.1 (**ya presente en node_modules** como dependencia d
 
 ---
 
+## OE 2026-07-31 — PPTX: extracción de texto real (fase siguiente de adjuntos Office)
+
+**Fecha:** 2026-07-31
+**Estado:** Implementado — deploy a producción según patrón establecido por PO en la OE anterior; validación visual PO pendiente (adjuntar .pptx en chat y Context Files con los 3 providers)
+
+**Contexto:**
+Continuación del feature de conversión uniforme de Office a texto (commit 0458070). PPT había quedado diferido por decisión PO con investigación ya hecha.
+
+**Decisión técnica y por qué — jszip + extracción propia, descartando las 2 librerías candidatas:**
+- **node-pptx-parser 1.0.1** (candidata 1): agregaría 2 árboles de dependencias nuevos (unzipper + xml2js); último publish ~17 meses atrás, versión 1.0.1 — joven y poco mantenida. Descartada.
+- **office-text-extractor 4.0.0** (candidata 2): duplicaría todo el stack existente (trae sus propias copias de mammoth, pdf-parse y xlsx) — redundancia y riesgo de conflicto con el fix Stage C de pdf-parse. Descartada (podría re-evaluarse a futuro SOLO como unificación, no para esto).
+- **jszip 3.10.1 + ~35 líneas propias (elegida):** jszip ya estaba en node_modules como dependencia de docx — `npm install --save-exact jszip@3.10.1` solo lo declara como dependencia directa, sin descarga nueva ("up to date"). Un .pptx es un ZIP: se leen ppt/slides/slideN.xml en orden numérico y se extraen los tags `<a:t>` con entidades XML decodificadas, formato `[Slide N]\ntexto`. Enfoque prototipado y verificado en la ronda anterior.
+
+**Recomendación .ppt legacy (aceptada implícitamente por alcance):**
+NO soportar .ppt binario pre-2007 — sin librería JS liviana confiable (las 2 candidatas tampoco lo leen). Sigue el comportamiento honesto actual: se adjunta/guarda con nota, sin análisis.
+
+**Implementación:**
+- Rama PPTX en extractTextFromBuffer() con el patrón exacto de las otras ramas (try/catch, logging `[Context Files] PPTX text extraction error`, throw para persistir en extraction_error).
+- El chat NO necesitó cambios: inlineAttachments.ts ya llama a extractTextFromBuffer — PPTX se analiza automáticamente en ambos flujos.
+- accepts ya incluían .pptx/.ppt desde 0458070 (verificado por grep, sin cambios).
+- Límites de tamaño (3MB chat / 4MB Context Files) aplican automáticamente — la validación es agnóstica del tipo.
+- Hint del modal actualizado: PPTX pasa a la lista de analizables; "Legacy PPT and DOC files are stored, but their content cannot be analyzed."
+
+**Archivos modificados:**
+- package.json / package-lock.json — jszip 3.10.1 declarada directa (exacta, sin rango)
+- src/lib/context/extractText.ts — rama PPTX (+38 líneas)
+- src/components/workspace/ContextFilePanel.tsx — hint actualizado
+- AISyncPlans.md, PRODUCT_STATUS.md, DECISIONS.md, handoff — documentación
+
+**Riesgos conocidos / deuda técnica:**
+- Extracción por regex sobre el XML (no parser XML completo): cubre el texto estándar de slides (`<a:t>`); casos exóticos (SmartArt embebido, notas del orador) no se extraen — fidelidad equivalente a la de Excel (celdas sin gráficos). Notas del orador (ppt/notesSlides/) quedan fuera deliberadamente en esta ronda.
+- npm audit reporta 10 vulnerabilidades high PRE-EXISTENTES en dependencias transitivas (axios, brace-expansion, form-data, glob) — NINGUNA introducida por esta OE ni relacionada con jszip. Candidata a mini-OE de `npm audit fix` separada.
+
+**Validaciones:** lint ✅, build ✅, smoke test 5/5 con la lógica exacta implementada (orden numérico de slides 1/2/10, entidades XML, exclusión de _rels) ✅.
+
+---
+

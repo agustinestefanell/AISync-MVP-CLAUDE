@@ -1150,3 +1150,20 @@ Investigación reportada antes de instalar: jszip 3.10.1 ya está en node_module
 Un Excel de 3 MB puede producir varios MB de CSV — sin tope reventaría la ventana de contexto del modelo. Context Files no necesita tope nuevo (truncateContextText ya corta a 35K en runtime).
 
 **Referencia:** handoff-2026-07-b.md OE 2026-07-31.
+
+## 2026-07-31 — PPTX: jszip + extracción propia, descartando las dos librerías candidatas
+
+**Contexto:** Fase siguiente de adjuntos Office (PPT había quedado diferido por PO). Directiva proponía evaluar node-pptx-parser u office-text-extractor, con apertura explícita a "otra mejor".
+
+**Decisión — jszip 3.10.1 (ya presente como dependencia de docx) + ~35 líneas propias en extractText.ts:**
+Un .pptx es un ZIP: se leen ppt/slides/slideN.xml en orden numérico y se extraen los tags <a:t>. npm install --save-exact jszip@3.10.1 solo declara la versión ya instalada — cero descargas nuevas, cero superficie de ataque nueva. Enfoque prototipado y verificado antes de decidir.
+
+**Alternativas descartadas (evaluadas contra el registro real de npm):**
+- node-pptx-parser 1.0.1: dos árboles de dependencias nuevos (unzipper + xml2js), último publish ~17 meses, v1.0.1 — poco mantenida.
+- office-text-extractor 4.0.0: trae sus propias copias de mammoth, pdf-parse y xlsx — duplicaría el stack completo de extracción ya funcionando y arriesgaría el fix Stage C de pdf-parse. Solo re-evaluable a futuro como unificación deliberada, nunca como atajo para un formato.
+
+**Decisión asociada — .ppt legacy (binario pre-2007) NO se soporta:** sin librería JS liviana confiable (las candidatas tampoco lo leen). Comportamiento honesto se mantiene: se adjunta/guarda con nota, sin análisis, igual que .doc legacy.
+
+**Principio reutilizable:** antes de instalar una librería para un formato nuevo, revisar qué hay YA en node_modules (dependencias transitivas de lo instalado) y prototipar el enfoque mínimo — evaluar candidatas contra datos reales del registro (versión, mantenimiento, árbol de deps), no contra su descripción.
+
+**Referencia:** handoff-2026-07-b.md OE PPTX 2026-07-31.

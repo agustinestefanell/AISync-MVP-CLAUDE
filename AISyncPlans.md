@@ -215,7 +215,7 @@ Lógica pura, sin componentes UI.
 ```
 lib/
   chat/inlineAttachments.ts      ← Adjuntos Office (Word/Excel) → texto extraído inline antes de CUALQUIER provider (server-only)
-  context/extractText.ts         ← Extracción de texto de PDF/DOCX/XLSX/XLS/TXT/etc.
+  context/extractText.ts         ← Extracción de texto de PDF/DOCX/XLSX/XLS/PPTX/TXT/etc. (PPTX vía jszip + tags <a:t>)
   upload/limits.ts               ← Límites de tamaño client-side (4MB Context Files / 3MB adjuntos chat) + mensajes de error
   documentation/
     buildMirrorTree.ts           ← Construye árbol espejo para StructureView

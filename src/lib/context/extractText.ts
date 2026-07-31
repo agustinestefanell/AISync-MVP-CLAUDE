@@ -101,7 +101,44 @@ export async function extractTextFromBuffer(
     }
   }
 
-  // Tipo no soportado (PPT/PPTX, DOC legacy, imágenes, etc.) —
+  // PPTX — jszip (dependencia directa, ya presente vía docx) + extracción
+  // del texto de cada slide (tags <a:t> en ppt/slides/slideN.xml).
+  // .ppt legacy (binario pre-2007) NO se soporta — sin librería JS liviana confiable.
+  if (type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+    try {
+      const JSZip   = (await import('jszip')).default
+      const archive = await JSZip.loadAsync(buffer)
+      const slideNames = Object.keys(archive.files)
+        .filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+        .sort((a, b) =>
+          Number(a.match(/slide(\d+)/)?.[1] ?? 0) - Number(b.match(/slide(\d+)/)?.[1] ?? 0)
+        )
+      const parts: string[] = []
+      for (const name of slideNames) {
+        const xml   = await archive.files[name].async('string')
+        const texts = Array.from(xml.matchAll(/<a:t[^>]*>([^<]*)<\/a:t>/g)).map(m => m[1])
+        const decoded = texts.join(' ')
+          .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+          .replace(/&amp;/g, '&')
+          .trim()
+        if (decoded) {
+          const num = name.match(/slide(\d+)/)?.[1] ?? '?'
+          parts.push(`[Slide ${num}]\n${decoded}`)
+        }
+      }
+      const text = parts.join('\n\n').trim()
+      return { text: text || null, supported: true }
+    } catch (error) {
+      console.error('[Context Files] PPTX text extraction error', {
+        extraction_error: error instanceof Error ? error.message : String(error),
+        stack:            error instanceof Error ? error.stack : undefined,
+      })
+      throw error
+    }
+  }
+
+  // Tipo no soportado (PPT legacy, DOC legacy, imágenes, etc.) —
   // guardar referencia sin extracción
   return { text: null, supported: false }
 }
