@@ -59,7 +59,7 @@ export class AnthropicProvider implements ChatProvider {
 
     const sdkStream = this.client.messages.stream({
       model: resolvedModel,
-      max_tokens: 2048,
+      max_tokens: 16000,
       messages: sdkMessages,
     })
 
@@ -102,7 +102,7 @@ export class AnthropicProvider implements ChatProvider {
 
     const response = await this.client.messages.create({
       model: resolvedModel,
-      max_tokens: 2048,
+      max_tokens: 16000,
       messages: sdkMessages,
       ...(tools?.length ? {
         tools: tools.map(tool => ({

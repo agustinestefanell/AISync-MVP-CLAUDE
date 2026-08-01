@@ -1194,3 +1194,29 @@ Umbral de 30.000 caracteres (elegido para no molestar con archivos chicos — ni
 En vez de estimar tamaños del lado del cliente o duplicar la lógica de selección de scope, el endpoint reutiliza exactamente la misma función que usa el runtime del chat — garantiza que el aviso vea exactamente los archivos que se van a inyectar, sin deriva entre lo que el usuario ve y lo que el modelo recibe.
 
 **Referencia:** handoff-2026-07-b.md OE 2026-08-02.
+
+## 2026-08-02 — max_tokens explícito en los 3 providers: 16.000 como piso consistente, no el máximo de cada modelo
+
+**Contexto:** Causa raíz confirmada de "respuestas cortadas": `max_tokens: 2048` hardcodeado en Anthropic. La directiva inicial asumía que Google tenía el mismo hardcodeo y que OpenAI estaba "confirmado sin problema" — ambas premisas se verificaron con grep + WebSearch + datos reales de `token_usage` antes de tocar código, y ambas resultaron incorrectas: ninguno de los dos tenía nada configurado, dependían de defaults silenciosos de sus APIs (~8.192 Google, ~4.096 OpenAI, medido en producción) muy por debajo de sus máximos reales (65K y 128K respectivamente).
+
+**Decisión — 16.000 explícito en los 3 providers, no el máximo técnico de cada uno:**
+Un piso consistente y predecible entre providers, deliberadamente conservador frente a los máximos reales (128K OpenAI, 65K Google, 128K+ Anthropic) para no exponer la app a tiempos de respuesta ni costos descontrolados por una sola respuesta. La política de extensión agregada al `base_layer` en la misma OE es el complemento: con margen técnico de sobra, la extensión real de cada respuesta pasa a ser una decisión editorial del modelo, no un tope duro.
+
+**Principio reutilizable (explícito en la directiva del PO, vale la pena dejarlo escrito):** nunca asumir que un valor de configuración "está bien" solo porque el código no lo toca explícitamente — verificar el comportamiento REAL en runtime (grep del código + datos de producción + documentación del proveedor), porque la ausencia de configuración no es lo mismo que ausencia de límite: el default silencioso de la API puede ser tan restrictivo como un hardcodeo.
+
+**Referencia:** handoff-2026-07-b.md Mini-OE 2026-08-02.
+
+## 2026-08-02 — Política de extensión de respuestas en base_layer: criterio editorial, no solo límite técnico
+
+**Contexto:** Con `max_tokens` corregido, el modelo tiene margen técnico de sobra — pero sin guía, tiende a no autolimitarse por criterio propio.
+
+**Decisión — párrafo nuevo en `base_layer`, solo para manager/submanager/worker:**
+El texto le pide al modelo gestionar la extensión según lo que el contenido realmente exige (corta por defecto, larga solo para entregables que la justifiquen), empezar por la decisión/diagnóstico antes que el detalle, y dividir en entregas por etapas cuando el material excede lo que una respuesta puede transmitir con claridad — en vez de comprimir artificialmente o descargar todo de una vez. Deliberadamente NO se tocó `sm_documentation` ni `sm_audit`: esos roles ya tienen su propio formato de respuesta ultra-acotado (listas de una línea, "No results found.") y esta política no aplica a ese formato.
+
+**Hallazgo durante la investigación — `base_layer` es una columna separada de `role_prompt`:** la primera consulta de solo-lectura a `system_prompts` solo pidió `role_prompt` y no encontró la frase objetivo de la directiva, lo que habría llevado a la conclusión equivocada de que no existía. Una segunda consulta con el campo correcto (`base_layer`) la encontró — pero en los 5 roles, no solo en los 3 que la directiva mencionaba. Se limitó el UPDATE explícitamente a los 3 pedidos.
+
+**Ajuste de forma verbal:** el párrafo del PO llegó en voseo ("Gestioná", "extendé"); el `base_layer` existente usa tú/imperativo formal. Se mostró el contraste antes de ejecutar — el PO pidió ajustar a la forma existente (4 verbos corregidos).
+
+**Ejecución — flujo manual, no automatizado:** se preparó un script para aplicar el UPDATE directamente vía REST API (service role key) con pre-check de idempotencia, pero el PO indicó preferencia explícita por el flujo ya establecido del proyecto (SQL preparado en migración, ejecutado a mano en Supabase SQL Editor). Se descartó el script y se entregó el SQL final para pegar y correr.
+
+**Referencia:** handoff-2026-07-b.md Mini-OE 2026-08-02, supabase/migrations/052_base_layer_response_length_policy.sql.

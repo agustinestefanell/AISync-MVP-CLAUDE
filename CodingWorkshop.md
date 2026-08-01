@@ -1693,4 +1693,18 @@ N/A (hallazgo metodológico)
 2. El número exacto en `token_usage.output_tokens` (2048, 2048, 2048, 2048...) fue la evidencia que confirmó la causa raíz sin ambigüedad — mismo patrón que en la lección de performance: preferir el dato duro de producción sobre la hipótesis plausible.
 3. Los 3 providers (Anthropic, OpenAI, Google) manejaban el límite de salida de 3 formas distintas — uno hardcodeado, uno con default del provider, uno sin control explícito. Una inconsistencia de este tipo entre providers suele señalar que ninguno de los tres fue una decisión deliberada, sino "lo que quedó" en cada implementación sucesiva.
 
-**Referencia:** handoff-2026-07-b.md OE 2026-08-02. **Fix aún no aplicado** — pendiente de aprobación del PO sobre el valor nuevo.
+**Referencia:** handoff-2026-07-b.md OE 2026-08-02. **Fix aplicado y validado** en la Mini-OE 2026-08-02 siguiente — ver entrada de abajo.
+
+## 2026-08-02 — "Sin problema" no es lo mismo que "sin límite configurado": verificar el valor REAL en runtime
+
+**Síntoma:** la directiva original de esta mini-OE asumía dos cosas sobre los providers no-Anthropic: que Google tenía `maxOutputTokens: 2048` hardcodeado (igual que Anthropic), y que OpenAI estaba "confirmado sin problema, no requiere cambios".
+
+**Ambas premisas eran incorrectas — verificado con grep + WebSearch + datos reales antes de escribir código:**
+1. **Google:** grep exhaustivo de `maxOutputTokens`/`generationConfig` en `src/lib/providers/` no encontró NADA en `google.ts` — no estaba hardcodeado en 2048, simplemente no se configuraba. La API de Gemini aplicaba su default implícito (~8.192, documentado por Google) contra un máximo real de ~65.000 para el modelo usado. Fijar el valor pedido por la directiva original (8.192) no habría corregido nada — habría sido confirmar el default silencioso ya vigente, disfrazado de "fix".
+2. **OpenAI:** mismo grep, mismo resultado — cero límite configurado en `openai.ts`. Pero acá los datos YA disponibles de `token_usage` (recolectados en la OE anterior, antes de que existiera esta directiva) mostraban respuestas de GPT-5.5 cortando en `out=4096` exacto — contradiciendo directamente la premisa de "sin problema". El máximo real de GPT-5.5 (confirmado por WebSearch) es 128.000 tokens de salida.
+
+**Lección central:** "el código no configura nada ahí" y "no hay problema" NO son lo mismo. Cuando una API tiene un default implícito no documentado de forma estable (o documentado pero fácil de pasar por alto), la ausencia de configuración explícita en el código es tan silenciosa como un hardcodeo — el límite existe igual, solo que vive en la documentación del proveedor en vez de en el repo. La única forma de saber si "está bien" es: (a) grep del código para confirmar qué se envía realmente en el request, (b) datos reales de uso (`token_usage` u equivalente) para ver el comportamiento observado, y (c) la documentación oficial del proveedor para el máximo real — nunca asumir por analogía ("si Anthropic tenía el bug, los otros probablemente no") ni por lo que "se cree que está bien" de una implementación anterior.
+
+**Cómo se detectó:** la directiva de esta mini-OE explícitamente pidió "no asumir, reconfirmar" para OpenAI — ese único pedido de verificación destapó un segundo bug real que la premisa original daba por descartado. Sin esa instrucción explícita de re-verificar, el fix se habría aplicado solo a Anthropic y OpenAI habría seguido cortando respuestas en producción sin que nadie lo supiera, porque "ya se había confirmado que estaba bien".
+
+**Referencia:** handoff-2026-07-b.md Mini-OE 2026-08-02, DECISIONS.md 2026-08-02.

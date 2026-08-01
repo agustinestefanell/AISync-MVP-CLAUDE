@@ -3200,3 +3200,45 @@ El PO aclaró que eliminar el modal (commit `efbdd35`, "immediate handoff creati
 
 ---
 
+## Mini-OE 2026-08-02 — Fix de max_tokens (3 providers) + política de extensión de respuestas en base_layer
+
+**Fecha:** 2026-08-02
+**Estado:** Closed — validado por el PO con evidencia real (dato duro de `stop_reason`/`token_usage` para max_tokens, `SELECT` de versión para base_layer).
+
+**Contexto:** Continuación directa de la OE anterior, que había diagnosticado pero no aplicado el fix de `max_tokens: 2048` hardcodeado en Anthropic. La directiva original asumía que Google tenía `maxOutputTokens: 2048` hardcodeado y que OpenAI estaba "confirmado sin problema" — ambas premisas se verificaron y resultaron INCORRECTAS antes de tocar código.
+
+**Parte 1 — Fix de max_tokens, con 2 correcciones de premisa encontradas por verificación directa:**
+- **Anthropic** (`src/lib/providers/anthropic.ts` líneas 62/105): `2048 → 16000`, exactamente como se pidió.
+- **Google** (`src/lib/providers/google.ts`): grep exhaustivo confirmó CERO `maxOutputTokens` configurado en el código — no estaba hardcodeado en 2048, simplemente no se configuraba nada, y la API de Gemini aplicaba su default implícito (~8.192, según documentación oficial) contra un máximo real de ~65.000 para `gemini-3.5-flash`. Se agregó `generationConfig: { maxOutputTokens: 16000 }` explícito (antes inexistente) en `stream()` y `complete()`.
+- **OpenAI** (`src/lib/providers/openai.ts`): la directiva pedía reconfirmar en vez de asumir "sin problema" — la reconfirmación reveló que SÍ tenía el mismo bug. Grep confirmó cero `max_tokens`/`max_completion_tokens` configurado. WebSearch confirmó el máximo real de GPT-5.5: 128.000 tokens de salida. Los datos de `token_usage` ya recolectados en la OE anterior mostraban respuestas cortando en `out=4096` exacto — el default silencioso de la Chat Completions API cuando no se especifica límite. Se agregó `max_completion_tokens: 16000` explícito (nombre de parámetro correcto y no-deprecado para modelos de razonamiento como GPT-5.5, según documentación actual de OpenAI — `max_tokens` está deprecado para ese caso) en `stream()` y `complete()`.
+- **Criterio de valor:** 16.000 en los 3 providers, por consistencia — muy por debajo del máximo real en cada caso (16K vs 128K OpenAI / 65K Google / 128K+ Anthropic real, aunque la directiva citaba 64K para Anthropic).
+
+**Parte 2 — Política de extensión de respuestas en `system_prompts.base_layer`:**
+- Descubrimiento: `base_layer` es una columna separada de `role_prompt` en `system_prompts` — la primera consulta de solo-lectura solo había traído `role_prompt` (sin la frase objetivo), lo que habría llevado a una conclusión equivocada de que la frase no existía. Segunda consulta con el campo correcto confirmó que la frase SÍ existe, pero en los 5 roles (incluidos `sm_documentation` y `sm_audit`, que la directiva pedía dejar afuera) — se limitó el UPDATE explícitamente a `manager`, `submanager`, `worker`.
+- El párrafo del PO llegó escrito en voseo ("Gestioná", "extendé", "dividilo", "Evitá") mientras el `base_layer` existente usa tú/imperativo formal ("Prioriza", "adviértelo", "procede"). Se mostró el contraste al PO, quien pidió ajustar a la forma existente — 4 verbos corregidos (Gestiona/extiende/divídelo/Evita), el resto del párrafo ya coincidía entre ambas formas.
+- **Ejecución:** el PO pidió el flujo manual habitual (SQL Editor de Supabase), no ejecución directa por Claude Code — se le entregó el SQL completo de `supabase/migrations/052_base_layer_response_length_policy.sql` para pegar y correr. Confirmado por el PO: `version=2` en los 3 roles, `updated_by='claude_code'`.
+
+**Validación funcional (evidencia real del PO, no supuesto):**
+- Parte 1: respuesta de propuesta comercial extensa en Anthropic (Workspace COMERCIAL, panel Worker) completó con `stop_reason: "end_turn"` y `3847/16000` tokens usados — el corte artificial desapareció, y la respuesta ni siquiera se acercó al nuevo techo.
+- Parte 2: `SELECT` post-UPDATE confirmó `version=2` en manager/submanager/worker.
+
+**Alternativas descartadas:**
+- Fijar Google en 8.192 tal como pedía la directiva original: se habría limitado a confirmar el default implícito ya vigente, sin corregir nada — no había nada que "subir".
+- Dar por buena la premisa "OpenAI sin problema": los datos de `token_usage` ya disponibles de la OE anterior contradecían esto directamente (cortes en `out=4096` exacto); la directiva de esta OE pidió explícitamente reconfirmar antes de descartar.
+- Ejecutar el UPDATE de base_layer directamente desde Claude Code vía REST/service role key (se había preparado un script para esto): el PO indicó preferencia explícita por el flujo manual ya establecido (SQL Editor), coherente con el patrón de todas las migraciones anteriores del proyecto.
+
+**Archivos modificados:**
+- `src/lib/providers/anthropic.ts` — `max_tokens: 2048 → 16000` (2 ocurrencias)
+- `src/lib/providers/google.ts` — `generationConfig: { maxOutputTokens: 16000 }` agregado (nuevo, antes inexistente) en `stream()` y `complete()`
+- `src/lib/providers/openai.ts` — `max_completion_tokens: 16000` agregado (nuevo, antes inexistente) en `stream()` y `complete()`
+- `supabase/migrations/052_base_layer_response_length_policy.sql` (nuevo) — 3 `UPDATE` sobre `system_prompts.base_layer`, ejecutado manualmente por el PO en Supabase SQL Editor
+
+**Riesgos conocidos / deuda técnica:**
+- 16.000 sigue siendo un techo arbitrario, no el máximo real de cada modelo — si en el futuro se necesitan respuestas aún más largas (informes muy extensos en una sola respuesta), habrá que revisitar el valor. La política de extensión del base_layer mitiga esto pidiéndole al modelo que divida en entregas por etapas en vez de intentar todo en una respuesta.
+- El `complete()` de Anthropic (usado en el primer turno del tool loop de web search) sigue siendo no-streaming — a 16.000 tokens no debería acercarse al timeout típico del SDK, pero no se validó específicamente ese camino (solo el flujo directo de chat, que usa `stream()`).
+- `updated_by = 'claude_code'` y el criterio de versión (`version + 1`) fueron una convención propuesta por Claude Code ante la ausencia de un patrón previo en el código — aprobada por el PO, pero vale confirmar si conviene formalizarla en algún lado (AISyncPlans.md, por ejemplo) si se vuelve a tocar `system_prompts` en el futuro.
+
+**Validaciones:** lint ✅, build ✅ (corridos 2 veces — tras el fix de código y una vez más antes del commit final).
+
+---
+

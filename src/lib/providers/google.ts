@@ -14,6 +14,10 @@ const MODEL_MAP: Record<string, string> = {
   'Gemini 1.5 Flash':  'gemini-3.5-flash',
 }
 
+// Sin este override, la API aplica su default implícito (~8192, no documentado
+// de forma estable) muy por debajo del máximo real del modelo (~65000).
+const GENERATION_CONFIG = { maxOutputTokens: 16000 }
+
 export class GoogleProvider implements ChatProvider {
   private genAI: GoogleGenerativeAI
 
@@ -23,7 +27,7 @@ export class GoogleProvider implements ChatProvider {
 
   async stream(messages: ChatMessage[], model: string, options?: StreamOptions): Promise<ReadableStream<Uint8Array>> {
     const resolvedModel = MODEL_MAP[model] ?? model
-    const genModel = this.genAI.getGenerativeModel({ model: resolvedModel })
+    const genModel = this.genAI.getGenerativeModel({ model: resolvedModel, generationConfig: GENERATION_CONFIG })
     const encoder = new TextEncoder()
 
     // Gemini separa historial del mensaje actual
@@ -87,6 +91,7 @@ export class GoogleProvider implements ChatProvider {
 
     const genModel = this.genAI.getGenerativeModel({
       model: resolvedModel,
+      generationConfig: GENERATION_CONFIG,
       ...(tools?.length ? {
         tools: [{
           functionDeclarations: tools.map(t => ({

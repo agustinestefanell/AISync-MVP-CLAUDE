@@ -48,6 +48,7 @@ export class OpenAIProvider implements ChatProvider {
     const completion = await this.client.chat.completions.create({
       model: resolvedModel,
       messages: sdkMessages,
+      max_completion_tokens: 16000,
       stream: true,
       stream_options: { include_usage: true },
     })
@@ -107,6 +108,7 @@ export class OpenAIProvider implements ChatProvider {
     const response = await this.client.chat.completions.create({
       model: resolvedModel,
       messages: sdkMessages,
+      max_completion_tokens: 16000,
       stream: false,
       ...(tools?.length ? {
         tools: tools.map(tool => ({
