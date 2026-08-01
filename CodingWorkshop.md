@@ -1679,3 +1679,18 @@ N/A (hallazgo metodológico)
 4. La conversión uniforme en un solo punto (antes de la bifurcación por provider) evita mantener tres soluciones distintas que divergen con el tiempo.
 
 **Referencia:** handoff-2026-07-b.md OE 2026-07-31, DECISIONS.md 2026-07-31.
+
+## 2026-08-02 — `max_tokens` fijo en 2048: un límite de salida "razonable" en su momento se volvió un corte silencioso
+
+**Síntoma:** Respuestas largas del agente (Claude) se cortaban a mitad de una tabla o sección, sin ningún error visible — el usuario pedía "continuar" y la respuesta seguía cortándose en la misma sección poco después.
+
+**Causa raíz:** `src/lib/providers/anthropic.ts` tenía `max_tokens: 2048` hardcodeado en 2 lugares (`stream()` y `complete()`) desde el MVP inicial — nunca se revisó al crecer el uso real. Confirmado con datos de `token_usage` en producción: múltiples respuestas cortadas mostraban `output_tokens = 2048` exacto, coincidiendo 1:1 con los reportes de "quedó incompleta en el Punto 5" / "en Oferta 2".
+
+**Por qué no se detectó antes:** 2048 tokens (~6.500-6.800 caracteres) alcanza para la mayoría de respuestas cortas de testing. El síntoma solo aparece con contenido real y extenso (tablas de negocio, análisis largos) — el mismo patrón de "el costo/límite crece con el contenido real, no con casos de prueba" que ya se vio en la lección de performance del Workspace (2026-07-30).
+
+**Lecciones:**
+1. Un límite de salida (`max_tokens`) hardcodeado sin comentario ni constante nombrada es una bomba de tiempo silenciosa — no falla en dev/testing, falla en el primer uso real extenso. Nombrar la constante y documentar por qué ese valor, o mejor, no hardcodearla sin revisarla contra el uso esperado.
+2. El número exacto en `token_usage.output_tokens` (2048, 2048, 2048, 2048...) fue la evidencia que confirmó la causa raíz sin ambigüedad — mismo patrón que en la lección de performance: preferir el dato duro de producción sobre la hipótesis plausible.
+3. Los 3 providers (Anthropic, OpenAI, Google) manejaban el límite de salida de 3 formas distintas — uno hardcodeado, uno con default del provider, uno sin control explícito. Una inconsistencia de este tipo entre providers suele señalar que ninguno de los tres fue una decisión deliberada, sino "lo que quedó" en cada implementación sucesiva.
+
+**Referencia:** handoff-2026-07-b.md OE 2026-08-02. **Fix aún no aplicado** — pendiente de aprobación del PO sobre el valor nuevo.

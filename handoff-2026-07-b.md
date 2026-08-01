@@ -3148,3 +3148,55 @@ npm audit reportaba 10 vulnerabilidades high, todas en dependencias transitivas,
 
 ---
 
+## OE 2026-08-02 — Diagnóstico de 3 regresiones reportadas + fixes de Handoff Package, Context Files y gestión de tokens
+
+**Fecha:** 2026-08-02
+**Estado:** Implementado y validado localmente por el PO (`npm run dev`, localhost:3001). Pendiente commit + deploy (autorizado, ver más abajo).
+
+**Contexto — mini-OE urgente del PO:** 3 síntomas reportados tras la sesión del 31/7-1/8: (1) Create Handoff Package "no hace nada" al clickear, (2) adjuntos Word/Excel rechazados por el modelo en el chat, (3) Context Files desconectado ("no tengo acceso a context files"). Investigación con evidencia real de producción (consultas de solo lectura a Supabase vía service role key, sin tocar datos) antes de cualquier fix.
+
+**Diagnóstico de las 3 regresiones (resumen — detalle completo en la conversación):**
+- **(1) Handoff Package — regresión REAL.** La migración `051_handoff_to_agent_nullable.sql` (creada en el commit `efbdd35`, 30/7) nunca se ejecutó en Supabase. `to_agent` seguía NOT NULL en producción → cada intento de crear un handoff fallaba con 500 silencioso (la UI solo hacía `console.error`, sin mostrar nada al usuario). Confirmado con query directa al schema real de Supabase y con el último handoff creado con éxito siendo de horas ANTES del deploy del flujo nuevo.
+- **(2) Word/Excel en el chat — NO es regresión.** La conversión (mammoth/xlsx/jszip) funciona correctamente — confirmado con casos reales de producción del 31/7 (.xlsx y .pptx analizados con los 3 providers). El caso reportado por el PO era un `.doc` legacy (Word 97-2003), formato nunca soportado por mammoth (limitación documentada, no un bug).
+- **(3) Context Files desconectado — NO es regresión de código, mismo origen que (2).** La inyección en `api/chat/route.ts` funciona (verificado con casos reales del mismo día donde el agente sí usó el contenido). El caso reportado subió el mismo `.doc` legacy a Context Files → sin texto extraído → no hay nada que inyectar → el agente respondió honestamente que no tenía acceso.
+
+**Decisiones técnicas y por qué (ronda 1 — feedback + extensión + Context Files):**
+- **Handoff Package (antes de la corrección de rumbo):** se agregó feedback visual (estado "Creating...", toast de éxito, error visible) al flujo de creación directa sin modal que ya existía desde `efbdd35`. *Esta parte fue revertida — ver más abajo.*
+- **Word/Excel en el chat:** confirmado que NO había nada que conectar (la extracción ya se ejecutaba antes de llegar al modelo, vía `inlineOfficeAttachments()` → `extractTextFromBuffer()`, la misma función que usa Context Files). Se agregó SÍ una mejora real: bloqueo de `.doc`/`.ppt` legacy en el chat con mensaje claro al usuario ANTES de adjuntar (antes se adjuntaban igual y el usuario nunca se enteraba de que no eran analizables — eso fue lo que generó la confusión original).
+- **Context Files — decisión del PO: confirmación en vez de truncado automático.** Se eliminó el truncado ciego de 35.000 caracteres en `api/chat/route.ts`. Ahora, si algún context file supera 30.000 caracteres (umbral elegido para no molestar con archivos chicos — ninguno de los reales en producción lo dispara — pero sí avisar en archivos grandes), el panel muestra un aviso ANTES de enviar el mensaje con tamaño aproximado y advertencia de costo/tiempo, con checkboxes por archivo y botones Send/Cancel. Lo confirmado va COMPLETO, sin cortar. Nuevo GET en `/api/context` (liviano, reutiliza `getContextSourcesForRuntime` — misma fuente de verdad que el runtime real) para que el panel sepa qué archivos van a inyectarse sin traer el contenido.
+
+**CORRECCIÓN DE RUMBO — reversión de la eliminación del modal de Handoff Package:**
+El PO aclaró que eliminar el modal (commit `efbdd35`, "immediate handoff creation") fue una decisión de diseño ya tomada en sesión anterior, y que no correspondía volver a plantearla como pregunta abierta durante una fase de estabilización de bugs. El problema real reportado ("el botón no hace nada") se debía únicamente a la migración 051 faltante — **ya aplicada y confirmada en Supabase por el PO** —, no al diseño sin modal.
+- Se revirtió específicamente la parte de Handoff Package de `efbdd35`: `HandoffPackageModal.tsx` restaurado byte a byte desde `efbdd35~1`; `handoff-package/route.ts` con `toAgent` vuelto a `string` (no nullable) en el código — la migración 051 en Supabase NO se revirtió, sigue permitiendo NULL en la base, pero el modal siempre manda un destinatario real; `WorkspaceShell.tsx` con `onCreateHandoff` vuelto a abrir el modal (`setShowHandoffModal(true)`).
+- Se revirtió también el feedback visual (toast/estados) que se había agregado en `AgentPanel.tsx` para el flujo sin modal — pertenecía a ese flujo y ya no aplica; el modal restaurado tiene su propio manejo de estado (`saving`/`apiError`/`done`) intacto desde antes de `efbdd35`.
+- **Confirmado explícitamente que las otras 2 partes de `efbdd35` NO se tocaron:** Save Version sigue oculto (`{false && (...)}`) en `AgentPanel.tsx` y `HumanChatPanel.tsx`; el guard de Realtime (`console.warn('[HumanChat] Skipping Realtime subscription...')`) sigue en `HumanChatPanel.tsx:231`.
+- **Validado por el PO en local** (`npm run dev`, localhost:3001): modal reaparece, Handoff Package se crea correctamente con la 051 ya aplicada.
+
+**Gestión de tokens — investigación de 2 síntomas separados, sin aplicar fix aún (pendiente de datos adicionales del PO):**
+- **Respuestas cortadas (Workspace con historial):** causa raíz CONFIRMADA con datos reales de `token_usage` — `src/lib/providers/anthropic.ts` tiene `max_tokens: 2048` hardcodeado (líneas 62 y 105) en 2 lugares (`stream()` y `complete()`). Múltiples respuestas de Claude en producción cortaron exactamente en `out=2048`. OpenAI/Google no tienen límite explícito (dependen del default del provider — GPT-5.5 cortó en `out=4096` exacto). "Continuar" reenvía todo el historial acumulado sin ventana — no causa el corte en sí (Claude tiene contexto de 1M) pero multiplica costo en cada iteración. **Fix pendiente de aprobación del PO** (no aplicado aún): subir `max_tokens` de Anthropic a un piso razonable (propuesto 8192) y fijar límites explícitos equivalentes en OpenAI/Google en vez de depender de sus defaults.
+- **Error 500 "remaining prompt tokens (94212)" en Workspace nuevo:** diagnóstico PARCIAL. Confirmado que la fórmula no está en nuestro código (grep exhaustivo sin matches) — el mensaje viene del provider y nuestro route solo lo releva tal cual. Descartada la hipótesis de que Context Files infla el conteo (medición real: 147.042 caracteres en TODOS los context files de la cuenta, máximo por workspace ~39K chars — matemáticamente insuficiente para 94K tokens). Sin reproducir aún — pendiente de screenshot/texto exacto del error y provider/modelo de la sesión afectada para cerrar el diagnóstico.
+
+**Alternativas descartadas:**
+- Reimplementar la conversión Word/Excel del chat: ya existía y funcionaba — habría sido trabajo duplicado sobre algo no roto.
+- Truncado automático silencioso para Context Files grandes: descartado explícitamente por el PO a favor de confirmación explícita del usuario (mismo criterio de "avisar, no decidir por el usuario" que ya rige en el proyecto).
+- Revertir la migración 051 en Supabase al revertir el modal: NO se hizo — la migración es compatible con ambos diseños (con o sin modal) y revertirla no aportaba nada, solo riesgo.
+
+**Archivos modificados:**
+- `src/components/workspace/HandoffPackageModal.tsx` (restaurado — existía antes de `efbdd35`)
+- `src/app/api/handoff-package/route.ts` — `toAgent` vuelto a `string`
+- `src/components/workspace/WorkspaceShell.tsx` — `onCreateHandoff` vuelto a abrir modal; `getAgentMessages()` restaurada
+- `src/components/workspace/AgentPanel.tsx` — bloqueo de adjuntos legacy `.doc`/`.ppt` en el chat + aviso de context files grandes (Confirmar/Cancelar) antes de enviar; reversión del feedback de handoff sin-modal
+- `src/app/api/chat/route.ts` — `excludedContextFileIds` en el payload; eliminado el truncado automático de 35.000 chars
+- `src/app/api/context/route.ts` — nuevo GET de resumen liviano (id/título/scope/longitud) para el aviso de archivos grandes
+
+**Riesgos conocidos / deuda técnica:**
+- `max_tokens: 2048` fijo en Anthropic sigue sin corregirse — cortará respuestas largas hasta que se apruebe y aplique el fix (mini-OE separada recomendada, alta prioridad).
+- OpenAI/Google sin límite explícito de salida — dependen de defaults del provider, inconsistente entre los 3.
+- Error 500 "remaining prompt tokens" sin reproducir — diagnóstico abierto, requiere más datos del PO para cerrar.
+- `MODEL_MAP` de `anthropic.ts` sigue ofreciendo "Claude 3 Opus" (retirado por Anthropic el 5/1/2026 — devuelve 404 si se selecciona) y "Claude 3 Haiku" (deprecado, se retira abril 2026). Candidato a mini-OE de limpieza de modelos, detectado como hallazgo colateral.
+- El aviso de context files grandes es por-mensaje, no por-sesión — con un archivo grande permanente en el team, el aviso reaparece en cada mensaje. Si resulta molesto en el uso real, se puede agregar "recordar por sesión" en una ronda futura.
+
+**Validaciones:** lint ✅ (solo warnings pre-existentes de CanvasViewport), build ✅ (limpiado `.next` corrupto que causaba un `PageNotFoundError` espurio en `/api/admin/prompts`, no relacionado con el código). Validación funcional del PO en local: Handoff Package con modal restaurado — confirmado funcionando.
+
+---
+

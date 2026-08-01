@@ -657,6 +657,8 @@ Ver sección 10.
 
 **Export a archivos (2026-07-30):** `/api/export/excel` y `/api/export/word` reciben los mensajes seleccionados del cliente y devuelven el archivo generado (Content-Disposition attachment) — las librerías xlsx/docx viven solo server-side (0 B en bundle cliente). La limpieza de Markdown usa `src/lib/export/markdown.ts` (nuevo), NO `stripMarkdown()` de `src/lib/text/`: esa función es para previews de cards (trunca a 200 chars, colapsa saltos de línea, reemplaza filas de tabla por "[table row]") y corrompería un export. El helper de export limpia sin truncar, preserva líneas y parsea tablas Markdown a filas/columnas reales (`splitMarkdownBlocks`).
 
+**GET `/api/context` (2026-08-02):** resumen liviano (id/título/scope/longitud de `content_text`) de los context files que `/api/chat` inyectará para los scopes dados — reutiliza `getContextSourcesForRuntime()`, misma fuente de verdad que el runtime real. Nunca devuelve el contenido. Usado por `AgentPanel.tsx` para avisar antes de enviar cuando un archivo supera 30.000 caracteres (Confirmar/Cancelar), en vez del truncado automático que existía antes.
+
 ### 6.2 Patrón estándar de route
 
 ```typescript

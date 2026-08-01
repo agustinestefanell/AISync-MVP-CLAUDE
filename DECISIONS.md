@@ -1167,3 +1167,30 @@ Un .pptx es un ZIP: se leen ppt/slides/slideN.xml en orden numérico y se extrae
 **Principio reutilizable:** antes de instalar una librería para un formato nuevo, revisar qué hay YA en node_modules (dependencias transitivas de lo instalado) y prototipar el enfoque mínimo — evaluar candidatas contra datos reales del registro (versión, mantenimiento, árbol de deps), no contra su descripción.
 
 **Referencia:** handoff-2026-07-b.md OE PPTX 2026-07-31.
+
+## 2026-08-02 — Handoff Package: reversión de la eliminación del modal (efbdd35)
+
+**Contexto:** El commit `efbdd35` (30/7) eliminó `HandoffPackageModal.tsx` a favor de creación directa sin modal, dependiente de la migración 051 (`to_agent` nullable). El PO reportó "el botón no hace nada" — investigación reveló que la 051 nunca se había aplicado en Supabase (insert fallaba con 500 silencioso, sin feedback visual). Se implementó primero feedback visual (toast/estados) sobre el flujo sin modal.
+
+**Corrección de rumbo del PO:** eliminar el modal fue una decisión de diseño ya tomada en sesión anterior — no correspondía volver a plantearla como pregunta abierta durante una fase de estabilización de bugs. El problema real era únicamente la migración faltante, no el diseño sin modal.
+
+**Decisión — revertir específicamente la parte de Handoff Package de `efbdd35`, dejando el resto intacto:**
+`HandoffPackageModal.tsx` restaurado byte a byte desde `efbdd35~1`. `handoff-package/route.ts` con `toAgent` vuelto a `string` (no nullable) en el código de la API — la migración 051 en Supabase **no se revirtió**, sigue permitiendo NULL en la base (ya aplicada y confirmada por el PO), pero el modal siempre envía un destinatario real, así que esa rama nunca se ejercita. `WorkspaceShell.tsx` vuelve a abrir el modal en vez de crear directo. Las otras 2 partes de `efbdd35` (Save Version oculto, guard de Realtime en HumanChatPanel) se dejaron explícitamente sin tocar — no eran parte del problema reportado.
+
+**Principio reutilizable:** una decisión de diseño ya cerrada en sesión anterior no se reabre como pregunta durante una investigación de bugs — primero se agota la hipótesis de que el síntoma es un bug de implementación (en este caso, una migración faltante), no un problema del diseño en sí.
+
+**Validado por el PO en local** (`npm run dev`) antes de commit.
+
+**Referencia:** handoff-2026-07-b.md OE 2026-08-02.
+
+## 2026-08-02 — Context Files: confirmación de archivos grandes en vez de truncado automático
+
+**Contexto:** `/api/chat` truncaba el contenido de cada context file a 35.000 caracteres silenciosamente antes de inyectarlo en el prompt — el usuario nunca se enteraba de que parte del archivo no llegaba al modelo.
+
+**Decisión — eliminar el truncado, reemplazar por aviso + confirmación explícita del usuario:**
+Umbral de 30.000 caracteres (elegido para no molestar con archivos chicos — ninguno de los reales en producción al momento de la OE lo dispara). Por encima del umbral, el panel muestra un aviso ANTES de enviar el mensaje con el tamaño aproximado de cada archivo y la advertencia de costo/tiempo; checkbox por archivo para excluirlo solo de ese mensaje; botones Send/Cancel. Lo confirmado va COMPLETO, sin cortar. Mismo criterio ya vigente en el proyecto: avisar y dejar que el usuario decida, no decidir silenciosamente por él (mismo espíritu que los límites de tamaño de archivo del 31/7).
+
+**Decisión asociada — GET nuevo en `/api/context` reutilizando `getContextSourcesForRuntime()`:**
+En vez de estimar tamaños del lado del cliente o duplicar la lógica de selección de scope, el endpoint reutiliza exactamente la misma función que usa el runtime del chat — garantiza que el aviso vea exactamente los archivos que se van a inyectar, sin deriva entre lo que el usuario ve y lo que el modelo recibe.
+
+**Referencia:** handoff-2026-07-b.md OE 2026-08-02.

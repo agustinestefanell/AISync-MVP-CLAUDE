@@ -12,6 +12,17 @@ import ContextFilePanel from './ContextFilePanel'
 import { createClient } from '@/lib/supabase/client'
 import { MAX_ATTACHMENT_FILE_BYTES, fileTooLargeMessage, payloadTooLargeMessage } from '@/lib/upload/limits'
 
+// ── Context Files: aviso de archivo grande antes de enviar ───────────────────
+// Umbral por archivo (caracteres de texto extraído). Por debajo se envía sin
+// avisar (archivos chicos no molestan); por encima se pide Confirmar/Cancelar
+// y, si se confirma, va COMPLETO sin truncar (decisión PO 2026-08-02).
+// ~30.000 caracteres ≈ 7.500 tokens ≈ 15-20 páginas de texto.
+const CONTEXT_WARN_CHARS = 30_000
+
+// Formatos Office legacy (pre-2007) sin extracción de texto posible — se
+// bloquean en el chat con mensaje claro en vez de adjuntarse sin análisis.
+const LEGACY_UNSUPPORTED_EXTS: Record<string, string> = { doc: '.docx', ppt: '.pptx' }
+
 // ── Role configuration ───────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, {
   displayLabel: string
@@ -327,6 +338,12 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
     const [forwardTarget, setForwardTarget]   = useState(forwardTargets?.[0]?.role ?? '')
     const [showRefreshConfirm, setShowRefreshConfirm]   = useState(false)
     const [copiedIndex, setCopiedIndex]                 = useState<number | null>(null)
+    // Aviso de context files grandes: null = sin aviso abierto
+    const [contextWarnFiles, setContextWarnFiles]       = useState<{ id: string; title: string; length: number; include: boolean }[] | null>(null)
+    // Mensaje retenido mientras el aviso de context files espera Confirmar/Cancelar
+    const pendingSendRef     = useRef<{ content: string; atts: ChatAttachment[] } | null>(null)
+    // Cache del resumen de context files (se invalida al cerrar el panel de contexto)
+    const contextSummaryRef  = useRef<{ id: string; title: string; length: number }[] | null>(null)
     const [autoRespond]                                 = useState(true)
     const [webSearchEnabled, setWebSearchEnabled]       = useState(session.web_search_enabled ?? true)
     const [showPromptLibrary,    setShowPromptLibrary]    = useState(false)
@@ -480,13 +497,19 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
       const allFiles = Array.from(e.target.files ?? [])
       // Attachments travel base64-encoded inside the JSON body (~33% larger
       // than the file) — validate before reading to avoid a 413 from Vercel.
-      const tooLarge = allFiles.filter(f => f.size > MAX_ATTACHMENT_FILE_BYTES)
-      const files    = allFiles.filter(f => f.size <= MAX_ATTACHMENT_FILE_BYTES)
+      const fileExt   = (f: File) => f.name.split('.').pop()?.toLowerCase() ?? ''
+      const tooLarge  = allFiles.filter(f => f.size > MAX_ATTACHMENT_FILE_BYTES)
+      const legacy    = allFiles.filter(f => f.size <= MAX_ATTACHMENT_FILE_BYTES && fileExt(f) in LEGACY_UNSUPPORTED_EXTS)
+      const files     = allFiles.filter(f => f.size <= MAX_ATTACHMENT_FILE_BYTES && !(fileExt(f) in LEGACY_UNSUPPORTED_EXTS))
+      const problems: string[] = []
       if (tooLarge.length > 0) {
-        setError(tooLarge
-          .map(f => fileTooLargeMessage(f.name, f.size, MAX_ATTACHMENT_FILE_BYTES))
-          .join(' '))
+        problems.push(...tooLarge.map(f => fileTooLargeMessage(f.name, f.size, MAX_ATTACHMENT_FILE_BYTES)))
       }
+      if (legacy.length > 0) {
+        problems.push(...legacy.map(f =>
+          `"${f.name}" is a legacy Office format that cannot be analyzed. Save it as ${LEGACY_UNSUPPORTED_EXTS[fileExt(f)]} or PDF and attach it again.`))
+      }
+      if (problems.length > 0) setError(problems.join(' '))
       if (files.length === 0) {
         if (fileInputRef.current) fileInputRef.current.value = ''
         return
@@ -510,7 +533,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
-    async function sendPrompt(content: string, atts: ChatAttachment[] = []) {
+    async function sendPrompt(content: string, atts: ChatAttachment[] = [], excludedContextFileIds: string[] = []) {
       if ((!content && !atts.length) || streaming || workspaceLocked) return
 
       const userMsg: DisplayMessage  = { role: 'user', content, created_at: new Date().toISOString(), attachments: atts.length ? atts : undefined }
@@ -569,6 +592,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
             panel_id:             session.agent_role,
             session_id:           session.id,
             otherPanelsSnapshot,
+            excludedContextFileIds,
           }),
         })
 
@@ -657,6 +681,29 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
       }
     }
 
+    // Resumen liviano de los context files que /api/chat inyectará para este
+    // panel. Fail-open: si el resumen falla, el envío sigue sin aviso — el
+    // aviso nunca debe bloquear el chat.
+    async function getHeavyContextFiles(): Promise<{ id: string; title: string; length: number }[]> {
+      try {
+        if (!contextSummaryRef.current) {
+          const params = new URLSearchParams()
+          if (projectId) params.set('projectId', projectId)
+          if (teamId)    params.set('teamId', teamId)
+          params.set('sessionId', session.id)
+          const res = await fetch(`/api/context?${params.toString()}`)
+          if (!res.ok) return []
+          const body = await res.json() as { sources?: { id: string; title: string; content_length: number }[] }
+          contextSummaryRef.current = (body.sources ?? []).map(s => ({
+            id: s.id, title: s.title, length: s.content_length,
+          }))
+        }
+        return contextSummaryRef.current.filter(s => s.length > CONTEXT_WARN_CHARS)
+      } catch {
+        return []
+      }
+    }
+
     async function sendMessage() {
       const content = input.trim()
       if (!content && !attachments.length) return
@@ -664,7 +711,39 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
       setInput('')
       setAttachments([])
       if (textareaRef.current) textareaRef.current.style.height = '36px'
+
+      // Context files por encima del umbral → pedir Confirmar/Cancelar antes
+      const heavy = await getHeavyContextFiles()
+      if (heavy.length > 0) {
+        pendingSendRef.current = { content, atts: pendingAtts }
+        setContextWarnFiles(heavy.map(h => ({ ...h, include: true })))
+        return
+      }
       await sendPrompt(content, pendingAtts)
+    }
+
+    function toggleContextWarnFile(id: string) {
+      setContextWarnFiles(prev => prev?.map(f => f.id === id ? { ...f, include: !f.include } : f) ?? prev)
+    }
+
+    async function confirmContextSend() {
+      const pending  = pendingSendRef.current
+      const excluded = (contextWarnFiles ?? []).filter(f => !f.include).map(f => f.id)
+      setContextWarnFiles(null)
+      pendingSendRef.current = null
+      if (!pending) return
+      await sendPrompt(pending.content, pending.atts, excluded)
+    }
+
+    function cancelContextSend() {
+      // Devolver el mensaje y los adjuntos al composer — no se envía nada
+      const pending = pendingSendRef.current
+      setContextWarnFiles(null)
+      pendingSendRef.current = null
+      if (pending) {
+        setInput(pending.content)
+        setAttachments(pending.atts)
+      }
     }
 
     // ── Render ───────────────────────────────────────────────────────────────
@@ -863,6 +942,52 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
           </div>
         )}
 
+
+        {/* Aviso de context files grandes — Confirmar/Cancelar antes de enviar */}
+        {contextWarnFiles && (
+          <div
+            className="shrink-0 mx-3 mb-1.5 rounded-lg px-3 py-2 text-xs border"
+            style={{
+              background: 'rgba(180,120,24,0.08)',
+              borderColor: 'rgba(180,120,24,0.3)',
+              color: 'var(--color-text-primary)',
+            }}
+          >
+            <div className="font-semibold mb-1">Large context files will be sent with this message</div>
+            <div className="mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+              Sending them in full may significantly increase cost and response time.
+              Uncheck any file to leave it out of this message only.
+            </div>
+            {contextWarnFiles.map(f => (
+              <label key={f.id} className="flex items-center gap-2 py-0.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={f.include}
+                  onChange={() => toggleContextWarnFile(f.id)}
+                />
+                <span className="min-w-0 truncate">
+                  &quot;{f.title}&quot; — ~{f.length.toLocaleString('en-US')} characters
+                </span>
+              </label>
+            ))}
+            <div className="mt-1.5 flex justify-end gap-1.5">
+              <button
+                className="ui-button px-3 text-[11px]"
+                style={{ color: 'var(--color-text-secondary)' }}
+                onClick={cancelContextSend}
+              >
+                Cancel
+              </button>
+              <button
+                className="ui-button ui-button-primary px-3 text-[11px] text-white"
+                onClick={confirmContextSend}
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── SECTION 4: Composer ────────────────────────────────────────── */}
         <div
           className={`ui-chat-composer-section shrink-0 px-3 py-1.5 rounded transition-shadow${isDragging ? ' ring-2 ring-[var(--color-accent,#0ea5e9)]' : ''}`}
@@ -934,7 +1059,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
             <button
               className="ui-button ui-button-primary ui-chat-send text-xs text-white disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={sendMessage}
-              disabled={(!input.trim() && !attachments.length) || streaming || workspaceLocked}
+              disabled={(!input.trim() && !attachments.length) || streaming || workspaceLocked || contextWarnFiles !== null}
             >
               {streaming ? 'Sending...' : 'Send'}
             </button>
@@ -1063,7 +1188,11 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
 
       <ContextFilePanel
         open={showContextFilePanel}
-        onClose={() => setShowContextFilePanel(false)}
+        onClose={() => {
+          setShowContextFilePanel(false)
+          // Los archivos pudieron cambiar — invalidar el cache del aviso
+          contextSummaryRef.current = null
+        }}
         teamId={teamId ?? undefined}
         projectId={projectId}
         workspaceId={session.workspace_id}

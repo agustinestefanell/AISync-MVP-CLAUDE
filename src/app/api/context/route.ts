@@ -4,12 +4,43 @@ import {
   createContextSource,
   updateContextSource,
   extractAndSaveText,
+  getContextSourcesForRuntime,
 } from '@/lib/db/context'
 import { uploadContextFile } from '@/lib/storage/contextFiles'
 import { extractTextFromBuffer, detectMimeType } from '@/lib/context/extractText'
 import type { ContextScope } from '@/lib/db/context'
 
 export const dynamic = 'force-dynamic'
+
+// GET /api/context?projectId=&teamId=&sessionId=
+// Resumen liviano (id/título/scope/longitud) de los context files que
+// /api/chat inyectará para esos scopes — misma selección que el runtime
+// (getContextSourcesForRuntime), para que el panel pueda avisar ANTES de
+// enviar cuando un archivo supera el umbral. Nunca devuelve el contenido.
+export async function GET(req: Request) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const params = new URL(req.url).searchParams
+  try {
+    const sources = await getContextSourcesForRuntime({
+      projectId: params.get('projectId'),
+      teamId:    params.get('teamId'),
+      sessionId: params.get('sessionId'),
+    })
+    return Response.json({
+      sources: sources.map(s => ({
+        id:             s.id,
+        title:          s.title,
+        scope:          s.scope,
+        content_length: s.content_text?.length ?? 0,
+      })),
+    })
+  } catch {
+    return Response.json({ error: 'Failed to load context summary' }, { status: 500 })
+  }
+}
 
 export async function POST(req: Request) {
   const supabase = createClient()

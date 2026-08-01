@@ -23,10 +23,6 @@ interface PanelSnapshot {
   lastMessages: { role: string; content: string }[]
 }
 
-function truncateContextText(text: string, maxLength = 35000): string {
-  return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text
-}
-
 export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -55,6 +51,7 @@ export async function POST(req: Request) {
     project_id, workspace_id,
     otherPanelsSnapshot,
     webSearchEnabled,
+    excludedContextFileIds,
   } = await req.json() as {
     messages:              ChatMessage[]
     provider:              string
@@ -69,6 +66,9 @@ export async function POST(req: Request) {
     project_id?:           string | null
     otherPanelsSnapshot?:  PanelSnapshot[]
     webSearchEnabled?:     boolean
+    // Context files que el usuario decidió dejar fuera de ESTE mensaje
+    // (aviso de archivo grande — Confirmar/Cancelar en el panel)
+    excludedContextFileIds?: string[]
   }
 
   // ── Capa 1: Role system prompt ──────────────────────────────────────────────
@@ -167,12 +167,18 @@ export async function POST(req: Request) {
       sessionId:  session_id  ?? null,
     })
 
-    if (contextSources.length > 0) {
-      const lines = contextSources.map(s => {
+    // Respetar la decisión del usuario (aviso de archivo grande): los
+    // excluidos no van en este mensaje; los confirmados van COMPLETOS,
+    // sin truncar (decisión PO 2026-08-02 — confirmación en vez de truncado).
+    const excluded = new Set(excludedContextFileIds ?? [])
+    const includedSources = contextSources.filter(s => !excluded.has(s.id))
+
+    if (includedSources.length > 0) {
+      const lines = includedSources.map(s => {
         const scopeLabel = s.scope === 'project' ? 'Project Context'
           : s.scope === 'team' ? 'Team Context'
           : 'Session Context'
-        return `[${scopeLabel}] Title: ${s.title}\nContent: ${truncateContextText(s.content_text ?? '')}`
+        return `[${scopeLabel}] Title: ${s.title}\nContent: ${s.content_text ?? ''}`
       }).join('\n\n')
 
       contextFilesParts.push(

@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     name: string
     workspaceId: string
     fromAgent: string
-    toAgent: string | null
+    toAgent: string
     context: string | null
     messages: { role: string; content: string }[]
   }
