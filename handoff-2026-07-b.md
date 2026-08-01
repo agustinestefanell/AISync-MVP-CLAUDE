@@ -3242,3 +3242,40 @@ El PO aclaró que eliminar el modal (commit `efbdd35`, "immediate handoff creati
 
 ---
 
+## Mini-OE 2026-08-02 — Soporte de .doc legacy vía word-extractor
+
+**Fecha:** 2026-08-02
+**Estado:** Implementado, deploy a producción autorizado por el PO — validación funcional con archivo `.doc` real pendiente en producción (decisión explícita del PO: validar ahí en vez de en local).
+
+**Contexto:** Caso real de trabajo bloqueado — un `.doc` legado (formato OLE, pre-2007) no podía analizarse ni en adjuntos de chat ni en Context Files, mostrando "is a legacy Office format that cannot be analyzed. Save it as .docx or PDF" (mensaje agregado en la Mini-OE del 2026-08-02 anterior, cuando `.doc` todavía estaba en la lista de formatos bloqueados). El PO confirmó que esto bloqueaba trabajo real en curso y pidió agregar soporte.
+
+**Decisión técnica y por qué:**
+- **Librería:** `word-extractor@1.0.4` (+ `@types/word-extractor@1.0.6`, tipos oficiales — el paquete no trae los suyos). Investigada y propuesta por el PO; verificado antes de instalar: sin dependencias de sistema operativo, acepta `Buffer` directo (`extractor.extract(buffer)`, confirmado contra el README oficial del repo — la primera búsqueda genérica daba resultados ambiguos, algunos sugiriendo que hacía falta un fork para soporte de Buffer). Mismo criterio de selección que jszip/PPTX: simple, mantenida, sin duplicar el stack existente (mammoth se mantiene exclusivo para `.docx`).
+- **Implementación:** rama nueva en `extractTextFromBuffer()` (`src/lib/context/extractText.ts`) para `type === 'application/msword'` — mimetype que ya estaba mapeado en `detectMimeType()` desde la implementación original de adjuntos Office, sin necesitar cambios ahí. Mismo patrón try/catch/throw + `console.error` que las ramas DOCX/XLSX/PPTX ya existentes.
+- **Mensajes actualizados:** `AgentPanel.tsx` — `.doc` sacado de `LEGACY_UNSUPPORTED_EXTS` (solo `.ppt` sigue bloqueado en el chat). `ContextFilePanel.tsx` — hint del panel: `.doc` agregado a "Supported", frase de legacy formats acotada a solo PPT.
+- **Sin cambios:** `accept` de ambos inputs (chat y Context Files) ya incluía `.doc` desde la Mini-OE anterior — no hacía falta tocarlo. Límites de tamaño (3MB chat / 4MB Context Files) son por tamaño de archivo, no por tipo — aplican igual sin modificación.
+
+**Validaciones realizadas:**
+- lint ✅, build ✅ (incluye type-check completo — confirmó que el `export =` de los tipos oficiales interopera correctamente con el `esModuleInterop` del proyecto vía `(await import('word-extractor')).default`, mismo patrón que las otras ramas dynamic-import).
+- Smoke test de runtime: el módulo carga e instancia correctamente en Node (mismo tipo de chequeo que en su momento detectó el bug de `DOMMatrix` con `pdf-parse` — confirma que no hay problema de packaging antes de la prueba funcional real).
+- `npm audit`: mismas 5 vulnerabilidades altas de siempre (cadena next/eslint/postcss, ya documentada en AUDIT_REPORT como Grupo B) — ninguna nueva introducida por `word-extractor` ni sus 2 dependencias nuevas (`saxes`, `yauzl` — a diferencia del caso jszip/PPTX, estas SÍ son dependencias genuinamente nuevas, no arrastre transitivo).
+- Grep exhaustivo pre-cierre: sin menciones residuales de ".doc no soportado" en ningún otro archivo.
+- **No probado:** extracción real contra un `.doc` binario real — no había ninguno disponible en el entorno de desarrollo. El PO decidió validar directamente en producción con su archivo de trabajo real en vez de esperar a conseguir uno de prueba en local.
+
+**Alternativas descartadas:**
+- Reimplementar con mammoth (ya usado para `.docx`): mammoth no soporta el formato OLE binario de `.doc` legacy, solo el formato ECMA-376 (`.docx`) — motivo original por el que `.doc` quedó sin analizar en la Mini-OE anterior.
+- Convertir `.doc` a `.docx` server-side antes de extraer (vía alguna librería de conversión): más pesado, más superficie de fallo, y el PO ya había propuesto e investigado `word-extractor` como solución directa.
+
+**Archivos modificados:**
+- `package.json` / `package-lock.json` — `word-extractor` + `@types/word-extractor` agregadas
+- `src/lib/context/extractText.ts` — rama `.doc` (+14 líneas)
+- `src/components/workspace/AgentPanel.tsx` — `LEGACY_UNSUPPORTED_EXTS` reducido a solo `ppt`
+- `src/components/workspace/ContextFilePanel.tsx` — hint actualizado
+
+**Riesgos conocidos / deuda técnica:**
+- `word-extractor` no tuvo publish desde 2022-06-29 (v1.0.4) — biblioteca pequeña y estable (el formato OLE de `.doc` no cambia), pero sin actividad reciente de mantenimiento a monitorear si aparecen issues.
+- Extracción de solo el cuerpo del documento (`getBody()`) — no incluye notas al pie, encabezados/pies de página ni cuadros de texto (la librería expone métodos separados para eso: `getFootnotes()`, `getHeaders()`, `getTextboxes()`, sin usar en esta implementación). Fidelidad equivalente a la de las otras ramas (Excel sin gráficos, PPTX sin notas del orador).
+- **Pendiente crítico:** validación funcional real con un `.doc` real, en producción — la OE no se cierra formalmente hasta esa confirmación del PO.
+
+---
+

@@ -21,7 +21,8 @@ const CONTEXT_WARN_CHARS = 30_000
 
 // Formatos Office legacy (pre-2007) sin extracción de texto posible — se
 // bloquean en el chat con mensaje claro en vez de adjuntarse sin análisis.
-const LEGACY_UNSUPPORTED_EXTS: Record<string, string> = { doc: '.docx', ppt: '.pptx' }
+// .doc salió de esta lista: word-extractor lo analiza igual que .docx (2026-08-02).
+const LEGACY_UNSUPPORTED_EXTS: Record<string, string> = { ppt: '.pptx' }
 
 // ── Role configuration ───────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, {

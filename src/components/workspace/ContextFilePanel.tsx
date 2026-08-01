@@ -287,7 +287,7 @@ export default function ContextFilePanel({
               </div>
 
               <p className="text-[10px] text-gray-600">
-                Supported: TXT, MD, PDF, DOCX, XLSX, XLS, PPTX, CSV, JSON, HTML. Maximum file size: 4 MB. Text is extracted automatically when possible. Legacy PPT and DOC files are stored, but their content cannot be analyzed.
+                Supported: TXT, MD, PDF, DOCX, DOC, XLSX, XLS, PPTX, CSV, JSON, HTML. Maximum file size: 4 MB. Text is extracted automatically when possible. Legacy PPT files are stored, but their content cannot be analyzed.
               </p>
             </div>
           </div>

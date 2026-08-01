@@ -78,6 +78,23 @@ export async function extractTextFromBuffer(
     }
   }
 
+  // DOC legacy (OLE, pre-2007) — word-extractor. Sin dependencias de sistema,
+  // acepta Buffer directo (no requiere ruta de archivo en disco).
+  if (type === 'application/msword') {
+    try {
+      const WordExtractor = (await import('word-extractor')).default
+      const extractor = new WordExtractor()
+      const doc = await extractor.extract(buffer)
+      return { text: doc.getBody() ?? null, supported: true }
+    } catch (error) {
+      console.error('[Context Files] DOC (legacy) text extraction error', {
+        extraction_error: error instanceof Error ? error.message : String(error),
+        stack:            error instanceof Error ? error.stack : undefined,
+      })
+      throw error
+    }
+  }
+
   // XLSX / XLS — SheetJS (misma librería ya instalada para el export a Excel)
   if (
     type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
