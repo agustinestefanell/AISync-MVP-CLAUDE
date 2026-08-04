@@ -3525,3 +3525,38 @@ Este hallazgo se reportó al PO antes de tocar código (no se asumió ni se inve
 
 ---
 
+## Mini-OE 2026-08-04 — Bug: Connect Team siempre mostraba "JDNADNSFASDF" como team origen
+
+**Fecha:** 2026-08-04
+**Estado:** Closed — fix aplicado y desplegado a producción. Corrige solo conexiones nuevas, historial intacto por decisión explícita del PO.
+
+**Contexto:** el PO reportó que al iniciar conexiones nuevas desde el Project "Prueba", el team compartido resultante mostraba siempre el mismo nombre incorrecto, "JDNADNSFASDF" — un team que el PO recordaba haber creado una sola vez, hace tiempo, en otra prueba.
+
+**Investigación (solo lectura, sin fix hasta confirmar causa):**
+- Query directa a `team_connections`: 2 filas con `requester_team_name = 'JDNADNSFASDF'`, ambas con el **mismo** `requester_team_id` real y consistente (no corrupción de texto — un team real).
+- Cruce con `teams`/`projects`: ese team (`1c056519…`, status **archived**, creado 2026-07-16) pertenece al Project **"Proyecto de prueba"** — un Project completamente distinto del Project **"Prueba"** desde el cual el PO abrió "+ Connect with other user" el 2026-08-04. La cuenta tiene ambos Projects.
+- **Causa raíz confirmada en `ConnectTeamModal.tsx` (líneas 73-77):** `hostTeamId = eligibleTeams[0]?.id`, donde `eligibleTeams = teams.filter(t => t.type !== 'isolated')` — y `teams` es la lista de **todos los teams de la cuenta, de todos los Projects** (`ProjectList.tsx`/`TeamsClient.tsx`: `allTeams = projects.flatMap(p => p.teams)`). El prop `projectId` (que identifica desde qué Project se abrió el modal) solo se usaba para `requester_project_id` en el payload — nunca para filtrar `teams` antes de elegir el host. Resultado: sin importar desde qué Project se clickeara "+ Connect", siempre se usaba el mismo primer team "elegible" de toda la cuenta.
+- **Descartado por grep/inspección:** no es un placeholder ni un mock filtrándose a producción (único hit del string es una mención histórica en este mismo handoff, del 2026-07-19, sobre este mismo team real). No hay `localStorage`/`sessionStorage` involucrado — el componente no persiste nada entre sesiones.
+- **Hallazgo secundario que agravaba el bug:** el filtro tampoco excluía teams `archived` (por eso "JDNADNSFASDF", ya archivado, podía seguir siendo elegido). Y `getProjectsWithHierarchy()` (`src/lib/db/projects.ts`) no tenía `.order()` en el embed anidado `teams(*)`, así que ni siquiera con el scope correcto por Project el orden de "primer team elegible" iba a ser determinístico.
+- **Alcance real confirmado antes de aplicar el fix:** query a `team_connections` con `requester_project_id` seteado → 4 filas con `requester_team_id` de un Project distinto al declarado, **2 de ellas con `status = 'active'`** (workspaces compartidos reales ya en uso con el team host equivocado, incluida la del PO de hoy).
+
+**Fix aplicado (los 3 puntos juntos, confirmados por el PO):**
+1. `ConnectTeamModal.tsx`: `eligibleTeams = teams.filter(t => t.project_id === projectId && t.type !== 'isolated' && t.status !== 'archived')` — ahora escoped al Project correcto usando el mismo prop `projectId` ya recibido, además de excluir archivados.
+2. Exclusión de `status === 'archived'` incluida en el mismo filtro (punto anterior).
+3. `src/lib/db/projects.ts`: agregado `.order('created_at', { foreignTable: 'teams', ascending: true })` al lado del `.order()` ya existente sobre `projects` — mismo patrón exacto ya usado en `getTeamsForProject()` (`src/lib/db/teams.ts` línea 49) para `agent_sessions`, no se inventó un patrón nuevo.
+
+**Decisión explícita del PO — historial NO corregido:** las 4 filas con team host incorrecto (2 `active`, 2 `cancelled`) se dejan intactas a propósito — son conexiones de prueba del propio PO, sin importancia real. El fix aplica solo hacia adelante, para conexiones nuevas creadas después de este deploy.
+
+**Archivos modificados:**
+- `src/components/teams/ConnectTeamModal.tsx`
+- `src/lib/db/projects.ts`
+
+**Restricciones respetadas:** no se tocó ningún dato en `team_connections` (solo lectura durante toda la investigación); no se aplicó ningún fix antes de confirmar la causa raíz con evidencia real; no se corrigió historial sin autorización explícita del PO (autorización fue explícitamente NO corregir).
+
+**Validaciones:** lint ✅, build ✅. **No validado:** confirmación real del PO en producción con una conexión nueva desde un Project específico, verificando que el nombre y `team_id` correctos aparecen — pendiente.
+
+**Riesgos conocidos / deuda técnica:**
+- Las 2 conexiones históricas `active` con team host incorrecto quedan así por decisión explícita del PO — si en el futuro se necesita auditar o corregir, los IDs son `d16d3a9e-ad64-4239-8fd8-ee4ed8d21ba4` y `cb81d4d0-6e28-42f4-8e96-5e837df3508b` en `team_connections`.
+
+---
+

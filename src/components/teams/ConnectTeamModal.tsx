@@ -71,8 +71,12 @@ export default function ConnectTeamModal({ teams, projectId, onClose, onConnecte
   const [existingConnection, setExistingConnection] = useState<ExistingConnectionData | null>(null)
 
   // Use first team automatically (no selector shown to user)
-  // Exclude isolated teams (shared teams from connections) — they cannot be used as host for new connections
-  const eligibleTeams = teams.filter(t => t.type !== 'isolated')
+  // Scoped to the Project the modal was opened from — a global `teams` list spans every
+  // Project of the account, and without this filter the host team silently came from
+  // whichever Project happened to sort first (bug found 2026-08-04, PO report "JDNADNSFASDF").
+  // Also excludes isolated teams (shared teams from connections) and archived teams —
+  // neither can be used as host for new connections.
+  const eligibleTeams = teams.filter(t => t.project_id === projectId && t.type !== 'isolated' && t.status !== 'archived')
   const hostTeamId = eligibleTeams[0]?.id ?? ''
   const hostTeam = eligibleTeams.find(t => t.id === hostTeamId)
 
