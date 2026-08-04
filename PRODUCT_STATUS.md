@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-08-03 (Teams Map: nombre de Project editable inline, texto de Connect más claro, Add Team por Project — validación pendiente en producción)
+Last updated: 2026-08-04 (Dashboard: eliminado "Active Project"/"Set as active", acordeón rediseñado en mini-ribbon título/labels/acciones — validación pendiente en producción)
 
 ---
 
@@ -86,6 +86,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | **Chat-First Onboarding** | ✅ Closed | Commits 5721d17, 5ee3b70, 01aca2c, 464a661, e22ec23, 373853c, ff56050 | Usuario nuevo redirigido a /start. Layout 3 columnas portado de PageJ.tsx demo. Modal provider (Groq, Gemini, Anthropic, OpenAI). Validación pre-flight API key. **Campos Project name y Team name editables** (defaults: My First Project / My First Team, feat 373853c). Auto-creación: Project + Team SAT + Workspace + 3 sessions. **Groq default model actualizado** a llama-3.3-70b-versatile (fix ff56050). initialIntent como **prefill del input** (no autostart) — Usuario ve su texto pre-llenado en el Manager y presiona Send cuando quiera. Autostart eliminado (fix e22ec23: -50 líneas netas, mejor UX, sin timing issues). Skip setup disponible. Dashboard redirect si onboarding_completed=false. Manual migration 032 pending in Supabase. |
 | **Start Page — Sober Visual Translation** | ✅ Closed | OE-S8-002, 2026-06-17 | Rediseño visual de /start de colorido a sobrio monocromático institucional. Paleta reducida a grises + blanco + azul solo en CTA. Contenido y nomenclatura preservados 100% (Main AI Session, Research/Review, badge AI, 4 nodos jerárquicos). Sombras mínimas, bordes finos uniformes, ilustraciones simplificadas. Lógica funcional intacta (handlers, validación, API key flow, routing). Ver handoff-archive-2026-06.md 2026-06-17. |
 | **Combined Project + Team creation** | ✅ Closed | Commit pending (2026-07-27) | **Modal combinado "+ New Project" con Team SAT default y loading states.** AddProjectWithTeamModal.tsx combina creación de Project + Team en flujo único. Endpoint POST `/api/projects` crea Project y delega a `/api/teams` existente. LoadingSpinner.tsx reutilizable + loading.tsx por página (/, /teams, /audit, /documentation, /context, /settings). **Fix descripción solo Manager (Ajuste 1):** Al crear Team, descripción del formulario se aplicaba a Manager Y Workers (bug) — corregido con lógica condicional `a.role === 'manager' ? trimmedDescription : null` en INSERT de agent_sessions. Workers ahora se crean con `description: null` para completarse después individualmente. **Persistencia de descripciones individuales de Workers (Ajuste 2):** EditTeamModal ya enviaba descripciones individuales correctamente, endpoint PATCH ya las procesaba — NO requirió cambios, solo validación funcional del PO para confirmar. **Loading feedback (Ajuste 3):** Loading.tsx funciona correctamente — no se notaba en localhost con datos cacheados, confirmado funcional con throttling de red en DevTools. Validaciones: lint ✅, build ✅, PO 4-point checklist ✅ (descripción solo Manager, edición Workers persiste). Ver handoff-2026-07-b.md 2026-07-27. |
+| **Active Project / Set as active — removido de Dashboard** | ✅ Closed | Mini-OE 2026-08-04 | Badge "Active Project"/botón "Set as active" y el badge fijo redundante "active" eliminados de `ProjectList.tsx` — la selección de Project ya se resuelve por otras vías (Host vía "+ Connect with other user" por Project, Invitee vía dropdown explícito en `IncomingRequestsPanel` al aceptar). `accounts.active_project_id`, migración 027, `GET+PATCH /api/projects/active` y el dropdown de switch project en Teams Map (`TeamsClient.tsx`) quedan intactos — siguen siendo la fuente real de qué Project carga `/teams` por default y el acceso rápido de `BottomRibbon`. `IncomingRequestsPanel` ya no requiere `projectId` externo (prop opcional, sin preselección basada en "activo global"). Acordeón de Dashboard rediseñado: fila de cada Project separada en título / labels / mini-ribbon de acciones (Connect, Archive, Delete), referencia visual tomada del header de Project ya usado en `MapView.tsx`. Ver handoff-2026-07-b.md 2026-08-04. |
 
 ---
 
@@ -283,8 +284,8 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 - RPC `set_active_project` con ownership check creada en repo
 - `getActiveProjectId()` lee la selección persistida con fallback al primer proyecto activo
 - `active-workspace` consume el helper centralizado (lógica duplicada eliminada)
-- Dashboard: badge "active" real + botón "Set active" por proyecto
-- Teams Map: dropdown de proyecto en el ribbon operativo
+- Dashboard: badge "active" / botón "Set active" **removidos** (Mini-OE 2026-08-04) — selección de Project ya no se expone en Dashboard, se resuelve por Connect Team (Host) e IncomingRequestsPanel (Invitee)
+- Teams Map: dropdown de proyecto en el ribbon operativo (sin cambios — sigue siendo el único lugar donde el usuario cambia el Project activo)
 - ⏳ Aplicación manual de la 027 pendiente — hasta entonces el switch devuelve error y todo opera como antes (primer proyecto)
 
 ---

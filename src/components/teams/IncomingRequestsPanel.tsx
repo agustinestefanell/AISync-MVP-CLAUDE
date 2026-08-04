@@ -7,7 +7,7 @@ import type { Connection } from './ConnectTeamModal'
 interface IncomingRequestsPanelProps {
   connections: Connection[]
   myTeams: TeamWithWorkspaces[] // no longer used (isolated team is created automatically)
-  projectId: string
+  projectId?: string // optional default suggestion for the dropdown — never a hidden preselection
   projects: Array<{ id: string; name: string }>
   onClose: () => void
   onAccepted: (updated: Connection) => void
@@ -33,7 +33,7 @@ export default function IncomingRequestsPanel({
   const pending = connections.filter(c => c.status === 'pending' && c.direction === 'incoming')
 
   const [acceptingId, setAcceptingId]   = useState<string | null>(null)
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(projectId)
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(projectId ?? projects[0]?.id ?? '')
   const [loading, setLoading]           = useState<string | null>(null)
   const [error, setError]               = useState('')
 
@@ -181,7 +181,7 @@ export default function IncomingRequestsPanel({
                   <button
                     onClick={() => {
                       setAcceptingId(conn.id)
-                      setSelectedProjectId(projectId) // Reset to default Project
+                      setSelectedProjectId(projectId ?? projects[0]?.id ?? '')
                       setError('')
                     }}
                     className="flex-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold py-1.5 rounded-lg transition-colors"

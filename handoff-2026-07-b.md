@@ -3480,3 +3480,48 @@ Inspección confirmó que `filterTeam` ya arrancaba vacío (correcto) — el bug
 
 ---
 
+## Mini-OE 2026-08-04 — Dashboard: eliminar "Active Project"/"Set as active" + rediseño del acordeón (mini-ribbon)
+
+**Fecha:** 2026-08-04
+**Estado:** Implementado, deploy a producción autorizado por el PO — validación visual pendiente en producción.
+
+**Contexto:** el PO confirmó que "Active Project"/"Set as active" en Dashboard era funcionalidad redundante — la selección de Project ya se resuelve por otras vías más claras (Host elige desde "+ Connect with other user" dentro de cada Project; Invitee elige explícitamente desde el dropdown de `IncomingRequestsPanel` al aceptar una conexión). Además, el PO pidió reordenar visualmente la fila de cada Project en el acordeón, separando título/labels/acciones.
+
+**Inspección previa — hallazgo importante que corrigió la premisa original del directive:** un grep exhaustivo mostró que `activeProjectId`/`accounts.active_project_id` (migración 027, comentario en código "ARC-004: fuente única del proyecto activo") **no** era solo un valor de preselección residual del modal, como asumía el directive inicial. También lo usan:
+1. `src/app/teams/page.tsx` — decide qué Project se carga por default al entrar a Teams Map (`getActiveProjectId()`, redirige a `/` si no hay ninguno).
+2. `TeamsClient.tsx` — tiene su propio dropdown "switch project" en el top ribbon de Teams Map, que usa el mismo `PATCH /api/projects/active` para cambiar `accounts.active_project_id` y recarga la página.
+3. `BottomRibbon.tsx` — usa `GET /api/active-workspace` (que internamente llama a `getActiveProjectId()`) para el link de acceso rápido "continuar donde quedé".
+
+Este hallazgo se reportó al PO antes de tocar código (no se asumió ni se inventó una resolución). El PO confirmó Opción 1: acotar el alcance solo a Dashboard, dejando intacta toda la infraestructura de "active project" que sostiene Teams Map y BottomRibbon — el bug conocido y separado que mencionó el PO sobre uno de esos puntos queda para una sesión futura de Teams Map, no para esta.
+
+**Parte 1 — Eliminado solo de Dashboard:**
+- `ProjectList.tsx`: removidos el badge "Active Project"/botón "Set as active" y el estado asociado completo (`activeProjectId`, `switchingProject`, `switchError`, `setActiveProject`, `fetchActiveProject`).
+- **Hallazgo adicional, resuelto por transparencia (bajo riesgo, sin necesidad de decisión del PO):** también había un segundo badge fijo que decía "active" sin ninguna condición — resultó ser 100% redundante, ya que `getProjectsWithHierarchy()` (fuente de datos de `ProjectList`) ya filtra `.eq('status', 'active')`, así que todos los Projects listados en Dashboard son siempre "active" y ese badge no aportaba información real. Se eliminó junto con el resto.
+- **Sin tocar, confirmado por inspección:** `accounts.active_project_id`, migración 027, `GET+PATCH /api/projects/active`, el dropdown de `TeamsClient.tsx`, `BottomRibbon.tsx` — funcionan exactamente igual que antes de este cambio.
+
+**`IncomingRequestsPanel.tsx` — ajuste mínimo, sin preselección externa:**
+- Prop `projectId` pasó de requerida a opcional (`projectId?: string`).
+- Valor inicial del dropdown: `projectId ?? projects[0]?.id ?? ''`. Desde Dashboard ya no se pasa ningún `projectId` (no hay ningún "activo global" que resolver) — el usuario ve el dropdown con el primer Project de la lista como valor inicial y elige explícitamente, sin ningún default basado en el concepto de "Project activo". Desde Teams Map (`TeamsClient.tsx`), el componente sigue recibiendo el Project que se está viendo en esa página como sugerencia inicial — eso no formaba parte del alcance pedido y no se tocó.
+- `showRequestsPanel` en `ProjectList.tsx` ya no depende de `activeProjectId` — se muestra siempre que el usuario lo abra, sin condición adicional.
+
+**Parte 2 — Rediseño del acordeón de Dashboard (mini-ribbon):**
+- Referencia visual usada: el header de cada Project en `MapView.tsx` (Teams Map), ya con nombre + acciones agrupadas y separadas.
+- Fila de cada Project reorganizada en 2 bloques separados por un borde vertical (`pl-4 border-l`):
+  - **Título**: nombre del Project (`text-base font-semibold`), sin nada más al lado.
+  - **Labels/badges**: vacío por ahora — no queda ningún indicador de estado real tras eliminar el badge "active".
+  - **Acciones** (mini-ribbon agrupado): "+ Connect with other user" (se movió desde al lado del título, y se actualizó el texto para quedar consistente con el ya usado en Teams Map), "Archive", "Delete"/confirmación.
+- Se agregó un `border-b` entre esta fila-header y la lista de Teams para reforzar la jerarquía visual.
+
+**Archivos modificados:**
+- `src/components/ProjectList.tsx` — eliminación de Active Project/Set as active, rediseño del acordeón
+- `src/components/teams/IncomingRequestsPanel.tsx` — `projectId` opcional, sin preselección externa obligatoria
+
+**Restricciones respetadas:** no se tocó la lógica de Connect Team ya validada (solo se movió su ubicación visual dentro de la fila y se actualizó el texto, ya alineado con Teams Map); no se tocó ningún otro consumidor de `activeProjectId` fuera de Dashboard.
+
+**Validaciones:** lint ✅, build ✅. **No validado:** confirmación visual del PO en producción (badge/botón "active" ya no aparecen, aceptar conexión entrante sigue pidiendo elegir Project explícitamente, acordeón se ve ordenado, Teams Map y BottomRibbon siguen funcionando igual) — pendiente.
+
+**Riesgos conocidos / deuda técnica:**
+- Ninguno nuevo introducido por este cambio. El bug conocido de "active project" mencionado por el PO como separado queda pendiente de investigación en una futura sesión de Teams Map — no se investigó ni se tocó en esta mini-OE por estar fuera de alcance.
+
+---
+

@@ -52,9 +52,6 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
   const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null)
   const [disconnecting,     setDisconnecting]     = useState<string | null>(null)
   const [disconnectError,   setDisconnectError]   = useState('')
-  const [activeProjectId,   setActiveProjectId]   = useState<string | null>(null)
-  const [switchingProject,  setSwitchingProject]  = useState<string | null>(null)
-  const [switchError,       setSwitchError]       = useState('')
   const [showHowModal,      setShowHowModal]      = useState(false)
   const [archivingProject,  setArchivingProject]  = useState<string | null>(null)
   const [deletingProject,   setDeletingProject]   = useState<string | null>(null)
@@ -73,14 +70,7 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
       .catch(() => {})
   }, [])
 
-  const fetchActiveProject = useCallback(() => {
-    fetch('/api/projects/active')
-      .then(r => r.json())
-      .then(data => setActiveProjectId(data?.projectId ?? null))
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => { fetchConnections(); fetchActiveProject() }, [fetchConnections, fetchActiveProject])
+  useEffect(() => { fetchConnections() }, [fetchConnections])
 
   // Get current user ID for unread calculation
   useEffect(() => {
@@ -150,30 +140,6 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
       clearInterval(interval)
     }
   }, [fetchConnections])
-
-  async function setActiveProject(projectId: string) {
-    if (projectId === activeProjectId || switchingProject) return
-    setSwitchingProject(projectId)
-    setSwitchError('')
-    try {
-      const res = await fetch('/api/projects/active', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId }),
-      })
-      if (!res.ok) {
-        const d = await res.json().catch(() => null)
-        setSwitchError(d?.error ?? 'Failed to switch project.')
-        return
-      }
-      setActiveProjectId(projectId)
-      router.refresh()
-    } catch {
-      setSwitchError('Network error. Please try again.')
-    } finally {
-      setSwitchingProject(null)
-    }
-  }
 
   function handleProjectCreated() {
     setShowNewProjectModal(false)
@@ -269,10 +235,6 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
           </button>
         </div>
 
-        {switchError && (
-          <p className="text-xs text-[#C64F4F]">{switchError}</p>
-        )}
-
         {projectError && (
           <p className="text-xs text-[#C64F4F]">{projectError}</p>
         )}
@@ -324,9 +286,14 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                     <div className="bg-[#F8FBFF] px-5 py-4 space-y-4">
                       {/* Project metadata card */}
                       <div className="bg-white border border-[#DDE6F1] rounded-[18px] p-5 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <h4 className="text-base font-semibold text-[#0C1733]">{project.name}</h4>
+                        <div className="flex items-center justify-between gap-4 pb-4 border-b border-[#DDE6F1]">
+                          {/* Title + labels */}
+                          <div className="flex items-center gap-3 min-w-0">
+                            <h4 className="text-base font-semibold text-[#0C1733] truncate">{project.name}</h4>
+                          </div>
+
+                          {/* Actions — mini-ribbon, visually separated from the title */}
+                          <div className="flex items-center gap-2 pl-4 border-l border-[#DDE6F1] shrink-0">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
@@ -335,27 +302,8 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
                               }}
                               className="flex items-center gap-1.5 rounded-lg border border-[#BFE7C8] bg-white px-3 py-1.5 text-xs font-medium text-[#63C37D] hover:bg-[#E9F8EE] transition-colors"
                             >
-                              + Connect
+                              + Connect with other user
                             </button>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {project.id === activeProjectId ? (
-                              <span className="text-xs font-medium text-[var(--color-accent)] bg-[var(--color-accent-soft)] px-3 py-1.5 rounded-full">
-                                Active Project
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); setActiveProject(project.id) }}
-                                disabled={switchingProject === project.id}
-                                className="text-xs font-medium text-[#5C6B82] bg-[#F8FBFF] border border-[#DDE6F1] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)] disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded-full transition-colors"
-                              >
-                                {switchingProject === project.id ? 'Switching…' : 'Set as active'}
-                              </button>
-                            )}
-                            <span className="text-xs font-medium text-[#2F8A47] bg-[#DFF4E5] px-3 py-1.5 rounded-full">
-                              active
-                            </span>
                             <button
                               type="button"
                               onClick={e => { e.stopPropagation(); handleArchive(project.id) }}
@@ -631,11 +579,10 @@ export default function ProjectList({ projects }: { projects: ProjectWithTeams[]
         />
       )}
 
-      {showRequestsPanel && activeProjectId && (
+      {showRequestsPanel && (
         <IncomingRequestsPanel
           connections={connections}
           myTeams={allTeams}
-          projectId={activeProjectId}
           projects={projects.map(p => ({ id: p.id, name: p.name }))}
           onClose={() => setShowRequestsPanel(false)}
           onAccepted={() => { setShowRequestsPanel(false); fetchConnections() }}
