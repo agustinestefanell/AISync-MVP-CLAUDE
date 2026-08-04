@@ -29,6 +29,8 @@ interface MapViewProps {
   onEdit: (team: TeamWithWorkspaces) => void
   onOpen: (workspaceId: string) => void
   onConnect: (projectId: string) => void
+  onAddTeam: (projectId: string) => void
+  onProjectRenamed: (projectId: string, newName: string) => void
 }
 
 interface Connection {
@@ -202,10 +204,43 @@ export default function MapView({
   onEdit,
   onOpen,
   onConnect,
+  onAddTeam,
+  onProjectRenamed,
 }: MapViewProps) {
   const [connections, setConnections] = useState<Connection[]>([])
   const [isProjectIndexOpen, setIsProjectIndexOpen] = useState(true)
   const projectSectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  // Ajuste 1 — rename inline del Project en el sidebar (doble click)
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
+  const [editingName,      setEditingName]      = useState('')
+  const [renameError,      setRenameError]      = useState<string | null>(null)
+
+  function startEditingProject(project: { id: string; name: string }) {
+    setEditingProjectId(project.id)
+    setEditingName(project.name)
+    setRenameError(null)
+  }
+
+  async function commitProjectRename(projectId: string, currentName: string) {
+    const trimmed = editingName.trim()
+    setEditingProjectId(null)
+    if (!trimmed || trimmed === currentName) return
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      })
+      if (!res.ok) {
+        setRenameError('Could not rename project.')
+        return
+      }
+      onProjectRenamed(projectId, trimmed)
+    } catch {
+      setRenameError('Could not rename project.')
+    }
+  }
 
   // Fetch connections for partner email metadata
   useEffect(() => {
@@ -342,21 +377,46 @@ export default function MapView({
             </button>
           </div>
 
+          {renameError && (
+            <div className="px-4 py-2 text-[11px] text-red-600 bg-red-50 border-b border-[#E2E8F0]">
+              {renameError}
+            </div>
+          )}
+
           {/* Projects list */}
           <div className="flex-1 overflow-y-auto">
             {projectGroups.map((project) => (
-              <button
+              <div
                 key={project.id}
-                onClick={() => handleProjectClick(project.id)}
-                className="w-full text-left px-4 py-3 border-b border-[#E2E8F0] hover:bg-[#F8FBFF] transition-colors"
+                onClick={() => { if (editingProjectId !== project.id) handleProjectClick(project.id) }}
+                className="w-full text-left px-4 py-3 border-b border-[#E2E8F0] hover:bg-[#F8FBFF] transition-colors cursor-pointer"
               >
-                <div className="text-sm font-medium text-[#0C1733] mb-1">
-                  {project.name}
-                </div>
+                {editingProjectId === project.id ? (
+                  <input
+                    autoFocus
+                    value={editingName}
+                    onChange={e => setEditingName(e.target.value)}
+                    onClick={e => e.stopPropagation()}
+                    onBlur={() => commitProjectRename(project.id, project.name)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') e.currentTarget.blur()
+                      if (e.key === 'Escape') setEditingProjectId(null)
+                    }}
+                    className="text-sm font-medium text-[#0C1733] mb-1 w-full bg-white border border-indigo-400 rounded px-1 outline-none"
+                  />
+                ) : (
+                  <div
+                    onDoubleClick={e => { e.stopPropagation(); startEditingProject(project) }}
+                    className="text-sm font-medium text-[#0C1733] mb-1"
+                    title="Double-click to rename"
+                  >
+                    {project.name}
+                  </div>
+                )}
                 <div className="text-xs text-[#5C6B82]">
                   {project.count} Team{project.count !== 1 ? 's' : ''}
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </div>
@@ -405,10 +465,16 @@ export default function MapView({
                       {project.name}
                     </span>
                     <button
+                      onClick={() => onAddTeam(project.id)}
+                      className="flex items-center gap-1.5 rounded-lg border border-[#DDE6F1] bg-white px-3 py-1.5 text-xs font-medium text-[#0C1733] hover:bg-[#F8FBFF] transition-colors"
+                    >
+                      + Add Team
+                    </button>
+                    <button
                       onClick={() => onConnect(project.id)}
                       className="flex items-center gap-1.5 rounded-lg border border-[#BFE7C8] bg-white px-3 py-1.5 text-xs font-medium text-[#63C37D] hover:bg-[#E9F8EE] transition-colors"
                     >
-                      + Connect
+                      + Connect with other user
                     </button>
                   </div>
                   <span className="text-sm text-[#5C6B82]">

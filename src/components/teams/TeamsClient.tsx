@@ -162,6 +162,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   const [resetSignal, setResetSignal] = useState(0)
   const [showArchivedTeams, setShowArchivedTeams] = useState(false)
   const [connectProjectId, setConnectProjectId] = useState<string | null>(null)
+  const [addTeamProjectId, setAddTeamProjectId] = useState<string | null>(null)
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -222,6 +223,11 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   function handleCreated(team: TeamWithWorkspaces) {
     setTeams(prev => [...prev, team])
     setShowAdd(false)
+    setAddTeamProjectId(null)
+  }
+
+  function handleProjectRenamed(id: string, newName: string) {
+    setProjectOptions(prev => prev.map(p => p.id === id ? { ...p, name: newName } : p))
   }
 
   function handleUpdated(updated: TeamWithWorkspaces) {
@@ -429,13 +435,6 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
               )}
             </button>
 
-            {/* Add Team */}
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex h-9 items-center gap-1.5 rounded-[10px] bg-neutral-900 px-4 text-xs font-semibold text-white hover:bg-neutral-700 transition-colors"
-            >
-              + Add Team
-            </button>
           </div>
         </div>
       </div>
@@ -456,16 +455,21 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
             setConnectProjectId(pid)
             setShowConnect(true)
           }}
+          onAddTeam={(pid: string) => {
+            setAddTeamProjectId(pid)
+            setShowAdd(true)
+          }}
+          onProjectRenamed={handleProjectRenamed}
         />
       </div>
 
       {/* Modals */}
       {showAdd && (
         <AddTeamModal
-          projectId={projectId}
+          projectId={addTeamProjectId ?? projectId}
           projects={projectOptions}
           teams={teams}
-          onClose={() => setShowAdd(false)}
+          onClose={() => { setShowAdd(false); setAddTeamProjectId(null) }}
           onCreated={handleCreated}
         />
       )}

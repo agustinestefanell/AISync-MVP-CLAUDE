@@ -11,11 +11,25 @@ export async function PATCH(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
 
-  const { status } = await req.json()
+  const { status, name } = await req.json() as { status?: string; name?: string }
 
-  if (!status || !['active', 'archived'].includes(status)) {
+  if (status === undefined && name === undefined) {
+    return NextResponse.json(
+      { error: 'Provide at least one of "status" or "name".' },
+      { status: 400 }
+    )
+  }
+
+  if (status !== undefined && !['active', 'archived'].includes(status)) {
     return NextResponse.json(
       { error: 'Invalid status. Must be "active" or "archived".' },
+      { status: 400 }
+    )
+  }
+
+  if (name !== undefined && !name.trim()) {
+    return NextResponse.json(
+      { error: 'Name cannot be empty.' },
       { status: 400 }
     )
   }
@@ -35,16 +49,20 @@ export async function PATCH(
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
   }
 
-  // Update status
+  // Update only the fields provided
+  const updates: { status?: string; name?: string } = {}
+  if (status !== undefined) updates.status = status
+  if (name !== undefined) updates.name = name.trim()
+
   const { error: updateError } = await supabase
     .from('projects')
-    .update({ status })
+    .update(updates)
     .eq('id', params.id)
 
   if (updateError) {
     console.error('[projects/[id]] PATCH failed:', updateError)
     return NextResponse.json(
-      { error: 'Failed to update project status.' },
+      { error: 'Failed to update project.' },
       { status: 500 }
     )
   }

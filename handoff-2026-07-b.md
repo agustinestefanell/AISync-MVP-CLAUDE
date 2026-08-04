@@ -3442,3 +3442,41 @@ Inspección confirmó que `filterTeam` ya arrancaba vacío (correcto) — el bug
 
 ---
 
+## Mini-OE 2026-08-03 — Teams Map: nombre de Project editable, texto de Connect, Add Team por Project
+
+**Fecha:** 2026-08-03
+**Estado:** Implementado, deploy a producción autorizado por el PO — validación visual pendiente en producción.
+
+**Contexto:** 3 ajustes de UX de bajo riesgo en el sidebar/header de Teams Map, confirmados por el PO.
+
+**Inspección previa (2 puntos pedidos):**
+1. Confirmado el patrón exacto por el que `AddTeamModal`/`ConnectTeamModal` reciben el `project.id` correcto hoy: `TeamsClient.tsx` guarda un id en estado (`connectProjectId`), `MapView.tsx` llama a `onConnect(project.id)` desde el header de cada Project, el modal recibe ese id como prop. Se replicó exactamente ese patrón para Add Team (`addTeamProjectId`), sin inventar un mecanismo nuevo.
+2. Confirmado con grep que remover el botón global de Add Team no rompe nada: `setShowAdd(true)` solo tenía un trigger (ese botón), sin ninguna otra referencia en `src/app` (Dashboard, onboarding, deep links). Además, se confirmó que ya existe el precedente exacto en este mismo código: cuando "Connect Team" se movió de global a por-Project, el botón global se eliminó del todo, sin dejar uno de respaldo — la recomendación de remover también el de Add Team sigue ese precedente ya establecido, no es una decisión nueva.
+
+**Ajuste 1 — Nombre de Project editable (doble click) en el sidebar:**
+- `MapView.tsx`: doble click sobre el nombre en el sidebar entra en modo edición inline (`<input>` con autofocus reemplazando el `<div>` de texto), Enter o blur (click afuera) guarda, Escape cancela sin guardar. Guard para no disparar el scroll-to-project (click simple del item) mientras se está editando.
+- `PATCH /api/projects/[id]/route.ts` extendido para aceptar `{ name }` además de `{ status }` — cualquiera de los dos, ambos, o ninguno (400 si no viene ninguno). Valida que `name` no esté vacío (trim) antes de guardar. Mismo ownership check ya existente (`account_id === user.id`), sin tocarlo. Update dinámico: solo se escriben los campos que vinieron en el body.
+- Al guardar con éxito, `MapView` llama a `onProjectRenamed(id, newName)`, que en `TeamsClient.tsx` actualiza `projectOptions` en memoria (mismo estado que ya alimenta tanto el sidebar como el header de cada Project vía `useMemo`) — se refleja en toda la UI sin recargar la página ni volver a pegarle al servidor.
+- Si falla el PATCH, se muestra un banner de error chico en el header del sidebar (no bloquea, no se pierde el nombre anterior visible).
+
+**Ajuste 2 — Texto del botón:**
+"+ Connect" → "+ Connect with other user" en el header de cada Project (`MapView.tsx` línea ~411 original). Solo el string — cero cambios de lógica, cero cambios en `ConnectTeamModal`.
+
+**Ajuste 3 — "+ Add Team" por Project, botón global removido:**
+- Nuevo botón "+ Add Team" en el header de cada Project, junto al de Connect (mismo lugar). Llama a `onAddTeam(project.id)`.
+- `TeamsClient.tsx`: nuevo estado `addTeamProjectId`, seteado por `onAddTeam`; `AddTeamModal` ahora recibe `projectId={addTeamProjectId ?? projectId}` (fallback al Project activo de la página si se abriera sin id explícito, preservando el comportamiento previo como piso de seguridad).
+- **Botón global "+ Add Team" del ribbon superior removido** (recomendación confirmada arriba). Verificado que las referencias a "Click + Add Team" en el texto de ayuda `CREATE_TEAMS_GUIDE` siguen siendo válidas sin cambios — nunca especificaban una ubicación concreta del botón.
+
+**Hallazgo colateral, reportado y NO corregido (fuera del alcance explícito de esta directiva):** `HowConnectedTeamsModal.tsx` tiene 2 referencias a "Dashboard → + Connect" / "click `+ Connect`" — ya estaban desactualizadas ANTES de este cambio (el botón de Connect nunca vivió en Dashboard, y ya no dice "+ Connect" a secas). No se tocó porque la directiva acotaba el Ajuste 2 explícitamente a la línea de `MapView.tsx`. Candidato a mini-OE de limpieza aparte.
+
+**Archivos modificados:**
+- `src/app/api/projects/[id]/route.ts` — PATCH acepta `name` además de `status`
+- `src/components/teams/MapView.tsx` — rename inline, texto de Connect, botón Add Team por Project
+- `src/components/teams/TeamsClient.tsx` — estado `addTeamProjectId`, `handleProjectRenamed`, botón global removido, props nuevas a `MapView`
+
+**Restricciones respetadas:** lógica de Connect Team intacta (solo texto); sin cambios de RLS; único cambio de schema fue el campo `name` ya autorizado explícitamente en el PATCH (no requiere migración, `projects.name` ya existía desde la migración 001).
+
+**Validaciones:** lint ✅, build ✅. Grep exhaustivo pre-cierre: sin residuos del texto "+ Connect" viejo, sin restos del botón global de Add Team. **No validado:** confirmación visual del PO en producción (doble click persiste el rename, texto correcto, Add Team crea el Team en el Project correcto) — pendiente.
+
+---
+
