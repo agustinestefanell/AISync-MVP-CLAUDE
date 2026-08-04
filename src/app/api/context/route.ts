@@ -42,6 +42,82 @@ export async function GET(req: Request) {
   }
 }
 
+// Load Saved Context — crea un context_source a partir de un objeto ya
+// guardado en Documentation Mode (Handoff Package / Saved Selection /
+// Checkpoint), en vez de un archivo subido. El contenido ya viene armado
+// por el cliente (regla de carga diferenciada por tipo — ver Mini-OE
+// 2026-08-03): no hay extracción de texto acá, solo persistencia.
+// source_kind reutiliza 'saved_selection_context' (único valor ya permitido
+// por el CHECK constraint de la tabla para este tipo de origen) — el tipo
+// real de objeto vive en origin_type, columna TEXT libre sin constraint.
+async function handleLoadFromDocumentation(req: Request, userId: string) {
+  const body = await req.json() as {
+    title?:            string
+    contentText?:       string
+    scope?:             ContextScope
+    teamId?:            string | null
+    sessionId?:         string | null
+    workspaceId?:       string | null
+    projectId?:         string | null
+    originType?:        'handoff_package' | 'saved_selection' | 'checkpoint'
+    originMessageId?:   string
+  }
+
+  const { title, contentText, scope, teamId, sessionId, workspaceId, projectId, originType, originMessageId } = body
+
+  if (!title?.trim() || !contentText?.trim() || !scope || !originType || !originMessageId) {
+    return Response.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+
+  let source
+  try {
+    source = await createContextSource({
+      user_id:                  userId,
+      title:                    title.trim(),
+      source_kind:              'saved_selection_context',
+      scope,
+      team_id:                  teamId      || null,
+      session_id:                sessionId   || null,
+      workspace_id:              workspaceId || null,
+      project_id:                projectId   || null,
+      content_text:              contentText,
+      file_path:                 null,
+      file_type:                 null,
+      file_size_bytes:           null,
+      status:                    'active',
+      retention_mode:            'persistent',
+      extracted_text_available:  true,
+      origin_type:               originType,
+      origin_message_id:         originMessageId,
+      notes:                     null,
+      tags:                      null,
+    })
+  } catch {
+    return Response.json({ error: 'Failed to create context source' }, { status: 500 })
+  }
+
+  // Audit log — fail-open, no debe bloquear la creación ya exitosa
+  try {
+    const supabase = createClient()
+    await supabase.from('audit_log').insert({
+      account_id:   userId,
+      workspace_id: workspaceId || null,
+      event_type:   'context_loaded_from_documentation',
+      metadata: {
+        source_type:       originType,
+        source_id:         originMessageId,
+        source_name:       title.trim(),
+        target_session_id: sessionId || null,
+        target_scope:      scope,
+      },
+    })
+  } catch (err) {
+    console.error('[Load Saved Context] audit_log insert failed (non-blocking)', err)
+  }
+
+  return Response.json({ source })
+}
+
 export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -60,6 +136,11 @@ export async function POST(req: Request) {
         },
       }
     )
+  }
+
+  const contentType = req.headers.get('content-type') || ''
+  if (contentType.includes('application/json')) {
+    return handleLoadFromDocumentation(req, user.id)
   }
 
   let formData: FormData

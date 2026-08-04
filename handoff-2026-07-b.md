@@ -3279,3 +3279,135 @@ El PO aclaró que eliminar el modal (commit `efbdd35`, "immediate handoff creati
 
 ---
 
+## Mini-OE 2026-08-03 — Investigación/diseño: "Send to another Manager" (descartado) → "Load Saved Context" (aprobado)
+
+**Fecha:** 2026-08-03
+**Estado:** DISEÑO — sin código implementado. Esta sesión fue explícitamente de investigación y diseño; la implementación queda para una sesión aparte.
+
+### Parte A — Investigación "Send to another Manager" (cross-Workspace directo) — enfoque descartado por el PO, reemplazado por Load Saved Context
+
+Investigación previa (sin código) sobre agregar una opción "Send to another Manager" en el desplegable de Review & Forward, con alcance al mismo Project (incluyendo Isolated/Connected Teams).
+
+**Hallazgo arquitectónico clave:** "Review & Forward" hoy es **100% cliente** — `handlePanelForward` en `WorkspaceShell.tsx` hace `targetRef.appendUserMessage(...)`, manipulando directamente el `ref` de React de OTRO panel ya montado en la MISMA página. No hay ninguna persistencia server-side del mensaje en sí (solo `audit_log`). Funciona únicamente porque Manager/Worker1/Worker2 conviven en el mismo `WorkspaceShell` cargado en el mismo browser — no hay nada que "extender" para cruzar a otro Workspace, haría falta un mecanismo nuevo genuino.
+
+**2 casos con complejidad muy distinta identificados:**
+- **Caso A — mismo Project, Team/Subteam normal, misma cuenta:** confirmé que NO requiere RLS nueva. La policy `messages_insert` (migración 002) ya valida `p.account_id = auth.uid()` a través de la cadena completa `agent_sessions → workspaces → teams → projects` — como el Team destino pertenece a la MISMA cuenta, `/api/messages` POST ya funciona tal cual está. Estimado: una tarde.
+- **Caso B — Isolated/Connected Team (otro lado de una conexión), cuenta distinta:** la migración 044 ("Connected Teams Etapa 8c", modelo "dos edificios separados") eliminó explícitamente toda política RLS de lectura cross-cuenta sobre `teams`/`workspaces`/`agent_sessions`. Con la cuenta actual es imposible siquiera consultar quién es el Manager del otro lado de una conexión. La única forma segura de resolverlo replicaría el patrón ya usado por `human_messages` (tabla dedicada + policy de INSERT que valida `team_connections.status = 'active'` server-side, nunca confiando en un `session_id` mandado por el cliente). Riesgo de seguridad real si se implementa mal — cualquier policy que permita INSERT en `messages` con un `session_id` arbitrario de otra cuenta abriría una brecha de inyección cross-cuenta. Estimado: varios días, requiere su propia OE de seguridad.
+- **Aclaración de terminología:** confirmé en el schema que `agent_sessions.agent_role` solo admite `'manager' | 'worker1' | 'worker2'` — no existe un rol `'submanager'` real. "Submanager" es hoy solo una etiqueta organizativa (`teams.lead_role`, usada en Teams Map) sin ningún agente de chat asociado. El caso real del PO ("Manager y Submanager en Workspaces separados") es, técnicamente, el Caso A: Manager de un Team padre ↔ Manager de un Team hijo (`teams.parent_id`).
+
+**Decisión del PO tras el reporte — reemplazar el enfoque completo:** en vez de "empujar" mensajes de un Workspace a otro (con el riesgo del Caso B), se decidió construir **"Load Saved Context"**: cualquier agente va a buscar lo que necesita desde Documentation Mode (Handoff Packages, Saved Selections, Checkpoints) y lo trae como contexto de su propia conversación — sin depender de que otro Workspace esté abierto ni de resolver el problema cross-cuenta de raíz. Elimina por completo la necesidad del Caso B para esta fase.
+
+### Parte B — Diseño aprobado: "Load Saved Context" (Fase 1)
+
+**Hallazgo previo que redujo drásticamente la complejidad estimada:** `context_sources` (tabla de Context Files) tiene columnas sin usar desde su migración original (017): `origin_type` y `origin_message_id` — `ContextFilePanel` siempre las manda en `null` hoy. Y el tipo `ContextSourceKind` ya incluye un valor `'saved_selection_context'` que ningún código crea nunca. La arquitectura original ya anticipaba esta feature y quedó a medio cablear — **no hace falta ninguna migración nueva**.
+
+**Diseño aprobado:**
+1. **Botón nuevo** en `AgentPanel.tsx`, Sección 2 "Tools row" (línea ~820-836), junto a "Prompt Library" y "Add Context File" — mismo estilo de pill, misma fila flex, sin rediseño de layout.
+2. **Modal de búsqueda simplificado** (no reutilizar `RepositoryView.tsx` completo — es pesado, con edición/archivado que no aplican acá). Reutiliza sin cambios las funciones de datos ya existentes: `getDocCheckpoints()`, `getHandoffPackages()`, `getSavedSelections(userId)` (ya devuelven metadata + `content_preview` de 200 chars). Filtros: Project / Team / tipo / fecha / palabra clave.
+3. **Mecanismo "Smart Load" — 3 niveles:**
+   - Listar/buscar: usa el `content_preview` de 200 chars ya generado — cero costo de prompt.
+   - Al hacer "Load": trae el detalle completo vía las funciones YA EXISTENTES (`getHandoffDetail()` / `getSavedSelectionDetail()` / `getCheckpointDetail()`).
+   - **Regla de carga diferenciada por tipo — AJUSTE DEL PO tras la propuesta inicial (esta es la corrección final aprobada, reemplaza la propuesta genérica de "digest para los 3 tipos" del reporte anterior):**
+     - **Saved Selection → contenido COMPLETO.** Ya es una selección acotada por el propio usuario — tiene sentido traerla entera, sin resumir.
+     - **Checkpoint → contenido COMPLETO**, con el mismo aviso de confirmación ya implementado para archivos grandes en Context Files (umbral de 30.000 caracteres, Confirmar/Cancelar) si excede el tamaño.
+     - **Handoff Package → SOLO EL ÚLTIMO MENSAJE** (la respuesta/conclusión final), NUNCA el intercambio completo. Razón explícita del PO: los mensajes previos de un Handoff existen para dar contexto de CÓMO se llegó a la conclusión (útil al revisarlo en Documentation Mode), pero no son necesarios para un agente nuevo que recibe el resultado ya sintetizado — cargar todo sería ruido, contrario a la política de extensión de respuestas ya implementada en `base_layer` (Mini-OE 2026-08-02): no darle al usuario/agente más contexto del que puede procesar con control.
+   - El contenido resultante (completo o el último mensaje, según el tipo) pasa por el mismo aviso de tamaño grande ya construido — sin código nuevo de inyección: se guarda como un `context_source` más y pasa por el pipeline existente de `/api/chat/route.ts`.
+4. **Sin schema nuevo.** `context_sources` ya tiene todo: `source_kind` (nuevo valor o reutilizar `'saved_selection_context'` + 2 hermanos para Handoff/Checkpoint), `origin_type`/`origin_message_id` (ya existen, sin usar — trazan de qué objeto de Documentation Mode vino), `scope` (reutilizar el selector Team/Session/Project ya existente en `ContextFilePanel`, default `session`).
+5. **Audit Log:** mismo patrón fail-open ya usado en todo el proyecto — nuevo `event_type: 'context_loaded_from_documentation'`, `metadata: { source_type, source_id, source_name, target_session_id, target_scope }`.
+6. **Complejidad estimada:** una sesión completa de implementación, **sin necesidad de fases** — a diferencia de "Send to another Manager", esto no toca RLS ni requiere tabla nueva, y reutiliza 4 mecanismos ya construidos y validados (fetch de listado, fetch de detalle, aviso de tamaño grande, inyección en el prompt).
+
+### Parte C — Corrección aprobada de WORKSPACE_GUIDE (`src/components/workspace/WorkspaceClient.tsx` línea 11)
+
+**Problema confirmado:** el texto actual promete "Manager of one team → Manager of another team: same logic, using Review & Forward" — FALSO en la arquitectura actual (confirmado en Parte A: Review & Forward es puramente same-Workspace). También menciona "Save Version" como herramienta activa, oculta desde `efbdd35` (30/7).
+
+**Texto nuevo aprobado (reemplaza íntegramente la constante `WORKSPACE_GUIDE`):**
+
+```
+First of all, Workspace is where you chat with AI. It is one of the two core sides of AISync: operational work. This is the place where you talk to an AI the way you normally do, but inside a more organized system.
+
+We recommend this basic setup: use one Manager session to think, organize, plan, and keep the main direction clear. Use the other sessions as Workers and give them concrete or parallel tasks. Use one team per specific topic. If the work or investigation grows, create more teams. Keep each team focused on one subject, and use one agent per task or area whenever possible. Always keep the main checklist, base logic, and overall coherence in one main Manager. Do not distract that Manager with execution tasks.
+
+Communication tools inside the team
+→ User → Agent: write and press Send
+→ Agent → Agent: select a message and use Review & Forward
+
+Traceability and saving tools
+→ Save Selection: save only one useful part of the conversation
+→ Create Handoff Package: create a formal transfer package for continuity
+→ Load Saved Context: bring any Handoff Package, Saved Selection, or Checkpoint from Documentation Mode into this conversation — this is how information moves between different Workspaces
+→ Refresh Session: reset the AI agent without losing the visible chat
+→ Audit AI Answer: reserved for answer verification flows (coming soon)
+
+Top ribbon
+→ Prompt Library: change how the agent works
+→ Add Context File: give the agent documents or source material to work with
+
+In simple terms: use the Manager to think and coordinate, use the Workers to execute, and use the save tools whenever something becomes important enough to preserve, transfer, or revisit later.
+```
+
+**Cambios respecto al texto actual, y por qué:**
+1. Eliminada la línea "Manager of one team → Manager of another team: same logic, using Review & Forward" — no se reemplaza con una advertencia dentro de "Communication tools", directamente se saca (esa sección queda 100% cierta para lo que le queda: same-Workspace).
+2. **"Save Version" eliminado del todo** de la guía (no se documenta como "función interna") — es una guía operativa dirigida al usuario, documentar algo no clickeable hoy generaría la misma confusión que se está corrigiendo.
+3. "Load Saved Context" agregado en "Traceability and saving tools" — responde ahí la pregunta "¿cómo llevo algo de un Workspace a otro?", aunque el botón viva visualmente junto a "Add Context File" en el panel.
+4. Resto del texto (setup recomendado, Top ribbon, párrafo de cierre) sin cambios — mismo tono y formato.
+
+### Pendiente para la próxima sesión — implementación completa
+
+**Alcance de la Fase 1 a implementar (en orden sugerido):**
+1. `WorkspaceClient.tsx` — reemplazar la constante `WORKSPACE_GUIDE` por el texto de la Parte C (cambio aislado, cero riesgo, se puede hacer primero e independiente del resto).
+2. Componente nuevo de búsqueda/picker simplificado (nombre sugerido: `LoadContextModal.tsx`, junto a `HandoffPackageModal.tsx`/`ContextFilePanel.tsx` en `src/components/workspace/`), reutilizando `getDocCheckpoints()`/`getHandoffPackages()`/`getSavedSelections()` sin modificarlas.
+3. Helper de carga diferenciada por tipo (construir el contenido final a inyectar según la regla de la Parte B punto 3 — completo para Selection/Checkpoint, solo último mensaje para Handoff).
+4. Endpoint o rama nueva en `/api/context` POST para crear el `context_source` con `origin_type`/`origin_message_id` poblados.
+5. Botón nuevo en `AgentPanel.tsx` Sección 2 (Tools row).
+6. Audit log del evento `context_loaded_from_documentation`.
+7. Reutilizar sin tocar: el aviso de tamaño grande ya implementado en `AgentPanel.tsx` (`CONTEXT_WARN_CHARS`), el selector de scope de `ContextFilePanel.tsx`, y el pipeline de inyección de `/api/chat/route.ts` — ninguno de estos 3 necesita cambios.
+
+**Archivos tocados en esta OE:** ninguno de código — solo `handoff-2026-07-b.md` y `PRODUCT_STATUS.md` (documentación de diseño).
+
+---
+
+## Mini-OE 2026-08-03 (continuación) — Implementación de "Load Saved Context"
+
+**Fecha:** 2026-08-03
+**Estado:** Implementado, deploy a producción autorizado por el PO — validación funcional pendiente en producción (localhost no tiene datos reales de conversación suficientes para probar la feature con sentido).
+
+**Alcance:** implementación completa de los 7 pasos del checklist dejado en la entrada de diseño de esta misma fecha (ver arriba), siguiendo el diseño aprobado sin desviaciones de comportamiento.
+
+**Antes de escribir código — releída la entrada de diseño completa** y verificados 2 detalles que el diseño daba por sentados, ambos genuinamente ambiguos al bajarlos a código real:
+
+1. **Confirmado con el PO antes de proceder:** `getDocCheckpoints()` / `getHandoffPackages()` / `getSavedSelections(userId)` son funciones server-only (`createClient` de `@/lib/supabase/server`) — un Client Component (`LoadContextModal.tsx`, necesariamente interactivo) no puede llamarlas directamente. El diseño original no había contemplado esta frontera cliente/servidor. **Resuelto con Opción A confirmada por el PO:** endpoint nuevo `GET /api/documentation/browse`, que llama a las 3 funciones tal cual están (sin modificarlas — honra literalmente "reutiliza sin cambios" del diseño) y expone el resultado combinado al cliente. Mismo patrón que `ContextFilePanel` ya usa con `/api/context`.
+
+2. **Encontrado y resuelto sin bloquear (no ameritaba otra ronda de confirmación — no cambia comportamiento visible ni requiere una decisión del PO):** el diseño proponía "reutilizar `'saved_selection_context'` + 2 hermanos nuevos para Handoff/Checkpoint" en la columna `source_kind`. Pero `source_kind` tiene un **CHECK constraint real en la base** (migración 017: `CHECK (source_kind IN ('uploaded_file', 'derived_context_note', 'saved_selection_context', 'external_reference'))`) — agregar 2 valores nuevos habría requerido una migración, contradiciendo la promesa explícita del diseño de "sin schema nuevo". **Resolución:** se usa `'saved_selection_context'` como único valor de `source_kind` para los 3 tipos de objeto cargado, y se usa `origin_type` (columna `TEXT` libre, sin constraint, ya existente y sin uso previo) como el discriminador real (`'handoff_package' | 'saved_selection' | 'checkpoint'`). Cero migraciones nuevas — cumple la promesa del diseño de forma más literal que la propuesta original.
+
+**Implementación, en el orden del checklist:**
+1. `WorkspaceClient.tsx` — `WORKSPACE_GUIDE` reemplazado con el texto exacto ya aprobado (elimina la promesa falsa de Review & Forward cross-Workspace, elimina "Save Version", agrega "Load Saved Context").
+2. `src/app/api/documentation/browse/route.ts` (nuevo) — `GET`, auth check, `Promise.all` de las 3 funciones de listado + `getProjectsWithHierarchy()` (para el filtro de Project del modal), devuelve JSON combinado. Nada modificado en `documentation.ts`.
+3. `src/components/workspace/LoadContextModal.tsx` (nuevo) — modal de búsqueda con filtros Project/Team/tipo/fecha/palabra clave (mismo criterio de derivación de `uniqueTeams` que `RepositoryView.tsx`, sin reutilizar el componente completo). El detalle completo de cada objeto se trae reutilizando las rutas YA EXISTENTES `/api/documentation/{checkpoint,handoff,selection}/[id]` (no hizo falta crear nada nuevo para esa parte — ya estaban expuestas desde antes). Helper `buildContentForItem()` aplica la regla de carga diferenciada: Saved Selection y Checkpoint → todos los mensajes unidos (`Role: contenido`, misma convención que Review & Forward); Handoff Package → **solo el último elemento del array de mensajes**.
+4. `src/app/api/context/route.ts` — rama nueva `handleLoadFromDocumentation()`, invocada cuando el `POST` llega con `Content-Type: application/json` (la rama de `FormData` original, para archivos subidos, queda exactamente igual — se verifica el content-type ANTES de intentar leer el body, así ninguna de las dos rutas de lectura interfiere con la otra). Crea el `context_source` con `content_text` ya armado (sin extracción — no hay archivo), `extracted_text_available: true` directo, `origin_type`/`origin_message_id` poblados.
+5. `AgentPanel.tsx` — botón "Load Saved Context" en la Tools row (Sección 2), junto a "Add Context File". Modal montado igual que `ContextFilePanel`, con la misma invalidación de `contextSummaryRef.current = null` al cerrar (para que el aviso de tamaño grande vea el context file nuevo en el próximo envío).
+6. Audit log `context_loaded_from_documentation` — insertado dentro de `handleLoadFromDocumentation()`, en un try/catch que nunca bloquea la respuesta si falla (fail-open, mismo patrón que el resto del proyecto).
+7. Confirmado sin necesidad de tocar nada: el aviso de tamaño grande (`CONTEXT_WARN_CHARS` en `AgentPanel.tsx`), el pipeline de inyección de `/api/chat/route.ts` — los `context_source` nuevos entran por el mismo camino que cualquier Context File subido, porque `getContextSourcesForRuntime()` los filtra igual (`status='active' AND extracted_text_available=true AND content_text not null`), condiciones que la rama nueva satisface directamente.
+
+**Decisiones menores de implementación (sin desviación de diseño, documentadas por transparencia):**
+- El filtro de Project del modal arranca preseleccionado en el Project actual del panel (mismo criterio que el scope default de Context Files), pero se puede ampliar a "All projects".
+- Formato de unión de mensajes: convención `Role: contenido` ya usada en Review & Forward y en los adjuntos Office — no se inventó un formato nuevo.
+- Para Handoff Package, "solo el último mensaje" se interpreta literalmente como el último elemento del array de mensajes de esa selección, sin filtrar por `role`. Si el creador del Handoff hubiera seleccionado un mensaje de usuario como el último (caso raro), se cargaría igual tal cual. Ajuste de una línea si se prefiere forzar específicamente el último mensaje `role: 'assistant'`.
+
+**Restricción respetada:** la rama de `FormData` original en `/api/context` POST (subida de archivos) no se tocó — build confirma que el flujo de Context Files sigue compilando igual.
+
+**Validaciones:** lint ✅, build ✅ (ruta nueva `/api/documentation/browse` compilada, sin warnings nuevos). Grep exhaustivo pre-cierre: sin residuos de "Manager of one team..." ni "Save Version: save" en ningún archivo; "Load Saved Context" consistente entre botón, modal, endpoint y guía. **No validado:** flujo funcional real (buscar → cargar → confirmar que el agente usa el contexto) — el PO decidió validar directamente en producción, ya que localhost no tiene datos reales de conversación suficientes para una prueba con sentido.
+
+**Archivos modificados:**
+- `src/components/workspace/WorkspaceClient.tsx` — texto de guía
+- `src/app/api/documentation/browse/route.ts` (nuevo)
+- `src/components/workspace/LoadContextModal.tsx` (nuevo)
+- `src/app/api/context/route.ts` — rama JSON nueva
+- `src/components/workspace/AgentPanel.tsx` — botón + modal montado
+
+**Riesgos conocidos / deuda técnica:**
+- `source_kind: 'saved_selection_context'` usado para los 3 tipos de origen es un nombre ligeramente engañoso para Handoff/Checkpoint (es un valor interno, no visible al usuario) — el discriminador real y preciso vive en `origin_type`. Documentado acá para que no genere confusión si se audita el dato directamente en Supabase.
+- El modal no muestra el aviso de tamaño grande en el momento de cargar — ese aviso sigue viviendo exclusivamente en el flujo de envío de mensaje de `AgentPanel.tsx` (tal como especificaba el diseño), así que un Checkpoint muy grande se guarda sin fricción y el aviso aparece recién cuando el usuario intenta mandar el próximo mensaje.
+- Sin test de carga real todavía — pendiente de la validación del PO en producción con objetos reales de Documentation Mode.
+
+---
+

@@ -15,12 +15,11 @@ We recommend this basic setup: use one Manager session to think, organize, plan,
 Communication tools inside the team
 → User → Agent: write and press Send
 → Agent → Agent: select a message and use Review & Forward
-→ Manager of one team → Manager of another team: same logic, using Review & Forward
 
 Traceability and saving tools
-→ Save Version: save an important point of the work
 → Save Selection: save only one useful part of the conversation
 → Create Handoff Package: create a formal transfer package for continuity
+→ Load Saved Context: bring any Handoff Package, Saved Selection, or Checkpoint from Documentation Mode into this conversation — this is how information moves between different Workspaces
 → Refresh Session: reset the AI agent without losing the visible chat
 → Audit AI Answer: reserved for answer verification flows (coming soon)
 

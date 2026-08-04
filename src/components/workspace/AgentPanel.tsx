@@ -9,6 +9,7 @@ import type { AgentSession, Message } from '@/lib/db/types'
 import type { ChatMessage, ChatAttachment } from '@/lib/providers/types'
 import PromptLibrary from './PromptLibrary'
 import ContextFilePanel from './ContextFilePanel'
+import LoadContextModal from './LoadContextModal'
 import { createClient } from '@/lib/supabase/client'
 import { MAX_ATTACHMENT_FILE_BYTES, fileTooLargeMessage, payloadTooLargeMessage } from '@/lib/upload/limits'
 
@@ -349,6 +350,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
     const [webSearchEnabled, setWebSearchEnabled]       = useState(session.web_search_enabled ?? true)
     const [showPromptLibrary,    setShowPromptLibrary]    = useState(false)
     const [showContextFilePanel, setShowContextFilePanel] = useState(false)
+    const [showLoadContextModal, setShowLoadContextModal] = useState(false)
     const [apiMessages, setApiMessages]               = useState<ChatMessage[]>(
       initialMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
     )
@@ -832,6 +834,12 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
             >
               Add Context File
             </button>
+            <button
+              className="ui-chat-prompt shrink-0"
+              onClick={() => setShowLoadContextModal(true)}
+            >
+              Load Saved Context
+            </button>
           </div>
         </div>
 
@@ -1192,6 +1200,19 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
         onClose={() => {
           setShowContextFilePanel(false)
           // Los archivos pudieron cambiar — invalidar el cache del aviso
+          contextSummaryRef.current = null
+        }}
+        teamId={teamId ?? undefined}
+        projectId={projectId}
+        workspaceId={session.workspace_id}
+        sessionId={session.id}
+      />
+
+      <LoadContextModal
+        open={showLoadContextModal}
+        onClose={() => {
+          setShowLoadContextModal(false)
+          // El contexto pudo cambiar — invalidar el cache del aviso
           contextSummaryRef.current = null
         }}
         teamId={teamId ?? undefined}
