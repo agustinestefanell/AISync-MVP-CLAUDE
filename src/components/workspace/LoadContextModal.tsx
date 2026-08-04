@@ -28,7 +28,12 @@ interface Props {
   teamId?:      string
   workspaceId?: string
   sessionId?:   string
+  // Inyecta el contenido directamente como próximo turno del usuario en el
+  // chat visible (mismo mecanismo que AgentPanelHandle.appendUserMessage).
+  onLoadToChat: (content: string) => void
 }
+
+type Destination = 'context_files' | 'chat'
 
 const TYPE_LABEL: Record<ItemType, string> = {
   checkpoint: 'Checkpoint',
@@ -48,13 +53,13 @@ function joinMessages(messages: DetailMessage[]): string {
     .join('\n\n')
 }
 
-export default function LoadContextModal({ open, onClose, projectId, teamId, workspaceId, sessionId }: Props) {
+export default function LoadContextModal({ open, onClose, projectId, teamId, workspaceId, sessionId, onLoadToChat }: Props) {
   const [items,    setItems]    = useState<BrowseItem[]>([])
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState<string | null>(null)
 
-  const [filterProject, setFilterProject] = useState(projectId ?? '')
+  const [filterProject, setFilterProject] = useState('')
   const [filterTeam,    setFilterTeam]    = useState('')
   const [filterType,    setFilterType]    = useState<ItemType | ''>('')
   const [filterDate,    setFilterDate]    = useState('')
@@ -67,7 +72,7 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
 
   useEffect(() => {
     if (!open) return
-    setFilterProject(projectId ?? '')
+    setFilterProject('')
     setFilterTeam('')
     setFilterType('')
     setFilterDate('')
@@ -160,7 +165,28 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
     selection:  'saved_selection',
   }
 
-  async function handleLoad(item: BrowseItem) {
+  // Audit log fail-open — mismo criterio que el resto del proyecto, nunca
+  // bloquea ni falla la acción principal si el registro no se pudo escribir.
+  function logAudit(item: BrowseItem, destination: Destination) {
+    if (!workspaceId) return
+    fetch('/api/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workspaceId,
+        event_type: 'context_loaded_from_documentation',
+        metadata: {
+          source_type:       originType[item.type],
+          source_id:         item.id,
+          source_name:       item.name,
+          target_session_id: sessionId ?? null,
+          destination,
+        },
+      }),
+    }).catch(console.error)
+  }
+
+  async function handleLoad(item: BrowseItem, destination: Destination) {
     setLoadingId(item.id)
     setLoadError(null)
     setLoadedId(null)
@@ -168,6 +194,15 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
       const contentText = await buildContentForItem(item)
       if (!contentText.trim()) {
         throw new Error('This item has no content to load.')
+      }
+
+      if (destination === 'chat') {
+        const prefixed = `[Loaded from Documentation Mode — ${TYPE_LABEL[item.type]}: ${item.name}]\n\n${contentText}`
+        onLoadToChat(prefixed)
+        logAudit(item, 'chat')
+        // El usuario quiere seguir trabajando esto en el chat de inmediato
+        onClose()
+        return
       }
 
       const res = await fetch('/api/context', {
@@ -191,6 +226,7 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
         throw new Error(body?.error ?? 'Failed to load as context')
       }
 
+      // /api/context ya registra su propio audit log server-side — no duplicar acá.
       setLoadedId(item.id)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to load as context')
@@ -235,9 +271,9 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
           </div>
         )}
 
-        {/* Scope selector — mismo patrón que Add Context File */}
+        {/* Scope selector — mismo patrón que Add Context File. Solo aplica al destino "Context Files". */}
         <div className="px-5 pt-3 shrink-0">
-          <label className="text-xs text-gray-400 mb-1.5 block">Load into scope</label>
+          <label className="text-xs text-gray-400 mb-1.5 block">Context Files scope <span className="text-gray-500 normal-case">(only applies when loading to Context Files)</span></label>
           <div className="flex gap-2">
             {(['session', 'team', 'project'] as const).map(s => (
               <button
@@ -311,13 +347,24 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
                         <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">{it.content_preview}</p>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleLoad(it)}
-                      disabled={loadingId === it.id}
-                      className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {loadingId === it.id ? 'Loading…' : loadedId === it.id ? 'Loaded ✓' : 'Load'}
-                    </button>
+                    <div className="shrink-0 flex flex-col gap-1">
+                      <button
+                        onClick={() => handleLoad(it, 'context_files')}
+                        disabled={loadingId === it.id}
+                        title="Keep it as background context for this session"
+                        className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {loadingId === it.id ? 'Loading…' : loadedId === it.id ? 'Loaded ✓' : '→ Context Files'}
+                      </button>
+                      <button
+                        onClick={() => handleLoad(it, 'chat')}
+                        disabled={loadingId === it.id}
+                        title="Inject it as a message and start working on it now"
+                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {loadingId === it.id ? 'Loading…' : '→ Chat'}
+                      </button>
+                    </div>
                   </div>
                 </li>
               ))}

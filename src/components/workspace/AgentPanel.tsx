@@ -725,6 +725,17 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
       await sendPrompt(content, pendingAtts)
     }
 
+    // Load Saved Context → "Chat" destino: mismo mecanismo que
+    // AgentPanelHandle.appendUserMessage (Review & Forward same-workspace).
+    function handleLoadToChat(content: string) {
+      if (autoRespond) {
+        setTimeout(() => sendPrompt(content), 50)
+      } else {
+        setMessages(prev => [...prev, { role: 'user', content, created_at: new Date().toISOString() }])
+        setApiMessages(prev => [...prev, { role: 'user', content }])
+      }
+    }
+
     function toggleContextWarnFile(id: string) {
       setContextWarnFiles(prev => prev?.map(f => f.id === id ? { ...f, include: !f.include } : f) ?? prev)
     }
@@ -1219,6 +1230,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
         projectId={projectId}
         workspaceId={session.workspace_id}
         sessionId={session.id}
+        onLoadToChat={handleLoadToChat}
       />
       </Fragment>
     )

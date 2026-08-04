@@ -3411,3 +3411,34 @@ In simple terms: use the Manager to think and coordinate, use the Workers to exe
 
 ---
 
+## Mini-OE 2026-08-03 (2 ajustes) — Load Saved Context: filtros en "All" + elegir destino (Context Files / Chat)
+
+**Fecha:** 2026-08-03
+**Estado:** Implementado, deploy a producción autorizado por el PO — validación funcional pendiente en producción.
+
+**Contexto:** el PO validó "Load Saved Context" en producción y encontró 2 ajustes necesarios: los filtros del modal arrancaban preseleccionados en vez de en "All" (inconsistente con Documentation Mode), y la única acción disponible ("Load") siempre mandaba el contenido a Context Files, sin darle al usuario la opción de inyectarlo directo en el chat para trabajarlo de inmediato.
+
+**Ajuste 1 — Filtros en "All" por defecto:**
+Inspección confirmó que `filterTeam` ya arrancaba vacío (correcto) — el bug real era únicamente `filterProject`, preseleccionado con `projectId ?? ''` (el Project del Workspace actual) tanto en el `useState` inicial como en el `useEffect` que resetea el modal al abrirse. Como `uniqueTeams` (las opciones del dropdown de Team) se derivan filtrando por `filterProject`, el bug en Project acotaba indirectamente las opciones de Team visibles — de ahí que pareciera que ambos filtros estaban preseleccionados. Fix: `filterProject` arranca en `''` en ambos puntos, igual que `filterTeam`.
+
+**Ajuste 2 — Elegir destino (Context Files vs. Chat directo):**
+- **Inspección previa (mecanismo de inyección):** confirmado que `AgentPanelHandle.appendUserMessage` (ya usado por Review & Forward dentro del mismo Workspace) es el mecanismo correcto — si `autoRespond` está activo (default), dispara `sendPrompt(content)` (persiste vía `/api/messages` y el agente responde); si no, solo agrega al estado local. Se replicó ese mismo cuerpo en una función nueva `handleLoadToChat` dentro de `AgentPanel.tsx` (no se inventó un mecanismo nuevo).
+- **Inspección previa (indicador visual):** confirmado que NO existe ningún precedente de mensaje visualmente distinto en el chat — `messages.role` tiene un CHECK constraint real que solo admite `'user' | 'assistant'`, y el único patrón ya usado para marcar el origen de un mensaje especial es un prefijo en texto plano entre corchetes (`[Forwarded from X]`, `[Attached file: X]`), sin estilo diferenciado en el bubble. Se aplicó la misma convención: `[Loaded from Documentation Mode — <Tipo>: <nombre>]\n\n<contenido>`.
+- **Implementación:** cada item del modal pasó de un botón "Load" a 2 botones — "→ Context Files" (flujo actual sin cambios, vía `POST /api/context`) y "→ Chat" (nuevo, vía `onLoadToChat` prop → `handleLoadToChat` en `AgentPanel.tsx`). La regla de carga diferenciada por tipo (Handoff Package solo el último mensaje; Selection/Checkpoint completos) se aplica igual para ambos destinos, antes de la bifurcación — sin cambios en `buildContentForItem()`.
+- **Audit log en ambos casos:** mismo `event_type: 'context_loaded_from_documentation'`, con un campo nuevo `destination: 'context_files' | 'chat'` para poder distinguirlos en consultas. Se agregó `destination: 'context_files'` al insert server-side ya existente en `/api/context` (aditivo, sin tocar su lógica); el destino "chat" loguea client-side desde el modal, mismo patrón fail-open (`.catch(console.error)`) ya usado en el resto del proyecto.
+- **Decisión de UX no bloqueante, documentada por transparencia:** al elegir "Chat" el modal se cierra automáticamente después de inyectar (el usuario vuelve directo a trabajar el contenido); al elegir "Context Files" el modal se queda abierto con "Loaded ✓", igual que antes, por si se quieren cargar más ítems de fondo sin cerrar.
+
+**Archivos modificados:**
+- `src/components/workspace/LoadContextModal.tsx` — fix de filtros, 2 botones de destino, `logAudit()`, prop `onLoadToChat`
+- `src/components/workspace/AgentPanel.tsx` — función `handleLoadToChat`, prop pasada al modal
+- `src/app/api/context/route.ts` — campo `destination: 'context_files'` agregado al audit log existente (única modificación, no se tocó el resto de la rama)
+
+**Restricción respetada:** el flujo de Context Files (ambos destinos comparten `buildContentForItem()`, pero la rama de POST a `/api/context` no cambió su lógica interna, solo el metadata del audit log).
+
+**Validaciones:** lint ✅, build ✅. **No validado:** flujo funcional real en producción (filtros en All, botón → Chat inyectando correctamente, botón → Context Files sin regresión) — pendiente de confirmación del PO.
+
+**Riesgos conocidos / deuda técnica:**
+- El destino "Chat" no pasa por ningún aviso de tamaño — a diferencia de Context Files (que lo recibe indirectamente al enviar el próximo mensaje vía el mecanismo ya existente), un Handoff/Selection/Checkpoint muy grande inyectado directo al chat se manda tal cual, sin fricción ni confirmación. No estaba en el alcance de esta mini-OE — señalar si en el uso real resulta un problema.
+
+---
+

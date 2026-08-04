@@ -109,6 +109,7 @@ async function handleLoadFromDocumentation(req: Request, userId: string) {
         source_name:       title.trim(),
         target_session_id: sessionId || null,
         target_scope:      scope,
+        destination:       'context_files',
       },
     })
   } catch (err) {
