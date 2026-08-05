@@ -141,9 +141,10 @@ interface TeamsClientProps {
   projectName?: string
   projectId:    string
   initialTeams: TeamWithWorkspaces[]
+  userName?:    string
 }
 
-export default function TeamsClient({ pageName, projectName, projectId, initialTeams }: TeamsClientProps) {
+export default function TeamsClient({ pageName, projectName, projectId, initialTeams, userName }: TeamsClientProps) {
   const router = useRouter()
   const [teams, setTeams]             = useState<TeamWithWorkspaces[]>(initialTeams)
   const [connections, setConnections] = useState<Connection[]>([])
@@ -298,6 +299,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
         pageSubtitle="How to use Teams Map"
         pageSubtitleOnClick={() => setShowMainGuide(true)}
         projectName={projectName}
+        userName={userName}
       />
 
       {/* ── Ribbon operativo ─────────────────────────────────────────────────── */}

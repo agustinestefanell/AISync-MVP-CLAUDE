@@ -23,7 +23,11 @@ export default async function TeamsPage() {
   const projectId = await getActiveProjectId()
   if (!projectId) redirect('/')
 
-  const projects = await getProjectsWithHierarchy()
+  const [{ data: account }, projects] = await Promise.all([
+    supabase.from('accounts').select('name').eq('id', user.id).single(),
+    getProjectsWithHierarchy(),
+  ])
+  const userName = (account as { name?: string } | null)?.name ?? user.email ?? '—'
 
   // Fetch isolated teams where user is receiver (invitee)
   const supabaseAdmin = createAdminClient()
@@ -77,6 +81,7 @@ export default async function TeamsPage() {
       projectName={activeProject?.name}
       projectId={projectId}
       initialTeams={allTeams}
+      userName={userName}
     />
   )
 }

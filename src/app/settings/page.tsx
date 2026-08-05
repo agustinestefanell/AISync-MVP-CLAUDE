@@ -8,10 +8,14 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: account } = await supabase.from('accounts').select('name').eq('id', user.id).single()
+  const userName = (account as { name?: string } | null)?.name ?? user.email ?? '—'
+
   return (
     <AppLayout
       pageName="SETTINGS"
       pageSubtitle="Configure your account and providers"
+      userName={userName}
     >
       <div className="max-w-2xl mx-auto px-6 py-10">
         <div className="mb-8">

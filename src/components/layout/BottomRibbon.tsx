@@ -1,14 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import PromptLibrary from '@/components/workspace/PromptLibrary'
 import {
   LayoutDashboard,
   Users,
   ClipboardList,
-  Folder,
   ShieldCheck,
   BookOpen,
   MessageSquare,
@@ -37,25 +36,11 @@ function isActive(pathname: string, href: string, match: string): boolean {
 
 export default function BottomRibbon({ accentColor }: { accentColor?: string }) {
   const pathname = usePathname()
-  const [workspaceHref,      setWorkspaceHref]      = useState<string>('/')
   const [showPromptLibrary,  setShowPromptLibrary]  = useState(false)
 
-  useEffect(() => {
-    fetch('/api/active-workspace')
-      .then(r => r.json())
-      .then(({ workspaceId }: { workspaceId: string | null }) => {
-        if (workspaceId) setWorkspaceHref(`/workspace/${workspaceId}`)
-      })
-      .catch(() => {})
-  }, [])
-
-  const NAV_ITEMS = [
-    STATIC_NAV_ITEMS[0],                                                            // Dashboard
-    STATIC_NAV_ITEMS[1],                                                            // Teams Map
-    STATIC_NAV_ITEMS[2],                                                            // Audit Log
-    { label: 'Main Workspace', href: workspaceHref, match: 'workspace', future: false, icon: Folder } as const,
-    ...STATIC_NAV_ITEMS.slice(3),                                                   // rest
-  ]
+  // "Main Workspace" removido de la navegación visible (perdió sentido — decisión
+  // de producto 2026-08-04). /api/active-workspace queda intacto sin consumidores.
+  const NAV_ITEMS = STATIC_NAV_ITEMS
 
   const colored       = !!accentColor
   const textActive    = '#ffffff'

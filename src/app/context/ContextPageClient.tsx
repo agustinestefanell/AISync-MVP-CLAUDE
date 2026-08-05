@@ -39,11 +39,12 @@ interface ContextSource {
 }
 
 interface Props {
-  pageName: string
-  userId:   string
+  pageName:  string
+  userId:    string
+  userName?: string
 }
 
-export default function ContextPageClient({ pageName, userId }: Props) {
+export default function ContextPageClient({ pageName, userId, userName }: Props) {
   const supabase = createClient()
   const [sources,   setSources]   = useState<ContextSource[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -158,6 +159,7 @@ export default function ContextPageClient({ pageName, userId }: Props) {
         pageName={pageName}
         pageSubtitle="How to use Context Files"
         pageSubtitleOnClick={() => setShowGuide(true)}
+        userName={userName}
       />
 
       <main className="flex-1 overflow-y-auto">

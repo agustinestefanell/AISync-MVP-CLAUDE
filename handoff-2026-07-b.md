@@ -3560,3 +3560,35 @@ Este hallazgo se reportó al PO antes de tocar código (no se asumió ni se inve
 
 ---
 
+## Mini-OE 2026-08-05 — Nombre de usuario en 4 páginas faltantes + ocultar Main Workspace del ribbon inferior
+
+**Fecha:** 2026-08-05
+**Estado:** Implementado y commiteado. Localhost no funcional durante esta sesión — PO autorizó explícitamente proceder directo a commit/push y validar visualmente en producción después del deploy (sin correr el paso de verificación visual local esta vez).
+
+**Contexto:** `TopRibbon.tsx` ya soportaba mostrar el nombre de usuario (`User: {userName}`, línea 20 del componente) en la mayoría de páginas de la app (patrón confirmado en uso en 37 puntos del código antes de este cambio). Faltaba threading del prop en 4 páginas: Teams Map, Audit Log, Context Files, Settings. Además se pidió ocultar "Main Workspace" del ribbon inferior (`BottomRibbon.tsx`) — perdió sentido como acceso directo.
+
+**Archivos modificados:**
+- `src/app/audit/page.tsx`, `src/app/context/page.tsx`, `src/app/settings/page.tsx`, `src/app/teams/page.tsx` — cada uno agrega `supabase.from('accounts').select('name').eq('id', user.id).single()` y arma `userName = account?.name ?? user.email ?? '—'`.
+- `src/app/context/ContextPageClient.tsx`, `src/components/audit/AuditClient.tsx`, `src/components/teams/TeamsClient.tsx` — prop `userName?: string` agregada a la interfaz, pasada a `TopRibbon`.
+- `src/components/layout/BottomRibbon.tsx` — item "Main Workspace" eliminado.
+
+**Decisión técnica — cómo se implementó el nombre de usuario:**
+Se replicó exactamente el patrón ya existente en el resto de la app (confirmado por grep antes de tocar código: 37 usos de `userName` ya en el codebase) — no se inventó un mecanismo nuevo ni se tocó `TopRibbon.tsx`, que ya sabía renderizar el nombre cuando el prop viene poblado. En `audit/page.tsx` y `teams/page.tsx`, la query a `accounts` se agrupó dentro del `Promise.all` ya existente (junto a `getAuditEvents()`/`getProjectsWithHierarchy()` respectivamente) para no agregar un round-trip secuencial extra a páginas que ya hacían varias queries en paralelo.
+
+**Decisión técnica — por qué `/api/active-workspace` se dejó intacto en vez de eliminarlo:**
+Al remover "Main Workspace" del ribbon, el endpoint `/api/active-workspace` (que resolvía `workspaceHref` vía `useEffect`) se quedó sin consumidor conocido en el frontend. Se decidió NO eliminarlo en esta misma Mini-OE — el pedido explícito fue "ocultar del ribbon", no "eliminar el endpoint", y borrar código de API sin confirmación puntual del PO excede ese alcance. Se documenta acá como código muerto identificado para una limpieza futura si se confirma que no hace falta.
+
+**Alternativas descartadas:**
+- Dejar el item "Main Workspace" visible pero deshabilitado/gris: descartado — el pedido fue "ocultar", y un item gris sin función sigue siendo ruido visual.
+- Redirigir "Main Workspace" a `/` (Dashboard) en vez de eliminarlo: descartado por crear una funcionalidad fantasma con label engañoso.
+
+**Restricciones respetadas:** `TopRibbon.tsx` no modificado (ya soportaba el prop); ningún otro consumidor de `/api/active-workspace` tocado; sin cambios de schema, RLS ni migraciones — la query a `accounts.name` ya se usa en el mismo patrón en otras páginas.
+
+**Riesgos conocidos / deuda técnica:**
+- `/api/active-workspace` queda sin consumidores en el frontend tras este cambio — candidato a limpieza en sesión futura.
+- Sin validación visual local ni en producción todavía al momento del commit — localhost no funcional durante esta sesión (confirmado con el PO), deploy autorizado igual, validación queda pendiente post-deploy.
+
+**Validaciones:** lint ✅, build ✅ (corridos antes del commit). Grep confirma el patrón `userName` ya en uso extendido en el codebase antes de este cambio — replicado, no inventado.
+
+---
+

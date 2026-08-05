@@ -7,5 +7,8 @@ export default async function ContextPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  return <ContextPageClient pageName="CONTEXT FILES" userId={user.id} />
+  const { data: account } = await supabase.from('accounts').select('name').eq('id', user.id).single()
+  const userName = (account as { name?: string } | null)?.name ?? user.email ?? '—'
+
+  return <ContextPageClient pageName="CONTEXT FILES" userId={user.id} userName={userName} />
 }

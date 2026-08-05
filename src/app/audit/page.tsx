@@ -17,15 +17,17 @@ export default async function AuditPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [events, { data: rawCustomProviders }, { data: rawCheckpoints }, projects] = await Promise.all([
+  const [events, { data: rawCustomProviders }, { data: rawCheckpoints }, projects, { data: account }] = await Promise.all([
     getAuditEvents(),
     supabase.from('user_custom_providers').select('name, model').eq('account_id', user.id).order('created_at'),
     supabase.from('checkpoints').select('id, name'),
     getProjectsWithHierarchy(),
+    supabase.from('accounts').select('name').eq('id', user.id).single(),
   ])
 
   const customProviders = (rawCustomProviders ?? []) as { name: string; model: string }[]
   const checkpoints     = (rawCheckpoints    ?? []) as { id: string; name: string }[]
+  const userName        = (account as { name?: string } | null)?.name ?? user.email ?? '—'
 
   return (
     <AuditClient
@@ -34,6 +36,7 @@ export default async function AuditPage() {
       customProviders={customProviders}
       checkpoints={checkpoints}
       projects={projects}
+      userName={userName}
     />
   )
 }

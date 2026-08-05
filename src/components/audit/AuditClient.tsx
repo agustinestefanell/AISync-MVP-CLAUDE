@@ -42,9 +42,10 @@ interface Props {
   customProviders: CustomProvider[]
   checkpoints:     { id: string; name: string }[]
   projects:        ProjectWithTeams[]
+  userName?:       string
 }
 
-export default function AuditClient({ pageName, events, customProviders, checkpoints, projects }: Props) {
+export default function AuditClient({ pageName, events, customProviders, checkpoints, projects, userName }: Props) {
   const [externalDetailCpId, setExternalDetailCpId] = useState<string | null>(null)
   const [filteredEvents,     setFilteredEvents]     = useState<AuditEventRow[]>(events)
   const [showMainGuide,      setShowMainGuide]      = useState(false)
@@ -83,6 +84,7 @@ export default function AuditClient({ pageName, events, customProviders, checkpo
         pageName={pageName}
         pageSubtitle="How to use Audit Log"
         pageSubtitleOnClick={() => setShowMainGuide(true)}
+        userName={userName}
       />
 
       <main className="flex-1 overflow-hidden min-h-0 flex flex-col">
