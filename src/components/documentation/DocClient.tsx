@@ -13,6 +13,7 @@ import SMPanel from '@/components/sm/SMPanel'
 import type { CustomProvider } from '@/components/sm/SMPanel'
 import TopRibbon from '@/components/layout/TopRibbon'
 import BottomRibbon from '@/components/layout/BottomRibbon'
+import TraceabilityGuideButton from '@/components/layout/TraceabilityGuideButton'
 
 const KnowledgeMap = dynamic(() => import('./KnowledgeMap'), { ssr: false })
 
@@ -180,6 +181,7 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
         pageName={pageName}
         pageSubtitle="How to use Documentation Mode"
         pageSubtitleOnClick={() => setShowMainGuide(true)}
+        rightBadge={<TraceabilityGuideButton />}
         userName={userName}
       />
 

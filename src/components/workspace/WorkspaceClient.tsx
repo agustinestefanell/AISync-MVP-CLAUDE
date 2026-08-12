@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import TopRibbon from '@/components/layout/TopRibbon'
 import BottomRibbon from '@/components/layout/BottomRibbon'
+import TraceabilityGuideButton from '@/components/layout/TraceabilityGuideButton'
 import WorkspaceShell from './WorkspaceShell'
 import TokenUsageBadge from './TokenUsageBadge'
 import WelcomeScreen from './WelcomeScreen'
@@ -75,7 +76,7 @@ export default function WorkspaceClient({ pageName, accentColor, badge, workspac
         pageSubtitleOnClick={() => setShowMainGuide(true)}
         accentColor={accentColor}
         badge={badge}
-        rightBadge={<TokenUsageBadge workspaceId={workspace.id} />}
+        rightBadge={<><TokenUsageBadge workspaceId={workspace.id} /><TraceabilityGuideButton /></>}
         userName={userEmail}
       />
 

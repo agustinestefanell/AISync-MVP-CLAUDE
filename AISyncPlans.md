@@ -338,6 +338,8 @@ AppLayout
 
 **Patrón reusable — `TopRibbon.pageSubtitleOnClick`**: `TopRibbon` acepta `pageSubtitleOnClick?: () => void`. Prioridad: `pageSubtitleHref` (link) > `pageSubtitleOnClick` (button) > texto plano. Usar este patrón para disparar modales de ayuda por página desde el subtítulo del ribbon. Ver `DECISIONS.md` entrada 2026-06-02.
 
+**Componente nuevo — `TraceabilityGuideButton` (2026-08-12)**: `src/components/layout/TraceabilityGuideButton.tsx`. Botón + modal educativo autocontenidos (sin props, sin estado externo), montado vía el slot `rightBadge` de `TopRibbon` en Workspace (`WorkspaceClient.tsx`, junto a `TokenUsageBadge` dentro del mismo Fragment), Audit Log (`AuditClient.tsx`) y Documentation Mode (`DocClient.tsx`) — un único componente reutilizado en los 3 ribbons. A diferencia del patrón `pageSubtitleOnClick` (link de texto subrayado), este es un botón real con fondo/borde, porque el pedido explícito era que tuviera jerarquía visual de botón de acción, no de link.
+
 ### 3.3 Workspace
 
 ```

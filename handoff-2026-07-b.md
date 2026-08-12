@@ -3592,3 +3592,45 @@ Al remover "Main Workspace" del ribbon, el endpoint `/api/active-workspace` (que
 
 ---
 
+
+## Mini-OE 2026-08-12 — "How Traceability Works" (botón + modal educativo)
+
+**Fecha:** 2026-08-12
+**Estado:** Implementado, build ✅ — deploy a producción y validación visual del PO pendientes al momento de escribir esta entrada (push autorizado por el PO antes de la validación local, ver más abajo).
+
+**Contexto:** el PO pidió un botón visible en el Top Ribbon de Workspace, Audit Log y Documentation Mode que abra un modal educativo fijo (español) explicando cómo funciona la trazabilidad end-to-end en AISync (Audit Log, las 5 vistas de Documentation Mode, Review & Forward, Load Saved Context, Add Context File, Prompt Library). Restricción explícita: debía ser un botón real con jerarquía visual, no un link de texto subrayado como el patrón `pageSubtitleOnClick` ya usado en esas mismas 3 páginas.
+
+**Investigación previa:** se revisó `TopRibbon.tsx` (slots disponibles: `pageSubtitleOnClick` para link, `rightBadge` para nodo React libre a la derecha), el modal `HowConnectedTeamsModal.tsx` y los modales "How to use X" ya existentes en `WorkspaceClient.tsx`/`AuditClient.tsx`/`DocClient.tsx` para reutilizar el mismo patrón visual (header con título + ✕, cuerpo scrolleable con `whitespace-pre-line`, footer "Got it"), y `TokenUsageBadge.tsx` para ver cómo un componente ya ocupa el slot `rightBadge` en Workspace.
+
+**Decisión técnica:** un único componente nuevo, `src/components/layout/TraceabilityGuideButton.tsx` — botón + modal autocontenidos (sin props, sin estado externo, maneja su propio `open`). Montado vía el slot `rightBadge` ya existente de `TopRibbon`, sin agregar ningún prop nuevo a `TopRibbon.tsx`:
+- `WorkspaceClient.tsx`: `rightBadge={<><TokenUsageBadge .../><TraceabilityGuideButton /></>}` (convive con el contador de tokens, ambos dentro del mismo Fragment porque `rightBadge` solo acepta un nodo).
+- `AuditClient.tsx` y `DocClient.tsx`: `rightBadge={<TraceabilityGuideButton />}` (antes no usaban ese slot).
+
+**Por qué botón y no link:** el pedido fue explícito ("no un link de texto simple"). Se estilizó con fondo blanco translúcido + borde (`rgba(255,255,255,0.14)` con borde `rgba(255,255,255,0.4)`, más opaco en hover), consistente con el ribbon oscuro de fondo, distinto del subtítulo subrayado que ya usan las 3 páginas para sus modales "How to use X" existentes (esos quedan intactos, sin tocar).
+
+**Contenido del modal:** texto en español fijo, tal como lo escribió el PO, sin traducir los nombres de botones de la UI (Save Selection, Handoff Package, Checkpoint, Review & Forward, Load Saved Context, Add Context File, Prompt Library). Título del modal en inglés ("How Traceability Works — What Gets Saved, and How"), texto del botón en inglés ("How Traceability Works") — excepción puntual a la convención de "código en inglés" del proyecto, confirmada explícitamente por el PO en el pedido.
+
+**Restricciones respetadas (verificadas antes de cerrar):**
+- Sin mención a "Save Version" en ningún lado del texto nuevo (el botón fue removido, ya no existe en la UI — no confundir con `AUDIT_GUIDE` en `AuditClient.tsx`, que sí lo menciona todavía; ese archivo no fue tocado en esta OE, queda fuera de alcance, señalado acá para una limpieza futura).
+- Sin nada de AISync Local / air-gapped / roadmap.
+- Sin mención al Agente IA lateral (SM).
+
+**Alternativas descartadas:**
+- Agregar un prop nuevo a `TopRibbon.tsx` (ej. `extraAction`) en vez de reutilizar `rightBadge` — descartado, `rightBadge` ya es un slot de nodo React libre pensado exactamente para esto, agregar un prop paralelo hubiera sido redundante.
+- Triplicar el modal (uno por página) — descartado, el pedido fue explícito ("mismo componente reutilizado en los 3 ribbons").
+- Reutilizar `HowConnectedTeamsModal.tsx` o alguno de los modales "How to use X" ya montados — descartado, ninguno es genérico ni está pensado para vivir en el `TopRibbon` fuera de su página; se replicó el patrón visual, no el componente.
+
+**Validaciones:** lint ✅ (sin warnings nuevos — los únicos warnings del run son preexistentes en `CanvasViewport.tsx`, no tocado), build ✅ (compila sin errores). **No validado:** confirmación visual del PO — no se pudo usar el navegador esta sesión (extensión Claude in Chrome no instalada, declinada por el PO). El PO decidió pushear y validar directamente en producción en vez de esperar screenshots de localhost.
+
+**Archivos modificados:**
+- `src/components/layout/TraceabilityGuideButton.tsx` (nuevo)
+- `src/components/workspace/WorkspaceClient.tsx` — import + `rightBadge` combinado
+- `src/components/audit/AuditClient.tsx` — import + `rightBadge`
+- `src/components/documentation/DocClient.tsx` — import + `rightBadge`
+- `AISyncPlans.md`, `PRODUCT_STATUS.md` — documentación
+
+**Riesgos conocidos / deuda técnica:**
+- Sin validación visual real todavía — el botón nunca se vio renderizado en un navegador antes de este push. Si la posición o el contraste no quedan bien en la práctica, es el primer punto a revisar.
+- `AUDIT_GUIDE` en `AuditClient.tsx` sigue mencionando "Save Version" (ya removido de la UI) — no es parte de esta OE, pero quedó identificado como residuo pendiente de limpieza, mismo tipo de hallazgo que ya se había señalado antes para `HowConnectedTeamsModal.tsx` (referencias desactualizadas a "Dashboard → + Connect").
+
+---

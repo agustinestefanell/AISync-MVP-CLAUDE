@@ -19,6 +19,7 @@ import type { ProjectWithTeams } from '@/lib/db/types'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 import TopRibbon from '@/components/layout/TopRibbon'
 import BottomRibbon from '@/components/layout/BottomRibbon'
+import TraceabilityGuideButton from '@/components/layout/TraceabilityGuideButton'
 
 const AUDIT_GUIDE = `Imagine you are working on something today and suddenly remember that you already saved a useful version of it a few weeks ago. You do not remember the exact session, but you know it was an important point in the process and you want to go back to it instead of starting from scratch. In that case, you go to Audit Log.
 
@@ -84,6 +85,7 @@ export default function AuditClient({ pageName, events, customProviders, checkpo
         pageName={pageName}
         pageSubtitle="How to use Audit Log"
         pageSubtitleOnClick={() => setShowMainGuide(true)}
+        rightBadge={<TraceabilityGuideButton />}
         userName={userName}
       />
 
