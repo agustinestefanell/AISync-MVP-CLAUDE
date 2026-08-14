@@ -120,6 +120,20 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
     })
   }, [checkpoints, search, filterProject, filterTeam, filterType, filterArchiveStatus, filterDate])
 
+  const filteredSavedSelections = useMemo(() => {
+    const q = search.toLowerCase()
+    return savedSelections.filter(s => {
+      if (search && !s.name.toLowerCase().includes(q) &&
+          !(s.team_name ?? '').toLowerCase().includes(q) &&
+          !(s.project_name ?? '').toLowerCase().includes(q) &&
+          !s.workspace_name.toLowerCase().includes(q)) return false
+      if (filterProject && s.project_id !== filterProject) return false
+      if (filterTeam    && s.team_id    !== filterTeam)    return false
+      if (filterDate    && !s.created_at.startsWith(filterDate)) return false
+      return true
+    })
+  }, [savedSelections, search, filterProject, filterTeam, filterDate])
+
   // Group by date (YYYY-MM-DD)
   const grouped = useMemo(() => {
     const map = new Map<string, DocCheckpoint[]>()
@@ -231,20 +245,20 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
       {/* Timeline */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
         {filterType === 'Saved Selection' ? (
-          savedSelections.length === 0 ? (
+          filteredSavedSelections.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-[var(--color-text-muted)] text-sm">No saved selections found.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {savedSelections.map(s => (
+              {filteredSavedSelections.map(s => (
                 <SavedSelectionCard key={s.id} s={s} />
               ))}
             </div>
           )
         ) : (
           <>
-            {grouped.length === 0 && (filterType !== '' || savedSelections.length === 0) ? (
+            {grouped.length === 0 && (filterType !== '' || filteredSavedSelections.length === 0) ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-[var(--color-text-muted)] text-sm">No documents match your search.</p>
               </div>
@@ -311,7 +325,7 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
             </div>
           </div>
                 ))}
-                {filterType === '' && savedSelections.length > 0 && (
+                {filterType === '' && filteredSavedSelections.length > 0 && (
                   <div className="mt-8">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="h-px flex-1 bg-[var(--color-border-subtle)]" />
@@ -319,7 +333,7 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
                       <div className="h-px flex-1 bg-[var(--color-border-subtle)]" />
                     </div>
                     <div className="space-y-3">
-                      {savedSelections.map(s => (
+                      {filteredSavedSelections.map(s => (
                         <SavedSelectionCard key={s.id} s={s} />
                       ))}
                     </div>

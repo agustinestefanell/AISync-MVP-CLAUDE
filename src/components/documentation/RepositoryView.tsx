@@ -512,6 +512,8 @@ export default function RepositoryView({
       // Handoffs appear only when type filter is unset or explicitly "Handoff Package"
       const h = item.hp
       if (filterType && filterType !== 'Handoff Package') return false
+      if (filterProject && h.project_id !== filterProject) return false
+      if (filterTeam    && h.team_id    !== filterTeam)    return false
       if (filterArchiveStatus && h.team_status !== filterArchiveStatus) return false
       return true
     }
@@ -519,6 +521,8 @@ export default function RepositoryView({
     if (item.kind === 'saved_selection') {
       const s = item.ss
       if (filterType && filterType !== 'Saved Selection') return false
+      if (filterProject && s.project_id !== filterProject) return false
+      if (filterTeam    && s.team_id    !== filterTeam)    return false
       if (filterArchiveStatus && s.team_status !== filterArchiveStatus) return false
       return true
     }
