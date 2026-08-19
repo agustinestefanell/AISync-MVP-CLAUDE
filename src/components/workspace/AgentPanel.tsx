@@ -278,7 +278,7 @@ const MessageBubble = memo(function MessageBubble({
 // ── Public interface ─────────────────────────────────────────────────────────
 export interface AgentPanelHandle {
   getLastAssistantMessage(): string | undefined
-  appendUserMessage(content: string): void
+  appendUserMessage(content: string, provenance?: LoadToChatProvenance): void
   getAllMessages(): ChatMessage[]
   restoreMessages(messages: ChatMessage[]): void
   getSelectedMessages(): ChatMessage[]
@@ -396,10 +396,12 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
     useImperativeHandle(ref, () => ({
       getLastAssistantMessage: () =>
         [...messages].reverse().find(m => m.role === 'assistant')?.content,
-      appendUserMessage: (content: string) => {
+      appendUserMessage: (content: string, provenance?: LoadToChatProvenance) => {
         if (autoRespond) {
-          // sendPrompt handles message insertion + API call — no duplication
-          setTimeout(() => sendPrompt(content), 50)
+          // sendPrompt handles message insertion + API call — no duplication.
+          // provenance (Fase 1.6): Review & Forward Agent↔Agent, ver
+          // WorkspaceShell.tsx handlePanelForward/handleHumanForward.
+          setTimeout(() => sendPrompt(content, [], [], provenance), 50)
         } else {
           setMessages(prev => [...prev, { role: 'user', content, created_at: new Date().toISOString() }])
           setApiMessages(prev => [...prev, { role: 'user', content }])

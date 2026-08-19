@@ -22,7 +22,10 @@ interface DetailMessage {
 }
 
 export interface LoadToChatProvenance {
-  source_object_type: 'checkpoint' | 'handoff_package' | 'saved_selection'
+  // 'review_forward' se agrega en Fase 1.6 — reutilizado por
+  // AgentPanelHandle.appendUserMessage (WorkspaceShell.tsx), no exclusivo
+  // de Load Saved Context pese al nombre del tipo.
+  source_object_type: 'checkpoint' | 'handoff_package' | 'saved_selection' | 'review_forward'
   source_object_id:   string
 }
 

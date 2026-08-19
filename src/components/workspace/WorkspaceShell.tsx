@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AgentPanel, { type AgentPanelHandle } from './AgentPanel'
 import HandoffPackageModal from './HandoffPackageModal'
 import HumanChatPanel, { type HumanChatPanelHandle } from './HumanChatPanel'
+import type { LoadToChatProvenance } from './LoadContextModal'
 import type { AgentSession, Checkpoint, WorkspaceWithAgents, Message, HumanMessage } from '@/lib/db/types'
 import type { ChatMessage } from '@/lib/providers/types'
 
@@ -249,22 +250,36 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       .map(m => `${m.role === 'user' ? 'User' : label}: ${m.content}`)
       .join('\n\n')
 
-    targetRef.appendUserMessage(`[Forwarded from ${label}]\n\n${forwarded}`)
-    panelRefs.current[fromSession.id]?.clearSelection()
+    // Auditar ANTES de reenviar — el id del evento se pasa como provenance
+    // del mensaje reenviado (message_provenance, migración 055). Fail-open:
+    // si el insert falla o tarda, igual se reenvía, sin provenance.
+    let provenance: LoadToChatProvenance | undefined
+    try {
+      const auditRes = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspace_id: workspace.id,
+          event_type:   'review_forward',
+          metadata:     { from: fromSession.agent_role, to: targetRole },
+        }),
+      })
+      if (auditRes.ok) {
+        const auditData = await auditRes.json() as { id?: string }
+        if (auditData.id) {
+          provenance = { source_object_type: 'review_forward', source_object_id: auditData.id }
+        }
+      }
+    } catch (err) {
+      console.error('[WorkspaceShell] review_forward audit insert failed:', err)
+    }
 
-    fetch('/api/audit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        workspace_id: workspace.id,
-        event_type:   'review_forward',
-        metadata:     { from: fromSession.agent_role, to: targetRole },
-      }),
-    }).catch(console.error)
+    targetRef.appendUserMessage(`[Forwarded from ${label}]\n\n${forwarded}`, provenance)
+    panelRefs.current[fromSession.id]?.clearSelection()
   }, [connectionContext, workspace.agent_sessions, workspace.id])
 
   // ── Human chat Review & Forward ──────────────────────────────────────────
-  const handleHumanForward = useCallback((messages: HumanMessage[], targetRole: string) => {
+  const handleHumanForward = useCallback(async (messages: HumanMessage[], targetRole: string) => {
     const targetSession = workspace.agent_sessions.find(s => s.agent_role === targetRole)
     if (!targetSession) return
     const targetRef = panelRefs.current[targetSession.id]
@@ -278,22 +293,35 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       })
       .join('\n\n')
 
-    targetRef.appendUserMessage(`[Forwarded from Human Chat]\n\n${forwarded}`)
-    humanChatRef.current?.clearSelection()
+    // Auditar ANTES de reenviar — mismo mecanismo que handlePanelForward
+    // (ver comentario ahí). Fail-open: si falla, se reenvía sin provenance.
+    let provenance: LoadToChatProvenance | undefined
+    try {
+      const auditRes = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspace_id: workspace.id,
+          event_type:  'review_forward',
+          metadata:    {
+            from:          'human_chat',
+            to:            targetRole,
+            message_count: messages.length,
+          },
+        }),
+      })
+      if (auditRes.ok) {
+        const auditData = await auditRes.json() as { id?: string }
+        if (auditData.id) {
+          provenance = { source_object_type: 'review_forward', source_object_id: auditData.id }
+        }
+      }
+    } catch (err) {
+      console.error('[WorkspaceShell] review_forward audit insert failed:', err)
+    }
 
-    fetch('/api/audit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        workspace_id: workspace.id,
-        event_type:  'review_forward',
-        metadata:    {
-          from:          'human_chat',
-          to:            targetRole,
-          message_count: messages.length,
-        },
-      }),
-    }).catch(console.error)
+    targetRef.appendUserMessage(`[Forwarded from Human Chat]\n\n${forwarded}`, provenance)
+    humanChatRef.current?.clearSelection()
   }, [workspace.agent_sessions, workspace.id, currentUserId, connectionContext])
 
   // ── Save Version → abre modal con nombre y propósito ─────────────────────

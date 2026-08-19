@@ -1744,3 +1744,17 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Cómo se detectó:** la directiva de esta mini-OE explícitamente pidió "no asumir, reconfirmar" para OpenAI — ese único pedido de verificación destapó un segundo bug real que la premisa original daba por descartado. Sin esa instrucción explícita de re-verificar, el fix se habría aplicado solo a Anthropic y OpenAI habría seguido cortando respuestas en producción sin que nadie lo supiera, porque "ya se había confirmado que estaba bien".
 
 **Referencia:** handoff-2026-07-b.md Mini-OE 2026-08-02, DECISIONS.md 2026-08-02.
+
+---
+
+## 2026-08-19 — Fase 1.6: un endpoint fail-open que devuelve 200 no prueba que el insert secundario haya funcionado
+
+**Síntoma:** primer intento de verificación funcional de Fase 1.6 (Review & Forward → `message_provenance`) — `POST /api/audit` y `POST /api/messages` devolvieron `{ ok: true, httpStatus: 200 }` en los 2 casos probados, pero ninguna fila apareció en `message_provenance` al consultar la base directamente.
+
+**Causa real:** la migración 055 (extensión del `CHECK` de `message_provenance.source_object_type` para incluir `'review_forward'`) todavía no estaba aplicada en Supabase. El insert a `message_provenance` en `POST /api/messages` está deliberadamente envuelto en `try/catch` con `console.error` (mismo patrón fail-open de Fase 1.5, a propósito: un fallo ahí no debe bloquear la respuesta ya exitosa del mensaje) — así que el `CHECK constraint violation` real quedó silenciado del lado del cliente. La respuesta HTTP no reflejaba en absoluto el fallo del insert secundario.
+
+**Cómo se confirmó la causa (no se asumió):** un insert de prueba directo contra `message_provenance` (service role, bypaseando RLS pero no el `CHECK`) reprodujo el error exacto: `23514 — violates check constraint "message_provenance_source_object_type_check"`. Recién con esa evidencia se supo con certeza que la migración era la causa, no un bug de código nuevo.
+
+**Lección central:** cuando un endpoint tiene una escritura fail-open (secundaria, no bloqueante) además de la principal, un `200 OK` de la respuesta HTTP certifica que la escritura *principal* funcionó — no dice nada sobre la secundaria. Verificar "funcionó" contra un endpoint así requiere SIEMPRE consultar la tabla afectada directamente, nunca confiar solo en el código de respuesta. Este patrón (fail-open + `console.error` silencioso) es intencional y correcto para no bloquear al usuario por un fallo de auditoría — pero exige que quien verifica lo sepa y no lo confunda con "todo OK".
+
+**Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 1.6), `src/app/api/messages/route.ts`.

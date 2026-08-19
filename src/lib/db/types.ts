@@ -87,7 +87,7 @@ export interface Message {
 export interface MessageProvenance {
   id: string
   message_id: string
-  source_object_type: 'checkpoint' | 'handoff_package' | 'saved_selection'
+  source_object_type: 'checkpoint' | 'handoff_package' | 'saved_selection' | 'review_forward'
   source_object_id: string
   created_at: string
 }

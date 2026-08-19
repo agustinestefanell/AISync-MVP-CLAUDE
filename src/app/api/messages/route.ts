@@ -17,11 +17,12 @@ export async function POST(req: Request) {
       content:     string
       attachments?: { name?: string; media_type: string; type: 'image' | 'document'; data?: string }[]
     }[]
-    // Load Saved Context → Chat: de dónde vino el contenido que generó
-    // este mensaje. Se aplica a todos los mensajes de esta llamada — en la
-    // práctica siempre es una sola (ver AgentPanel.tsx handleLoadToChat).
+    // Load Saved Context → Chat, o Review & Forward Agent↔Agent (Fase 1.6):
+    // de dónde vino el contenido que generó este mensaje. Se aplica a todos
+    // los mensajes de esta llamada — en la práctica siempre es una sola (ver
+    // AgentPanel.tsx handleLoadToChat / AgentPanelHandle.appendUserMessage).
     provenance?: {
-      source_object_type: 'checkpoint' | 'handoff_package' | 'saved_selection'
+      source_object_type: 'checkpoint' | 'handoff_package' | 'saved_selection' | 'review_forward'
       source_object_id:   string
     }
   }

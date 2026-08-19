@@ -1276,3 +1276,17 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 - **Alternativas descartadas:** seguir tratándolo como hallazgo aparte y buscar otra vía de verificación (ej. producción) — descartado porque, a diferencia de la Fase 1, el código nuevo de `/api/messages` (Piezas A y B de esta misma OE) no existía todavía en producción, así que no había ninguna vía alternativa real de probarlo end-to-end sin arreglar el bug.
 - **Alcance del fix:** mínimo y quirúrgico — mismo patrón que el resto del archivo ya usaba para otros formatos (mammoth, word-extractor, xlsx, jszip), aplicado ahora también a PDF. Cero cambio de comportamiento funcional.
 - **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 1.5), `CodingWorkshop.md` #28, `src/lib/context/extractText.ts`.
+
+---
+
+## 2026-08-19 — Fase 1.6: invertir el orden (auditar ANTES de reenviar) en vez de reconciliación asíncrona
+
+- **Decisión:** en `handlePanelForward`/`handleHumanForward` (`WorkspaceShell.tsx`), el insert a `/api/audit` pasó de fire-and-forget (disparado DESPUÉS de `appendUserMessage()`, sin esperar respuesta) a `await`ado ANTES de reenviar, capturando el `id` del evento para pasarlo como `provenance` al mensaje nuevo.
+- **Motivo:** ninguno de los 2 lados (el mensaje nuevo en `messages`, el evento nuevo en `audit_log`) conoce el ID del otro en el momento de crearse — es el mismo problema estructural que Pieza A de Fase 1.5, resuelto con la misma solución: el lado que se crea primero (acá, el evento de auditoría) le pasa su ID al lado que se crea después (el mensaje), no al revés. La alternativa — mantener el orden original y reconciliar los 2 lados de forma asíncrona después — requeriría un mecanismo de matching por proximidad de timestamp/workspace, exactamente el tipo de "inferencia disfrazada de hecho" que el proyecto ya evitó en otros puntos (ver Related object, Fase 2 Audit View).
+- **Costo aceptado, decisión de producto explícita del PO:** el reenvío ahora espera una escritura de red extra antes de aparecer del otro lado — antes era instantáneo (optimista). Latencia de una sola escritura simple a una tabla ya indexada; se evaluó en la ronda de esfuerzo/riesgo previa a esta OE y el PO aceptó el trade-off a cambio de downstream tracking real.
+- **Fail-open no negociable:** todo el bloque de auditoría queda en `try/catch`; si falla o no llega `id`, `provenance` queda `undefined` y el reenvío sigue igual, sin provenance. La consigna de esta OE fue explícita en que esto no se re-evaluara, solo se implementara así.
+- **Alternativas descartadas:**
+  - Reconciliación asíncrona (guardar ambos lados sin ID cruzado, enlazarlos después por batch) — descartado por complejidad desproporcionada para el beneficio, ver motivo arriba.
+  - Enviar el `id` del evento de auditoría generado client-side (`crypto.randomUUID()`) en vez de esperar la respuesta del insert — descartado: el insert podría fallar (RLS, red) y dejar un `id` "fantasma" en `message_provenance.source_object_id` que nunca existió en `audit_log`, exactamente el tipo de dato no confiable que Fase 2 necesita evitar.
+- **Alcance limitado a propósito:** solo las 2 variantes Agent↔Agente. Agent→Human chat no se tocó — su destino (`human_messages`) no es la tabla `messages`, así que este mecanismo no aplica ahí, no es una omisión.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 1.6), `supabase/migrations/055_review_forward_provenance.sql`, `src/components/workspace/WorkspaceShell.tsx`.

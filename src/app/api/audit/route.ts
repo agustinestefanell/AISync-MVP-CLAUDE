@@ -14,14 +14,23 @@ export async function POST(req: Request) {
     metadata?: Record<string, unknown>
   }
 
-  await supabase.from('audit_log').insert({
-    account_id:   user.id,
-    workspace_id: workspaceId,
-    event_type,
-    metadata: metadata ?? null,
-  })
+  // .select('id') agregado en Fase 1.6 — Review & Forward lo necesita como
+  // provenance del mensaje reenviado (message_provenance, migración 055).
+  // Aditivo: ningún caller anterior lee el body de la respuesta.
+  const { data, error } = await supabase
+    .from('audit_log')
+    .insert({
+      account_id:   user.id,
+      workspace_id: workspaceId,
+      event_type,
+      metadata: metadata ?? null,
+    })
+    .select('id')
+    .single()
 
-  return Response.json({ ok: true })
+  if (error) return Response.json({ ok: true })
+
+  return Response.json({ ok: true, id: data.id })
 }
 
 // GET — leer los últimos eventos del audit_log de un workspace

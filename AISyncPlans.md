@@ -565,7 +565,7 @@ WorkspaceShell: openSaveSelectionModal()
 | `system_prompts` | Prompts de sistema por team (Capa 3) |
 | `saved_selections` | Selecciones de mensajes guardadas |
 | `entity_name_history` | Historial inmutable de renombres de Project/Team (migración 053, 2026-08-19) |
-| `message_provenance` | FK real: qué objeto de Documentation Mode originó un mensaje vía Load Saved Context → Chat (migración 054, 2026-08-19) |
+| `message_provenance` | FK real: qué objeto originó un mensaje — Load Saved Context → Chat (`checkpoint`\|`handoff_package`\|`saved_selection`, migración 054, 2026-08-19) o Review & Forward Agent↔Agente (`review_forward`, apunta a `audit_log.id`, migración 055, 2026-08-19) |
 
 **Content Plane** (propiedad del cliente, migrable):
 
@@ -623,7 +623,7 @@ Excepciones (ownership directo por `user_id = auth.uid()`):
 
 `entity_name_history` es polimórfica (`entity_type` 'project'|'team' + `entity_id`) — sin FK real a projects/teams, la policy resuelve el scope con un `EXISTS` condicionado por `entity_type` (mismo criterio de jerarquía que `projects_select`/`teams_select`, ver migración 053).
 
-`message_provenance` (migración 054) sí tiene FK real (`message_id → messages.id` ON DELETE CASCADE) — su RLS es un `EXISTS` que sube por la misma cadena que `messages_select`/`messages_insert` (message → agent_session → workspace → team → project → `account_id = auth.uid()`), no la variante polimórfica de `entity_name_history`.
+`message_provenance` (migración 054, extendida en 055) sí tiene FK real (`message_id → messages.id` ON DELETE CASCADE) — su RLS es un `EXISTS` que sube por la misma cadena que `messages_select`/`messages_insert` (message → agent_session → workspace → team → project → `account_id = auth.uid()`), no la variante polimórfica de `entity_name_history`. `source_object_id` NO tiene FK real hacia `checkpoints`/`handoff_packages`/`saved_selections`/`audit_log` (es un UUID libre, el objeto real vive según `source_object_type`) — mismo patrón ya usado en `context_sources.origin_message_id`.
 
 **Lección RLS crítica (migración 047 — 2026-07-07):**
 RLS requiere políticas explícitas para cada operación DML (SELECT, INSERT, UPDATE, DELETE). Tener SELECT+INSERT no implica tener UPDATE. Features que actualizan filas existentes deben auditar políticas UPDATE además de SELECT/INSERT, incluso si el UPDATE ocurre desde el mismo código que hizo el INSERT. El bloqueo por RLS es silencioso desde la perspectiva de la aplicación — Supabase ignora el UPDATE sin lanzar error visible en logs del servidor.
@@ -643,7 +643,7 @@ Ver sección 10.
 | Método | Ruta | Tablas afectadas | Auth |
 |---|---|---|---|
 | GET | `/api/active-workspace` | workspaces, agent_sessions | Session |
-| GET/POST | `/api/audit` | audit_log | Session |
+| GET/POST | `/api/audit` | audit_log | Session — POST devuelve `{ ok, id }` desde migración 055 (2026-08-19), antes solo `{ ok }` |
 | POST | `/api/chat` | audit_log (context_file_injected, solo si hay Context Files incluidos) — resto streaming, no escribe en DB | Session |
 | GET/POST | `/api/checkpoint` | checkpoints, checkpoint_messages | Session |
 | GET | `/api/checkpoint/[id]` | checkpoint_messages | Session |
@@ -651,7 +651,7 @@ Ver sección 10.
 | DELETE | `/api/connections/[id]` | team_connections | Session |
 | GET/POST | `/api/context` | context_sources, audit_log (context_file_uploaded) | Session |
 | POST | `/api/handoff-package` | handoff_packages | Session |
-| POST | `/api/messages` | messages (+ provider/model poblados vía lookup a agent_sessions), message_provenance (opcional, si el body trae `provenance`), audit_log (attachment_summary_generated) | Session — fire-and-forget AI summary generation for attachments |
+| POST | `/api/messages` | messages (+ provider/model poblados vía lookup a agent_sessions), message_provenance (opcional, si el body trae `provenance`: `checkpoint`\|`handoff_package`\|`saved_selection`\|`review_forward` desde migración 055), audit_log (attachment_summary_generated) | Session — fire-and-forget AI summary generation for attachments |
 | POST | `/api/save-selection` | saved_selections, audit_log | Session |
 | POST | `/api/export/excel` | — (genera .xlsx, no escribe en DB) | Session |
 | POST | `/api/export/word` | — (genera .docx, no escribe en DB) | Session |
@@ -927,6 +927,7 @@ Contrato `ToolExecutor`: `execute()` retorna `Promise<ToolExecutionResult>` con 
 | 052 | `052_base_layer_response_length_policy.sql` | Base layer — response length policy |
 | 053 | `053_entity_name_history.sql` | entity_name_history: historial de renombres Project/Team (Audit View redesign Fase 1, 2026-08-19) |
 | 054 | `054_message_provenance_and_model_tracking.sql` | message_provenance (FK real Load Saved Context → Chat) + messages.provider/model (Audit View redesign Fase 1.5, 2026-08-19) |
+| 055 | `055_review_forward_provenance.sql` | message_provenance: CHECK de source_object_type extendido con 'review_forward' (Audit View redesign Fase 1.6, 2026-08-19) |
 
 ### 10.2 Migraciones clave
 

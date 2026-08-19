@@ -3856,3 +3856,65 @@ Con dev server local (bug de pdf-parse ya resuelto) + sesión real (magic link a
 **Archivos modificados:** `supabase/migrations/054_message_provenance_and_model_tracking.sql` (nuevo), `src/lib/context/extractText.ts`, `src/lib/db/types.ts`, `src/app/api/messages/route.ts`, `src/components/workspace/LoadContextModal.tsx`, `src/components/workspace/AgentPanel.tsx`, `CodingWorkshop.md`, `DECISIONS.md`, `AISyncPlans.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## OE 2026-08-19 — Audit View rediseñada, Fase 1.6: message_provenance para Review & Forward (Agent↔Agent)
+
+**Fecha:** 2026-08-19
+**Estado:** Closed — migración 055 aplicada en Supabase por el PO, código completo, 2/2 casos verificados end-to-end real (HTTP real contra dev server local, no reproducción de lógica), lint ✅, build ✅.
+
+**Contexto:** bloqueaba el arranque de Fase 2 (UI de Audit View) — sin esto, la ancla "Review & Forward" hubiera mostrado "Downstream uses: 0" siempre, sin mecanismo de FK posible (ver evaluación de esfuerzo/riesgo de esta misma fecha, entrada anterior a esta). Precedido de esa evaluación solo-lectura, aprobada explícitamente por el PO con una decisión de producto tomada: aceptar la latencia extra de una escritura a `audit_log` antes de que el mensaje reenviado aparezca del otro lado.
+
+**Alcance confirmado en la evaluación previa:** solo las 2 variantes Agent↔Agente (Agent→Agent, Human chat→Agent). La variante Agent→Human chat queda **explícitamente sin tocar** — su destino es `human_messages`, tabla distinta de `messages`, sin FK posible hacia `message_provenance.message_id`.
+
+### 1. Schema — migración 055
+
+`ALTER TABLE message_provenance` — se extendió el `CHECK` de `source_object_type` (antes `'checkpoint' | 'handoff_package' | 'saved_selection'`) para incluir `'review_forward'`. Migración chica, aditiva, mismo patrón que 054: sin default, sin reescritura de tabla, sin tocar filas existentes. `source_object_id` para este tipo apunta al `id` real de la fila de `audit_log` (`event_type: 'review_forward'`) que originó el mensaje reenviado — no hay tabla de "review forwards" propia, el evento de auditoría *es* el objeto origen.
+
+### 2. `POST /api/audit` — ahora devuelve el `id` insertado
+
+Se agregó `.select('id').single()` al insert y se devuelve `{ ok: true, id }` (antes solo `{ ok: true }`). Confirmado por grep antes del cambio: los 8 call sites existentes de `/api/audit` en todo `src/` no leían el body de la respuesta — cambio puramente aditivo, sin riesgo de romper otro caller.
+
+### 3. `WorkspaceShell.tsx` — reordenar auditoría antes del reenvío, en las 2 variantes Agent↔Agente
+
+`handlePanelForward` (rama "Normal case", Agent→Agent) y `handleHumanForward` (Human chat→Agent) — mismo tratamiento en ambas:
+- Se invirtió el orden: ahora se hace `await` al insert de `/api/audit` **antes** de llamar a `appendUserMessage()`, capturando el `id` devuelto.
+- Ese `id` se pasa como `provenance: { source_object_type: 'review_forward', source_object_id: <audit_log.id> }` — reutilizando el mismo parámetro `provenance` que ya existía desde Fase 1.5 (`LoadToChatProvenance`), sin crear un tipo nuevo. Solo se extendió su union de `source_object_type` para incluir `'review_forward'` (afecta también a `LoadContextModal.tsx` y `src/app/api/messages/route.ts`, que comparten ese mismo tipo).
+- **Fail-open explícito:** todo el insert de auditoría queda envuelto en `try/catch`; si falla o el `id` no viene en la respuesta, `provenance` queda `undefined` y `appendUserMessage()` se llama de todas formas, sin provenance — el reenvío nunca se bloquea por un fallo de auditoría.
+- `handleHumanForward` pasó de función síncrona a `async` (necesario para el `await`) — sin impacto en su caller (`onForward={handleHumanForward}` en el componente de chat humano, prop de evento, no se espera su retorno).
+- `AgentPanelHandle.appendUserMessage` (interfaz + implementación en `AgentPanel.tsx`) ganó un 2do parámetro opcional `provenance` — internamente reenvía a `sendPrompt(content, [], [], provenance)`, el mismo mecanismo ya usado por `handleLoadToChat` desde Fase 1.5. Grep confirma exactamente 2 call sites de `appendUserMessage` en todo `src/` (ambos en `WorkspaceShell.tsx`) — blast radius bajo, parámetro opcional no rompe nada.
+- La variante Agent→Human chat (línea ~195-237 de `WorkspaceShell.tsx`) quedó **sin ninguna modificación** — confirmado con `git diff`, la única diferencia visible en el archivo son los 2 bloques de las variantes Agent↔Agente y el nuevo import de tipo.
+
+### Verificación funcional — 2/2, end-to-end real (2026-08-19)
+
+**Primer intento bloqueado, causa confirmada (no asumida):** antes de que el PO aplicara la migración 055, se probó el flujo completo contra el dev server local y las 2 filas de `message_provenance` no se crearon. Se confirmó la causa exacta con un insert directo de prueba (service role) contra `message_provenance` con `source_object_type: 'review_forward'`: error `23514`, `violates check constraint "message_provenance_source_object_type_check"` — el `CHECK` viejo seguía activo. No se asumió "debe ser la migración", se verificó. El resto del flujo (mensaje insertado, `provider`/`model` poblados, fail-open) ya funcionaba correctamente en ese primer intento — la única pieza bloqueada era la que dependía directamente del `CHECK` nuevo.
+
+**Método:** script Node desechable (`qa-fase16.mjs`, vive solo en el scratchpad de la sesión, nunca en el repo) que replica el flujo real: autentica como la cuenta owner real vía `admin.auth.admin.generateLink({ type: 'magiclink' })` → `verifyOtp` (mismo patrón "magic link admin" ya usado en Fase 1/1.5, sin usar contraseña del PO) usando un `createBrowserClient` de `@supabase/ssr` con un cookie-jar en memoria — así la serialización de cookies de sesión es la real del SDK, no una réplica manual. Con esas cookies reales, hace `fetch` HTTP genuino contra `POST /api/audit` y `POST /api/messages` del dev server corriendo en `localhost:3000` — no reproducción de lógica en Node, HTTP real contra las rutas reales. Jerarquía desechable (`QA-Fase1.6-DELETE-ME` project/team/workspace/2 agent_sessions) creada antes y borrada (cascade) después, con conteos globales de `messages`/`message_provenance`/`audit_log`/`projects` medidos antes y después para confirmar limpieza total.
+
+**Después de aplicada la migración 055, 9/9 checks confirmados:**
+- [x] TEST A (Agent→Agent): `POST /api/audit` devolvió `id` real → `POST /api/messages` con ese `id` como provenance → fila real en `message_provenance` con `source_object_type: 'review_forward'` y `source_object_id` = el `id` exacto del evento de `audit_log`.
+- [x] TEST B (Human chat→Agent): mismo resultado, con la forma de `metadata` real de esa variante (`{ from: 'human_chat', to, message_count }`).
+- [x] TEST C (fail-open): `POST /api/messages` sin `provenance` → mensaje insertado igual (200), sin fila en `message_provenance` — confirma que el mecanismo nunca bloquea el insert del mensaje.
+- [x] `provider`/`model` poblados en los 3 mensajes de prueba (lookup server-side ya existente de Fase 1.5, sin relación directa con este cambio pero confirmado intacto).
+- [x] Los 2 eventos de `audit_log` de prueba existen con `event_type: 'review_forward'` real.
+- [x] Limpieza: conteos globales de `messages` (433), `message_provenance` (0), `audit_log` (586) y `projects` (33) idénticos antes/después.
+
+**Puntos del checklist original verificados por inspección de código, no por click real en navegador** (sin extensión Claude in Chrome disponible esta sesión, mismo límite ya declarado en la entrada 2026-08-12):
+- **"El mensaje reenviado sigue apareciendo del otro lado con normalidad, la latencia extra no rompe el flujo":** confirmado leyendo el código resultante, no viéndolo correr — el `await` solo antepone una escritura de red antes de la misma llamada a `appendUserMessage()` que ya existía; no cambia qué hace `appendUserMessage()`, sólo cuándo se dispara. Sin cambios en el árbol de render ni en el estado de React alrededor de esa llamada.
+- **"Agent→Human chat sigue funcionando exactamente igual":** confirmado con `git diff` — cero líneas modificadas en ese bloque (ver punto 3 arriba), no es una inferencia de comportamiento sino una comprobación de que el código es byte-idéntico al de antes de esta OE.
+
+### Alternativas descartadas
+
+- **Mantener `fetch('/api/audit', ...).catch(console.error)` sin `await`** (como estaba) y resolver la proveniencia de forma asíncrona después — descartado en la evaluación de esfuerzo/riesgo previa: ninguno de los 2 lados (mensaje nuevo, evento de auditoría) conoce el ID del otro en el momento de crearse: sin invertir el orden no hay forma de enlazarlos sin una reconciliación en segundo plano, mucho más compleja que aceptar la latencia extra.
+- **Crear un tipo de provenance nuevo y paralelo a `LoadToChatProvenance`** en vez de extender su union — descartado por instrucción explícita del PO en la consigna de esta OE: reutilizar el mecanismo ya existente de Fase 1.5, no duplicar.
+- **Tabla de "review forwards" propia** (con su propio `id`) en vez de usar el `id` de `audit_log` como objeto origen — descartado: el evento de `audit_log` ya es un registro inmutable con timestamp real; crear una tabla paralela solo para tener un ID hubiera sido redundante.
+
+### Riesgos conocidos / deuda técnica
+
+- Igual que Fase 1.5: no retroactivo — Review & Forwards hechos antes de esta migración no tienen ni pueden tener fila de `message_provenance`.
+- La latencia extra (una escritura a `audit_log` antes de que el mensaje aparezca del otro lado) es una decisión de producto ya tomada y aceptada, no un descuido — documentada acá para que quede explícita si en el futuro alguien nota el cambio de timing y se pregunta por qué.
+- Agent→Human chat (`human_messages`) queda permanentemente fuera de este mecanismo — es un límite de arquitectura (tabla distinta), no un pendiente. Fase 2 debe mostrar "Downstream uses: 0" para esa variante específica, no como bug sino como límite conocido y documentado.
+- Dos procesos `next dev` quedaron corriendo simultáneamente en localhost (puertos 3000 y 3001) durante esta sesión por un `&` de shell que no se limpió solo entre el primer y el segundo intento de verificación — sin impacto en el resultado (ambos servían el mismo código), pero vale la pena que la próxima sesión revise `netstat`/procesos Node huérfanos si el puerto 3000 da comportamiento raro.
+
+**Archivos modificados:** `supabase/migrations/055_review_forward_provenance.sql` (nuevo), `src/app/api/audit/route.ts`, `src/app/api/messages/route.ts`, `src/components/workspace/LoadContextModal.tsx`, `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/WorkspaceShell.tsx`, `src/lib/db/types.ts`, `CodingWorkshop.md`, `DECISIONS.md`, `AISyncPlans.md`, `PRODUCT_STATUS.md`.
+
+---
