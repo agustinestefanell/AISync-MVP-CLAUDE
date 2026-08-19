@@ -1,6 +1,6 @@
 # PRODUCT_STATUS.md — AISync MVP Feature Tracker
 
-Last updated: 2026-08-12 (Botón "How Traceability Works" agregado al Top Ribbon de Workspace/Audit Log/Documentation Mode)
+Last updated: 2026-08-19 (Auditoría de integridad de trazabilidad documental — sin cambios de código, ver AUDIT_DOCUMENTATION_INTEGRITY.md)
 
 ---
 
@@ -104,6 +104,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 | Cross Verification (full scope) | Needs Review | `DECISIONS.md` | Scope diferido; requiere capítulo propio de diseño, modelo de datos y criterios de verificación antes de implementar. |
 | Page subtitle modal system — `TopRibbon.pageSubtitleOnClick` | ✅ Closed | commit feat: add page subtitle modal system and documentation mode guide | `TopRibbon` soporta `pageSubtitleOnClick` como patrón reusable para modales de ayuda por página. `pageSubtitleHref` mantiene prioridad. Documentation Mode usa el subtítulo como disparador del modal principal "How to use Documentation Mode". `DocClient` toma el rol de layout completo (TopRibbon + BottomRibbon). |
 | **Archived Teams filter** | ✅ Closed | Commit pending | **Fixed Archive Status filter for Handoff Packages and Saved Selections (2026-07-19).** RepositoryView applied `filterArchiveStatus` only to Checkpoints — Handoff Packages and Saved Selections bypassed the filter. Bug was NOT in data mapping (`documentation.ts` already had correct defensive normalization for `workspaces → teams` joins) but in UI filtering omission. Fix: added `filterArchiveStatus` check for Handoffs (lines 414-420) and Saved Selections (lines 422-427). AuditView did not have the bug — filter already applied correctly to all events. Validated functionally by PO: "Prueba con un archivado" Handoff Package now appears with "Archived teams", disappears with "Active teams", appears without filter. |
+| **Team/Project filters — Handoff Package and Saved Selection blocks** | ✅ Closed | commit 5994316 | **Fixed Team/Project filter scope in Repository View and Investigate View (2026-08-14).** Same class of bug as the Archived Teams filter above: `filterProject`/`filterTeam` were applied to Checkpoints but bypassed Handoff Package and Saved Selection blocks. `RepositoryView.tsx` — added `filterProject`/`filterTeam` checks to the `'handoff'` and `'saved_selection'` branches. `InvestigateView.tsx` — added `filteredSavedSelections` useMemo (mirrors the existing Checkpoints one) and swapped all 4 render sites from `savedSelections` to it. **Out of scope, confirmed not a gap:** Investigate View has no Handoff Package block to filter — `handoffPackages` there is only used to build `teamCodes`, never rendered as a list. Structure View copy left untouched, separate pending item. Ver handoff-2026-07-b.md 2026-08-14. |
 
 ---
 
@@ -418,7 +419,8 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 - MAP Open button: `window.open(..., '_blank')` may be blocked by popup blocker. Future fix: `router.push`.
 - Prompt Library: ribbon entry is a modal (temporary). Dedicated `/prompts` page pending.
 - Capa 2 (Prompts Library injection in chat): architecture defined, not wired.
-- `audit_log` FK to checkpoints: architectural decision pending.
+- `audit_log` FK to checkpoints: architectural decision pending. Auditoría 2026-08-19 confirmó el mismo patrón (sin FK) en `checkpoint_messages`, `saved_selections.messages` y `handoff_packages.messages` — ver `AUDIT_DOCUMENTATION_INTEGRITY.md`.
+- Auditoría de trazabilidad documental (2026-08-19) — 4 gaps confirmados sin evento ni FK: `handoff.received` (nunca se escribe), cambio de modelo/prompt asignado (silencioso), upload/injection de Context Files (sin evento), historial de nombres de Project/Team (se sobreescribe sin rastro). Detalle completo: `AUDIT_DOCUMENTATION_INTEGRITY.md`. Candidatos a contrato de próxima OE.
 - Add Context File: ✅ Closed — `project_id` now passed through WorkspaceShell → AgentPanel → ContextFilePanel. All three scopes (Session, Team, Project) functional.
 - Cross Verification: full scope deferred. See `Needs Review` in Documentation Mode table and `DECISIONS.md`.
 - OpenAI PDF support: requiere Files API. Diferido.

@@ -24,6 +24,24 @@ Load Saved Context — Te permite recuperar material guardado (Save Selection, H
 
 El principio detrás de todo esto: la metadata estructural — quién, cuándo, de qué proyecto, de dónde viene — se captura automáticamente. Los tags te ayudan a encontrar cosas más rápido, pero nunca son la fuente de verdad. Nada depende de que vos te acuerdes de documentar bien.`
 
+// Títulos de sección que se estilizan como pill dentro del modal — mismo
+// look que el botón del ribbon (rounded-lg, border, px-3 py-1.5, text-[11px]
+// font-semibold tracking-wide), ver handoff-2026-07-b.md 2026-08-17.
+const SECTION_TITLES = [
+  'Audit Log',
+  'Documentation Mode',
+  'Review & Forward',
+  'Load Saved Context',
+  '+ Add Context File',
+  '+ Prompt Library',
+]
+
+const GUIDE_PARAGRAPHS = TRACEABILITY_GUIDE.split('\n\n').map(paragraph => {
+  const title = SECTION_TITLES.find(t => paragraph.startsWith(`${t} — `))
+  if (!title) return { title: null, body: paragraph }
+  return { title, body: paragraph.slice(title.length + 3) }
+})
+
 // Botón + modal educativo, montado vía TopRibbon.rightBadge en Workspace,
 // Audit Log y Documentation Mode — un único componente reutilizado en los
 // 3 ribbons (ver handoff-2026-07-b.md 2026-08-12).
@@ -63,10 +81,24 @@ export default function TraceabilityGuideButton() {
                 ✕
               </button>
             </div>
-            <div className="px-6 py-5 overflow-y-auto">
-              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
-                {TRACEABILITY_GUIDE}
-              </p>
+            <div className="px-6 py-5 overflow-y-auto space-y-4">
+              {GUIDE_PARAGRAPHS.map((p, i) => p.title ? (
+                <div key={i}>
+                  <span
+                    className="inline-block rounded-lg px-3 py-1.5 text-[11px] font-semibold tracking-wide border mb-2"
+                    style={{ background: 'var(--color-accent)', borderColor: 'var(--color-accent)', color: '#ffffff' }}
+                  >
+                    {p.title}
+                  </span>
+                  <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
+                    {p.body}
+                  </p>
+                </div>
+              ) : (
+                <p key={i} className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
+                  {p.body}
+                </p>
+              ))}
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end shrink-0">
               <button

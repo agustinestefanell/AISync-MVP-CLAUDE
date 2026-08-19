@@ -3634,3 +3634,72 @@ Al remover "Main Workspace" del ribbon, el endpoint `/api/active-workspace` (que
 - `AUDIT_GUIDE` en `AuditClient.tsx` sigue mencionando "Save Version" (ya removido de la UI) — no es parte de esta OE, pero quedó identificado como residuo pendiente de limpieza, mismo tipo de hallazgo que ya se había señalado antes para `HowConnectedTeamsModal.tsx` (referencias desactualizadas a "Dashboard → + Connect").
 
 ---
+
+## Fix 2026-08-14 — Extender filtros Team/Project a Handoff Package y Saved Selection (Repository View + Investigate View)
+
+**Fecha:** 2026-08-14
+**Estado:** Closed — commiteado y pusheado en la sesión anterior (commit `5994316`), confirmado sincronizado con `origin/main` al abrir esta sesión.
+
+**Contexto:** Los selectores de filtro Team/Project en Documentation Mode ya filtraban Checkpoints correctamente, pero no se aplicaban a los bloques Handoff Package y Saved Selection en Repository View, ni al bloque Saved Selection en Investigate View — esos documentos seguían apareciendo sin importar qué Team/Project estuviera seleccionado en el filtro.
+
+**Decisión técnica:**
+- `RepositoryView.tsx` (líneas ~512-524): dentro del filtro combinado por `item.kind`, se agregaron los checks `if (filterProject && h.project_id !== filterProject) return false` y `if (filterTeam && h.team_id !== filterTeam) return false` tanto para la rama `'handoff'` como para `'saved_selection'` — mismo patrón que ya usaban Checkpoints en ese archivo, replicado sin inventar mecanismo nuevo.
+- `InvestigateView.tsx`: se agregó un `useMemo` nuevo, `filteredSavedSelections` (líneas ~123-135), que aplica `search`/`filterProject`/`filterTeam`/`filterDate` sobre `savedSelections` — mismo patrón que el `useMemo` ya existente para Checkpoints unas líneas arriba. Los 4 puntos de render que antes usaban `savedSelections` directamente (conteo de vacío, `.map()` en la vista filtrada por tipo, condición de vacío general, `.map()` en la sección "Saved Selections" del timeline sin filtro de tipo) se reemplazaron por `filteredSavedSelections`.
+
+**Alternativas descartadas:**
+- Filtrar `savedSelections`/Handoffs en el componente padre (antes de pasarlos como prop) en vez de con un `useMemo` local — descartado por inconsistencia: Checkpoints ya se filtraban localmente en cada vista con su propio `useMemo`, así que filtrar Handoffs/Saved Selections en el padre hubiera creado dos patrones distintos conviviendo en el mismo archivo sin motivo.
+
+**Alcance — explícitamente fuera de esta corrección:**
+- **Investigate View no tiene bloque Handoff Package para filtrar** — `handoffPackages` en ese archivo solo se usa para construir el mapa de `teamCodes` (línea 99), nunca se renderiza como lista de documentos ahí. No es un pendiente omitido, es que no aplica.
+- **Structure View (copy)** — cualquier ajuste de texto/copy en esa vista queda fuera, pendiente como ítem separado.
+
+**Riesgos conocidos / deuda técnica:** ninguno nuevo identificado — cambio acotado, mismo patrón ya validado en el resto del archivo.
+
+**Validaciones:** lint ✅, build ✅ (confirmados en la sesión anterior, antes del reinicio, según instrucción del PO al abrir esta sesión). `git fetch` + `git rev-list --left-right --count origin/main...main` en esta sesión confirmaron 0/0 — commit ya sincronizado con producción, sin acción de commit/push necesaria en esta sesión.
+
+**Nota operativa:** al abrir esta sesión el working tree tenía además cambios sin relación a este fix (`AUDIT_LOCAL_DEPLOYMENT.md`, `design-refs/teams-map/...`, `src/app/teams-map-preview/`, `src/components/teams/preview/`, `.claude/settings.local.json` modificado) — de otra sesión de trabajo (preview de rediseño de Teams Map). Por decisión explícita del PO, esta OE se cerró solo actualizando el handoff, sin tocar ni commitear esos archivos.
+
+---
+
+## Auditoría 2026-08-19 — Integridad de trazabilidad documental (Documentation Mode / Audit Log)
+
+**Fecha:** 2026-08-19
+**Estado:** Closed — auditoría de solo lectura, sin cambios de código.
+
+**Contexto:** el PO pidió verificar qué trazabilidad documental está realmente construida hoy (no solo visible en vivo) sobre 4 pilares: (1) Information Audit — poder consultar qué Context Files/Prompts estaban activos en un momento pasado, y qué modelo generó cada mensaje; (2) Audit Trail — qué eventos de `audit_log` existen realmente vs. los nombres asumidos en la consigna; (3) Chain of Custody — si "Load Saved Context" y los objetos derivados guardan FK real al objeto original; (4) Historial de nombres — si Project/Team/Session guardan el nombre anterior al editar.
+
+**Decisión técnica:** auditoría 100% de lectura contra migraciones reales (`supabase/migrations/`) y código actual (`src/`) — nada reportado por inferencia sin marcarlo explícitamente como tal. Resultado completo volcado a `AUDIT_DOCUMENTATION_INTEGRITY.md` (nuevo archivo, no confundir con `AUDIT_LOCAL_DEPLOYMENT.md` que es sobre acoplamiento a Supabase Cloud/Vercel/Tavily).
+
+**Hallazgos principales (detalle completo en el archivo):**
+- Existe y es reusable: eventos `save_version`/`resume_work` (checkpoint created/loaded) con `checkpoint_id` en metadata; `workspace_id`/`session_id` como scope estable; FK real `origin_type`/`origin_message_id` en `context_sources` para Load Saved Context → Context Files.
+- Gaps confirmados, sin evento ni FK: `handoff.received` (no existe ninguna ruta que escriba ese evento ni cambie `status` a `'received'`), cambio de modelo/prompt asignado (100% silencioso — `teams/[id]/route.ts` actualiza `agent_sessions.provider`/`model` sin insert a `audit_log`), upload/injection de Context Files (ni la subida ni la inyección en un mensaje generan evento), historial de nombres de Project/Team (se sobreescribe sin rastro, ninguna tabla de versionado).
+- El hueco más grande: no hay forma de reconstruir "qué Context Files/Prompts estaban activos en una fecha pasada" — solo se puede inferir cruzando `created_at`/`updated_at` con eventos de borrado, no es una funcionalidad construida.
+
+**Alternativas descartadas:** ninguna — fue diagnóstico puro, no se evaluaron ni descartaron approaches de implementación en esta sesión.
+
+**Riesgos conocidos / deuda técnica:** ninguno nuevo generado (solo lectura). Los 4 huecos identificados (handoff.received, evento de cambio de modelo/prompt, evento de context file, historial de nombres) quedan como candidatos a contrato de una próxima OE — los primeros 3 son adiciones de `audit_log.insert()` siguiendo el patrón fail-open ya usado en el proyecto; historial de nombres y reconstrucción histórica de "qué estaba activo cuándo" requieren tabla nueva, no solo un evento.
+
+**Archivos modificados:** `AUDIT_DOCUMENTATION_INTEGRITY.md` (nuevo).
+
+---
+
+## Fix 2026-08-17 — Pills de color para títulos de sección en el modal "How Traceability Works"
+
+**Fecha:** 2026-08-17 (entrada agregada retroactivamente el 2026-08-19 — el cambio ya estaba hecho en el working tree, sin handoff, al abrir esta sesión; el comentario en el propio código ya citaba esta fecha).
+**Estado:** Closed — validado en funcionamiento por el PO directamente (sin captura de pantalla en esta sesión), commiteado junto con la auditoría 2026-08-19.
+
+**Contexto:** el modal educativo de `TraceabilityGuideButton.tsx` (creado 2026-08-12, ver entrada de esa fecha más arriba) mostraba todo el texto como un único bloque `whitespace-pre-line`. Se pidió resaltar visualmente los títulos de cada sección (Audit Log, Documentation Mode, Review & Forward, Load Saved Context, + Add Context File, + Prompt Library) para que se distingan del cuerpo del texto.
+
+**Decisión técnica:** sin cambiar el contenido de `TRACEABILITY_GUIDE` (el string fijo en español no se tocó), se agregó un parseo derivado: `SECTION_TITLES` (array con los 6 títulos exactos) + `GUIDE_PARAGRAPHS` (split de `TRACEABILITY_GUIDE` por `\n\n`, cada párrafo se matchea contra `SECTION_TITLES` buscando el prefijo `"{título} — "`; si matchea, se separa `{ title, body }`, si no, `{ title: null, body: paragraph }`). En el render, los párrafos con `title` muestran el título como pill (`rounded-lg`, `border`, `px-3 py-1.5`, `text-[11px] font-semibold tracking-wide`, fondo `var(--color-accent)`, texto blanco) seguido del cuerpo; los párrafos sin título (intro, párrafo de cierre) se renderizan igual que antes.
+
+**Alternativas descartadas:**
+- Reescribir `TRACEABILITY_GUIDE` con markup HTML embebido (ej. `<b>`) — descartado para no mezclar contenido con presentación en el mismo string, y porque el proyecto evita `dangerouslySetInnerHTML` (mismo criterio que Markdown rendering en chat, ver sesión 2026-07-11 más arriba).
+- Hardcodear 6 bloques JSX separados en vez de derivar `GUIDE_PARAGRAPHS` por parseo — descartado: el texto del modal es un string único mantenido por el PO: as-is, agregar/quitar una sección solo requiere editar el string, no el JSX.
+
+**Riesgos conocidos / deuda técnica:**
+- El matcheo de título depende de que cada párrafo de `TRACEABILITY_GUIDE` empiece exactamente con `"{título} — "` (guion largo con espacios). Si alguien edita el string y cambia el separador (ej. usa `:` en vez de `—`), el título deja de detectarse silenciosamente y el párrafo cae al branch `sin título` — sin error visible, solo se pierde el estilo de pill.
+- Repite el gap ya señalado en la entrada 2026-08-12: sin validación visual en navegador local en esta sesión: el PO confirmó "ya está visto en funcionamiento" verbalmente, no se adjuntó captura.
+
+**Archivos modificados:** `src/components/layout/TraceabilityGuideButton.tsx`.
+
+---
