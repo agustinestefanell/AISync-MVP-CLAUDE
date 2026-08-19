@@ -37,7 +37,7 @@ export async function PATCH(
   // Ownership check
   const { data: project } = await supabase
     .from('projects')
-    .select('id, account_id')
+    .select('id, account_id, name')
     .eq('id', params.id)
     .single()
 
@@ -65,6 +65,21 @@ export async function PATCH(
       { error: 'Failed to update project.' },
       { status: 500 }
     )
+  }
+
+  // Name history — fail-open, must not block the PATCH already applied
+  if (updates.name !== undefined && updates.name !== project.name) {
+    try {
+      await supabase.from('entity_name_history').insert({
+        entity_type: 'project',
+        entity_id:   params.id,
+        old_name:    project.name,
+        new_name:    updates.name,
+        changed_by:  user.id,
+      })
+    } catch (historyError) {
+      console.error('[projects/[id]] Failed to insert entity_name_history:', historyError)
+    }
   }
 
   return NextResponse.json({ success: true })

@@ -185,6 +185,21 @@ export async function POST(req: Request) {
         { role: 'user',      content: `Context files available to this agent:\n\n${lines}` },
         { role: 'assistant', content: 'Understood. I have reviewed the context files.' },
       )
+
+      // Audit log — fail-open, must not block the message being sent
+      try {
+        await supabase.from('audit_log').insert({
+          account_id:   user.id,
+          workspace_id: workspace_id ?? null,
+          event_type:   'context_file_injected',
+          metadata: {
+            context_source_ids: includedSources.map(s => s.id),
+            session_id:         session_id ?? null,
+          },
+        })
+      } catch (auditError) {
+        console.error('[chat] Failed to insert context_file_injected audit event:', auditError)
+      }
     }
   } catch { /* context files unavailable — continue without breaking */ }
 

@@ -1220,3 +1220,24 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Ejecución — flujo manual, no automatizado:** se preparó un script para aplicar el UPDATE directamente vía REST API (service role key) con pre-check de idempotencia, pero el PO indicó preferencia explícita por el flujo ya establecido del proyecto (SQL preparado en migración, ejecutado a mano en Supabase SQL Editor). Se descartó el script y se entregó el SQL final para pegar y correr.
 
 **Referencia:** handoff-2026-07-b.md Mini-OE 2026-08-02, supabase/migrations/052_base_layer_response_length_policy.sql.
+
+---
+
+## 2026-08-19 — `handoff.received`: extender el GET existente en vez de crear endpoint dedicado
+
+- **Decisión:** el evento `handoff_received` (transición `handoff_packages.status → 'received'` + insert en `audit_log`) se dispara desde `GET /api/documentation/handoff/[id]/route.ts` — la misma ruta que ya devolvía los mensajes del panel de detalle en `RepositoryView.tsx`. No se creó un `POST` dedicado.
+- **Motivo:** esa ruta GET es hoy el ÚNICO call site real de "el usuario abrió el detalle de un Handoff Package" — `HandoffDetailPanel` la llama en un `useEffect` al montar. Un endpoint dedicado hubiera exigido cablear una llamada HTTP nueva desde ese componente, y la OE que originó este cambio (Audit View rediseñada, Fase 1) estaba explícitamente acotada a schema + eventos, sin tocar UI.
+- **Alternativas descartadas:** endpoint `POST /api/documentation/handoff/[id]/received` dedicado — más alineado con "GET no debe mutar", pero requiere wiring de UI fuera de alcance de esta fase. Se prefirió documentar la excepción en el propio archivo antes que forzar un cambio de UI no pedido.
+- **Guardas aplicadas para mitigar el riesgo de la excepción:** transición condicionada a `status != 'received'` (UPDATE con `.neq('status', 'received')`, idempotente — no reescribe ni duplica evento en aperturas siguientes), patrón fail-open (no bloquea la respuesta de mensajes si el insert falla).
+- **Riesgo abierto:** si en el futuro se agrega OTRO call site a esa misma ruta GET (ej. un preview en otra vista de Documentation Mode), ese call site dispararía el mismo side-effect sin que sea su intención. Revisar si eso llega a pasar.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-19, `AUDIT_DOCUMENTATION_INTEGRITY.md`, `src/app/api/documentation/handoff/[id]/route.ts`.
+
+---
+
+## 2026-08-19 — Load Saved Context → Chat: sin FK real a `messages`, se mantiene `audit_log.metadata`
+
+- **Decisión:** no se agregaron columnas nuevas (`loaded_from_object_type`/`loaded_from_object_id`) a `messages` para darle FK real al destino "→ Chat" de Load Saved Context. El rastro sigue siendo `audit_log.metadata.source_id` (no estructurado), igual que antes de esta OE.
+- **Motivo:** `messages` es la tabla de mayor tráfico del proyecto, con antecedente de RLS delicado (migración 047 — un UPDATE sin policy correcta falla en silencio, ver `AISyncPlans.md` § 5.3). El beneficio real es bajo: el caso más usado de Load Saved Context (destino "→ Context Files") YA tiene FK real vía `context_sources.origin_type`/`origin_message_id`; "→ Chat" es el caso minoritario y ya tenía un rastro (aunque no estructurado) suficiente para reconstrucción manual puntual.
+- **Alternativas descartadas:** agregar las 2 columnas nullable propuestas en la consigna original — técnicamente de bajo riesgo en sí mismas, descartadas por relación costo/beneficio desfavorable frente al caso ya cubierto, no por imposibilidad técnica.
+- **Consecuencia:** este punto queda abierto para retomar si en el futuro se necesita de verdad un FK real en el destino "→ Chat" — no está cerrado como "nunca", está diferido.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-19, `AUDIT_DOCUMENTATION_INTEGRITY.md` punto 3b.

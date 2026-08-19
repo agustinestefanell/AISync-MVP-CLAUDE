@@ -3703,3 +3703,98 @@ Al remover "Main Workspace" del ribbon, el endpoint `/api/active-workspace` (que
 **Archivos modificados:** `src/components/layout/TraceabilityGuideButton.tsx`.
 
 ---
+
+## OE 2026-08-19 — Audit View rediseñada, Fase 1: schema + eventos de auditoría faltantes
+
+**Fecha:** 2026-08-19
+**Estado:** Closed — código completo, migración 053 aplicada en Supabase, checklist funcional de los 7 puntos verificado, lint ✅, build ✅.
+
+**Contexto:** siguiente paso después de `AUDIT_DOCUMENTATION_INTEGRITY.md` (2026-08-19, entrada anterior) — esa auditoría confirmó 4 gaps reales de trazabilidad. Esta OE construye la base de datos y los eventos de auditoría que los cierran. **Explícitamente fuera de esta fase:** cualquier cambio a la UI de Audit View — eso queda para una Fase 2 separada que consuma esta base.
+
+### 1. Tabla nueva — `entity_name_history`
+
+Migración `053_entity_name_history.sql` (**pendiente de aplicación manual en Supabase** — igual que todas las migraciones del proyecto, no se auto-aplican).
+
+```sql
+CREATE TABLE entity_name_history (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('project', 'team')),
+  entity_id   UUID NOT NULL,
+  old_name    TEXT NOT NULL,
+  new_name    TEXT NOT NULL,
+  changed_by  UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  changed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- índice (entity_type, entity_id)
+```
+
+RLS: sin FK real a `projects`/`teams` (tabla polimórfica), la policy resuelve el scope con un `EXISTS` condicionado por `entity_type` — mismo criterio jerárquico que `projects_select`/`teams_select` (ver `001_hierarchy.sql`), una rama por tipo de entidad, unidas por `OR`. Aplica igual a SELECT e INSERT.
+
+**Wiring (fail-open, no bloquea el PATCH ya aplicado):**
+- `src/app/api/projects/[id]/route.ts` PATCH — ahora también lee `name` actual antes de sobreescribir; si `updates.name !== project.name`, inserta la fila de historial después del UPDATE exitoso.
+- `src/app/api/teams/[id]/route.ts`, rama de update normal — mismo patrón: `currentTeam` ahora también selecciona `name`; si cambió, inserta historial (`entity_type: 'team'`) después del UPDATE exitoso.
+
+### 2. Evento `handoff_received`
+
+**Decisión de diseño (el punto que la auditoría pedía evaluar explícitamente):** en vez de crear un endpoint dedicado, se extendió el `GET /api/documentation/handoff/[id]/route.ts` ya existente, que hoy es el ÚNICO call site real de "abrir el detalle de un Handoff Package" (`RepositoryView.tsx` → `HandoffDetailPanel` lo llama en un `useEffect` al montar). Un endpoint dedicado hubiera requerido cablear una llamada nueva desde ese componente — fuera de alcance de esta fase (schema/eventos, sin UI). Se documentó la excepción a la regla general "GET no debe mutar" con un comentario en el propio archivo.
+
+Lógica agregada: si `handoff_packages.status !== 'received'`, hace `UPDATE ... SET status = 'received' WHERE id = X AND status != 'received'` (guard idempotente contra doble-log en carreras) y, si el update tuvo efecto, inserta `audit_log` con `event_type: 'handoff_received'`, `metadata: { handoff_id, workspace_id }`. Todo dentro de un `try/catch` que no bloquea la respuesta de mensajes ya funcional.
+
+**Nota sobre "destinatario":** se confirmó leyendo `src/app/api/handoff-package/route.ts` que `handoff_packages` es 100% single-account (`user_id = auth.uid()`, sin concepto de cuenta remitente/receptora distinta) — `from_agent`/`to_agent` son roles de agente dentro del mismo team (ej. Manager → Worker1), no cuentas distintas. "El destinatario abre el detalle" se traduce en la práctica a "el dueño de la cuenta abre el panel de detalle", sin implicación cross-account.
+
+### 3. Evento `agent_model_changed`
+
+`src/app/api/teams/[id]/route.ts`, rama de update normal: antes del loop que actualiza `agent_sessions`, se hace un SELECT previo (`id, workspace_id, provider, model`) de todos los `agent.id` del payload (`existingSessionsMap`). Dentro del loop, después de cada UPDATE, compara `prevSession.provider`/`model` contra los nuevos valores enviados — si alguno cambió, inserta `audit_log` con `event_type: 'agent_model_changed'`, `metadata: { workspace_id, agent_session_id, old_provider, new_provider, old_model, new_model }`. Si no hubo cambio real, no inserta nada (evita ruido en el log cada vez que se guarda el modal de edición sin tocar provider/model).
+
+### 4. Eventos `prompt_assigned` / `prompt_unassigned`
+
+`src/components/workspace/PromptLibrary.tsx`: nueva función interna `logAssignmentEvent(eventType, promptId, targetType, targetId)`, fail-open, usa el `userId` ya cargado en `loadData()` y el nuevo prop `workspaceId` (ya existía en la interfaz `Props`, no se usaba — viene cableado desde `AgentPanel.tsx` línea 1204). Se llama desde `assignToWorker()` y `assignToTeam()` después del insert/update de `prompt_assignments`, y desde `unassign()`.
+
+**Cambio de firma:** `unassign(assignmentId: string)` → `unassign(assignment: Assignment)` — necesitaba `prompt_id`/`assigned_to`/`target_id` del assignment completo para loguear el evento sin un fetch extra; esos datos ya estaban disponibles en el objeto que las dos listas (`workerAssignments`/`teamAssignments`) ya renderizaban. Los 2 call sites (`onClick={() => unassign(a.id)}`) se actualizaron a `unassign(a)`.
+
+### 5. Eventos `context_file_uploaded` / `context_file_injected`
+
+- **Upload:** `src/app/api/context/route.ts`, rama POST FormData (subida real de archivo, no el `handleLoadFromDocumentation` que ya tenía su propio evento `context_loaded_from_documentation`). Insert al final, después de que el archivo ya se subió y se intentó extraer texto — `event_type: 'context_file_uploaded'`, `metadata: { context_source_id, scope, file_name }`.
+- **Injection:** `src/app/api/chat/route.ts`, dentro del bloque que arma `contextFilesParts` (línea ~176 original). Solo inserta si `includedSources.length > 0` (es decir, si de verdad se armó el mensaje con contexto — no si todos los context files fueron excluidos por el usuario en el aviso de archivo grande). `event_type: 'context_file_injected'`, `metadata: { context_source_ids: [...], session_id }`.
+
+### 6. FK real para "Load Saved Context → Chat" — decisión: NO implementar en esta fase
+
+La auditoría dejaba esto como punto a evaluar, con la salida explícita de "reportar antes de implementar si el riesgo supera el beneficio". Decisión: no tocar el schema de `messages` en esta OE.
+
+**Por qué:** `messages` es la tabla de mayor tráfico del proyecto (todo mensaje de todo chat pasa por ahí), con RLS ya delicado (ver lección migración 047 en `AISyncPlans.md` — un UPDATE sin policy correcta falla en silencio). Agregar columnas nullable (`loaded_from_object_type`, `loaded_from_object_id`) es de bajo riesgo técnico en sí mismo, pero el beneficio real es bajo comparado con el caso ya cubierto: el destino "→ Context Files" (el uso más común de Load Saved Context) YA tiene FK real via `context_sources.origin_type`/`origin_message_id`. El destino "→ Chat" es el caso minoritario, y ya deja rastro en `audit_log.metadata.source_id` — no estructurado, pero suficiente para reconstrucción manual puntual. Se prefiere no ampliar el contrato de una tabla central para un caso de uso secundario sin que el PO lo pida explícitamente. **Este punto queda abierto para retomar si en el futuro se necesita de verdad un FK real ahí** — no se descartó por imposibilidad técnica, se descartó por relación costo/beneficio en este momento.
+
+### Alternativas descartadas
+
+- **Endpoint dedicado para `handoff.received`** en vez de extender el GET existente — descartado por requerir wiring de UI nuevo, fuera de alcance de una fase declarada "schema + eventos, sin UI" (ver punto 2).
+- **Fetch adicional por assignment en `unassign()`** en vez de cambiar la firma a recibir el objeto completo — descartado: los datos ya estaban en memoria (`workerAssignments`/`teamAssignments`), un fetch extra hubiera sido puramente redundante.
+- **Tocar `messages` para el punto 5 de la consigna (FK Load Saved Context → Chat)** — descartado esta vez, ver punto 6 arriba.
+
+### Riesgos conocidos / deuda técnica
+
+- Migración 053 **no aplicada aún en Supabase** — ninguno de los 3 puntos de historial de nombres funciona hasta que el PO la corra manualmente en el SQL Editor (mismo patrón que todas las migraciones del proyecto).
+- El side-effect en `GET /api/documentation/handoff/[id]` es una excepción deliberada a "GET no debe mutar", documentada en el propio archivo — si en el futuro se agrega OTRO call site a esa misma ruta (ej. un fetch de preview en otra vista), ese call site dispararía el mismo side-effect sin querer. Vale la pena revisar si eso pasa.
+- `agent_model_changed` compara `provider`/`model` pero no `config` ni `description` — un cambio de configuración del agente sin cambiar provider/model no genera evento (fuera del contrato pedido, no es un bug, pero puede sorprender si se espera trazabilidad más amplia).
+- Ninguno de los 6 puntos tiene todavía consumidor en UI — Fase 2 (Audit View rediseñada) es la que los va a leer.
+
+### Verificación funcional — resultado (2026-08-19)
+
+Migración 053 aplicada en Supabase por el PO. Checklist de los 7 puntos ejecutado en dos pasadas, con dos métodos distintos según lo que cada punto permitía verificar de forma segura y realista:
+
+**Pasada 1 — reproducción fiel de la lógica agregada, contra Supabase real, datos de prueba desechables (`QA-Fase1-DELETE-ME`), limpieza confirmada con query aparte:**
+- [x] Renombrar un Project → 1 fila nueva en `entity_name_history` (`entity_type='project'`), old_name/new_name correctos.
+- [x] Renombrar un Team → 1 fila nueva en `entity_name_history` (`entity_type='team'`).
+- [x] Abrir un Handoff Package (simulado 2 veces seguidas) → `status` pasa a `'received'`, exactamente 1 evento `handoff_received` en `audit_log` (la 2da apertura NO duplicó — guard idempotente confirmado).
+- [x] Cambiar el modelo de un agente (guardado 2 veces, la 2da sin cambio real) → exactamente 1 evento `agent_model_changed` (el guardado sin cambio real NO generó evento — comparación old/new confirmada).
+- [x] Asignar/desasignar un Prompt → 2 eventos, `prompt_assigned` y `prompt_unassigned`, mismo `prompt_id`/`target_id`/`target_type`.
+
+Este método reproduce exactamente las mismas queries que ejecuta cada route/función modificada, pero no pasa por el servidor HTTP real — cubre la corrección de la lógica de datos, no la capa de transporte Next.js (esa ya la cubre `npm run build` con type-check exitoso de las 5 rutas).
+
+**Pasada 2 — HTTP real contra servidor corriendo, sesión real (magic link admin → `verifyOtp`, sin usar la contraseña del PO), datos de prueba desechables, limpieza confirmada:**
+- [x] `context_file_uploaded` — confirmado con upload real (`POST /api/context`, multipart real) contra **producción** (`ai-sync-mvp-claude.vercel.app`): 200, texto extraído correctamente, evento en camino a `audit_log` una vez deployado este código (en el momento del test, prod corría el código previo — el upload en sí funcionó perfecto).
+- [~] `context_file_injected` — verificado solo por reproducción de lógica (pasada 1, mismo criterio que los otros 5 puntos), NO con HTTP real. El intento de correrlo end-to-end completo (upload + mensaje de chat real) contra el servidor de desarrollo LOCAL quedó bloqueado por un bug de entorno no relacionado a esta OE — ver hallazgo separado abajo. Se decidió, con el PO, no perseguir el E2E local completo dado que (a) el bug es confirmadamente ajeno a este código, (b) el upload real ya se confirmó funcionando en producción, (c) la lógica exacta del insert ya está probada en pasada 1.
+
+**Hallazgo colateral, no bloqueante, documentado aparte:** durante el intento de E2E local se encontró que `POST /api/context` devuelve 500 para cualquier archivo en el servidor de desarrollo local (Windows) — causa: import estático de `pdf-parse`/`pdfjs-dist` en `src/lib/context/extractText.ts` que crashea al cargarse en el bundle RSC de `next dev` en este entorno, incluso para archivos no-PDF. Confirmado que NO es caché (se reprodujo con `.next` borrado desde cero) y que NO existe en producción (upload real contra Vercel devolvió 200 con extracción correcta). `extractText.ts` no fue tocado en esta sesión — fuera de alcance. Detalle completo en `CodingWorkshop.md` #28.
+
+**Archivos modificados:** `supabase/migrations/053_entity_name_history.sql` (nuevo), `src/app/api/projects/[id]/route.ts`, `src/app/api/teams/[id]/route.ts`, `src/app/api/documentation/handoff/[id]/route.ts`, `src/app/api/context/route.ts`, `src/app/api/chat/route.ts`, `src/components/workspace/PromptLibrary.tsx`, `AISyncPlans.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `CodingWorkshop.md`.
+
+---

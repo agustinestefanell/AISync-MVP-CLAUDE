@@ -39,7 +39,7 @@ interface Props {
 }
 
 export default function PromptLibrary({
-  open, onClose, teamId, sessionId, agentRole,
+  open, onClose, teamId, workspaceId, sessionId, agentRole,
 }: Props) {
   const supabase = createClient()
 
@@ -225,6 +225,7 @@ export default function PromptLibrary({
           is_active:   true,
         })
       }
+      await logAssignmentEvent('prompt_assigned', promptId, 'worker', sessionId)
       await loadWorkerAssignments()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error assigning to worker')
@@ -253,16 +254,42 @@ export default function PromptLibrary({
           is_active:   true,
         })
       }
+      await logAssignmentEvent('prompt_assigned', promptId, 'team', teamId)
       await loadTeamAssignments()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error assigning to team')
     }
   }
 
-  async function unassign(assignmentId: string) {
+  // Audit log — fail-open, must not block the assignment already applied
+  async function logAssignmentEvent(
+    eventType: 'prompt_assigned' | 'prompt_unassigned',
+    promptId: string,
+    targetType: 'worker' | 'team',
+    targetId: string,
+  ) {
+    if (!userId) return
+    try {
+      await supabase.from('audit_log').insert({
+        account_id:   userId,
+        workspace_id: workspaceId ?? null,
+        event_type:   eventType,
+        metadata: {
+          prompt_id:   promptId,
+          target_type: targetType,
+          target_id:   targetId,
+        },
+      })
+    } catch (auditError) {
+      console.error('[PromptLibrary] Failed to insert audit event:', auditError)
+    }
+  }
+
+  async function unassign(assignment: Assignment) {
     setError(null)
     try {
-      await supabase.from('prompt_assignments').update({ is_active: false }).eq('id', assignmentId)
+      await supabase.from('prompt_assignments').update({ is_active: false }).eq('id', assignment.id)
+      await logAssignmentEvent('prompt_unassigned', assignment.prompt_id, assignment.assigned_to, assignment.target_id)
       await Promise.all([loadWorkerAssignments(), loadTeamAssignments()])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error unassigning prompt')
@@ -546,7 +573,7 @@ export default function PromptLibrary({
                       >
                         <p className="text-xs text-[var(--color-text-primary)] truncate flex-1">{a.prompt?.title ?? '—'}</p>
                         <button
-                          onClick={() => unassign(a.id)}
+                          onClick={() => unassign(a)}
                           className="shrink-0 text-[10px] text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded transition-colors"
                         >
                           Unassign
@@ -569,7 +596,7 @@ export default function PromptLibrary({
                       >
                         <p className="text-xs text-[var(--color-text-primary)] truncate flex-1">{a.prompt?.title ?? '—'}</p>
                         <button
-                          onClick={() => unassign(a.id)}
+                          onClick={() => unassign(a)}
                           className="shrink-0 text-[10px] text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded transition-colors"
                         >
                           Unassign

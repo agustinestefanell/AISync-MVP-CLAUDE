@@ -94,7 +94,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   // Read current team type to preserve 'isolated' teams (Connected Teams)
   const { data: currentTeam, error: readErr } = await supabase
     .from('teams')
-    .select('type')
+    .select('type, name')
     .eq('id', params.id)
     .single()
 
@@ -104,11 +104,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   // Preserve 'isolated' type for Connected Teams; recalculate SAT/MAT for normal teams
   const teamType = currentTeam.type === 'isolated' ? 'isolated' : computeType(agents)
+  const trimmedName = name.trim()
 
   const { error: teamErr } = await supabase
     .from('teams')
     .update({
-      name:        name.trim(),
+      name:        trimmedName,
       parent_id:   parentId ?? null,
       type:        teamType,
       description: description ?? null,
@@ -116,6 +117,31 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     })
     .eq('id', params.id)
   if (teamErr) return NextResponse.json({ error: teamErr.message }, { status: 500 })
+
+  // Name history — fail-open, must not block the update already applied
+  if (trimmedName !== currentTeam.name) {
+    try {
+      await supabase.from('entity_name_history').insert({
+        entity_type: 'team',
+        entity_id:   params.id,
+        old_name:    currentTeam.name,
+        new_name:    trimmedName,
+        changed_by:  user.id,
+      })
+    } catch (historyError) {
+      console.error('[teams/[id]] Failed to insert entity_name_history:', historyError)
+    }
+  }
+
+  // Snapshot current provider/model before overwriting, to detect real changes
+  const agentIds = agents.map(a => a.id)
+  const { data: existingSessions } = agentIds.length
+    ? await supabase
+        .from('agent_sessions')
+        .select('id, workspace_id, provider, model')
+        .in('id', agentIds)
+    : { data: [] as { id: string; workspace_id: string; provider: string; model: string }[] }
+  const existingSessionsMap = new Map((existingSessions ?? []).map(s => [s.id, s]))
 
   for (const agent of agents) {
     await supabase
@@ -127,6 +153,27 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         description: agent.description ?? null,
       })
       .eq('id', agent.id)
+
+    const prevSession = existingSessionsMap.get(agent.id)
+    if (prevSession && (prevSession.provider !== agent.provider || prevSession.model !== agent.model)) {
+      try {
+        await supabase.from('audit_log').insert({
+          account_id:   user.id,
+          workspace_id: prevSession.workspace_id,
+          event_type:   'agent_model_changed',
+          metadata: {
+            workspace_id:      prevSession.workspace_id,
+            agent_session_id:  agent.id,
+            old_provider:      prevSession.provider,
+            new_provider:      agent.provider,
+            old_model:         prevSession.model,
+            new_model:         agent.model,
+          },
+        })
+      } catch (auditError) {
+        console.error('[teams/[id]] Failed to insert agent_model_changed audit event:', auditError)
+      }
+    }
   }
 
   const { data: full, error: fullErr } = await supabase

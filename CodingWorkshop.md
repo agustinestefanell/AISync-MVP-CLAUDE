@@ -1635,6 +1635,43 @@ N/A (hallazgo metodológico)
 
 ---
 
+### #28 — `pdf-parse`/`pdfjs-dist` crashea al cargarse en Next dev sobre Windows — solo local, no reproduce en producción
+
+**Fecha:** 2026-08-19
+**Contexto:** Verificación funcional end-to-end de la Fase 1 de Audit View (schema + eventos de auditoría) — al intentar subir un Context File real contra el dev server local para confirmar el evento `context_file_uploaded`.
+
+**Problema:**
+`POST /api/context` devuelve 500 para CUALQUIER archivo (incluso `.txt`, que ni siquiera pasa por el parser de PDF) apenas se toca esa ruta en el servidor de desarrollo local (`npm run dev`, Windows). El body de error es HTML de Next.js con:
+```
+TypeError: Object.defineProperty called on non-object
+  at __webpack_require__.r (.next/server/webpack-runtime.js)
+  at eval (webpack-internal:///(rsc)/./node_modules/pdfjs-dist/legacy/build/pdf.mjs:1:21)
+  at (rsc)/./node_modules/pdfjs-dist/legacy/build/pdf.mjs (.next/server/vendor-chunks/pdfjs-dist.js:20:1)
+  at (rsc)/./node_modules/pdf-parse/dist/pdf-parse/esm/PDFParse.js
+```
+
+**Causa raíz (confirmada, no solo sospechada):**
+`src/lib/context/extractText.ts` líneas 3-4 importa `pdf-parse`/`pdf-parse/worker` a nivel de módulo (import estático), no de forma perezosa/dinámica. Cualquier request a `/api/context` fuerza a Next a cargar y evaluar ese módulo — y esa evaluación en sí (no la lógica que corre después) es la que crashea en el bundle RSC de `next dev` en este entorno Windows. Confirmado que NO es caché stale: se reprodujo igual después de borrar `.next` por completo y levantar el server desde cero.
+
+**Consecuencia:**
+Bloqueó la verificación end-to-end local de los puntos "Context File uploaded" / "Context File injected" de la Fase 1 de Audit View. Obligó a pivotar la verificación de esos dos puntos a producción (`https://ai-sync-mvp-claude.vercel.app`), donde **el mismo upload con el mismo archivo funcionó con 200 y extracción de texto real correcta** — confirmando que el bug es exclusivo de este entorno de desarrollo local (Windows + `next dev`), no de la lógica de la aplicación ni de producción (Vercel/Linux).
+
+**Proceso de solución:**
+No se intentó resolver — decisión explícita del PO de tratarlo como hallazgo aparte, no bloqueante para la OE en curso (Audit View Fase 1 no toca `extractText.ts`). Se usó producción como ambiente de verificación alternativo para los puntos afectados, con datos de prueba desechables y limpieza confirmada.
+
+**Solución final:**
+No aplicada. Queda como bug de entorno local documentado para quien lo pise después.
+
+**Archivos afectados:**
+- Ninguno modificado — `src/lib/context/extractText.ts` no fue tocado.
+
+**Commit:**
+N/A (hallazgo de entorno, sin fix aplicado)
+
+**Lección:**
+Un import estático de una librería pesada/con dependencias nativas o de browser (`pdfjs-dist` espera cosas como `DOMMatrix`) en un archivo que se carga en TODAS las requests de una ruta —aunque la lógica que usa esa librería sea condicional (`if (type === 'application/pdf')`)— hace que el simple hecho de tocar la ruta dispare la carga del módulo completo. Si algún día se toca `extractText.ts` en serio, vale la pena mover el import de `pdf-parse` a un `await import()` dinámico dentro de la rama `application/pdf`, así una ruta que sube un `.txt` no depende de que ese módulo cargue bien. No se hizo en esta sesión por estar fuera de alcance de la OE activa.
+
+---
 
 ---
 

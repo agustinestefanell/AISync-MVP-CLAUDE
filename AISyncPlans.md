@@ -564,6 +564,7 @@ WorkspaceShell: openSaveSelectionModal()
 | `prompt_assignments` | Asignaciones prompt → team/worker |
 | `system_prompts` | Prompts de sistema por team (Capa 3) |
 | `saved_selections` | Selecciones de mensajes guardadas |
+| `entity_name_history` | Historial inmutable de renombres de Project/Team (migración 053, 2026-08-19) |
 
 **Content Plane** (propiedad del cliente, migrable):
 
@@ -619,6 +620,8 @@ Excepciones (ownership directo por `user_id = auth.uid()`):
 - `handoff_packages`
 - `saved_selections`
 
+`entity_name_history` es polimórfica (`entity_type` 'project'|'team' + `entity_id`) — sin FK real a projects/teams, la policy resuelve el scope con un `EXISTS` condicionado por `entity_type` (mismo criterio de jerarquía que `projects_select`/`teams_select`, ver migración 053).
+
 **Lección RLS crítica (migración 047 — 2026-07-07):**
 RLS requiere políticas explícitas para cada operación DML (SELECT, INSERT, UPDATE, DELETE). Tener SELECT+INSERT no implica tener UPDATE. Features que actualizan filas existentes deben auditar políticas UPDATE además de SELECT/INSERT, incluso si el UPDATE ocurre desde el mismo código que hizo el INSERT. El bloqueo por RLS es silencioso desde la perspectiva de la aplicación — Supabase ignora el UPDATE sin lanzar error visible en logs del servidor.
 
@@ -638,12 +641,12 @@ Ver sección 10.
 |---|---|---|---|
 | GET | `/api/active-workspace` | workspaces, agent_sessions | Session |
 | GET/POST | `/api/audit` | audit_log | Session |
-| POST | `/api/chat` | — (streaming, no escribe en DB) | Session |
+| POST | `/api/chat` | audit_log (context_file_injected, solo si hay Context Files incluidos) — resto streaming, no escribe en DB | Session |
 | GET/POST | `/api/checkpoint` | checkpoints, checkpoint_messages | Session |
 | GET | `/api/checkpoint/[id]` | checkpoint_messages | Session |
 | GET/POST/DELETE | `/api/connections` | team_connections | Session |
 | DELETE | `/api/connections/[id]` | team_connections | Session |
-| GET/POST | `/api/context` | context_sources | Session |
+| GET/POST | `/api/context` | context_sources, audit_log (context_file_uploaded) | Session |
 | POST | `/api/handoff-package` | handoff_packages | Session |
 | POST | `/api/messages` | messages, audit_log (attachment_summary_generated) | Session — fire-and-forget AI summary generation for attachments |
 | POST | `/api/save-selection` | saved_selections, audit_log | Session |
@@ -653,7 +656,9 @@ Ver sección 10.
 | GET/POST/DELETE | `/api/settings/providers` | user_custom_providers | Session |
 | POST | `/api/sm-doc-chat` | — (streaming) | Session |
 | GET/POST | `/api/teams` | teams, workspaces, agent_sessions | Session |
-| PATCH/DELETE | `/api/teams/[id]` | teams, agent_sessions | Session |
+| PATCH/DELETE | `/api/teams/[id]` | teams, agent_sessions, entity_name_history, audit_log (agent_model_changed) | Session |
+| PATCH/DELETE | `/api/projects/[id]` | projects, entity_name_history | Session |
+| GET | `/api/documentation/handoff/[id]` | handoff_packages (status → 'received', primera apertura), audit_log (handoff_received) | Session — único GET con side-effect deliberado en el proyecto, ver route.ts |
 | POST | `/api/workspace/[id]/lock` | workspaces | Session |
 | GET/POST | `/api/admin/prompts` | prompt_library | Admin role |
 
@@ -915,6 +920,9 @@ Contrato `ToolExecutor`: `execute()` retorna `Promise<ToolExecutionResult>` con 
 | 048 | `048_web_search_toggle_persistence.sql` | agent_sessions: web_search_enabled BOOLEAN (default true, Runtime Grounding Layer) |
 | 049 | `049_add_team_archive_state.sql` | teams: status + archived_at + archived_by + archive_reason (Archived Teams Fase 1A) |
 | 050 | `050_add_connection_project_bindings.sql` | team_connections: requester_project_id + receiver_project_id (Connect Team active Project binding) |
+| 051 | `051_handoff_to_agent_nullable.sql` | handoff_packages: to_agent nullable |
+| 052 | `052_base_layer_response_length_policy.sql` | Base layer — response length policy |
+| 053 | `053_entity_name_history.sql` | entity_name_history: historial de renombres Project/Team (Audit View redesign Fase 1, 2026-08-19) — pendiente de aplicación manual en Supabase |
 
 ### 10.2 Migraciones clave
 

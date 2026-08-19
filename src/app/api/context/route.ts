@@ -247,5 +247,21 @@ export async function POST(req: Request) {
       .eq('id', source.id)
   }
 
+  // Audit log — fail-open, must not block the upload already completed
+  try {
+    await supabase.from('audit_log').insert({
+      account_id:   user.id,
+      workspace_id: workspaceId || null,
+      event_type:   'context_file_uploaded',
+      metadata: {
+        context_source_id: source.id,
+        scope:              scope || 'team',
+        file_name:           file.name,
+      },
+    })
+  } catch (auditError) {
+    console.error('[Context Files] Failed to insert context_file_uploaded audit event:', auditError)
+  }
+
   return Response.json({ source })
 }
