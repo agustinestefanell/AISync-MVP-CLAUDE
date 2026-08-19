@@ -17,6 +17,7 @@ import type { AuditEventRow } from '@/lib/db/audit'
 import type { CustomProvider } from '@/components/sm/SMPanel'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
+import { filterArchivedTeams } from '@/lib/teams/filterArchivedTeams'
 import TopRibbon from '@/components/layout/TopRibbon'
 import BottomRibbon from '@/components/layout/BottomRibbon'
 import TraceabilityGuideButton from '@/components/layout/TraceabilityGuideButton'
@@ -51,8 +52,10 @@ export default function AuditClient({ pageName, events, customProviders, checkpo
   const [filteredEvents,     setFilteredEvents]     = useState<AuditEventRow[]>(events)
   const [showMainGuide,      setShowMainGuide]      = useState(false)
 
+  // Mismo fix que DocClient.tsx (Fase 2, 2026-08-19) — excluir archivados
+  // antes de computeTeamCodes para que el código coincida con Teams Map.
   const teamCodes = useMemo(
-    () => computeTeamCodes(projects.flatMap(p => p.teams)),
+    () => computeTeamCodes(filterArchivedTeams(projects.flatMap(p => p.teams), false)),
     [projects],
   )
 

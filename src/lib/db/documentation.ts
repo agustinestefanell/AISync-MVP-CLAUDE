@@ -36,6 +36,8 @@ export interface DocAuditEvent {
   team_id: string | null
   team_name: string | null
   team_status: 'active' | 'archived' | null
+  project_id: string | null
+  project_name: string | null
   metadata: Record<string, unknown> | null
   created_at: string
 }
@@ -292,7 +294,13 @@ export async function getSavedSelections(userId: string): Promise<DocSavedSelect
       team_id:        r.team_id ?? null,
       team_name:      team?.name ?? null,
       team_status:    (team?.status as 'active' | 'archived' | null) ?? null,
-      project_id:     r.project_id ?? null,
+      // project_id resuelto vía JOIN (workspace → team → project), NO la columna
+      // propia de saved_selections — esa columna es siempre NULL en la práctica
+      // (WorkspaceShell.tsx handleSaveSelection envía `project_id: null` hardcodeado
+      // al crear la selección), lo que hacía desaparecer todo Save Selection al
+      // filtrar por Project en Repository View / Investigate View / Audit View.
+      // Mismo patrón ya usado por getHandoffPackages()/getDocCheckpoints().
+      project_id:     project?.id ?? null,
       project_name:   project?.name ?? null,
       created_at:     r.created_at,
       user_id:        r.user_id,
@@ -318,14 +326,16 @@ export async function getSavedSelectionDetail(selectionId: string) {
 
 export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
   const supabase = createClient()
+  // Sin .limit() — Audit View (Fase 2, 2026-08-19) necesita el historial completo
+  // para reconstruir Prior steps/Downstream uses, no solo los últimos N para mostrar.
+  // Volumen real medido 2026-08-19: 586 filas totales, crecimiento ~200/mes — trivial.
   const { data } = await supabase
     .from('audit_log')
     .select(`
       id, event_type, workspace_id, metadata, created_at,
-      workspaces (name, teams (id, name, status))
+      workspaces (name, teams (id, name, status, projects (id, name)))
     `)
     .order('created_at', { ascending: false })
-    .limit(200)
 
   return ((data ?? []) as unknown as Array<{
     id: string
@@ -333,7 +343,7 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
     workspace_id: string | null
     metadata: Record<string, unknown> | null
     created_at: string
-    workspaces: { name: string; teams: { id: string; name: string; status: string | null } | null } | null
+    workspaces: { name: string; teams: { id: string; name: string; status: string | null; projects: { id: string; name: string } | null } | null } | null
   }>).map(r => {
     // For events without workspace (e.g. connection_accepted), extract team info from metadata if available
     const teamId = r.workspaces?.teams?.id ?? null
@@ -348,8 +358,196 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
       team_id:        teamId,
       team_name:      teamName,
       team_status:    teamStatus,
+      project_id:     r.workspaces?.teams?.projects?.id ?? null,
+      project_name:   r.workspaces?.teams?.projects?.name ?? null,
       metadata:       r.metadata,
       created_at:     r.created_at,
+    }
+  })
+}
+
+// ── Audit View (Fase 2) — anclas nuevas: Loaded Context + datos crudos para
+// Prior steps / Downstream uses. Ver handoff-2026-07-b.md 2026-08-19 (Fase 2 Paso 0).
+
+interface HierarchyMaps {
+  workspaceMap: Map<string, { name: string; team_id: string | null }>
+  teamMap:      Map<string, { name: string; status: 'active' | 'archived' | null; project_id: string | null }>
+  projectMap:   Map<string, string>
+}
+
+// context_sources.team_id/project_id son TEXT libres (migración 017, sin FK real) —
+// se resuelven contra estas 3 tablas chicas en vez de un join SQL directo.
+async function getHierarchyMaps(supabase: ReturnType<typeof createClient>): Promise<HierarchyMaps> {
+  const [{ data: workspaces }, { data: teams }, { data: projects }] = await Promise.all([
+    supabase.from('workspaces').select('id, name, team_id'),
+    supabase.from('teams').select('id, name, status, project_id'),
+    supabase.from('projects').select('id, name'),
+  ])
+
+  const workspaceMap = new Map(
+    ((workspaces ?? []) as { id: string; name: string; team_id: string }[])
+      .map(w => [w.id, { name: w.name, team_id: w.team_id }])
+  )
+  const teamMap = new Map(
+    ((teams ?? []) as { id: string; name: string; status: string | null; project_id: string }[])
+      .map(t => [t.id, { name: t.name, status: t.status as 'active' | 'archived' | null, project_id: t.project_id }])
+  )
+  const projectMap = new Map(
+    ((projects ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name])
+  )
+
+  return { workspaceMap, teamMap, projectMap }
+}
+
+export interface DocLoadedContextItem {
+  id:             string
+  flavor:         'context_files' | 'chat'
+  origin_type:    'checkpoint' | 'handoff_package' | 'saved_selection'
+  origin_id:      string
+  title:          string
+  workspace_id:   string
+  workspace_name: string
+  team_id:        string | null
+  team_name:      string | null
+  team_status:    'active' | 'archived' | null
+  project_id:     string | null
+  project_name:   string | null
+  created_at:     string
+}
+
+// Sabor "→ Context Files": fila real de context_sources con origin_type poblado
+// (Load Saved Context → Context Files, FK real desde migración 017).
+export async function getContextSourcesWithOrigin(): Promise<DocLoadedContextItem[]> {
+  const supabase = createClient()
+  const [{ data }, { teamMap, workspaceMap, projectMap }] = await Promise.all([
+    supabase
+      .from('context_sources')
+      .select('id, title, origin_type, origin_message_id, workspace_id, team_id, project_id, created_at')
+      .not('origin_type', 'is', null)
+      .eq('status', 'active'),
+    getHierarchyMaps(supabase),
+  ])
+
+  return ((data ?? []) as unknown as Array<{
+    id: string
+    title: string
+    origin_type: string
+    origin_message_id: string
+    workspace_id: string | null
+    team_id: string | null
+    project_id: string | null
+    created_at: string
+  }>).map(r => {
+    const team = r.team_id ? teamMap.get(r.team_id) : undefined
+    const ws   = r.workspace_id ? workspaceMap.get(r.workspace_id) : undefined
+    return {
+      id:             r.id,
+      flavor:         'context_files' as const,
+      origin_type:    r.origin_type as DocLoadedContextItem['origin_type'],
+      origin_id:      r.origin_message_id,
+      title:          r.title,
+      workspace_id:   r.workspace_id ?? '',
+      workspace_name: ws?.name ?? '—',
+      team_id:        r.team_id,
+      team_name:      team?.name ?? null,
+      team_status:    team?.status ?? null,
+      project_id:     r.project_id,
+      project_name:   r.project_id ? projectMap.get(r.project_id) ?? null : null,
+      created_at:     r.created_at,
+    }
+  })
+}
+
+export interface DocWorkspaceSession {
+  id:         string
+  agent_role: string
+}
+
+// workspace_id -> agent_sessions del workspace — usado por Audit View (Fase 2,
+// Paso 3) para saber qué sesiones consultar en /api/documentation/audit-detail
+// (mensajes clave, Prompts/Context Files scope Session).
+export async function getWorkspaceSessionsMap(): Promise<Record<string, DocWorkspaceSession[]>> {
+  const supabase = createClient()
+  const { data } = await supabase.from('agent_sessions').select('id, workspace_id, agent_role')
+
+  const map: Record<string, DocWorkspaceSession[]> = {}
+  for (const r of (data ?? []) as { id: string; workspace_id: string; agent_role: string }[]) {
+    if (!map[r.workspace_id]) map[r.workspace_id] = []
+    map[r.workspace_id].push({ id: r.id, agent_role: r.agent_role })
+  }
+  return map
+}
+
+export interface DocContextSourceScopeRow {
+  id:         string
+  project_id: string | null
+  team_id:    string | null
+  created_at: string
+}
+
+// Fila mínima de TODOS los context_sources activos (no solo los que tienen
+// origin_type poblado) — usada únicamente para el stat "Context sources" del
+// Top Stats Bar de Audit View, que cuenta el repositorio completo en alcance,
+// no solo el subconjunto que además es ancla "Loaded Context".
+export async function getContextSourcesScopeStats(): Promise<DocContextSourceScopeRow[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('context_sources')
+    .select('id, project_id, team_id, created_at')
+    .eq('status', 'active')
+
+  return (data ?? []) as DocContextSourceScopeRow[]
+}
+
+export interface DocMessageProvenanceItem {
+  id:                  string
+  source_object_type:  'checkpoint' | 'handoff_package' | 'saved_selection' | 'review_forward'
+  source_object_id:    string
+  workspace_id:        string
+  workspace_name:      string
+  team_id:             string | null
+  team_name:           string | null
+  team_status:         'active' | 'archived' | null
+  project_id:          string | null
+  project_name:        string | null
+  created_at:          string
+}
+
+// TODAS las filas de message_provenance (los 2 destinos "→ Chat": Load Saved
+// Context, migración 054, y Review & Forward Agent↔Agente, migración 055).
+// Se usa tanto para el sabor "chat" de la ancla Loaded Context como para
+// Downstream uses de Checkpoint/Handoff/Saved Selection/Review & Forward.
+export async function getAllMessageProvenance(): Promise<DocMessageProvenanceItem[]> {
+  const supabase = createClient()
+  const [{ data }, { teamMap, workspaceMap, projectMap }] = await Promise.all([
+    supabase
+      .from('message_provenance')
+      .select('id, source_object_type, source_object_id, created_at, messages(session_id, agent_sessions(workspace_id))'),
+    getHierarchyMaps(supabase),
+  ])
+
+  return ((data ?? []) as unknown as Array<{
+    id: string
+    source_object_type: string
+    source_object_id: string
+    created_at: string
+    messages: { session_id: string; agent_sessions: { workspace_id: string } | null } | null
+  }>).map(r => {
+    const wsId = r.messages?.agent_sessions?.workspace_id ?? null
+    const ws   = wsId ? workspaceMap.get(wsId) : undefined
+    const team = ws?.team_id ? teamMap.get(ws.team_id) : undefined
+    return {
+      id:                 r.id,
+      source_object_type: r.source_object_type as DocMessageProvenanceItem['source_object_type'],
+      source_object_id:   r.source_object_id,
+      workspace_id:       wsId ?? '',
+      workspace_name:     ws?.name ?? '—',
+      team_id:            ws?.team_id ?? null,
+      team_name:          team?.name ?? null,
+      team_status:        team?.status ?? null,
+      project_id:         team?.project_id ?? null,
+      project_name:       team?.project_id ? projectMap.get(team.project_id) ?? null : null,
+      created_at:         r.created_at,
     }
   })
 }

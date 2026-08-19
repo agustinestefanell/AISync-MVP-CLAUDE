@@ -1758,3 +1758,33 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección central:** cuando un endpoint tiene una escritura fail-open (secundaria, no bloqueante) además de la principal, un `200 OK` de la respuesta HTTP certifica que la escritura *principal* funcionó — no dice nada sobre la secundaria. Verificar "funcionó" contra un endpoint así requiere SIEMPRE consultar la tabla afectada directamente, nunca confiar solo en el código de respuesta. Este patrón (fail-open + `console.error` silencioso) es intencional y correcto para no bloquear al usuario por un fallo de auditoría — pero exige que quien verifica lo sepa y no lo confunda con "todo OK".
 
 **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 1.6), `src/app/api/messages/route.ts`.
+
+---
+
+## 2026-08-19 — Save Selection: una columna "siempre NULL" porque el POST la hardcodea, y la función de lectura confió en ella igual
+
+**Síntoma:** un Save Selection real ("Tamaño de la luna") desaparecía de la lista al filtrar Audit View por su propio Project — el mismo Project al que realmente pertenecía. Handoff Package con el mismo filtro funcionaba bien.
+
+**Causa real:** `getSavedSelections()` en `documentation.ts` leía `saved_selections.project_id` (la columna guardada en la fila) para el campo que se usa al FILTRAR, pero resolvía `project_name` vía JOIN (workspace→team→project) para el campo que se MUESTRA — dos fuentes distintas dentro de la misma función, sin que nada lo señalara. La columna guardada resultó estar SIEMPRE en NULL: `WorkspaceShell.tsx` (`handleSaveSelection`) manda `project_id: null` hardcodeado en el body del POST, en el 100% de los casos, no solo en esta fila. `getHandoffPackages()`/`getDocCheckpoints()` nunca tuvieron este problema porque ya resolvían `project_id` vía el mismo JOIN para AMBOS campos (filtro y display), consistentemente.
+
+**Cómo se confirmó (no se asumió):** una query directa a la fila real mostró `project_id: null` en la columna, junto al `project_id` real resuelto por el JOIN (`f8d6ee5a-...`) — la discrepancia quedó confirmada con evidencia antes de tocar código, no fue una hipótesis sin verificar.
+
+**Lección central:** cuando una función de lectura arma un objeto con varios campos "del mismo concepto" (acá, `project_id` y `project_name`, ambos describiendo "a qué Project pertenece esto"), y esos campos vienen de DOS fuentes distintas dentro de la función (columna propia vs. JOIN), es una señal de alerta que vale la pena revisar aunque el código compile y funcione la mayoría del tiempo — el campo que viene de la fuente "más barata" (columna propia, sin JOIN) es sospechoso de estar desactualizado, ser opcional, o directamente no poblarse nunca en la práctica. Grep del INSERT/POST que llena esa columna (no solo del SELECT que la lee) hubiera mostrado el hardcode de inmediato.
+
+**Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 2), `src/lib/db/documentation.ts`, `src/components/workspace/WorkspaceShell.tsx:396`.
+
+---
+
+## 2026-08-19 — Misma función pura, distinto input en cada call site: el bug no estaba en `computeTeamCodes()`
+
+**Síntoma:** el mismo team real ("ANN") mostraba un código distinto en Teams Map (`F-00`) que en Documentation Mode (`M-00`) — una letra de por medio, sin ningún cambio de dato entre medio.
+
+**Primera sospecha descartada rápido:** que `AuditView.tsx` (recién reescrito en esta misma sesión) estuviera calculando su propio código en vez de usar el `teamCodes` compartido. Confirmado por lectura de código que NO era así — `AuditView.tsx` consume el mismo prop `teamCodes` que las otras 4 vistas de Documentation Mode.
+
+**Causa real:** `computeTeamCodes()` es una función pura y determinística — mismo input, mismo output, sin ambigüedad. El bug no estaba en la función, estaba en que sus DOS call sites (`MapView.tsx` para Teams Map, `DocClient.tsx`/`AuditClient.tsx` para Documentation Mode) le pasaban arrays de teams distintos: `MapView.tsx` ya filtraba teams archivados antes de llamar a la función (`filterArchivedTeams`, comportamiento default de Teams Map desde su Fase 1B), `DocClient.tsx` no filtraba nada. Cada team archivado consume una letra en el algoritmo (ordena por `created_at` y asigna A, B, C... secuencialmente) — la diferencia de teams archivados entre ambos inputs corría la letra final.
+
+**Cómo se confirmó (no se asumió):** se replicó el algoritmo exacto de `computeTeamCodes()` en un script aparte y se corrió dos veces contra los datos reales de la cuenta afectada — una vez con el input real de `MapView.tsx`, otra con el input real de `DocClient.tsx` — y dio exactamente `F-00`/`M-00`, la misma discrepancia reportada. No se tocó código de producción hasta tener esa confirmación.
+
+**Lección central:** cuando dos pantallas muestran un valor distinto para el mismo dato y ambas dicen usar "la misma función", verificar primero que la función sea realmente una sola (no una copia divergente) — y si lo es, el siguiente sospechoso es SIEMPRE el input, no la función. Una función pura correcta con inputs distintos en cada call site produce exactamente este tipo de bug: "consistente en cada pantalla, inconsistente entre pantallas".
+
+**Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 2), `src/lib/teams/filterArchivedTeams.ts`, `src/components/teams/MapView.tsx`, `src/components/documentation/DocClient.tsx`.

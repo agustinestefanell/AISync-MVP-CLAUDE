@@ -3918,3 +3918,76 @@ Se agregó `.select('id').single()` al insert y se devuelve `{ ok: true, id }` (
 **Archivos modificados:** `supabase/migrations/055_review_forward_provenance.sql` (nuevo), `src/app/api/audit/route.ts`, `src/app/api/messages/route.ts`, `src/components/workspace/LoadContextModal.tsx`, `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/WorkspaceShell.tsx`, `src/lib/db/types.ts`, `CodingWorkshop.md`, `DECISIONS.md`, `AISyncPlans.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## OE 2026-08-19 — Audit View rediseñada, Fase 2: UI (Pasos 1-3) + 2 fixes de Documentation Mode
+
+**Fecha:** 2026-08-19
+**Estado:** Closed — Pasos 1, 2 y 3 implementados y validados visualmente por el PO en 2 rondas (Paso 1+2 con filtro aplicado; Paso 3 con panel derecho real). 2 bugs encontrados durante la validación, diagnosticados con evidencia real antes de tocar código, corregidos y confirmados visualmente. lint ✅, build ✅.
+
+**Contexto:** construye la UI de Audit View sobre la base de Fases 1/1.5/1.6 (`entity_name_history`, `message_provenance`, `messages.provider`/`model`, eventos nuevos de `audit_log`), siguiendo el mockup aprobado en `design-refs/audit-view/`. Layout master-detail reusando el patrón de Repository View, 5 tipos de ancla (Checkpoint, Handoff Package, Saved Selection, Loaded Context, Review & Forward).
+
+### Paso 0 (definiciones, ya reportadas y aprobadas antes de este cierre)
+
+- **Review & Forward:** solo evento de `audit_log`, sin objeto propio — título derivado del rol (`Review & Forward: {from} → {to}`), sin inventar contenido.
+- **Loaded Context:** un solo tipo de ancla con 2 "sabores" — `context_files` (fila de `context_sources` con `origin_type` poblado) y `chat` (fila de `message_provenance` con `source_object_type` en `checkpoint`/`handoff_package`/`saved_selection`, EXCLUYENDO `review_forward` para no duplicar con la ancla Review & Forward).
+- **Prior steps:** eventos reales confirmados (`save_version`, `resume_work`, `handoff_received`, `review_forward`, `save_selection`, `context_file_uploaded`, `context_file_injected`, `prompt_assigned`, `prompt_unassigned`, `agent_model_changed`) entre `audit_start` (último `save_version`/`resume_work` estrictamente anterior al ancla, fallback: primer evento conocido del workspace) y `audit_end` (el ancla). **No incluye `handoff_package.created`** — señalado como posible omisión de la consigna original, no corregido unilateralmente.
+- **Downstream uses:** conteo real por FK — `context_sources`/`message_provenance` para Checkpoint/Handoff/Saved Selection; `context_file_injected.metadata.context_source_ids` para Loaded Context sabor Context Files (siempre 0 para sabor Chat); `message_provenance` con `source_object_type: 'review_forward'` para Review & Forward Agent↔Agente (gracias a Fase 1.6 — antes de esa fase hubiera sido 0 fijo). Review & Forward hacia chat humano sigue en 0 fijo, límite conocido, no pendiente.
+- **Chain state:** unificado a 2 valores (`Used downstream` / `Not used yet`) en vez de una palabra distinta por tipo — honesto con lo que realmente se puede medir.
+- **Top Stats Bar:** las 4 métricas (Auditable Anchors, Events in scope, Handoff chains, Context sources) reaccionan a los filtros activos (Project/Team/fecha) — decisión confirmada explícitamente por el PO, aunque Repository View hoy NO tiene ese comportamiento en sus propios stats (solo "Results" reacciona ahí) — divergencia deliberada, no un intento de replicar RepositoryView al pie de la letra.
+
+### Paso 1 + Paso 2 — Top Stats Bar + lista de anclas
+
+**Capa de datos nueva** (`src/lib/db/documentation.ts`):
+- `getDocAuditEvents()` extendida: sin `.limit(200)` (necesitaba el historial completo para Prior steps/Downstream, no solo los últimos N), + join hasta `projects` (antes solo llegaba a `teams`).
+- `getContextSourcesWithOrigin()`: `context_sources` con `origin_type IS NOT NULL`, hierarchy resuelta contra 3 tablas chicas (`getHierarchyMaps()` interno) porque `context_sources.team_id`/`project_id` son TEXT libres sin FK real (migración 017) — no hay join SQL directo posible.
+- `getAllMessageProvenance()`: TODAS las filas de `message_provenance` (los 2 destinos "→ Chat": Fase 1.5 y Fase 1.6), misma resolución de hierarchy.
+- `getContextSourcesScopeStats()`: fila mínima de TODOS los `context_sources` activos (no solo los que tienen origin), solo para el stat "Context sources" — conteo del repositorio completo en alcance, no solo el subconjunto que además es ancla.
+- `getWorkspaceSessionsMap()`: workspace → agent_sessions, para saber qué sesiones consultar en el Paso 3.
+
+**`AuditView.tsx` reescrito completo:** anclas unificadas vía `useMemo`, mapas de downstream construidos una sola vez (no por ancla — evita recomputar por cada card), `eventsByWorkspace` pre-ordenado para `computeTimeline()`. Filtros Project/Team/tipo de ancla/estado de cadena/fecha + búsqueda + sort, mismo patrón visual que Repository View.
+
+**Bug encontrado y corregido en esta misma ronda (antes del cierre del Paso 2):** el dropdown de Team no reaccionaba al Project elegido — permitía combinaciones imposibles (0 resultados sin explicación). Confirmé que `RepositoryView.tsx`/`InvestigateView.tsx` tienen el mismo bug latente hoy (su `uniqueTeams` tampoco depende de `filterProject`) — no corregido ahí, señalado nada más. Fix en `AuditView.tsx`: `uniqueTeams` ahora filtra por `filterProject` antes de listar, y un `useEffect` resetea `filterTeam` si deja de pertenecer al Project elegido.
+
+**Validado visualmente por el PO (2026-08-19):** Top Stats + lista funcionando con datos reales (Handoff y Save Selection visibles al filtrar), filtro dependiente Project→Team confirmado tras el fix.
+
+### Paso 3 — Panel derecho de reconstrucción de auditoría
+
+**Nueva ruta on-demand** `GET /api/documentation/audit-detail?workspaceId=&teamId=&sessionIds=&start=&end=`: mensajes de chat clave dentro de la ventana `[audit_start, audit_end]` (cruzados por `session_id`/timestamp — confirmado en la auditoría de factibilidad que esto requiere query aparte, no viene de `audit_log`), Context Files activos con scope Team/Session (NO Project, fuera del alcance pedido), Prompts activos con scope Team/Worker (mismo query que ya usa `PromptLibrary.tsx`). Se llama solo cuando el usuario hace click en "Audit" — no precargado para todas las anclas.
+
+**`AuditDetailPanel.tsx` (nuevo):** 3a Header (Audit Target / Produced from / Information used / Chain status, sin Model/Agent ni Related object — decisión de producto ya tomada), 3b Timeline "How this was produced" (eventos de `audit_log` + mensajes fusionados cronológicamente — misma fuente que ya calcula el número "Prior steps" en la card, para que el número y la lista nunca queden inconsistentes entre sí), 3c Information used (Context Files + Prompts con badge de scope), 3d Chain of Custody (origen resuelto contra `checkpoints`/`handoffPackages`/`savedSelections` ya cargados, sin fetch nuevo; downstream resuelto contra `contextSourcesWithOrigin`/`messageProvenance` ya cargados), 3e Event table expandible (colapsada por default).
+
+**Origen (Chain of Custody) — limitación documentada explícitamente en el propio panel:** "Information used" refleja el estado ACTUAL de Context Files/Prompts activos para ese Team/Session, no necesariamente lo que estaba activo cuando el ancla se produjo — confirmado en `AUDIT_DOCUMENTATION_INTEGRITY.md` (pilar 1a/1b) que no existe historial temporal confiable para reconstruir eso. El panel lo dice explícitamente en el estado vacío/con datos, no lo oculta.
+
+**Verificación:** smoke test HTTP real contra el dev server (mismo patrón magic-link admin + cookies reales del SDK ya usado en Fase 1.5/1.6) confirmó `200` con mensajes reales devueltos correctamente antes de pedir la validación visual. **Validado visualmente por el PO (2026-08-19):** panel derecho con datos reales.
+
+### 2 bugs encontrados durante la validación del Paso 3, diagnosticados y corregidos
+
+**BUG 1 — Save Selection desaparece al filtrar por Project.**
+Causa raíz confirmada con datos reales (no asumida): `saved_selections.project_id` está **siempre en NULL** — `WorkspaceShell.tsx:396` (`handleSaveSelection`) envía `project_id: null` hardcodeado al crear cualquier selección, siempre, no es un caso raro de una fila puntual. `getSavedSelections()` en `documentation.ts` leía esa columna cruda para `project_id` (el campo que filtra) pero resolvía `project_name` vía JOIN (el campo que se muestra) — inconsistencia interna de esa única función. `getHandoffPackages()`/`getDocCheckpoints()` ya resolvían `project_id` vía JOIN, por eso Handoff nunca mostró el bug.
+**Fix:** `project_id: project?.id ?? null` (vía el mismo JOIN workspace→team→project ya presente en la función) en vez de `r.project_id ?? null`. **NO se tocó la columna en la base ni el POST de creación** — decisión explícita del PO, el guardado sigue mandando `null`; corregir eso es una OE aparte si se decide hacerlo.
+**Alcance:** corrige Repository View, Investigate View y Audit View de una sola pasada — las 3 consumen la misma `getSavedSelections()`/mismo prop `savedSelections`, confirmado por código (no hace falta fix por vista).
+**Validado visualmente por el PO (2026-08-19):** "Tamaño de la luna" aparece correctamente al filtrar por su Project real ("Prueba de Modal NEW PROJ").
+
+**BUG 2 — Código de team (`M-00` vs `F-00`) distinto entre Audit View y Teams Map, mismo team real ("ANN").**
+Causa raíz confirmada con una simulación exacta de ambos algoritmos contra datos reales de la cuenta afectada (`agustin.viaje@gmail.com`) — no es una hipótesis, reproduje ambos cómputos y dieron exactamente `M-00`/`F-00`. `computeTeamCodes()` es la MISMA función en los dos lugares (`AuditView.tsx` no calcula nada propio, consume el `teamCodes` que le pasa `DocClient.tsx` igual que las otras 4 vistas) — la causa es qué se le pasa de INPUT: `DocClient.tsx`/`AuditClient.tsx` llamaban `computeTeamCodes(projects.flatMap(p => p.teams))` sin excluir teams archivados, mientras `MapView.tsx` (Teams Map) ya filtraba archivados (`filterArchivedTeams`, default `showArchivedTeams=false`) ANTES de calcular. Cada team archivado consumía una letra en Documentation Mode pero no en Teams Map, corriendo la letra de ANN.
+**Fix:** `filterArchivedTeams` (antes función privada de `MapView.tsx`) se extrajo a `src/lib/teams/filterArchivedTeams.ts` (mismo patrón que `computeTeamCodes.ts`) — `MapView.tsx` ahora la importa en vez de definirla localmente (sin cambio de comportamiento ahí). `DocClient.tsx` (línea ~176, punto compartido por las 5 vistas de Documentation Mode) y `AuditClient.tsx` (`/audit`, Audit Log global) ahora llaman `computeTeamCodes(filterArchivedTeams(projects.flatMap(p => p.teams), false))` — Documentation Mode se ajusta al comportamiento default ya correcto de Teams Map, no al revés.
+**Validado visualmente por el PO (2026-08-19):** ANN muestra `F-00` en ambos lados. **Marcado explícitamente como "en seguimiento" por el PO** — no reabre el fix, es una nota de monitoreo por si aparece algún caso borde con más teams archivados en el futuro, no una duda sobre la corrección actual.
+
+### Alternativas descartadas
+
+- **Corregir Bug 1 solo en `AuditView.tsx`** en vez de en `getSavedSelections()` — descartado, dejaba el mismo bug latente en Repository View e Investigate View para otra sesión sin necesidad.
+- **Corregir Bug 1 tocando la columna `project_id` o el POST de creación** — descartado esta vez, decisión explícita del PO: el fix es solo de lectura (JOIN), no de guardado.
+- **Reimplementar `filterArchivedTeams` dentro de `DocClient.tsx`** en vez de extraerla a un módulo compartido — descartado, la consigna pidió explícitamente reusar la función real de Teams Map, no una copia.
+- **Que Teams Map se ajuste a Documentation Mode** (incluir archivados por default) — descartado, Teams Map ya tenía la lógica correcta (ocultar archivados por default es el comportamiento esperado); Documentation Mode era el que estaba desalineado.
+
+### Riesgos conocidos / deuda técnica
+
+- Prior steps NO incluye `handoff_package.created` (solo `handoff_received`) — así quedó definido en la consigna original de Fase 2 Paso 0, señalado dos veces (Paso 0 y acá) para que se confirme si es a propósito en una futura revisión.
+- "Information used" (Paso 3c) refleja el estado ACTUAL de Context Files/Prompts, no el histórico al momento de producir el ancla — limitación de datos ya conocida (`AUDIT_DOCUMENTATION_INTEGRITY.md` pilar 1a/1b), declarada explícitamente en el propio panel, no oculta.
+- Bug 2 (código de team) queda "en seguimiento" por decisión del PO — no reabierto, pero si en el futuro aparece un caso con muchos más teams archivados y el código se siente "inestable" (cambia cuando se archiva/desarchiva un team viejo), es la primera pista a revisar.
+- El botón "Audit" ahora sí está wireado (Paso 3 completo) — ya no es inerte.
+- `AddTeamModal.tsx`/`TeamsClient.tsx` (su `teamCodes` interno usado solo para ordenar `sortedTeams`, no para mostrar) siguen sin filtrar archivados antes de `computeTeamCodes` — no forman parte del alcance de este fix (no son pantallas visibles del bug reportado), señalado por si en el futuro se decide unificar también ahí.
+
+**Archivos modificados:** `src/lib/db/documentation.ts`, `src/components/documentation/AuditView.tsx` (reescrito), `src/components/documentation/AuditDetailPanel.tsx` (nuevo), `src/components/documentation/DocClient.tsx`, `src/app/documentation/page.tsx`, `src/app/api/documentation/audit-detail/route.ts` (nuevo), `src/components/audit/AuditClient.tsx`, `src/components/teams/MapView.tsx`, `src/lib/teams/filterArchivedTeams.ts` (nuevo), `CodingWorkshop.md`, `DECISIONS.md`, `AISyncPlans.md`, `PRODUCT_STATUS.md`.
+
+---

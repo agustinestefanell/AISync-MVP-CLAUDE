@@ -10,6 +10,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
+import { filterArchivedTeams } from '@/lib/teams/filterArchivedTeams'
 import { buildTreeLayout } from '@/lib/teams/buildTreeLayout'
 import { getTeamTheme, getProviderDisplayName } from '@/lib/teams/teamsMapLayoutHelpers'
 import { CanvasViewport } from './v3/CanvasViewport'
@@ -46,25 +47,6 @@ interface Connection {
   status: string
   description?: string | null
   color?: string | null
-}
-
-// Filter archived teams respecting hierarchy
-// If a parent is archived and hidden, its children are also hidden to avoid orphan nodes
-function filterArchivedTeams(
-  teams: TeamWithWorkspaces[],
-  showArchived: boolean
-): TeamWithWorkspaces[] {
-  if (showArchived) return teams
-
-  // Keep only active teams
-  const activeTeams = teams.filter(t => t.status !== 'archived')
-  const activeIds = new Set(activeTeams.map(t => t.id))
-
-  // Filter out teams whose parent is not in the visible set
-  return activeTeams.filter(team => {
-    if (!team.parent_id) return true // Root teams are always included if active
-    return activeIds.has(team.parent_id) // Only include if parent is visible
-  })
 }
 
 // Build graph nodes from real TeamWithWorkspaces data

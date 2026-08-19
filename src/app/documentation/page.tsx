@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { getDocCheckpoints, getDocAuditEvents, getHandoffPackages, getSavedSelections } from '@/lib/db/documentation'
+import { getDocCheckpoints, getDocAuditEvents, getHandoffPackages, getSavedSelections, getContextSourcesWithOrigin, getAllMessageProvenance, getContextSourcesScopeStats, getWorkspaceSessionsMap } from '@/lib/db/documentation'
 import { getProjectsWithHierarchy } from '@/lib/db/projects'
 import DocClient from '@/components/documentation/DocClient'
 
@@ -9,13 +9,17 @@ export default async function DocumentationPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: account }, checkpoints, handoffPackages, auditEvents, projects, savedSelections, { data: rawCustomProviders }] = await Promise.all([
+  const [{ data: account }, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, { data: rawCustomProviders }] = await Promise.all([
     supabase.from('accounts').select('name, email').eq('id', user.id).single(),
     getDocCheckpoints(),
     getHandoffPackages(),
     getDocAuditEvents(),
     getProjectsWithHierarchy(),
     getSavedSelections(user.id),
+    getContextSourcesWithOrigin(),
+    getAllMessageProvenance(),
+    getContextSourcesScopeStats(),
+    getWorkspaceSessionsMap(),
     supabase.from('user_custom_providers').select('name, model').eq('account_id', user.id).order('created_at'),
   ])
 
@@ -32,6 +36,10 @@ export default async function DocumentationPage() {
       auditEvents={auditEvents}
       projects={projects}
       savedSelections={savedSelections}
+      contextSourcesWithOrigin={contextSourcesWithOrigin}
+      messageProvenance={messageProvenance}
+      contextSourcesScopeStats={contextSourcesScopeStats}
+      workspaceSessions={workspaceSessions}
       userName={userName}
       userEmail={userEmail}
       customProviders={customProviders}

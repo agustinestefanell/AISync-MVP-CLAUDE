@@ -225,6 +225,7 @@ lib/
     teamsMapLayoutTypes.ts       ← Tipos LayoutNode, LayoutTree, ProjectTree (v3)
     teamsMapLayoutHelpers.ts     ← Helpers createLayoutNode, positionChildren, calculateTreeBounds (v3)
     computeTeamCodes.ts          ← Códigos jerárquicos A-00, A-01, A-01-01
+    filterArchivedTeams.ts       ← Excluye teams archivados (respeta jerarquía) — extraída de MapView.tsx 2026-08-19, reusada también por DocClient.tsx/AuditClient.tsx antes de computeTeamCodes
     getProjectColor.ts           ← 12 paletas corporativas fijas
   map/
     buildAgentLayout.ts          ← Legacy (no usado por v3)
@@ -240,6 +241,7 @@ lib/
   supabase.ts                    ← Legacy (no usar en código nuevo)
   teams/
     computeTeamCodes.ts          ← Códigos jerárquicos A-00, A-01, A-01-01
+    filterArchivedTeams.ts       ← Excluye teams archivados (respeta jerarquía) — extraída de MapView.tsx 2026-08-19, reusada también por DocClient.tsx/AuditClient.tsx antes de computeTeamCodes
     getProjectColor.ts           ← 12 paletas corporativas fijas
 ```
 
@@ -252,7 +254,7 @@ Módulos de acceso a base de datos. Todos server-side (`createClient()` de serve
 | `types.ts` | Tipos TypeScript canónicos (Project, Team, Workspace, AgentSession, etc.) |
 | `workspaces.ts` | `getWorkspaceWithAgents()` — workspace + agent_sessions en un fetch |
 | `teams.ts` | `getActiveProjectId()`, `getTeamsForProject()` |
-| `documentation.ts` | `getDocCheckpoints()`, `getHandoffPackages()`, `getDocAuditEvents()` — Content Plane |
+| `documentation.ts` | `getDocCheckpoints()`, `getHandoffPackages()`, `getSavedSelections()`, `getDocAuditEvents()` (sin cap, historial completo desde Fase 2) — Content Plane. Fase 2 (2026-08-19): `getContextSourcesWithOrigin()`, `getAllMessageProvenance()`, `getContextSourcesScopeStats()`, `getWorkspaceSessionsMap()` — datos para las anclas Loaded Context/Review & Forward y Prior steps/Downstream uses de Audit View |
 | `audit.ts` | Queries para el Audit Log global |
 | `prompts.ts` | `listActivePromptsForContext()` — Prompt Library server-side |
 | `context.ts` | CRUD `context_sources` + `getContextSourcesForRuntime()` |
@@ -398,9 +400,12 @@ DocClient (Client)
             repository  → RepositoryView
             structure   → StructureView (DocumentationMirrorTree)
             audit       → AuditView
+                            └── AuditDetailPanel (panel derecho, Fase 2 Paso 3)
             investigate → InvestigateView
             knowledge   → KnowledgeMap (dynamic, ssr:false)
 ```
+
+**Audit View rediseñada (Fase 2, 2026-08-19):** master-detail — panel izquierdo con Top Stats Bar (4 métricas reactivas a filtros Project/Team/fecha) + lista de 5 tipos de ancla (Checkpoint, Handoff Package, Saved Selection, Loaded Context, Review & Forward), panel derecho `AuditDetailPanel` (fetch on-demand vía `GET /api/documentation/audit-detail` al hacer click en "Audit") con reconstrucción de auditoría: header (Audit Target/Produced from/Information used/Chain status — sin Model/Agent ni Related object, ocultos a propósito), timeline "How this was produced", Information used (Context Files/Prompts activos, scope Team/Session), Chain of Custody (origen/downstream reales), event table expandible. Props nuevos en `DocClient.tsx`/`AuditView.tsx`: `contextSourcesWithOrigin`, `messageProvenance`, `contextSourcesScopeStats`, `workspaceSessions`.
 
 **How to use guides por vista:** Repository = recuperación rápida y acceso diario. Structure = ubicación y árbol jerárquico. Audit = trazabilidad documental interna (distinta del Audit Log global). Investigate = reconstrucción profunda de temas. Knowledge Map = relaciones visuales entre objetos del repositorio. Los guides viven en el array `TABS` de `DocClient.tsx` como campos `guide` en template literals.
 
@@ -662,6 +667,7 @@ Ver sección 10.
 | PATCH/DELETE | `/api/teams/[id]` | teams, agent_sessions, entity_name_history, audit_log (agent_model_changed) | Session |
 | PATCH/DELETE | `/api/projects/[id]` | projects, entity_name_history | Session |
 | GET | `/api/documentation/handoff/[id]` | handoff_packages (status → 'received', primera apertura), audit_log (handoff_received) | Session — único GET con side-effect deliberado en el proyecto, ver route.ts |
+| GET | `/api/documentation/audit-detail` | messages (lectura), context_sources (lectura), prompt_assignments + prompt_library (lectura) | Session — on-demand para el panel derecho de Audit View (Fase 2 Paso 3), no escribe nada |
 | POST | `/api/workspace/[id]/lock` | workspaces | Session |
 | GET/POST | `/api/admin/prompts` | prompt_library | Admin role |
 

@@ -1290,3 +1290,31 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
   - Enviar el `id` del evento de auditoría generado client-side (`crypto.randomUUID()`) en vez de esperar la respuesta del insert — descartado: el insert podría fallar (RLS, red) y dejar un `id` "fantasma" en `message_provenance.source_object_id` que nunca existió en `audit_log`, exactamente el tipo de dato no confiable que Fase 2 necesita evitar.
 - **Alcance limitado a propósito:** solo las 2 variantes Agent↔Agente. Agent→Human chat no se tocó — su destino (`human_messages`) no es la tabla `messages`, así que este mecanismo no aplica ahí, no es una omisión.
 - **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 1.6), `supabase/migrations/055_review_forward_provenance.sql`, `src/components/workspace/WorkspaceShell.tsx`.
+
+---
+
+## 2026-08-19 — Fase 2: Top Stats Bar de Audit View reactivo a filtros, aunque Repository View no lo sea
+
+- **Decisión:** las 4 métricas del Top Stats Bar de Audit View (Auditable Anchors, Events in scope, Handoff chains, Context sources) recalculan al aplicar filtros de Project/Team/fecha.
+- **Motivo:** era lo que pedía la consigna original de Fase 2 ("mismo comportamiento que Repository View — cambian al aplicar un filtro"). Al revisar el código real de `RepositoryView.tsx` se confirmó que esa premisa era falsa — solo el stat "Results" ahí reacciona a los filtros, "Checkpoints"/"Handoff Pkgs"/"Controlled" muestran el total global sin filtrar, siempre. Se presentó la discrepancia al PO antes de implementar, con las dos opciones (replicar el comportamiento real de Repository View vs. hacer que las 4 reaccionen de verdad) — el PO confirmó la segunda.
+- **Consecuencia:** Audit View y Repository View ahora tienen comportamientos de Top Stats distintos entre sí a propósito — no es una inconsistencia accidental, es una decisión tomada con la discrepancia ya señalada. Repository View queda como candidato a alinearse en una futura sesión, no se tocó en esta OE.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 2 Paso 0).
+
+---
+
+## 2026-08-19 — Fix Save Selection/Project filter: solo lectura (JOIN), no se toca la columna ni el POST de creación
+
+- **Decisión:** `getSavedSelections()` en `documentation.ts` pasó a resolver `project_id` vía el JOIN ya presente (`workspace → team → project`) en vez de leer la columna propia `saved_selections.project_id` — que está siempre en `NULL` porque `WorkspaceShell.tsx` (`handleSaveSelection`) la envía hardcodeada así en el POST de creación. Esta OE **no tocó** ni la columna en la base ni ese POST.
+- **Motivo:** el bug reportado era específicamente "desaparece al filtrar" — un problema de LECTURA (3 vistas de Documentation Mode lo consumen mal), no de escritura. Corregir el guardado (para que la columna deje de ser siempre NULL) es un cambio de alcance distinto, con sus propias implicaciones (¿hay que backfillear las filas existentes? ¿el POST necesita el project_id del cliente o puede resolverlo server-side como este fix?) que ameritan su propia OE si se decide abordarlas.
+- **Alternativas descartadas:** corregir el fix solo en `AuditView.tsx` en vez de en la función compartida — descartado, dejaba el mismo bug latente en `RepositoryView.tsx`/`InvestigateView.tsx` sin necesidad, cuando corregir la fuente (`getSavedSelections()`) resuelve las 3 vistas de una sola vez con el mismo esfuerzo.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 2), `src/lib/db/documentation.ts`, `src/components/workspace/WorkspaceShell.tsx:396`.
+
+---
+
+## 2026-08-19 — Fix código de team inconsistente: Documentation Mode se ajusta a Teams Map, no al revés
+
+- **Decisión:** `DocClient.tsx` y `AuditClient.tsx` ahora excluyen teams archivados (`filterArchivedTeams`, extraída de `MapView.tsx` a `src/lib/teams/filterArchivedTeams.ts`) ANTES de llamar a `computeTeamCodes()` — mismo criterio default que Teams Map (`showArchivedTeams=false`).
+- **Motivo:** confirmado con una simulación exacta de ambos algoritmos contra datos reales que la causa era puramente el input de `computeTeamCodes()` (`MapView.tsx` ya excluía archivados, `DocClient.tsx`/`AuditClient.tsx` no) — la función en sí es una sola, sin duplicación. Entre las dos direcciones posibles de alinear (que Teams Map incluya archivados como Documentation Mode, o que Documentation Mode excluya como Teams Map), se eligió la segunda porque el comportamiento de Teams Map (ocultar archivados por default) ya era el correcto — el objetivo declarado de "Archived Teams — Fase 1B" (ver handoff-archive-2026-06/07) fue exactamente ese.
+- **Alternativas descartadas:** reimplementar el filtro de archivados dentro de `DocClient.tsx` en vez de extraer la función real de `MapView.tsx` a un módulo compartido — descartado, la consigna pidió explícitamente reusar la función real, no duplicarla (una copia diverge con el tiempo, exactamente el tipo de bug que se estaba corrigiendo).
+- **Riesgo aceptado, marcado "en seguimiento" por el PO (no reabre el fix):** si en el futuro se archivan muchos más teams, la letra de un team podría volver a "sentirse inestable" en la percepción del usuario (cambia si se archiva/desarchiva un team viejo) — es el comportamiento esperado del algoritmo (los códigos no son IDs permanentes, se recalculan), no un bug, pero vale la pena tenerlo presente si aparece confusión real de usuario más adelante.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 2), `src/lib/teams/filterArchivedTeams.ts`, `src/components/teams/MapView.tsx`, `src/components/documentation/DocClient.tsx`, `src/components/audit/AuditClient.tsx`.

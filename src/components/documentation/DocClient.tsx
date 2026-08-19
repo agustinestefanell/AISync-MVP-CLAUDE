@@ -2,9 +2,10 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import type { DocCheckpoint, DocAuditEvent, DocHandoffPackage, DocSavedSelection } from '@/lib/db/documentation'
+import type { DocCheckpoint, DocAuditEvent, DocHandoffPackage, DocSavedSelection, DocLoadedContextItem, DocMessageProvenanceItem, DocContextSourceScopeRow, DocWorkspaceSession } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
+import { filterArchivedTeams } from '@/lib/teams/filterArchivedTeams'
 import RepositoryView from './RepositoryView'
 import StructureView from './StructureView'
 import AuditView from './AuditView'
@@ -111,18 +112,22 @@ This is what Documentation Mode is for: giving structure and visibility to work 
 In practical terms, Documentation Mode is where work stops being just past activity and starts becoming something you can navigate, understand, preserve, and use again later.`
 
 interface DocClientProps {
-  pageName:        string
-  checkpoints:     DocCheckpoint[]
-  handoffPackages: DocHandoffPackage[]
-  auditEvents:     DocAuditEvent[]
-  projects:        ProjectWithTeams[]
-  savedSelections: DocSavedSelection[]
-  userName:        string
-  userEmail:       string
-  customProviders: CustomProvider[]
+  pageName:                 string
+  checkpoints:              DocCheckpoint[]
+  handoffPackages:          DocHandoffPackage[]
+  auditEvents:              DocAuditEvent[]
+  projects:                 ProjectWithTeams[]
+  savedSelections:          DocSavedSelection[]
+  contextSourcesWithOrigin: DocLoadedContextItem[]
+  messageProvenance:        DocMessageProvenanceItem[]
+  contextSourcesScopeStats: DocContextSourceScopeRow[]
+  workspaceSessions:        Record<string, DocWorkspaceSession[]>
+  userName:                 string
+  userEmail:                string
+  customProviders:          CustomProvider[]
 }
 
-export default function DocClient({ pageName, checkpoints, handoffPackages, auditEvents, projects, savedSelections, userName, userEmail, customProviders }: DocClientProps) {
+export default function DocClient({ pageName, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, userName, userEmail, customProviders }: DocClientProps) {
   const [tab,                  setTab]                  = useState<Tab>('repository')
   const [helpTab,              setHelpTab]              = useState<Tab | null>(null)
   const [showMainGuide,        setShowMainGuide]        = useState(false)
@@ -168,8 +173,16 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
     })),
   [filteredCheckpoints])
 
+  // Excluye teams archivados ANTES de calcular los códigos — mismo criterio
+  // default que Teams Map (MapView.tsx, showArchivedTeams=false), para que el
+  // código de un team coincida entre Teams Map y Documentation Mode. Antes,
+  // Documentation Mode incluía archivados en el cómputo y Teams Map no,
+  // corriendo las letras de forma distinta para el mismo team real. Este es
+  // el único cómputo de teamCodes de todo DocClient — las 5 vistas de
+  // Documentation Mode y el subtítulo "How to use" quedan corregidas de una
+  // sola vez.
   const teamCodes = useMemo(
-    () => computeTeamCodes(projects.flatMap(p => p.teams)),
+    () => computeTeamCodes(filterArchivedTeams(projects.flatMap(p => p.teams), false)),
     [projects],
   )
 
@@ -226,7 +239,7 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} teamCodes={teamCodes} />}
               {tab === 'structure'   && <StructureView   checkpoints={checkpoints} projects={projects} userName={userName} userEmail={userEmail} teamCodes={teamCodes} />}
-              {tab === 'audit'       && <AuditView        checkpoints={checkpoints} auditEvents={auditEvents} teamCodes={teamCodes} />}
+              {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} teamCodes={teamCodes} />}
               {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
               {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
             </div>
