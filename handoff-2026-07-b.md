@@ -3798,3 +3798,61 @@ Este método reproduce exactamente las mismas queries que ejecuta cada route/fun
 **Archivos modificados:** `supabase/migrations/053_entity_name_history.sql` (nuevo), `src/app/api/projects/[id]/route.ts`, `src/app/api/teams/[id]/route.ts`, `src/app/api/documentation/handoff/[id]/route.ts`, `src/app/api/context/route.ts`, `src/app/api/chat/route.ts`, `src/components/workspace/PromptLibrary.tsx`, `AISyncPlans.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `CodingWorkshop.md`.
 
 ---
+
+## OE 2026-08-19 — Audit View rediseñada, Fase 1.5: FK real de proveniencia + provider/model por mensaje
+
+**Fecha:** 2026-08-19
+**Estado:** Closed — migración 054 aplicada en Supabase, código completo, 4/4 puntos de verificación confirmados end-to-end real (HTTP real, no reproducción de lógica), lint ✅, build ✅.
+
+**Contexto:** cierra los 2 huecos de trazabilidad que el diseño ya aprobado de la UI de Audit View (Fase 2) necesita antes de construirse — identificados en `AUDIT_DOCUMENTATION_INTEGRITY.md` pilar 3b (FK de Load Saved Context → Chat) y pilar 1c (modelo real por mensaje). Precedido de un reporte de riesgo solo-lectura (Pieza A y Pieza B), ambas piezas confirmadas de bajo riesgo antes de tocar código — ver `DECISIONS.md` para el detalle completo de cada evaluación.
+
+### Pieza A — `message_provenance`
+
+**Hallazgo clave del reporte de riesgo:** `POST /api/messages` (único insert de `messages` en todo el proyecto) ya devolvía el `id` real tras el insert (`.select('id', ...)`) — el cliente simplemente lo descartaba. No hacía falta resolver un problema de "recuperar el ID de forma confiable", solo leerlo. Además, `autoRespond` en `AgentPanel.tsx` está hardcodeado `true` (`const [autoRespond] = useState(true)`, sin setter) — así que el 100% de los casos reales de "Load Saved Context → Chat" pasan por `sendPrompt()` de inmediato y sí persisten de forma síncrona.
+
+**Implementación:**
+- Migración 054: tabla `message_provenance` (`message_id` FK real a `messages.id` ON DELETE CASCADE, `source_object_type` CHECK `'checkpoint'|'handoff_package'|'saved_selection'`, `source_object_id`). RLS con el mismo criterio de scope que `messages_select`/`messages_insert` (join hasta `projects.account_id = auth.uid()`).
+- `source_object_type` usa `'handoff_package'` (no `'handoff'`, que era lo propuesto en la consigna original) — se alineó con la convención ya establecida en `context_sources.origin_type` (migración 017) para no introducir un segundo nombre distinto para el mismo tipo de objeto en el sistema.
+- `LoadContextModal.tsx`: `onLoadToChat` ahora recibe `(content, provenance)` — nuevo tipo exportado `LoadToChatProvenance`. El call site del destino "Chat" arma `{ source_object_type: originType[item.type], source_object_id: item.id }` reusando el mapeo `originType` que ya existía.
+- `AgentPanel.tsx`: `sendPrompt()` gana un 4to parámetro opcional `provenance` (backward-compatible, todos los demás call sites sin tocar); `handleLoadToChat()` lo pasa solo en la rama `autoRespond` (la única que persiste el mensaje en el momento de la carga — documentado inline por qué la otra rama, hoy inalcanzable, quedaría sin provenance si `autoRespond` alguna vez se vuelve toggleable).
+- `src/app/api/messages/route.ts` POST: acepta `provenance` opcional en el body: tras el insert exitoso, inserta en `message_provenance` para cada mensaje insertado en esa llamada (en la práctica siempre 1). Fail-open — no bloquea la respuesta ya exitosa.
+
+### Pieza B — `provider`/`model` por mensaje
+
+**Hallazgo clave del reporte de riesgo:** volumen real medido antes de implementar — 433 filas totales en `messages`, ~55 en 7 días, ~201 en 30 días. Trivial, y de cualquier forma un `ADD COLUMN` nullable sin default es metadata-only en Postgres (no reescribe la tabla). Sin triggers sobre `messages` (el único trigger de toda la DB es `handle_new_user` en `auth.users`). Las 5 RLS policies de `messages` predican todas sobre `session_id`, ninguna enumera columnas fijas. Sin validación runtime de schema (no hay zod en el proyecto) — `Message` es una interfaz TypeScript compile-time, extenderla es aditivo y seguro.
+
+**Implementación:**
+- Migración 054: `messages.provider TEXT`, `messages.model TEXT`, ambas nullable sin default.
+- `src/app/api/messages/route.ts` POST: antes del insert, un SELECT extra `provider, model` de `agent_sessions` por `sessionId` (mismo patrón ya usado 100 líneas abajo en `generateAttachmentSummaries`) — se popula en cada mensaje insertado en esa llamada. Decisión: lookup server-side contra `agent_sessions` (fuente de verdad), no valores enviados por el cliente — evita depender de que el cliente mande el dato correcto para un campo pensado como registro de auditoría.
+- `src/lib/db/types.ts`: `Message` extendido con `provider?`/`model?`; nuevo `MessageProvenance` type.
+
+### Hallazgo colateral resuelto en el camino — bug de `pdf-parse`/`pdfjs-dist` en dev local (Windows)
+
+Documentado como hallazgo no bloqueante en la Fase 1 (`CodingWorkshop.md` #28) cuando bloqueó la verificación local de Context Files. Al empezar la verificación E2E de esta Fase 1.5, el mismo crash volvió a aparecer — esta vez en `POST /api/messages` (que también importa `extractText.ts` para `generateAttachmentSummaries`), bloqueando la verificación de una ruta mucho más central que `/api/context`. El PO decidió arreglarlo en este punto en vez de seguir trabajando alrededor.
+
+**Fix:** `src/lib/context/extractText.ts` — los imports estáticos de `pdf-parse`/`pdf-parse/worker` pasaron a `await import()` dinámico dentro de la rama `application/pdf`, igual patrón que mammoth/word-extractor/xlsx/jszip en el mismo archivo (eran la única excepción). El import a nivel de módulo quedó reducido a `import type { PDFParse as PDFParseType } from 'pdf-parse'` (type-only, sin costo en runtime). Cero cambio de comportamiento — mismo resultado de extracción de PDF, solo dejó de cargar el módulo de forma eager en cada request. Confirmado con `.next` borrado + server reiniciado: `POST /api/messages` y `POST /api/context` dejaron de crashear. Detalle completo en `CodingWorkshop.md` #28 (actualizado).
+
+### Verificación funcional — 4/4, end-to-end real (2026-08-19)
+
+Con dev server local (bug de pdf-parse ya resuelto) + sesión real (magic link admin → `verifyOtp`) + datos de prueba desechables (`QA-Fase1.5-DELETE-ME`):
+
+- [x] **Pieza A:** `POST /api/messages` con `provenance: { source_object_type: 'checkpoint', source_object_id: <uuid> }` → 200, 1 fila real en `message_provenance` con el `message_id` real devuelto por el insert y el `source_object_type`/`source_object_id` correctos.
+- [x] **Pieza B:** mensaje nuevo sin provenance → 200, fila en `messages` con `provider: "Anthropic"`, `model: "Claude 3 Haiku"` (coincide con el `agent_sessions` de prueba) — no NULL.
+- [x] **No retroactivo:** las 433 filas preexistentes en `messages` (mismo conteo medido antes de esta OE) siguen con `provider`/`model` en NULL — confirmado con query directa, sin tocar ninguna.
+- [x] **Limpieza:** confirmada con query aparte — `projects`/`messages`/`message_provenance` de prueba en 0 filas, conteo total de `messages` de vuelta a 433 (idéntico al valor pre-test).
+
+### Alternativas descartadas
+
+- **`source_object_type: 'handoff'`** (tal como decía la consigna original) — descartado por inconsistencia con `context_sources.origin_type`, que ya usa `'handoff_package'` para el mismo objeto.
+- **Enviar `provider`/`model` desde el cliente** (el propio `session.provider`/`session.model` que `AgentPanel.tsx` ya tiene en scope) en vez de un lookup server-side — descartado: aunque hubiera evitado una query extra, un campo pensado como registro de auditoría no debería depender de que el cliente mande el valor correcto; el lookup contra `agent_sessions` es la fuente de verdad real y no requiere ningún cambio en el payload que el cliente ya envía.
+- **Aplicar el fix de `pdf-parse` en la primera aparición (Fase 1)** — descartado en ese momento por estar fuera de alcance de esa OE (schema/eventos, sin tocar `extractText.ts`); se reevaluó y se aplicó acá cuando el mismo bug demostró tener alcance mayor al inicialmente medido.
+
+### Riesgos conocidos / deuda técnica
+
+- `message_provenance` no es retroactivo — mensajes creados antes de la migración 054 no tienen ni pueden tener fila de proveniencia, aunque hayan venido de Load Saved Context → Chat en su momento.
+- La rama `autoRespond=false` de `handleLoadToChat()` en `AgentPanel.tsx` es código hoy inalcanzable (no hay setter para `autoRespond`) que, si en el futuro se vuelve alcanzable, no persiste el contenido cargado como mensaje aislado en el momento de la carga — quedaría sin fila de `message_provenance`. Documentado inline en el código.
+- Ninguno de los 2 datos nuevos (`message_provenance`, `messages.provider`/`model`) tiene todavía consumidor en UI — Fase 2 es la que los va a leer.
+
+**Archivos modificados:** `supabase/migrations/054_message_provenance_and_model_tracking.sql` (nuevo), `src/lib/context/extractText.ts`, `src/lib/db/types.ts`, `src/app/api/messages/route.ts`, `src/components/workspace/LoadContextModal.tsx`, `src/components/workspace/AgentPanel.tsx`, `CodingWorkshop.md`, `DECISIONS.md`, `AISyncPlans.md`, `PRODUCT_STATUS.md`.
+
+---

@@ -9,7 +9,7 @@ import type { AgentSession, Message } from '@/lib/db/types'
 import type { ChatMessage, ChatAttachment } from '@/lib/providers/types'
 import PromptLibrary from './PromptLibrary'
 import ContextFilePanel from './ContextFilePanel'
-import LoadContextModal from './LoadContextModal'
+import LoadContextModal, { type LoadToChatProvenance } from './LoadContextModal'
 import { createClient } from '@/lib/supabase/client'
 import { MAX_ATTACHMENT_FILE_BYTES, fileTooLargeMessage, payloadTooLargeMessage } from '@/lib/upload/limits'
 
@@ -536,7 +536,12 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
-    async function sendPrompt(content: string, atts: ChatAttachment[] = [], excludedContextFileIds: string[] = []) {
+    async function sendPrompt(
+      content: string,
+      atts: ChatAttachment[] = [],
+      excludedContextFileIds: string[] = [],
+      provenance?: LoadToChatProvenance,
+    ) {
       if ((!content && !atts.length) || streaming || workspaceLocked) return
 
       const userMsg: DisplayMessage  = { role: 'user', content, created_at: new Date().toISOString(), attachments: atts.length ? atts : undefined }
@@ -559,7 +564,11 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
           const persistRes = await fetch('/api/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: session.id, messages: [userMsg] }),
+            body: JSON.stringify({
+              sessionId: session.id,
+              messages: [userMsg],
+              ...(provenance ? { provenance } : {}),
+            }),
           })
           if (!persistRes.ok) {
             const errorText = await persistRes.text().catch(() => '')
@@ -727,9 +736,14 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
 
     // Load Saved Context → "Chat" destino: mismo mecanismo que
     // AgentPanelHandle.appendUserMessage (Review & Forward same-workspace).
-    function handleLoadToChat(content: string) {
+    // provenance solo se persiste en la rama autoRespond — es la única que
+    // efectivamente llama a sendPrompt/persiste el mensaje en el momento de
+    // la carga (autoRespond está hardcodeado true hoy, ver useState arriba;
+    // si algún día se vuelve toggleable, la otra rama queda sin provenance
+    // porque ese contenido no se persiste como mensaje aislado en ese punto).
+    function handleLoadToChat(content: string, provenance: LoadToChatProvenance) {
       if (autoRespond) {
-        setTimeout(() => sendPrompt(content), 50)
+        setTimeout(() => sendPrompt(content, [], [], provenance), 50)
       } else {
         setMessages(prev => [...prev, { role: 'user', content, created_at: new Date().toISOString() }])
         setApiMessages(prev => [...prev, { role: 'user', content }])

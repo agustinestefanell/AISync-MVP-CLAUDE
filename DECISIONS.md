@@ -1236,8 +1236,43 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 
 ## 2026-08-19 — Load Saved Context → Chat: sin FK real a `messages`, se mantiene `audit_log.metadata`
 
-- **Decisión:** no se agregaron columnas nuevas (`loaded_from_object_type`/`loaded_from_object_id`) a `messages` para darle FK real al destino "→ Chat" de Load Saved Context. El rastro sigue siendo `audit_log.metadata.source_id` (no estructurado), igual que antes de esta OE.
-- **Motivo:** `messages` es la tabla de mayor tráfico del proyecto, con antecedente de RLS delicado (migración 047 — un UPDATE sin policy correcta falla en silencio, ver `AISyncPlans.md` § 5.3). El beneficio real es bajo: el caso más usado de Load Saved Context (destino "→ Context Files") YA tiene FK real vía `context_sources.origin_type`/`origin_message_id`; "→ Chat" es el caso minoritario y ya tenía un rastro (aunque no estructurado) suficiente para reconstrucción manual puntual.
-- **Alternativas descartadas:** agregar las 2 columnas nullable propuestas en la consigna original — técnicamente de bajo riesgo en sí mismas, descartadas por relación costo/beneficio desfavorable frente al caso ya cubierto, no por imposibilidad técnica.
-- **Consecuencia:** este punto queda abierto para retomar si en el futuro se necesita de verdad un FK real en el destino "→ Chat" — no está cerrado como "nunca", está diferido.
-- **Referencia:** handoff-2026-07-b.md OE 2026-08-19, `AUDIT_DOCUMENTATION_INTEGRITY.md` punto 3b.
+**SUPERSEDIDA por la entrada "Fase 1.5 — `message_provenance`" más abajo (mismo día, OE siguiente).** El diseño de UI de Audit View (Fase 2) terminó necesitando este FK igual — se revisó el riesgo con datos reales (no solo estimado) y se implementó vía tabla aparte (`message_provenance`), sin tocar el schema de `messages`, que era exactamente la preocupación que motivaba esta decisión original. Se deja el razonamiento original abajo por completo porque el motivo de fondo (cuidado con tocar `messages`) sigue siendo válido — lo que cambió fue el mecanismo elegido para resolverlo (tabla aparte con FK real a `messages.id`, en vez de columnas nuevas dentro de `messages`).
+
+- **Decisión (original, 2026-08-19 temprano):** no se agregaron columnas nuevas (`loaded_from_object_type`/`loaded_from_object_id`) a `messages` para darle FK real al destino "→ Chat" de Load Saved Context. El rastro seguía siendo `audit_log.metadata.source_id` (no estructurado), igual que antes de esa OE.
+- **Motivo:** `messages` es la tabla de mayor tráfico del proyecto, con antecedente de RLS delicado (migración 047 — un UPDATE sin policy correcta falla en silencio, ver `AISyncPlans.md` § 5.3). El beneficio real parecía bajo: el caso más usado de Load Saved Context (destino "→ Context Files") YA tiene FK real vía `context_sources.origin_type`/`origin_message_id`; "→ Chat" es el caso minoritario y ya tenía un rastro (aunque no estructurado) suficiente para reconstrucción manual puntual.
+- **Alternativas descartadas en ese momento:** agregar las 2 columnas nullable propuestas en la consigna original — técnicamente de bajo riesgo en sí mismas, descartadas por relación costo/beneficio desfavorable frente al caso ya cubierto, no por imposibilidad técnica.
+- **Consecuencia (cumplida):** el punto quedó abierto explícitamente "para retomar si en el futuro se necesita de verdad un FK real" — se retomó en la misma tarde, cuando el diseño aprobado de la UI de Fase 2 confirmó que sí hacía falta.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 1), `AUDIT_DOCUMENTATION_INTEGRITY.md` punto 3b.
+
+---
+
+## 2026-08-19 — Fase 1.5: `message_provenance` como tabla aparte, no columnas nuevas en `messages`
+
+- **Decisión:** el FK real de "Load Saved Context → Chat" se implementó como tabla independiente `message_provenance` (`message_id` FK a `messages.id` ON DELETE CASCADE, `source_object_type`, `source_object_id`) en vez de agregar columnas `loaded_from_object_type`/`loaded_from_object_id` directamente en `messages` (la alternativa que se había descartado en la decisión anterior, más arriba).
+- **Motivo:** preserva exactamente la preocupación de la decisión original (no ampliar el contrato de la tabla de mayor tráfico del proyecto con columnas de un caso de uso minoritario) mientras sí resuelve la necesidad real que apareció con el diseño de Fase 2. Mismo patrón ya usado para `entity_name_history` (Fase 1): tabla satélite con FK real, RLS propia, en vez de tocar la tabla central.
+- **`source_object_type` usa `'handoff_package'`, no `'handoff'`** (que era lo que decía la consigna original de la OE) — se alineó con la convención ya establecida en `context_sources.origin_type` (migración 017, mismo objeto). Evita tener dos nombres distintos para el mismo tipo de objeto en dos tablas distintas del sistema.
+- **Alternativas descartadas:**
+  - Columnas nuevas en `messages` — descartado, ver arriba.
+  - `source_object_type: 'handoff'` tal como decía la consigna — descartado por la inconsistencia de nomenclatura ya mencionada.
+- **Riesgo aceptado, documentado:** no es retroactivo — mensajes creados antes de la migración 054 no pueden tener fila de proveniencia, aunque hayan venido de Load Saved Context en su momento. Es el mismo criterio "hacia adelante, no retroactivo" ya aplicado en la Pieza B de la misma OE.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 1.5), `supabase/migrations/054_message_provenance_and_model_tracking.sql`.
+
+---
+
+## 2026-08-19 — `messages.provider`/`model`: lookup server-side contra `agent_sessions`, no valores enviados por el cliente
+
+- **Decisión:** al persistir un mensaje en `POST /api/messages`, `provider`/`model` se obtienen con un SELECT server-side a `agent_sessions` por `sessionId` — no se usan los valores que el cliente ya tiene en `session.provider`/`session.model` (que hubiera evitado la query extra, mandándolos directo en el body del POST).
+- **Motivo:** `provider`/`model` en `messages` está pensado como dato de auditoría — de qué modelo realmente generó o vio ese mensaje. Un campo de auditoría no debería depender de que el cliente mande el valor correcto; `agent_sessions` es la fuente de verdad real del sistema para esa información (mismo criterio que ya usa `generateAttachmentSummaries` unas líneas más abajo en el mismo archivo, que hace exactamente este mismo lookup para otro propósito).
+- **Alternativas descartadas:** mandar `provider`/`model` desde `AgentPanel.tsx` en el body del POST (el cliente ya los tiene en scope, cero query extra) — descartado por el motivo de arriba; el costo de una query adicional (tabla `agent_sessions`, ya indexada por `id` como PK) es insignificante comparado con la garantía de que el dato realmente refleje la sesión, no lo que el cliente cree que es.
+- **Consecuencia:** cualquier caller futuro de `POST /api/messages` obtiene `provider`/`model` correctos automáticamente, sin tener que acordarse de mandarlos — el endpoint es la única fuente de verdad de cómo se puebla ese dato.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 1.5), `src/app/api/messages/route.ts`.
+
+---
+
+## 2026-08-19 — Fix del bug `pdf-parse`/`pdfjs-dist`: se resuelve en Fase 1.5, no se dejó como estaba
+
+- **Decisión:** el import estático de `pdf-parse`/`pdf-parse/worker` en `src/lib/context/extractText.ts` (documentado como hallazgo no bloqueante en `CodingWorkshop.md` #28 durante la Fase 1) se convirtió a `await import()` dinámico dentro de esta OE, en vez de seguir postergándolo.
+- **Motivo:** en la Fase 1 el bug solo bloqueaba `/api/context` y se pudo verificar por vía alternativa (producción). En la Fase 1.5, el mismo bug reapareció bloqueando `POST /api/messages` — el único punto de persistencia de TODOS los mensajes de chat de la app, una ruta mucho más central. El PO decidió que ese segundo impacto ya ameritaba el fix en vez de seguir buscando vías alternativas de verificación.
+- **Alternativas descartadas:** seguir tratándolo como hallazgo aparte y buscar otra vía de verificación (ej. producción) — descartado porque, a diferencia de la Fase 1, el código nuevo de `/api/messages` (Piezas A y B de esta misma OE) no existía todavía en producción, así que no había ninguna vía alternativa real de probarlo end-to-end sin arreglar el bug.
+- **Alcance del fix:** mínimo y quirúrgico — mismo patrón que el resto del archivo ya usaba para otros formatos (mammoth, word-extractor, xlsx, jszip), aplicado ahora también a PDF. Cero cambio de comportamiento funcional.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 1.5), `CodingWorkshop.md` #28, `src/lib/context/extractText.ts`.

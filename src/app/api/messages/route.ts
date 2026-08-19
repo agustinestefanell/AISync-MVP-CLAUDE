@@ -10,14 +10,29 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 })
 
-  const { sessionId, messages } = await req.json() as {
+  const { sessionId, messages, provenance } = await req.json() as {
     sessionId: string
     messages: {
       role:        'user' | 'assistant'
       content:     string
       attachments?: { name?: string; media_type: string; type: 'image' | 'document'; data?: string }[]
     }[]
+    // Load Saved Context → Chat: de dónde vino el contenido que generó
+    // este mensaje. Se aplica a todos los mensajes de esta llamada — en la
+    // práctica siempre es una sola (ver AgentPanel.tsx handleLoadToChat).
+    provenance?: {
+      source_object_type: 'checkpoint' | 'handoff_package' | 'saved_selection'
+      source_object_id:   string
+    }
   }
+
+  // Provider/model activos de la sesión al momento de persistir — no
+  // retroactivo, solo lo que se sabe en este instante (ver migración 054).
+  const { data: sessionInfo } = await supabase
+    .from('agent_sessions')
+    .select('provider, model')
+    .eq('id', sessionId)
+    .maybeSingle()
 
   // Insert and get back IDs
   const { data: insertedMessages, error } = await supabase
@@ -30,11 +45,28 @@ export async function POST(req: Request) {
         attachment_metadata: m.attachments?.length
           ? m.attachments.map(a => ({ name: a.name ?? '', media_type: a.media_type, type: a.type }))
           : null,
+        provider:            sessionInfo?.provider ?? null,
+        model:               sessionInfo?.model    ?? null,
       }))
     )
     .select('id, role, attachment_metadata')
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
+
+  // message_provenance — fail-open, no debe bloquear la respuesta ya exitosa
+  if (provenance && insertedMessages?.length) {
+    try {
+      await supabase.from('message_provenance').insert(
+        insertedMessages.map(m => ({
+          message_id:         m.id,
+          source_object_type: provenance.source_object_type,
+          source_object_id:   provenance.source_object_id,
+        }))
+      )
+    } catch (provenanceError) {
+      console.error('[messages] Failed to insert message_provenance:', provenanceError)
+    }
+  }
 
   // Fire-and-forget: generar resumen AI de adjuntos
   // Map original messages with their inserted DB IDs

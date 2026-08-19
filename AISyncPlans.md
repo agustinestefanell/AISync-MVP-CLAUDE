@@ -565,6 +565,7 @@ WorkspaceShell: openSaveSelectionModal()
 | `system_prompts` | Prompts de sistema por team (Capa 3) |
 | `saved_selections` | Selecciones de mensajes guardadas |
 | `entity_name_history` | Historial inmutable de renombres de Project/Team (migración 053, 2026-08-19) |
+| `message_provenance` | FK real: qué objeto de Documentation Mode originó un mensaje vía Load Saved Context → Chat (migración 054, 2026-08-19) |
 
 **Content Plane** (propiedad del cliente, migrable):
 
@@ -572,7 +573,7 @@ WorkspaceShell: openSaveSelectionModal()
 |---|---|
 | `checkpoints` | Snapshots de conversación |
 | `checkpoint_messages` | Mensajes inmutables del snapshot |
-| `messages` | Historial live por sesión |
+| `messages` | Historial live por sesión. Desde migración 054 (2026-08-19): `provider`/`model` nullable, poblados hacia adelante (no retroactivo) con el valor de `agent_sessions` al momento de persistir cada mensaje |
 | `handoff_packages` | Transferencias formales entre agentes |
 | `context_sources` | Archivos de contexto subidos |
 
@@ -622,6 +623,8 @@ Excepciones (ownership directo por `user_id = auth.uid()`):
 
 `entity_name_history` es polimórfica (`entity_type` 'project'|'team' + `entity_id`) — sin FK real a projects/teams, la policy resuelve el scope con un `EXISTS` condicionado por `entity_type` (mismo criterio de jerarquía que `projects_select`/`teams_select`, ver migración 053).
 
+`message_provenance` (migración 054) sí tiene FK real (`message_id → messages.id` ON DELETE CASCADE) — su RLS es un `EXISTS` que sube por la misma cadena que `messages_select`/`messages_insert` (message → agent_session → workspace → team → project → `account_id = auth.uid()`), no la variante polimórfica de `entity_name_history`.
+
 **Lección RLS crítica (migración 047 — 2026-07-07):**
 RLS requiere políticas explícitas para cada operación DML (SELECT, INSERT, UPDATE, DELETE). Tener SELECT+INSERT no implica tener UPDATE. Features que actualizan filas existentes deben auditar políticas UPDATE además de SELECT/INSERT, incluso si el UPDATE ocurre desde el mismo código que hizo el INSERT. El bloqueo por RLS es silencioso desde la perspectiva de la aplicación — Supabase ignora el UPDATE sin lanzar error visible en logs del servidor.
 
@@ -648,7 +651,7 @@ Ver sección 10.
 | DELETE | `/api/connections/[id]` | team_connections | Session |
 | GET/POST | `/api/context` | context_sources, audit_log (context_file_uploaded) | Session |
 | POST | `/api/handoff-package` | handoff_packages | Session |
-| POST | `/api/messages` | messages, audit_log (attachment_summary_generated) | Session — fire-and-forget AI summary generation for attachments |
+| POST | `/api/messages` | messages (+ provider/model poblados vía lookup a agent_sessions), message_provenance (opcional, si el body trae `provenance`), audit_log (attachment_summary_generated) | Session — fire-and-forget AI summary generation for attachments |
 | POST | `/api/save-selection` | saved_selections, audit_log | Session |
 | POST | `/api/export/excel` | — (genera .xlsx, no escribe en DB) | Session |
 | POST | `/api/export/word` | — (genera .docx, no escribe en DB) | Session |
@@ -922,7 +925,8 @@ Contrato `ToolExecutor`: `execute()` retorna `Promise<ToolExecutionResult>` con 
 | 050 | `050_add_connection_project_bindings.sql` | team_connections: requester_project_id + receiver_project_id (Connect Team active Project binding) |
 | 051 | `051_handoff_to_agent_nullable.sql` | handoff_packages: to_agent nullable |
 | 052 | `052_base_layer_response_length_policy.sql` | Base layer — response length policy |
-| 053 | `053_entity_name_history.sql` | entity_name_history: historial de renombres Project/Team (Audit View redesign Fase 1, 2026-08-19) — pendiente de aplicación manual en Supabase |
+| 053 | `053_entity_name_history.sql` | entity_name_history: historial de renombres Project/Team (Audit View redesign Fase 1, 2026-08-19) |
+| 054 | `054_message_provenance_and_model_tracking.sql` | message_provenance (FK real Load Saved Context → Chat) + messages.provider/model (Audit View redesign Fase 1.5, 2026-08-19) |
 
 ### 10.2 Migraciones clave
 

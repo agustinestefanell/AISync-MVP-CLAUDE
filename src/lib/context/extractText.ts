@@ -1,7 +1,11 @@
 // Server-only — nunca importar desde client components.
 
-import { CanvasFactory } from 'pdf-parse/worker'
-import { PDFParse } from 'pdf-parse'
+// pdf-parse/pdfjs-dist se importan de forma perezosa dentro de la rama
+// application/pdf (igual que mammoth/word-extractor/xlsx/jszip más abajo)
+// — un import estático a nivel de módulo forzaba a cargar pdfjs-dist en
+// CUALQUIER request que tocara este archivo, sin importar el tipo de
+// archivo subido. Ver CodingWorkshop.md #28.
+import type { PDFParse as PDFParseType } from 'pdf-parse'
 
 export interface ExtractResult {
   text:      string | null
@@ -30,9 +34,12 @@ export async function extractTextFromBuffer(
 
   // PDF — pdf-parse v2 with CanvasFactory
   if (type === 'application/pdf') {
-    let parser: PDFParse | null = null
+    let parser: PDFParseType | null = null
 
     try {
+      const { CanvasFactory } = await import('pdf-parse/worker')
+      const { PDFParse }      = await import('pdf-parse')
+
       parser = new PDFParse({
         data: new Uint8Array(buffer),
         CanvasFactory,

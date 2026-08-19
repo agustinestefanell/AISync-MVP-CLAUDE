@@ -1637,7 +1637,7 @@ N/A (hallazgo metodológico)
 
 ### #28 — `pdf-parse`/`pdfjs-dist` crashea al cargarse en Next dev sobre Windows — solo local, no reproduce en producción
 
-**Fecha:** 2026-08-19
+**Fecha:** 2026-08-19 (encontrado en Fase 1 de Audit View, resuelto en Fase 1.5)
 **Contexto:** Verificación funcional end-to-end de la Fase 1 de Audit View (schema + eventos de auditoría) — al intentar subir un Context File real contra el dev server local para confirmar el evento `context_file_uploaded`.
 
 **Problema:**
@@ -1651,25 +1651,24 @@ TypeError: Object.defineProperty called on non-object
 ```
 
 **Causa raíz (confirmada, no solo sospechada):**
-`src/lib/context/extractText.ts` líneas 3-4 importa `pdf-parse`/`pdf-parse/worker` a nivel de módulo (import estático), no de forma perezosa/dinámica. Cualquier request a `/api/context` fuerza a Next a cargar y evaluar ese módulo — y esa evaluación en sí (no la lógica que corre después) es la que crashea en el bundle RSC de `next dev` en este entorno Windows. Confirmado que NO es caché stale: se reprodujo igual después de borrar `.next` por completo y levantar el server desde cero.
+`src/lib/context/extractText.ts` líneas 3-4 importaba `pdf-parse`/`pdf-parse/worker` a nivel de módulo (import estático), no de forma perezosa/dinámica. Cualquier request a una ruta que importara ese archivo forzaba a Next a cargar y evaluar el módulo `pdf-parse` — y esa evaluación en sí (no la lógica que corre después) es la que crasheaba en el bundle RSC de `next dev` en este entorno Windows. Confirmado que NO era caché stale: se reprodujo igual después de borrar `.next` por completo y levantar el server desde cero.
 
-**Consecuencia:**
-Bloqueó la verificación end-to-end local de los puntos "Context File uploaded" / "Context File injected" de la Fase 1 de Audit View. Obligó a pivotar la verificación de esos dos puntos a producción (`https://ai-sync-mvp-claude.vercel.app`), donde **el mismo upload con el mismo archivo funcionó con 200 y extracción de texto real correcta** — confirmando que el bug es exclusivo de este entorno de desarrollo local (Windows + `next dev`), no de la lógica de la aplicación ni de producción (Vercel/Linux).
+**Consecuencia — alcance más amplio de lo detectado inicialmente:**
+Bloqueó la verificación end-to-end local de los puntos "Context File uploaded"/"Context File injected" de la Fase 1 de Audit View — se pivotó a verificar contra producción (`https://ai-sync-mvp-claude.vercel.app`), donde el mismo upload funcionó con 200 y extracción de texto real correcta, confirmando que el bug era exclusivo de este entorno local. Al arrancar la Fase 1.5 (message_provenance + provider/model en `messages`), el mismo crash volvió a aparecer — esta vez en `POST /api/messages`, porque esa ruta también importa `extractText.ts` (para `generateAttachmentSummaries`, el resumen AI de adjuntos). Como `/api/messages` es el único punto de persistencia de TODOS los mensajes de chat de la app (ruta mucho más central que `/api/context`), este segundo hallazgo cambió la evaluación de "hallazgo aparte, no bloqueante" a "vale la pena arreglarlo ahora" — decisión del PO.
 
 **Proceso de solución:**
-No se intentó resolver — decisión explícita del PO de tratarlo como hallazgo aparte, no bloqueante para la OE en curso (Audit View Fase 1 no toca `extractText.ts`). Se usó producción como ambiente de verificación alternativo para los puntos afectados, con datos de prueba desechables y limpieza confirmada.
+Primera aparición (Fase 1): no se tocó código — decisión explícita del PO de tratarlo como hallazgo aparte, se usó producción como ambiente de verificación alternativo. Segunda aparición (Fase 1.5, bloqueando `/api/messages`): el PO pidió arreglarlo antes de seguir. El resto de `extractText.ts` (mammoth, word-extractor, xlsx, jszip) ya usaba `await import()` dinámico dentro de cada rama de tipo de archivo — solo PDF era la excepción con import estático.
 
 **Solución final:**
-No aplicada. Queda como bug de entorno local documentado para quien lo pise después.
+`pdf-parse` y `pdf-parse/worker` pasaron a `await import()` dinámico dentro de la rama `if (type === 'application/pdf')`, igual patrón que los demás formatos en el mismo archivo. El import a nivel de módulo se redujo a `import type { PDFParse as PDFParseType } from 'pdf-parse'` (type-only, sin costo en runtime, necesario para tipar `let parser: PDFParseType | null`). Cero cambio de comportamiento funcional — mismo resultado de extracción, solo dejó de cargar el módulo eager. Confirmado con `.next` borrado + server reiniciado: `POST /api/messages` y `POST /api/context` dejaron de crashear.
 
 **Archivos afectados:**
-- Ninguno modificado — `src/lib/context/extractText.ts` no fue tocado.
+- `src/lib/context/extractText.ts`
 
-**Commit:**
-N/A (hallazgo de entorno, sin fix aplicado)
+**Commit:** ver handoff-2026-07-b.md, OE 2026-08-19 (Fase 1.5).
 
 **Lección:**
-Un import estático de una librería pesada/con dependencias nativas o de browser (`pdfjs-dist` espera cosas como `DOMMatrix`) en un archivo que se carga en TODAS las requests de una ruta —aunque la lógica que usa esa librería sea condicional (`if (type === 'application/pdf')`)— hace que el simple hecho de tocar la ruta dispare la carga del módulo completo. Si algún día se toca `extractText.ts` en serio, vale la pena mover el import de `pdf-parse` a un `await import()` dinámico dentro de la rama `application/pdf`, así una ruta que sube un `.txt` no depende de que ese módulo cargue bien. No se hizo en esta sesión por estar fuera de alcance de la OE activa.
+Un import estático de una librería pesada/con dependencias nativas o de browser (`pdfjs-dist` espera cosas como `DOMMatrix`) en un archivo que se carga en TODAS las requests de una ruta —aunque la lógica que usa esa librería sea condicional (`if (type === 'application/pdf')`)— hace que el simple hecho de tocar la ruta dispare la carga del módulo completo, y ese archivo puede terminar importado desde MÁS de una ruta de lo que parece a primera vista (acá terminó bloqueando `/api/messages`, no solo `/api/context`). Vale la pena volver a evaluar la severidad de un "hallazgo aparte, no bloqueante" cuando aparece por segunda vez en un lugar más central — no asumir que sigue siendo igual de bajo impacto solo porque la primera vez lo fue.
 
 ---
 

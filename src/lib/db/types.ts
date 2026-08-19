@@ -80,6 +80,16 @@ export interface Message {
   content: string
   created_at: string
   attachment_metadata?: { name: string; media_type: string; type: 'image' | 'document' }[] | null
+  provider?: string | null
+  model?: string | null
+}
+
+export interface MessageProvenance {
+  id: string
+  message_id: string
+  source_object_type: 'checkpoint' | 'handoff_package' | 'saved_selection'
+  source_object_id: string
+  created_at: string
 }
 
 export interface HumanMessage {

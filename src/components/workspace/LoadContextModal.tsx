@@ -21,6 +21,11 @@ interface DetailMessage {
   content?: string
 }
 
+export interface LoadToChatProvenance {
+  source_object_type: 'checkpoint' | 'handoff_package' | 'saved_selection'
+  source_object_id:   string
+}
+
 interface Props {
   open:         boolean
   onClose:      () => void
@@ -30,7 +35,9 @@ interface Props {
   sessionId?:   string
   // Inyecta el contenido directamente como próximo turno del usuario en el
   // chat visible (mismo mecanismo que AgentPanelHandle.appendUserMessage).
-  onLoadToChat: (content: string) => void
+  // provenance viaja hasta la persistencia del mensaje (message_provenance,
+  // migración 054) — ver AgentPanel.tsx handleLoadToChat/sendPrompt.
+  onLoadToChat: (content: string, provenance: LoadToChatProvenance) => void
 }
 
 type Destination = 'context_files' | 'chat'
@@ -198,7 +205,7 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
 
       if (destination === 'chat') {
         const prefixed = `[Loaded from Documentation Mode — ${TYPE_LABEL[item.type]}: ${item.name}]\n\n${contentText}`
-        onLoadToChat(prefixed)
+        onLoadToChat(prefixed, { source_object_type: originType[item.type], source_object_id: item.id })
         logAudit(item, 'chat')
         // El usuario quiere seguir trabajando esto en el chat de inmediato
         onClose()
