@@ -3991,3 +3991,55 @@ Causa raíz confirmada con una simulación exacta de ambos algoritmos contra dat
 **Archivos modificados:** `src/lib/db/documentation.ts`, `src/components/documentation/AuditView.tsx` (reescrito), `src/components/documentation/AuditDetailPanel.tsx` (nuevo), `src/components/documentation/DocClient.tsx`, `src/app/documentation/page.tsx`, `src/app/api/documentation/audit-detail/route.ts` (nuevo), `src/components/audit/AuditClient.tsx`, `src/components/teams/MapView.tsx`, `src/lib/teams/filterArchivedTeams.ts` (nuevo), `CodingWorkshop.md`, `DECISIONS.md`, `AISyncPlans.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## OE 2026-08-20 — Filtro Team/Project dependiente (Repository/Investigate View) + fuente unica de "Projects" en las 5 vistas de Documentation Mode
+
+**Fecha:** 2026-08-20
+**Estado:** Closed — 2 fixes aplicados, verificados con datos reales de 2 cuentas distintas (agustinestefanell@gmail.com y agustin.viaje@gmail.com) antes de tocar codigo. lint OK, build OK. Verificacion visual pendiente de Agus en browser (se le pidio reiniciar el server local, que habia quedado corriendo en modo `next start` sin hot-reload).
+
+**Contexto:** dos pedidos encadenados sobre Documentation Mode. El primero, replicar en Repository View e Investigate View el fix de dropdown Team-Project ya aplicado en AuditView.tsx (commit 192b600, 2026-08-19). El segundo, mas profundo, aparecio durante la verificacion: el dropdown "All projects" mostraba numeros distintos e incorrectos en las 5 vistas (Repository=1, Investigate=1, Knowledge Map=1, Structure=7, Audit=2) para una cuenta con 6-7 Projects reales.
+
+### Fix 1 — Team depende de Project (Repository View, Investigate View)
+
+Mismo bug que ya existia en AuditView.tsx antes de su fix del 2026-08-19: `uniqueTeams` no dependia de `filterProject`, permitiendo elegir un Team que no pertenece al Project seleccionado (0 resultados sin explicacion).
+
+**RepositoryView.tsx** (`uniqueTeams`, ~linea 486): cada `forEach` (checkpoints/handoffPackages/savedSelections) ahora chequea si hay `filterProject` activo y si coincide el `project_id` antes de agregar el team al Map; se agrego `filterProject` a las deps del `useMemo`; se agrego un `useEffect` que resetea `filterTeam` a vacio si deja de estar en `uniqueTeams`.
+
+**InvestigateView.tsx**: mismo patron sobre sus 2 fuentes (checkpoints, handoffPackages — no usa savedSelections para `uniqueTeams`, asi estaba antes, no se toco ese alcance). Se agrego el import de `useEffect` (antes solo importaba `useState, useMemo`).
+
+No comparten un helper — cada vista arma `uniqueTeams` desde arrays distintos (solo checkpoints via `allAnchors` en AuditView, 3 fuentes en RepositoryView, 2 en InvestigateView) — se aplico el mismo patron por separado en cada archivo, sin crear una abstraccion nueva no pedida.
+
+### Fix 2 — "All projects" con 5 fuentes de verdad distintas, unificado a `projects` (tabla real)
+
+**Diagnostico (root cause, con evidencia real antes de tocar codigo):**
+
+- Repository View, Investigate View y Knowledge Map armaban `uniqueProjects` solo desde `checkpoints.map(c => [c.project_id, c.project_name])` — un Project sin ningun checkpoint todavia no aparecia.
+- Audit View armaba la union de 5 tipos de ancla (`allAnchors`: checkpoints + handoffs + saved selections + loaded context + review&forward) — menos parcial pero mismo problema de fondo.
+- Structure View ya usaba el prop `projects` directo (de `getProjectsWithHierarchy()`, filtrado `status=active`) — era la unica vista correcta desde antes.
+
+Confirmado con query real que no hay ningun bug de integridad de datos detras de los numeros reportados:
+- Cuenta agustinestefanell@gmail.com: 7 Projects reales, los 7 con `status=active` — Structure View (7) ya mostraba el numero correcto; las demas vistas mostraban menos por derivar de objetos documentales parciales.
+- Cuenta agustin.viaje@gmail.com (la que Agus realmente estaba mirando — hubo una confusion inicial de cuenta en el reporte, aclarada durante la sesion): 15 filas totales (8 archivadas, todas "My First Project" duplicadas de pruebas viejas; 7 activas). Repliquer la logica exacta de `allAnchors`/`uniqueProjects` de AuditView.tsx contra los datos reales de esta cuenta y dio exactamente 2 — igual al numero reportado por Agus ("Proyecto de prueba" y "Prueba de Modal NEW PROJ") — confirmando que el "2" era completamente explicado por el mismo patron estructural, no un bug nuevo.
+- "Proyecto C" que Agus recordaba haber borrado: no existe ninguna fila con ese nombre, en ningun estado, para esa cuenta. Lo mas cercano es "Prueba C" (activa, nunca borrada) — confusion de nombre, no Project fantasma ni bug de soft-delete. La tabla `projects` no tiene columna `deleted_at` — el DELETE de Project es hard-delete real con cascade (`src/app/api/projects/[id]/route.ts`), sin registro en `audit_log`.
+- Se descartaron por evidencia real, en orden, antes de llegar al diagnostico correcto: dev server viejo/cache de build (el proceso en el puerto 3000 resulto ser un `next start` fresco, build de esta misma sesion, posterior al commit 192b600), RLS filtrando de mas en `handoff_packages`/`saved_selections` (recompute la union replicando el filtro RLS real de ownership por `user_id`, seguia dando 6 para la cuenta correcta), cache de Next.js en `documentation/page.tsx` (no tiene `revalidate` ni fetch cache, es dinamica), wiring incorrecto en el `Promise.all` de `page.tsx`/props de `DocClient.tsx` (verificado linea por linea, todo coincide). La causa real termino siendo mas simple: la simulacion inicial se corrio contra la cuenta equivocada (agustinestefanell@gmail.com en vez de agustin.viaje@gmail.com, que es la que Agus tenia abierta en el browser).
+
+**Fix aplicado — fuente unica para las 5 vistas:** el prop `projects: ProjectWithTeams[]` (ya resuelto en el servidor por `getProjectsWithHierarchy()` en `documentation/page.tsx`, filtrado `status=active`) pasa a ser la unica fuente de `uniqueProjects` en las 5 vistas:
+- InvestigateView.tsx y KnowledgeMap.tsx: ya recibian `projects` como prop pero no lo usaban (ni se desestructuraba) — solo se cambio la fuente del `useMemo`.
+- RepositoryView.tsx y AuditView.tsx: no tenian `projects` en su `Props` — se agrego el tipo, la desestructuracion, y el pase del prop desde DocClient.tsx (agregado a las 2 llamadas que faltaban; Structure/Investigate/Knowledge ya lo recibian).
+- Los 4 archivos quedaron con el mismo patron: `uniqueProjects = useMemo(() => projects.map(p => [p.id, p.name]), [projects])`.
+
+### Alternativas descartadas
+
+- Seguir con hipotesis de entorno/cache para el "2" de Audit View despues de que Agus confirmo hard refresh sin cambio — descartado; en vez de seguir adivinando, pedi el dato minimo verificable (nombres exactos de los 2 Projects) que permitio rastrear la causa real (cuenta equivocada en la simulacion) en un solo paso.
+- Investigar Structure View como el bug (por mostrar mas que las demas, "7 con uno borrado") — descartado con query real: las 7 filas son `status=active`, sin ninguna archivada/huerfana — Structure View era la unica vista que ya estaba bien.
+- Proponer soft-delete o columna `deleted_at` en `projects` — explicitamente fuera de alcance de esta OE por pedido del PO, no se toco el modelo de datos del DELETE de Project.
+
+### Riesgos conocidos / deuda tecnica
+
+- KnowledgeMap.tsx: su `uniqueTeams` (no tocado en esta OE) sigue sin depender de `filterProject` — mismo bug del Fix 1 pero fuera del alcance pedido esta vez (el pedido original fue especificamente Repository View e Investigate View). Senalado para una futura sesion si se decide unificar tambien ahi.
+- El servidor local quedo corriendo como `next start` (modo produccion, sin hot-reload) en vez de `next dev` durante buena parte de esta sesion — el build final de esta OE sobreescribio `.next` con el proceso todavia corriendo; se le pidio a Agus reiniciarlo antes de la verificacion visual final. Si una futura sesion encuentra un servidor local con comportamiento inconsistente, revisar primero si es `next start` con `.next` desincronizado antes de asumir un bug de codigo.
+- AddTeamModal.tsx/TeamsClient.tsx (ya senalado en la entrada anterior, 2026-08-19) sigue sin unificarse a `filterArchivedTeams` — no forma parte de esta OE.
+
+**Archivos modificados:** `src/components/documentation/RepositoryView.tsx`, `src/components/documentation/InvestigateView.tsx`, `src/components/documentation/KnowledgeMap.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/DocClient.tsx`.
+
+---

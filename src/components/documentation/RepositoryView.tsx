@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { DocCheckpoint, DocHandoffPackage, DocSavedSelection } from '@/lib/db/documentation'
+import type { ProjectWithTeams } from '@/lib/db/types'
 
 // ── Discriminated union for the unified list ──────────────────────────────
 type ListItem =
@@ -457,6 +458,7 @@ interface Props {
   checkpoints:         DocCheckpoint[]
   handoffPackages:     DocHandoffPackage[]
   savedSelections:     DocSavedSelection[]
+  projects:            ProjectWithTeams[]
   userName:            string
   userEmail:           string
   externalSelectedId?: string | null
@@ -465,7 +467,7 @@ interface Props {
 }
 
 export default function RepositoryView({
-  checkpoints, handoffPackages, savedSelections, userName, externalSelectedId, onFilterChange, teamCodes,
+  checkpoints, handoffPackages, savedSelections, projects, userName, externalSelectedId, onFilterChange, teamCodes,
 }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -482,18 +484,32 @@ export default function RepositoryView({
   const [searchQuery,   setSearchQuery]   = useState('')
   const [sortOrder,     setSortOrder]     = useState<'newest' | 'oldest' | 'name'>('newest')
 
-  const uniqueProjects = useMemo(() => Array.from(new Map(checkpoints.map(c => [c.project_id, c.project_name])).entries()), [checkpoints])
+  // Fuente única: Projects activos reales de la cuenta (mismo prop que ya
+  // usa Structure View), no solo los que tienen algún checkpoint — antes
+  // un Project sin checkpoints todavía no aparecía en este dropdown.
+  const uniqueProjects = useMemo(() => projects.map(p => [p.id, p.name] as [string, string]), [projects])
+  // Team depende de Project — mismo patrón que AuditView.tsx: si hay un
+  // Project elegido, la lista de Teams se acota a los que pertenecen a ese
+  // Project.
   const uniqueTeams    = useMemo(() => {
     const m = new Map<string, string>()
-    checkpoints.forEach(c => { if (c.team_id) m.set(c.team_id, c.team_name ?? '') })
-    handoffPackages.forEach(h => { if (h.team_id) m.set(h.team_id, h.team_name ?? '') })
-    savedSelections.forEach(s => { if (s.team_id) m.set(s.team_id, s.team_name ?? '') })
+    checkpoints.forEach(c => { if (c.team_id && (!filterProject || c.project_id === filterProject)) m.set(c.team_id, c.team_name ?? '') })
+    handoffPackages.forEach(h => { if (h.team_id && (!filterProject || h.project_id === filterProject)) m.set(h.team_id, h.team_name ?? '') })
+    savedSelections.forEach(s => { if (s.team_id && (!filterProject || s.project_id === filterProject)) m.set(s.team_id, s.team_name ?? '') })
     return Array.from(m.entries()).sort(([idA, nameA], [idB, nameB]) => {
       const codeA = teamCodes?.[idA] ?? nameA
       const codeB = teamCodes?.[idB] ?? nameB
       return codeA.localeCompare(codeB)
     })
-  }, [checkpoints, handoffPackages, savedSelections, teamCodes])
+  }, [checkpoints, handoffPackages, savedSelections, filterProject, teamCodes])
+
+  // Si el Team elegido deja de pertenecer al Project recién elegido, se
+  // resetea — evita quedar con una combinación imposible seleccionada.
+  useEffect(() => {
+    if (filterTeam && !uniqueTeams.some(([id]) => id === filterTeam)) {
+      setFilterTeam('')
+    }
+  }, [filterTeam, uniqueTeams])
 
   const allItems = useMemo((): ListItem[] => {
     const cps: ListItem[] = checkpoints.map(cp => ({ kind: 'checkpoint', cp }))

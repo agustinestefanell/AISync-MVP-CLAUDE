@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import type { DocCheckpoint, DocHandoffPackage, DocSavedSelection } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 
@@ -84,7 +84,7 @@ interface Props {
   teamCodes?:      Record<string, string>
 }
 
-export default function InvestigateView({ checkpoints, handoffPackages, savedSelections, userEmail, teamCodes }: Props) {
+export default function InvestigateView({ checkpoints, handoffPackages, savedSelections, projects, userEmail, teamCodes }: Props) {
   const [search,         setSearch]         = useState('')
   const [filterProject,  setFilterProject]  = useState('')
   const [filterTeam,     setFilterTeam]     = useState('')
@@ -92,17 +92,30 @@ export default function InvestigateView({ checkpoints, handoffPackages, savedSel
   const [filterArchiveStatus, setFilterArchiveStatus] = useState('')
   const [filterDate,     setFilterDate]     = useState('')
 
-  const uniqueProjects = useMemo(() => Array.from(new Map(checkpoints.map(c => [c.project_id, c.project_name])).entries()), [checkpoints])
+  // Fuente única: Projects activos reales de la cuenta (mismo prop que ya
+  // usa Structure View), no solo los que tienen algún checkpoint/handoff.
+  const uniqueProjects = useMemo(() => projects.map(p => [p.id, p.name] as [string, string]), [projects])
+  // Team depende de Project — mismo patrón que AuditView.tsx: si hay un
+  // Project elegido, la lista de Teams se acota a los que pertenecen a ese
+  // Project.
   const uniqueTeams    = useMemo(() => {
     const m = new Map<string, string>()
-    checkpoints.forEach(c => { if (c.team_id) m.set(c.team_id, c.team_name ?? '') })
-    handoffPackages.forEach(h => { if (h.team_id) m.set(h.team_id, h.team_name ?? '') })
+    checkpoints.forEach(c => { if (c.team_id && (!filterProject || c.project_id === filterProject)) m.set(c.team_id, c.team_name ?? '') })
+    handoffPackages.forEach(h => { if (h.team_id && (!filterProject || h.project_id === filterProject)) m.set(h.team_id, h.team_name ?? '') })
     return Array.from(m.entries()).sort(([idA, nameA], [idB, nameB]) => {
       const codeA = teamCodes?.[idA] ?? nameA
       const codeB = teamCodes?.[idB] ?? nameB
       return codeA.localeCompare(codeB)
     })
-  }, [checkpoints, handoffPackages, teamCodes])
+  }, [checkpoints, handoffPackages, filterProject, teamCodes])
+
+  // Si el Team elegido deja de pertenecer al Project recién elegido, se
+  // resetea — evita quedar con una combinación imposible seleccionada.
+  useEffect(() => {
+    if (filterTeam && !uniqueTeams.some(([id]) => id === filterTeam)) {
+      setFilterTeam('')
+    }
+  }, [filterTeam, uniqueTeams])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()

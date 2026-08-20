@@ -152,13 +152,15 @@ interface Props {
   projects: ProjectWithTeams[]
 }
 
-export default function KnowledgeMap({ checkpoints }: Props) {
+export default function KnowledgeMap({ checkpoints, projects }: Props) {
   const [mode,          setMode]          = useState<FocusMode>('documents')
   const [filterProject, setFilterProject] = useState('')
   const [filterTeam,    setFilterTeam]    = useState('')
   const [filterArchiveStatus, setFilterArchiveStatus] = useState('')
 
-  const uniqueProjects = useMemo(() => Array.from(new Map(checkpoints.map(c => [c.project_id, c.project_name])).entries()), [checkpoints])
+  // Fuente única: Projects activos reales de la cuenta (mismo prop que ya
+  // usa Structure View), no solo los que tienen algún checkpoint.
+  const uniqueProjects = useMemo(() => projects.map(p => [p.id, p.name] as [string, string]), [projects])
   const uniqueTeams    = useMemo(() => Array.from(new Map(checkpoints.map(c => [c.team_id, c.team_name])).entries()), [checkpoints])
 
   const filtered = useMemo(() => checkpoints.filter(c => {

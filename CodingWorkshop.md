@@ -1788,3 +1788,19 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección central:** cuando dos pantallas muestran un valor distinto para el mismo dato y ambas dicen usar "la misma función", verificar primero que la función sea realmente una sola (no una copia divergente) — y si lo es, el siguiente sospechoso es SIEMPRE el input, no la función. Una función pura correcta con inputs distintos en cada call site produce exactamente este tipo de bug: "consistente en cada pantalla, inconsistente entre pantallas".
 
 **Referencia:** handoff-2026-07-b.md OE 2026-08-19 (Fase 2), `src/lib/teams/filterArchivedTeams.ts`, `src/components/teams/MapView.tsx`, `src/components/documentation/DocClient.tsx`.
+
+---
+
+## 2026-08-20 — Un número que "no cuadra" puede tener la causa en qué cuenta se está mirando, no en el código
+
+**Síntoma:** Audit View mostraba "2" en el dropdown de Project para una cuenta con varios Projects reales. Una simulación offline (query directa + réplica exacta de la lógica de `AuditView.tsx`) contra la cuenta que se asumía correcta dio "6" — no reproducía el síntoma reportado, ni después de descartar caché de browser, build viejo, RLS filtrando de más, y wiring de props en `page.tsx`/`DocClient.tsx` verificado línea por línea.
+
+**Causa real:** la simulación se corrió contra la cuenta equivocada. El usuario estaba logueado con una cuenta distinta a la que se usó para diagnosticar — un dato de entrada incorrecto, no un bug de lógica. Al repetir la simulación exacta contra la cuenta correcta, el resultado coincidió exactamente con el síntoma reportado (mismo número, mismos 2 nombres de Project) — confirmando que el código ya se comportaba como se esperaba; el misterio nunca fue el código.
+
+**Cómo se destrabó:** en vez de seguir generando y descartando hipótesis técnicas una por una, se pidió el dato mínimo verificable por el usuario (los nombres exactos de los 2 Projects que veía) — eso permitió cruzar contra datos reales y encontrar la cuenta correcta en un solo paso, en vez de seguir iterando a ciegas sobre el entorno.
+
+**Lección central:** antes de invertir tiempo de diagnóstico en hipótesis de infraestructura (caché, build viejo, RLS, wiring), confirmar el dato de entrada más básico — con qué cuenta/usuario se está reproduciendo el síntoma. Una simulación que no reproduce el síntoma reportado no es evidencia de que el síntoma sea imposible; puede ser evidencia de que la simulación no está mirando lo mismo que el usuario. Pedir un dato concreto y chico (2 nombres) resolvió lo que 4 hipótesis técnicas descartadas no habían resuelto.
+
+**Nota aparte, también de esta sesión:** un proceso Node corriendo `next start` (modo producción, sin hot-reload) puede confundirse con un `next dev` viejo si solo se mira el puerto — vale la pena revisar el comando real del proceso (`wmic process ... get CommandLine`) antes de asumir que un servidor local está desactualizado o al día.
+
+**Referencia:** handoff-2026-07-b.md OE 2026-08-20, `src/components/documentation/AuditView.tsx`.

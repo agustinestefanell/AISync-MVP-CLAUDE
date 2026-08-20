@@ -11,6 +11,7 @@ import type {
   DocContextSourceScopeRow,
   DocWorkspaceSession,
 } from '@/lib/db/documentation'
+import type { ProjectWithTeams } from '@/lib/db/types'
 import AuditDetailPanel from './AuditDetailPanel'
 
 // ── Audit View rediseñada (Fase 2) — Paso 1 (Top Stats Bar) + Paso 2 (lista de
@@ -176,12 +177,13 @@ interface Props {
   messageProvenance:        DocMessageProvenanceItem[]
   contextSourcesScopeStats: DocContextSourceScopeRow[]
   workspaceSessions:        Record<string, DocWorkspaceSession[]>
+  projects:                 ProjectWithTeams[]
   teamCodes?:               Record<string, string>
 }
 
 export default function AuditView({
   checkpoints, handoffPackages, savedSelections, auditEvents,
-  contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, teamCodes,
+  contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, projects, teamCodes,
 }: Props) {
   const [filterProject,    setFilterProject]    = useState('')
   const [filterTeam,       setFilterTeam]       = useState('')
@@ -356,14 +358,10 @@ export default function AuditView({
   }
 
   // ── Filtros ──────────────────────────────────────────────────────────────
-  const uniqueProjects = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const item of allAnchors) {
-      const { projectId, projectName } = anchorMeta(item)
-      if (projectId && projectName) m.set(projectId, projectName)
-    }
-    return Array.from(m.entries()).sort((a, b) => a[1].localeCompare(b[1]))
-  }, [allAnchors])
+  // Fuente única: Projects activos reales de la cuenta (mismo prop que ya
+  // usa Structure View), no solo los que tienen alguna ancla auditable
+  // todavía — antes un Project sin ningún objeto documental no aparecía acá.
+  const uniqueProjects = useMemo(() => projects.map(p => [p.id, p.name] as [string, string]), [projects])
 
   // Team depende de Project — mismo bug latente confirmado también en
   // RepositoryView.tsx/InvestigateView.tsx (uniqueTeams ahí tampoco filtra

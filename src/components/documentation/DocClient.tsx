@@ -237,9 +237,9 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
 
             {/* View */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} teamCodes={teamCodes} />}
+              {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} teamCodes={teamCodes} />}
               {tab === 'structure'   && <StructureView   checkpoints={checkpoints} projects={projects} userName={userName} userEmail={userEmail} teamCodes={teamCodes} />}
-              {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} teamCodes={teamCodes} />}
+              {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} projects={projects} teamCodes={teamCodes} />}
               {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
               {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
             </div>
