@@ -121,20 +121,35 @@ function MirrorTreeNode({
   depth,
   openState,
   onToggle,
+  selectedTeamId,
+  onSelectTeam,
 }: {
-  node:      DocumentationMirrorNode
-  depth:     number
-  openState: Record<string, boolean>
-  onToggle:  (id: string) => void
+  node:           DocumentationMirrorNode
+  depth:          number
+  openState:      Record<string, boolean>
+  onToggle:       (id: string) => void
+  selectedTeamId: string | null
+  onSelectTeam:   (teamId: string) => void
 }) {
   const hasChildren = node.children.length > 0
   const open        = openState[node.id] ?? depth < 3
+  const isSelected  = node.kind === 'team' && node.teamId === selectedTeamId
 
   return (
     <div>
       <button
-        className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover,rgba(0,0,0,0.04))]"
-        onClick={() => hasChildren && onToggle(node.id)}
+        className={`flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] transition-colors ${
+          isSelected
+            ? 'bg-indigo-50 text-indigo-700'
+            : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover,rgba(0,0,0,0.04))]'
+        }`}
+        onClick={() => {
+          if (hasChildren) onToggle(node.id)
+          // Nodo Team (nivel Workspace) abre el panel de detalle — nodo
+          // Agent sigue con su comportamiento actual (solo expand/collapse),
+          // decisión de alcance de esta OE (2026-08-20).
+          if (node.kind === 'team' && node.teamId) onSelectTeam(node.teamId)
+        }}
         style={{ paddingLeft: `${depth * 14}px` }}
       >
         {hasChildren
@@ -159,13 +174,20 @@ function MirrorTreeNode({
           depth={depth + 1}
           openState={openState}
           onToggle={onToggle}
+          selectedTeamId={selectedTeamId}
+          onSelectTeam={onSelectTeam}
         />
       ))}
     </div>
   )
 }
 
-export default function DocumentationMirrorTree({ rootLabel, teams, agents }: MirrorTreeInput) {
+interface Props extends MirrorTreeInput {
+  selectedTeamId?: string | null
+  onSelectTeam?:   (teamId: string) => void
+}
+
+export default function DocumentationMirrorTree({ rootLabel, teams, agents, selectedTeamId = null, onSelectTeam }: Props) {
   const tree = useMemo(
     () => buildDocumentationMirrorTree({ rootLabel, teams, agents }),
     [rootLabel, teams, agents],
@@ -182,7 +204,7 @@ export default function DocumentationMirrorTree({ rootLabel, teams, agents }: Mi
             Documentation Mirror Tree
           </div>
           <div className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
-            Hierarchical view mirrored from Teams structure.
+            Hierarchical view mirrored from Teams structure. Click a team to see its documents.
           </div>
         </div>
         <div className="text-right text-[10px] text-[var(--color-text-muted)]">
@@ -194,7 +216,14 @@ export default function DocumentationMirrorTree({ rootLabel, teams, agents }: Mi
       <div className="flex-1 min-h-0">
         <TreeViewport className="h-full">
           <div className="relative border-l border-[var(--color-border-subtle,rgba(0,0,0,0.08))] pl-1">
-            <MirrorTreeNode node={tree} depth={0} openState={openState} onToggle={toggle} />
+            <MirrorTreeNode
+              node={tree}
+              depth={0}
+              openState={openState}
+              onToggle={toggle}
+              selectedTeamId={selectedTeamId}
+              onSelectTeam={onSelectTeam ?? (() => {})}
+            />
           </div>
         </TreeViewport>
       </div>

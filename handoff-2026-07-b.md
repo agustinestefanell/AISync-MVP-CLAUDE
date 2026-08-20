@@ -4234,3 +4234,59 @@ No se pudo ejecutar ninguno de estos 6 puntos en esta sesión — requieren la m
 **Handoff y `PRODUCT_STATUS.md` actualizados** con las 3 OEs antes de este commit — Rutina Dura cumplida.
 
 ---
+
+## OE 2026-08-20 — Structure View: panel de detalle por Workspace (Diagnóstico + Construcción)
+
+**Fecha:** 2026-08-20
+**Estado:** Closed — confirmado por Agus funcionando en localhost: panel con los 5 tipos de ancla mezclados en orden cronológico y los 3 filtros (Type/Date/Search) operativos. Commiteado y pusheado a `main`, ver hash real en el diagnóstico de cierre al final de este archivo.
+
+**Contexto:** Structure View permitía solo expandir/colapsar el árbol Project → Team → Agent, sin ningún mecanismo de detalle. Agus pidió agregar la posibilidad de, al abrir la carpeta de un Manager, ver todos los objetos documentales de esa carpeta mezclados y ordenados cronológicamente. Esta OE empezó con un diagnóstico solo-lectura pedido explícitamente antes de proponer diseño.
+
+### Diagnóstico (reportado y usado para acotar el alcance con Agus)
+
+1. **Qué representa cada nodo hoy:** confirmado en `buildMirrorTree.ts` — el nodo "Agent" es literalmente un `agent_session.id` (Manager/Sub-Manager/Worker) dentro de `team.workspaces[0]` (el proyecto asume 1 team = 1 workspace). El nodo "Team" representa el team completo.
+2. **¿`anchors.ts` alcanza para filtrar a nivel Workspace o a nivel Agent puntual?** `AnchorMeta` expone `wsId`/`teamId`/`projectId` pero NO `agent_role` — filtrar por Workspace completo (Manager+Workers mezclados) funciona hoy sin tocar nada. Filtrar por un agente puntual NO funciona hoy: la atribución real a un agente es dispareja entre los 5 tipos — Handoff Package (`from_agent`/`to_agent`) y Review & Forward (`metadata.from`/`to`) sí la tienen en el dato crudo pero no está surfaceada en `AnchorMeta`; Loaded Context "chat" tiene sesión exacta vía `message_provenance` tampoco surfaceada; **Checkpoint estructuralmente no tiene un agente único** (`POST /api/checkpoint` siempre captura las 3 sesiones a la vez, confirmado en código); Saved Selection puede mezclar mensajes de varios agentes. Mismo tipo de ambigüedad ya resuelta para Session Scan (`resolveOriginSessions`).
+3. **¿Existe hoy algún "abrir detalle de esta carpeta"?** No — confirmado en `DocumentationMirrorTree.tsx`: el único `onClick` de cada nodo era `onToggle` (expand/collapse). Cero fetch, cero panel, cero mecanismo de selección.
+4. **Filtros propuestos:** Type/Date/Search — sin Project/Team, porque esos dos ya los resuelve el árbol por navegación (no hace falta un dropdown para algo que ya elegiste con un click).
+
+**Decisión de alcance tomada con Agus tras el diagnóstico:** panel de detalle solo a nivel Workspace (click en nodo Team). Nivel Agent individual queda explícitamente fuera — no por falta de tiempo, sino porque requeriría resolver la misma ambigüedad de atribución de Checkpoint/Saved Selection que ya se resolvió una vez para Session Scan, para un caso de uso no pedido en esta OE.
+
+### 1. `src/lib/documentation/types.ts` — `DocumentationMirrorNode.teamId?: string`
+
+Nuevo campo, poblado solo en nodos `kind: 'team'` (en `buildMirrorTree.ts`) — evita tener que parsear `node.id` (`team:${teamId}`) para recuperar el id real del team al manejar el click.
+
+### 2. `src/components/documentation/DocumentationMirrorTree.tsx` — click en nodo Team
+
+Nuevos props `selectedTeamId?: string | null` + `onSelectTeam?: (teamId: string) => void`. En `MirrorTreeNode`, el `onClick` ahora hace 2 cosas para nodos `kind === 'team'`: sigue haciendo `onToggle` (comportamiento de siempre, sin quitarlo) Y además llama `onSelectTeam(node.teamId)` — interpretación literal de la consigna ("el nodo Team, que hoy solo hace onToggle, abre además un panel de detalle"), sin inventar zonas de click separadas (chevron vs. resto de la fila) que la consigna no pidió. Nodo Agent: **sin ningún cambio**, sigue siendo solo `onToggle`. Nodo seleccionado se resalta (`bg-indigo-50 text-indigo-700`).
+
+### 3. `src/components/documentation/WorkspaceDetailPanel.tsx` (nuevo)
+
+Panel derecho: header (Workspace/Team/Project + botón único "Open Workspace →" que abre `/workspace/{id}` en nueva pestaña) + filtros Type(5 anclas)/Date/Search + lista de anclas mezcladas, orden cronológico (más reciente primero, mismo default que las otras vistas). Reusa `anchorMeta`/`anchorTitle`/`anchorFlow`/`ANCHOR_KIND_LABEL` de `anchors.ts` — cero lógica de anclas nueva. **Sin panel secundario por ítem** (decisión reportada explícitamente, no un recorte silencioso): a diferencia de Audit View, acá el propósito es "qué hay en este Workspace", no reconstruir la auditoría de un ítem puntual — un botón único en el header alcanza porque los 5 tipos comparten el mismo `workspace_id` por definición del filtro.
+
+### 4. `src/components/documentation/StructureView.tsx` — wiring
+
+Props nuevos: `handoffPackages`, `savedSelections`, `auditEvents`, `contextSourcesWithOrigin`, `messageProvenance` (ya cargados en `DocClient.tsx`, solo faltaba pasarlos). `allAnchors` vía `buildAnchors()`. `selectedTeamId` state → `selectedWorkspace` (resuelto contra `projects`, toma `team.workspaces[0]`) → `selectedWorkspaceAnchors` (filtrado por `wsId`). Layout master-detail: árbol pasa de `flex-1` a `w-1/2` cuando hay un Workspace seleccionado, panel a la derecha — mismo patrón que Audit/Investigate View.
+
+### 5. `DocClient.tsx`
+
+`StructureView` ahora recibe también `handoffPackages`, `savedSelections`, `auditEvents`, `contextSourcesWithOrigin`, `messageProvenance` — mismos props que ya se le pasaban a Audit/Investigate View, sin query nueva.
+
+### Verificación
+
+Build y lint corridos. **Sin verificación visual esta sesión** — había un server ya escuchando en el puerto 3000 (posible sesión activa de Agus en localhost) y no había Claude in Chrome disponible; no se quiso reiniciar ese proceso sin confirmar primero. Queda pendiente el screenshot pedido en la consigna: Structure View con un Team clickeado, los 5 tipos mezclados en orden cronológico, y los 3 filtros funcionando.
+
+### Alternativas descartadas
+
+- **Extender `AnchorMeta` con `agent_role` "ya que estamos"** — descartado, no pedido en esta OE y reabre el mismo problema de fallback de Checkpoint/Saved Selection sin necesidad real todavía (ver Decisión 2026-08-20 en `DECISIONS.md`).
+- **Reusar `AuditDetailPanel` como panel secundario por ítem** — descartado, es una pieza más pesada (Prior steps/Chain of Custody) pensada para reconstruir la auditoría de UN ítem, no para "qué hay en este workspace".
+- **Zonas de click separadas (chevron para toggle, resto de la fila para seleccionar) en el nodo Team** — descartado a favor de la interpretación más simple y literal de la consigna: un solo click hace ambas cosas.
+
+### Riesgos conocidos / deuda técnica
+
+- **Sin verificación visual real todavía** — ver arriba.
+- **Nivel Agent individual queda fuera de esta OE** — decisión de alcance explícita, no un pendiente omitido. Si en el futuro se decide construirlo, requiere primero resolver la atribución de agente para Checkpoint/Saved Selection (mismo problema ya señalado para Session Scan).
+- **`team.workspaces[0]`** — mismo supuesto ya usado en el resto de `StructureView.tsx`/el proyecto (1 team = 1 workspace); si algún team llegara a tener más de un workspace, el panel solo vería el primero.
+
+**Archivos modificados/nuevos:** `src/lib/documentation/types.ts`, `src/lib/documentation/buildMirrorTree.ts`, `src/components/documentation/DocumentationMirrorTree.tsx`, `src/components/documentation/WorkspaceDetailPanel.tsx` (nuevo), `src/components/documentation/StructureView.tsx`, `src/components/documentation/DocClient.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
+
+---

@@ -59,6 +59,7 @@ export function buildDocumentationMirrorTree({ rootLabel, teams, agents }: Mirro
       kind:     'team' as const,
       label:    team.teamLabel,
       path:     `teams/${team.teamId}`,
+      teamId:   team.teamId,
       children: (byParent[`team:${team.teamId}`] ?? []).sort(sortAgents).map(buildBranch),
     }))
 

@@ -1,22 +1,32 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import type { DocCheckpoint } from '@/lib/db/documentation'
+import type { DocCheckpoint, DocHandoffPackage, DocSavedSelection, DocAuditEvent, DocLoadedContextItem, DocMessageProvenanceItem } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
+import { buildAnchors, anchorMeta } from '@/lib/documentation/anchors'
 import DocumentationMirrorTree from './DocumentationMirrorTree'
+import WorkspaceDetailPanel from './WorkspaceDetailPanel'
 
 interface Props {
-  checkpoints: DocCheckpoint[]
-  projects:    ProjectWithTeams[]
-  userName:    string
-  userEmail:   string
-  teamCodes?:  Record<string, string>
+  checkpoints:              DocCheckpoint[]
+  handoffPackages:          DocHandoffPackage[]
+  savedSelections:          DocSavedSelection[]
+  auditEvents:              DocAuditEvent[]
+  contextSourcesWithOrigin: DocLoadedContextItem[]
+  messageProvenance:        DocMessageProvenanceItem[]
+  projects:                 ProjectWithTeams[]
+  userName:                 string
+  userEmail:                string
+  teamCodes?:               Record<string, string>
 }
 
-export default function StructureView({ projects, teamCodes }: Props) {
+export default function StructureView({
+  checkpoints, handoffPackages, savedSelections, auditEvents, contextSourcesWithOrigin, messageProvenance, projects, teamCodes,
+}: Props) {
   const [searchQuery,   setSearchQuery]   = useState('')
   const [filterProject, setFilterProject] = useState('')
   const [filterArchiveStatus, setFilterArchiveStatus] = useState('')
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
 
   const allTeams = useMemo(() => projects.flatMap(p => p.teams), [projects])
 
@@ -26,6 +36,37 @@ export default function StructureView({ projects, teamCodes }: Props) {
     projects.forEach(p => p.teams.forEach(t => m.set(t.id, p.id)))
     return m
   }, [projects])
+
+  // ── Panel de detalle por Workspace (2026-08-20) — al hacer click en un
+  // nodo Team del árbol. Nivel Agent individual queda fuera de esta OE
+  // (decisión de alcance, ver handoff-2026-07-b.md 2026-08-20).
+  const allAnchors = useMemo(
+    () => buildAnchors(checkpoints, handoffPackages, savedSelections, contextSourcesWithOrigin, messageProvenance, auditEvents),
+    [checkpoints, handoffPackages, savedSelections, contextSourcesWithOrigin, messageProvenance, auditEvents],
+  )
+
+  const selectedWorkspace = useMemo(() => {
+    if (!selectedTeamId) return null
+    for (const project of projects) {
+      const team = project.teams.find(t => t.id === selectedTeamId)
+      if (!team) continue
+      const workspace = team.workspaces[0]
+      if (!workspace) return null
+      return {
+        workspaceId:   workspace.id,
+        workspaceName: workspace.name,
+        teamId:        team.id,
+        teamName:      team.name,
+        projectName:   project.name,
+      }
+    }
+    return null
+  }, [selectedTeamId, projects])
+
+  const selectedWorkspaceAnchors = useMemo(() => {
+    if (!selectedWorkspace) return []
+    return allAnchors.filter(item => anchorMeta(item).wsId === selectedWorkspace.workspaceId)
+  }, [allAnchors, selectedWorkspace])
 
   const mirrorTeams = useMemo(
     () => allTeams.map(t => {
@@ -138,18 +179,34 @@ export default function StructureView({ projects, teamCodes }: Props) {
         )}
       </div>
 
-      {/* Tree or filtered empty state */}
+      {/* Tree (+ panel de detalle por Workspace al seleccionar un Team) or filtered empty state */}
       {filteredMirrorTeams.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-[var(--color-text-muted)] text-sm">No teams match your search.</p>
         </div>
       ) : (
-        <div className="flex-1 min-h-0">
-          <DocumentationMirrorTree
-            rootLabel={rootLabel}
-            teams={filteredMirrorTeams}
-            agents={filteredMirrorAgents}
-          />
+        <div className="flex-1 min-h-0 flex">
+          <div className={`min-h-0 ${selectedWorkspace ? 'w-1/2 border-r border-[var(--color-border-subtle)]' : 'flex-1'}`}>
+            <DocumentationMirrorTree
+              rootLabel={rootLabel}
+              teams={filteredMirrorTeams}
+              agents={filteredMirrorAgents}
+              selectedTeamId={selectedTeamId}
+              onSelectTeam={setSelectedTeamId}
+            />
+          </div>
+          {selectedWorkspace && (
+            <WorkspaceDetailPanel
+              workspaceId={selectedWorkspace.workspaceId}
+              workspaceName={selectedWorkspace.workspaceName}
+              teamId={selectedWorkspace.teamId}
+              teamName={selectedWorkspace.teamName}
+              projectName={selectedWorkspace.projectName}
+              anchors={selectedWorkspaceAnchors}
+              teamCodes={teamCodes}
+              onClose={() => setSelectedTeamId(null)}
+            />
+          )}
         </div>
       )}
     </div>
