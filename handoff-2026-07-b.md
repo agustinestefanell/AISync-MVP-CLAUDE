@@ -4238,7 +4238,7 @@ No se pudo ejecutar ninguno de estos 6 puntos en esta sesión — requieren la m
 ## OE 2026-08-20 — Structure View: panel de detalle por Workspace (Diagnóstico + Construcción)
 
 **Fecha:** 2026-08-20
-**Estado:** Closed — confirmado por Agus funcionando en localhost: panel con los 5 tipos de ancla mezclados en orden cronológico y los 3 filtros (Type/Date/Search) operativos. Commiteado y pusheado a `main`, ver hash real en el diagnóstico de cierre al final de este archivo.
+**Estado:** Closed — confirmado por Agus funcionando en localhost: panel con los 5 tipos de ancla mezclados en orden cronológico y los 3 filtros (Type/Date/Search) operativos. Commiteado y pusheado a `main` (commit `c98f337`, 2026-08-20), confirmado sincronizado con `origin/main`.
 
 **Contexto:** Structure View permitía solo expandir/colapsar el árbol Project → Team → Agent, sin ningún mecanismo de detalle. Agus pidió agregar la posibilidad de, al abrir la carpeta de un Manager, ver todos los objetos documentales de esa carpeta mezclados y ordenados cronológicamente. Esta OE empezó con un diagnóstico solo-lectura pedido explícitamente antes de proponer diseño.
 
