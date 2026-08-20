@@ -4047,7 +4047,7 @@ Confirmado con query real que no hay ningun bug de integridad de datos detras de
 ## OE 2026-08-20 — Investigate View rediseñada, Fase A: Investigation Brief + 5 anclas + Session Scan/Deep Search
 
 **Fecha:** 2026-08-20
-**Estado:** Código completo, lint ✅, build ✅. **NO cerrada todavía** — pendiente que Agus aplique la migración 056 en Supabase y ejecute la verificación visual/funcional de 3 pasos pedida en la consigna original. Sin commit ni push hasta esa validación.
+**Estado:** Closed — migración 056 aplicada por Agus, confirmado funcionando en localhost. Validación más profunda de Session Scan/Deep Search (chats más largos, casos reales) queda para producción, según lo decidido por Agus al cerrar. Commiteado y pusheado a `main` junto con las otras 2 OEs de esta sesión (commit `b0c2095`, 2026-08-20) — ver nota de cierre bundleado al final de este archivo.
 
 **Contexto:** rediseño de Investigate View (una de las 5 vistas de Documentation Mode) sobre el mockup en `design-refs/investigate-view/`, siguiendo el mismo patrón master-detail ya construido para Audit View (Fase 1/1.5/1.6/2, 2026-08-19). Fase A deliberadamente acotada — Fase B (Evidence Funnel con scoring automático, Evidence Board categorizado, "Investigation Cases" persistentes navegables, extensión del panel SM lateral) quedó explícitamente fuera, confirmado con Agus antes de escribir código.
 
@@ -4117,7 +4117,7 @@ Investigation Brief (campo de foco libre, usado como pregunta por default de Ses
 ## Mini-OE 2026-08-20 — Card completa clickeable en la lista de anclas (Audit View + Investigate View)
 
 **Fecha:** 2026-08-20
-**Estado:** Closed — ajuste de UX puro, sin cambio de lógica de negocio. lint ✅, build ✅. Pendiente verificación visual de Agus (screenshot de ambas vistas).
+**Estado:** Closed — ajuste de UX puro, sin cambio de lógica de negocio. lint ✅, build ✅. Confirmado funcionando por Agus en localhost. Commiteado y pusheado a `main` junto con las otras 2 OEs de esta sesión (commit `b0c2095`, 2026-08-20).
 
 **Contexto:** el botón "Audit"/"Inspect" en cada card de la lista de anclas (Audit View e Investigate View, mismo patrón visual compartido) se reemplaza por toda la card clickeable, pedido explícito del PO.
 
@@ -4134,7 +4134,7 @@ Investigation Brief (campo de foco libre, usado como pregunta por default de Ses
 ## OE 2026-08-20 — SM de Documentation Mode: diagnóstico + rediseño a buscador con contrato JSON (V1: Repository + Audit View)
 
 **Fecha:** 2026-08-20
-**Estado:** Código completo, lint ✅, build ✅. **NO cerrada todavía** — pendiente que Agus aplique la migración 057 en Supabase y ejecute la verificación funcional de 6 puntos. Sin commit ni push hasta esa validación.
+**Estado:** Closed — migración 057 aplicada por Agus, confirmado funcionando en localhost. Validación más completa de los 6 puntos (casos reales, chats más largos) queda para producción, según lo decidido por Agus al cerrar. Commiteado y pusheado a `main` junto con las otras 2 OEs de esta sesión (commit `b0c2095`, 2026-08-20) — ver nota de cierre bundleado al final de este archivo.
 
 **Contexto:** el SM lateral de Documentation Mode se construyó en el Bloque 14 (system_prompts `sm_documentation`/`sm_audit`) pero Agus lo probó hace semanas y le pareció de comportamiento ambiguo, sin llegar a diagnosticar por qué en su momento. Esta OE pidió primero un diagnóstico solo-lectura con evidencia real (no asumir), y recién después de reportarlo y confirmar alcance con Agus, implementar.
 
@@ -4213,5 +4213,24 @@ No se pudo ejecutar ninguno de estos 6 puntos en esta sesión — requieren la m
 - **`sm_audit` sigue con el mecanismo frágil de regex-match** — mismo problema de fondo que se diagnosticó acá, sin resolver, porque está fuera del alcance que Agus definió para esta OE.
 
 **Archivos modificados/nuevos:** `src/lib/documentation/anchors.ts`, `supabase/migrations/057_sm_documentation_search_prompt.sql` (nuevo), `src/lib/providers/completeText.ts` (nuevo), `src/app/api/sm-doc-chat/route.ts`, `src/app/api/investigation-scan/route.ts` (refactor a `completeText()`), `src/components/sm/SMPanel.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/DocClient.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
+
+---
+
+## Cierre bundleado 2026-08-20 — 3 OEs de esta sesión, 1 solo commit
+
+**Commit:** `b0c2095` — pusheado a `origin/main`, confirmado sincronizado (`git diff HEAD origin/main` sin diferencias tras el push).
+
+**OEs incluidas:**
+1. Investigate View rediseñada — Fase A (Session Scan/Deep Search).
+2. Card completa clickeable en Audit View e Investigate View.
+3. SM de Documentation Mode — diagnóstico + rediseño a buscador con contrato JSON.
+
+**Decisión — 1 commit en vez de 3:** las 3 OEs comparten archivos editados secuencialmente dentro de la misma sesión (`AuditView.tsx` tocado por las 3 — extracción a `anchors.ts` en la OE1, cards clickeables en la OE2, `externalSelectedKey` en la OE3; `anchors.ts` tocado por la OE1 y la OE3). Partirlas en 3 commits hubiera requerido separar hunks de un mismo archivo de forma artificial (`git add -p`), con riesgo real de dejar un commit intermedio en un estado no compilable (ej. un commit con las cards clickeables de la OE2 pero sin la extracción a `anchors.ts` de la OE1, cuando el código de la OE2 ya asume esa extracción hecha). Se optó por 1 commit único, con el detalle de cada OE completo y trazable en sus propias entradas de este mismo archivo.
+
+**Archivos excluidos deliberadamente del commit** — remanente de otro trabajo, sin tracker, ya presente antes de que arrancara esta sesión (confirmado con el diagnóstico inicial, no generado por estas 3 OEs): `.claude/settings.local.json` (modificado, pero sin relación con estas OEs — cambios de configuración local acumulados), `AUDIT_LOCAL_DEPLOYMENT.md`, `design-refs/audit-view/`, `design-refs/investigate-view/` (el mockup de Investigate View sí se usó como referencia de diseño para la OE1, pero se lo dejó sin trackear siguiendo el mismo criterio ya establecido en el repo para `design-refs/audit-view/`, que tampoco está commiteado pese a que Audit View Fase 2 sí lo está), `design-refs/teams-map/*`, `src/app/teams-map-preview/`, `src/components/teams/preview/`.
+
+**Validación:** Agus confirmó las 3 funcionando en localhost. Validación más completa de Session Scan/Deep Search y del SM (casos reales, chats más largos) queda pendiente para producción, por decisión de Agus.
+
+**Handoff y `PRODUCT_STATUS.md` actualizados** con las 3 OEs antes de este commit — Rutina Dura cumplida.
 
 ---
