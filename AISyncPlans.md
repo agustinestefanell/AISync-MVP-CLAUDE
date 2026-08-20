@@ -402,10 +402,15 @@ DocClient (Client)
             audit       → AuditView
                             └── AuditDetailPanel (panel derecho, Fase 2 Paso 3)
             investigate → InvestigateView
+                            └── InvestigationScanPanel (panel derecho, Fase A)
             knowledge   → KnowledgeMap (dynamic, ssr:false)
 ```
 
 **Audit View rediseñada (Fase 2, 2026-08-19):** master-detail — panel izquierdo con Top Stats Bar (4 métricas reactivas a filtros Project/Team/fecha) + lista de 5 tipos de ancla (Checkpoint, Handoff Package, Saved Selection, Loaded Context, Review & Forward), panel derecho `AuditDetailPanel` (fetch on-demand vía `GET /api/documentation/audit-detail` al hacer click en "Audit") con reconstrucción de auditoría: header (Audit Target/Produced from/Information used/Chain status — sin Model/Agent ni Related object, ocultos a propósito), timeline "How this was produced", Information used (Context Files/Prompts activos, scope Team/Session), Chain of Custody (origen/downstream reales), event table expandible. Props nuevos en `DocClient.tsx`/`AuditView.tsx`: `contextSourcesWithOrigin`, `messageProvenance`, `contextSourcesScopeStats`, `workspaceSessions`.
+
+**Anclas compartidas — `src/lib/documentation/anchors.ts` (2026-08-20):** `AnchorKind`/`AnchorItem`/`AnchorMeta`, `anchorId`/`anchorMeta`/`anchorTitle`/`anchorFlow`/`anchorOriginAgentRole`, `buildAnchors()` (construye los 5 tipos de ancla desde las fuentes ya cargadas) y `buildDownstreamMaps()`/`downstreamUsesFor()` (badge "Used downstream"/"Not used yet") se extrajeron de `AuditView.tsx` a este módulo — mismo cómputo necesario sin cambios en `AuditView.tsx` e `InvestigateView.tsx`, sin abstraer nada más allá de eso (Prior steps/timeline queda solo en `AuditView.tsx`, Investigate View no lo usa). Cualquier tercera vista que necesite el mismo set de 5 anclas debería consumir este módulo en vez de reimplementarlo.
+
+**Investigate View rediseñada — Fase A (2026-08-20):** master-detail sobre las mismas 5 anclas de `anchors.ts` — Investigation Brief (campo de foco libre + filtros Project/Team/Type/Date range) + Top Stats (`Anchors in scope`, `Events in selected range`) + lista con badge "Used downstream"/"Not used yet" y botón `Inspect`. Panel derecho `InvestigationScanPanel`: 2 botones reales (NO tabs) `Session Scan`/`Deep Search` con ícono "i" (tooltip propio por botón) + aviso de costo antes de ejecutar Deep Search (estimación liviana de mensajes, `GET /api/investigation-scan?workspaceId=`), resultado con Verdict (yes/partial/no/inconclusive), Justification Summary, Evidence Used, y Scope transparency (Scanned/Not scanned) — siempre la fuente de verdad real de esa corrida (`sourcesScanned`/`sourcesNotScanned` devueltos por el endpoint), nunca un texto estático. Explícitamente fuera de esta fase: Evidence Funnel con scoring automático, Evidence Board categorizado, "Investigation Cases" persistentes navegables, y cualquier extensión del panel SM lateral.
 
 **How to use guides por vista:** Repository = recuperación rápida y acceso diario. Structure = ubicación y árbol jerárquico. Audit = trazabilidad documental interna (distinta del Audit Log global). Investigate = reconstrucción profunda de temas. Knowledge Map = relaciones visuales entre objetos del repositorio. Los guides viven en el array `TABS` de `DocClient.tsx` como campos `guide` en template literals.
 
@@ -417,7 +422,7 @@ DocClient (Client)
 
 **Empty states en Repository View**: distinguir tres casos — (1) `allItems.length === 0`: cuenta vacía, sin objetos documentales — mostrar mensaje orientado a crear desde Workspace; (2) `allItems.length > 0 && displayItems.length === 0 && hasFilter`: filtros o búsqueda activos sin resultados — mostrar mensaje + botón `Clear filters` que resetea todos los filtros y `searchQuery`; (3) edge case sin filtros: mensaje genérico. `hasFilter` se deriva de `filterProject || filterTeam || filterType || filterState || filterDate || searchQuery`.
 
-**Reglas de display en Investigate View**: cuando `filterType === ''` (All Types), la vista base muestra checkpoints agrupados por fecha y, al final, una sección "Saved Selections" con todas las saved_selections. Cuando `filterType === 'Saved Selection'`, muestra solo saved_selections. Los labels de `purpose` se traducen mediante `PURPOSE_LABELS` local (igual que en RepositoryView) — no se modifica la DB.
+**Investigate View — reescrita Fase A (2026-08-20):** ya no agrupa checkpoints por fecha ni tiene una sección aparte de Saved Selections — reemplazada por la lista unificada de 5 anclas de `anchors.ts` (mismo patrón que Audit View). `PURPOSE_LABELS`/agrupación por fecha quedaron solo en Repository View.
 
 ### 3.6 SMPanel
 
@@ -431,10 +436,12 @@ Flujo cuando está conectado:
 connection → ribbon amber (warn si external) → connection badge
           → context indicator (filtered/full)
           → messages scroll
-          → input → POST /api/sm-doc-chat (streaming)
+          → input → POST /api/sm-doc-chat (streaming, o JSON si searchIndex está presente)
 ```
 
-Función `renderAssistantMessage`: detecta nombres de checkpoints en las respuestas del SM y los convierte en botones clickeables que navegan a ese documento en RepositoryView.
+**Modo legado — conversacional (`/audit`, rol `sm_audit`, sin cambios):** `checkpoints`/`onSelectCheckpoint` props. Función `renderAssistantMessage`: detecta nombres de checkpoints en el texto libre del modelo por regex y los convierte en botones clickeables (`onSelectCheckpoint(id)`) — frágil por diseño (depende de que el modelo reproduzca el nombre exacto), pero intacto y fuera de alcance del cambio de 2026-08-20.
+
+**Modo búsqueda — `sm_documentation` (Documentation Mode, 2026-08-20):** props `searchIndex: AnchorSearchItem[]` (índice real de las 5 anclas, `src/lib/documentation/anchors.ts` → `buildAnchorSearchIndex()`) + `onOpenResult: (item) => void`. `isSearchMode = searchIndex !== undefined` decide qué rama de `sendMessage()`/render usar — mismo componente, 2 comportamientos sin interferir entre sí. El modelo ya NO devuelve texto libre: `/api/sm-doc-chat` responde JSON no-streaming `{"matches": ["key1", ...]}` (contrato del system prompt `sm_documentation`, migración 057), el frontend resuelve cada `key` contra `searchIndex` (nunca confía en título/tipo que diga el modelo) y guarda el resultado ya resuelto (`JSON.stringify({matches: AnchorSearchItem[]})`) como `content` del mensaje assistant — `renderSearchResult()` lo parsea de vuelta para pintar 0/1/N resultados (reusa `SMDisambiguationModal` para N>1, con su propio estado `searchDisambig` separado del legado `disambigResults`). Destino de navegación por tipo de ancla: Checkpoint/Handoff/Saved Selection → Repository View (`externalSelectedId`, ya existente); Loaded Context/Review & Forward → siempre Audit View (`externalSelectedKey`, nuevo prop en `AuditView.tsx`, mismo patrón `useEffect` que `externalSelectedId`). **Investigate View no recibe links del SM en este V1** — decisión de alcance explícita (ver DECISIONS.md 2026-08-20), no un olvido. Structure View y Knowledge Map tampoco — no tienen ningún mecanismo de selección/resaltado de ítem individual (fuera de alcance, esfuerzo mayor, señalado para una futura sesión si se decide invertir ahí).
 
 ---
 
@@ -581,6 +588,7 @@ WorkspaceShell: openSaveSelectionModal()
 | `messages` | Historial live por sesión. Desde migración 054 (2026-08-19): `provider`/`model` nullable, poblados hacia adelante (no retroactivo) con el valor de `agent_sessions` al momento de persistir cada mensaje |
 | `handoff_packages` | Transferencias formales entre agentes |
 | `context_sources` | Archivos de contexto subidos |
+| `investigation_snapshot` | Resultado persistido de Session Scan/Deep Search — Investigate View (migración 056, 2026-08-20) |
 
 ### 5.2 Relaciones
 
@@ -625,10 +633,13 @@ Excepciones (ownership directo por `user_id = auth.uid()`):
 - `context_sources`
 - `handoff_packages`
 - `saved_selections`
+- `investigation_snapshot` (por `account_id = auth.uid()`, mismo patrón que `audit_log` — ver abajo)
 
 `entity_name_history` es polimórfica (`entity_type` 'project'|'team' + `entity_id`) — sin FK real a projects/teams, la policy resuelve el scope con un `EXISTS` condicionado por `entity_type` (mismo criterio de jerarquía que `projects_select`/`teams_select`, ver migración 053).
 
 `message_provenance` (migración 054, extendida en 055) sí tiene FK real (`message_id → messages.id` ON DELETE CASCADE) — su RLS es un `EXISTS` que sube por la misma cadena que `messages_select`/`messages_insert` (message → agent_session → workspace → team → project → `account_id = auth.uid()`), no la variante polimórfica de `entity_name_history`. `source_object_id` NO tiene FK real hacia `checkpoints`/`handoff_packages`/`saved_selections`/`audit_log` (es un UUID libre, el objeto real vive según `source_object_type`) — mismo patrón ya usado en `context_sources.origin_message_id`.
+
+`investigation_snapshot` (migración 056, 2026-08-20) es polimórfica igual que `message_provenance` (`anchor_object_type`/`anchor_object_id` sin FK real), pero su RLS NO usa el `EXISTS` de `message_provenance` ni la variante de `entity_name_history` — usa una columna `account_id` directa (`account_id = auth.uid()`), mismo patrón exacto que `audit_log`. Se eligió ese patrón porque `investigation_snapshot` es, como `audit_log`, un registro de una acción del usuario (una corrida de scan), no un dato con jerarquía propia — no vale la pena resolver el scope subiendo por `anchor_object_type` cuando ya hay un ownership directo disponible.
 
 **Lección RLS crítica (migración 047 — 2026-07-07):**
 RLS requiere políticas explícitas para cada operación DML (SELECT, INSERT, UPDATE, DELETE). Tener SELECT+INSERT no implica tener UPDATE. Features que actualizan filas existentes deben auditar políticas UPDATE además de SELECT/INSERT, incluso si el UPDATE ocurre desde el mismo código que hizo el INSERT. El bloqueo por RLS es silencioso desde la perspectiva de la aplicación — Supabase ignora el UPDATE sin lanzar error visible en logs del servidor.
@@ -662,12 +673,13 @@ Ver sección 10.
 | POST | `/api/export/word` | — (genera .docx, no escribe en DB) | Session |
 | GET/POST/DELETE | `/api/settings/keys` | user_api_keys | Session |
 | GET/POST/DELETE | `/api/settings/providers` | user_custom_providers | Session |
-| POST | `/api/sm-doc-chat` | — (streaming) | Session |
+| POST | `/api/sm-doc-chat` | — (streaming para sm_audit/otros roles; sin escritura en DB) | Session — para `pageName: 'Documentation Mode'` (rol `sm_documentation`), devuelve JSON no-streaming `{matches: string[]}` en vez de texto (2026-08-20, ver 3.6) |
 | GET/POST | `/api/teams` | teams, workspaces, agent_sessions | Session |
 | PATCH/DELETE | `/api/teams/[id]` | teams, agent_sessions, entity_name_history, audit_log (agent_model_changed) | Session |
 | PATCH/DELETE | `/api/projects/[id]` | projects, entity_name_history | Session |
 | GET | `/api/documentation/handoff/[id]` | handoff_packages (status → 'received', primera apertura), audit_log (handoff_received) | Session — único GET con side-effect deliberado en el proyecto, ver route.ts |
 | GET | `/api/documentation/audit-detail` | messages (lectura), context_sources (lectura), prompt_assignments + prompt_library (lectura) | Session — on-demand para el panel derecho de Audit View (Fase 2 Paso 3), no escribe nada |
+| GET/POST | `/api/investigation-scan` | messages (lectura), agent_sessions (lectura), saved_selections/handoff_packages/message_provenance (lectura, solo para resolver sesión de origen), investigation_snapshot (insert, fail-open) | Session — endpoint dedicado de Investigate View (Fase A, 2026-08-20), NO comparte código con `/api/sm-doc-chat`. GET devuelve estimación liviana de mensajes para el aviso de costo de Deep Search. POST ejecuta Session Scan/Deep Search con system prompt propio (role `investigation_scan`, migración 056) |
 | POST | `/api/workspace/[id]/lock` | workspaces | Session |
 | GET/POST | `/api/admin/prompts` | prompt_library | Admin role |
 
@@ -744,6 +756,14 @@ export async function POST(request: Request) {
 ---
 
 ## 8. Patrones y convenciones del proyecto
+
+### 8.-1 Patrón: `completeText()` — llamada NO streaming a un provider ya resuelto
+
+**Contexto:** algunas rutas necesitan la respuesta completa del modelo antes de poder usarla (parsear JSON estructurado) — no tiene sentido mostrarla incremental al usuario. `ChatProvider.stream()` es la interfaz común de todos los providers; `complete()` es opcional (solo Anthropic/OpenAI/Google lo implementan, `LocalProvider` — IA Local/custom — no).
+
+**Solución:** `src/lib/providers/completeText.ts` — `completeText(providerName, resolved: ResolvedProviderKey, messages, model): Promise<string>`. Si `resolved.isCustom` (IA Local/custom) o el provider no implementa `complete()`, consume el `stream()` completo con `new Response(stream).text()`; si no, usa `complete()` directo. Extraído de `investigation-scan/route.ts` (2026-08-20) al necesitar la misma lógica en `sm-doc-chat/route.ts` (modo búsqueda de `sm_documentation`, mismo día) — 2 call sites reales, no especulativo.
+
+**Nota:** el caso especial `provider === 'IA Local'` con `endpoint` que viene del body del request (no de `resolveProviderApiKey`, ver 7.4) queda fuera de `completeText()` — cada route lo maneja antes de llamar al helper, igual que ya hacían antes de esta extracción.
 
 ### 8.0 Patrón: Resolución de nombres sin PostgREST embedding
 

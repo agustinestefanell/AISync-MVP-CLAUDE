@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import type { DocCheckpoint, DocAuditEvent, DocHandoffPackage, DocSavedSelection, DocLoadedContextItem, DocMessageProvenanceItem, DocContextSourceScopeRow, DocWorkspaceSession } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 import { filterArchivedTeams } from '@/lib/teams/filterArchivedTeams'
+import { buildAnchors, buildAnchorSearchIndex, ANCHOR_KIND_LABEL, type AnchorSearchItem } from '@/lib/documentation/anchors'
 import RepositoryView from './RepositoryView'
 import StructureView from './StructureView'
 import AuditView from './AuditView'
@@ -128,50 +129,52 @@ interface DocClientProps {
 }
 
 export default function DocClient({ pageName, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, userName, userEmail, customProviders }: DocClientProps) {
-  const [tab,                  setTab]                  = useState<Tab>('repository')
-  const [helpTab,              setHelpTab]              = useState<Tab | null>(null)
-  const [showMainGuide,        setShowMainGuide]        = useState(false)
-  const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null)
-  const [filteredCheckpoints,  setFilteredCheckpoints]  = useState<DocCheckpoint[]>(checkpoints)
+  const [tab,                     setTab]                     = useState<Tab>('repository')
+  const [helpTab,                 setHelpTab]                 = useState<Tab | null>(null)
+  const [showMainGuide,           setShowMainGuide]           = useState(false)
+  const [selectedRepositoryId,    setSelectedRepositoryId]    = useState<string | null>(null)
+  const [selectedAuditKey,        setSelectedAuditKey]        = useState<string | null>(null)
 
-  function handleSelectCheckpoint(id: string) {
-    setTab('repository')
-    setSelectedCheckpointId(id)
+  // ── SM de Documentation Mode — modo búsqueda (2026-08-20) ─────────────────
+  // El SM ya no ve solo Checkpoints ni respeta los filtros activos de
+  // Repository View — busca sobre las 5 anclas completas siempre (decisión
+  // de alcance: "buscador dentro de Documentation Mode", no "buscador dentro
+  // de lo que Repository View tiene filtrado ahora"). El viejo mecanismo de
+  // `filteredCheckpoints`/`onFilterChange` se eliminó por quedar sin uso.
+  const allAnchorsForSm = useMemo(
+    () => buildAnchors(checkpoints, handoffPackages, savedSelections, contextSourcesWithOrigin, messageProvenance, auditEvents),
+    [checkpoints, handoffPackages, savedSelections, contextSourcesWithOrigin, messageProvenance, auditEvents],
+  )
+  const searchIndex = useMemo(() => buildAnchorSearchIndex(allAnchorsForSm), [allAnchorsForSm])
+
+  // Checkpoint/Handoff/Saved Selection → Repository View (mecanismo
+  // `externalSelectedId` ya existente). Loaded Context/Review & Forward → SIEMPRE
+  // Audit View — no existen en Repository View, y son los únicos 2 tipos que
+  // Audit View e Investigate View muestran de forma idéntica; se eligió Audit
+  // View como destino único y predecible (decisión confirmada con Agus,
+  // 2026-08-20). Investigate View NO recibe links del SM en este V1 — decisión
+  // de alcance explícita, no un olvido.
+  function handleOpenSearchResult(item: AnchorSearchItem) {
+    if (item.kind === 'loaded_context' || item.kind === 'review_forward') {
+      setTab('audit')
+      setSelectedAuditKey(item.key)
+    } else {
+      setTab('repository')
+      setSelectedRepositoryId(item.id)
+    }
   }
 
-  const handleFilterChange = useCallback((filtered: DocCheckpoint[]) => {
-    setFilteredCheckpoints(filtered)
-  }, [])
-
   const pageContext = useMemo(() => {
-    const isFiltered = filteredCheckpoints.length < checkpoints.length
-    const total      = filteredCheckpoints.length
-    let header: string
-    if (isFiltered) {
-      header = `DOCUMENTATION MODE — FILTERED CONTEXT (${total} of ${checkpoints.length} total documents)\nActive filters applied. SM searches only within these results.`
-    } else {
-      header = `DOCUMENTATION MODE — FULL CONTEXT (${checkpoints.length} documents)\nNo filters applied. SM searches all available documents.`
-    }
+    const total = searchIndex.length
+    let header = `DOCUMENTATION MODE SEARCH INDEX (${total} anchors: Checkpoint, Handoff Package, Saved Selection, Loaded Context, Review & Forward)\nFULL CONTEXT — searches across all anchors, not limited to any active filter.`
     if (total > MAX_CONTEXT) {
-      header += `\nShowing most recent ${MAX_CONTEXT} of ${total} filtered results.`
+      header += `\nShowing most recent ${MAX_CONTEXT} of ${total} anchors.`
     }
-    const items = filteredCheckpoints.slice(0, MAX_CONTEXT)
-    return header + '\n\n' + items.map(c =>
-      `- Name: ${c.name} [ID: ${c.id}]\n  Project: ${c.project_name} | Team: ${c.team_name} | Workspace: ${c.workspace_name} | Purpose: ${c.purpose} | State: ${c.doc_state} | Date: ${c.created_at.slice(0, 10)}`
+    const items = searchIndex.slice(0, MAX_CONTEXT)
+    return header + '\n\n' + items.map(a =>
+      `- key: ${a.key} | title: "${a.title}" | type: ${ANCHOR_KIND_LABEL[a.kind]} | project: ${a.project} | team: ${a.team} | workspace: ${a.workspace} | date: ${a.date.slice(0, 10)}`
     ).join('\n')
-  }, [filteredCheckpoints, checkpoints.length])
-
-  const smCheckpoints = useMemo(() =>
-    filteredCheckpoints.slice(0, MAX_CONTEXT).map(c => ({
-      id:        c.id,
-      name:      c.name,
-      team:      c.team_name,
-      workspace: c.workspace_name,
-      project:   c.project_name,
-      date:      c.created_at.slice(0, 10),
-      purpose:   c.purpose,
-    })),
-  [filteredCheckpoints])
+  }, [searchIndex])
 
   // Excluye teams archivados ANTES de calcular los códigos — mismo criterio
   // default que Teams Map (MapView.tsx, showArchivedTeams=false), para que el
@@ -205,8 +208,8 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
             pageContext={pageContext}
             pageName="Documentation Mode"
             customProviders={customProviders}
-            checkpoints={smCheckpoints}
-            onSelectCheckpoint={handleSelectCheckpoint}
+            searchIndex={searchIndex}
+            onOpenResult={handleOpenSearchResult}
           />
 
           {/* Right: tab bar + view */}
@@ -237,10 +240,10 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
 
             {/* View */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userName={userName} userEmail={userEmail} externalSelectedId={selectedCheckpointId} onFilterChange={handleFilterChange} teamCodes={teamCodes} />}
+              {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userName={userName} userEmail={userEmail} externalSelectedId={selectedRepositoryId} teamCodes={teamCodes} />}
               {tab === 'structure'   && <StructureView   checkpoints={checkpoints} projects={projects} userName={userName} userEmail={userEmail} teamCodes={teamCodes} />}
-              {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} projects={projects} teamCodes={teamCodes} />}
-              {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
+              {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} projects={projects} teamCodes={teamCodes} externalSelectedKey={selectedAuditKey} />}
+              {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
               {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
             </div>
           </div>

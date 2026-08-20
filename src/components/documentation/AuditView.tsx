@@ -13,45 +13,31 @@ import type {
 } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import AuditDetailPanel from './AuditDetailPanel'
+import {
+  type AnchorKind,
+  type AnchorItem,
+  type AnchorMeta,
+  AGENT_LABEL,
+  ORIGIN_LABEL,
+  ANCHOR_KIND_LABEL,
+  anchorId,
+  anchorMeta,
+  anchorTitle,
+  anchorFlow,
+  buildAnchors,
+  buildDownstreamMaps,
+  downstreamUsesFor,
+} from '@/lib/documentation/anchors'
+
+export type { AnchorMeta } from '@/lib/documentation/anchors'
 
 // ── Audit View rediseñada (Fase 2) — Paso 1 (Top Stats Bar) + Paso 2 (lista de
 // anclas) + Paso 3 (panel derecho de reconstrucción).
 // Fórmulas y decisiones de diseño: ver handoff-2026-07-b.md 2026-08-19 (Fase 2
 // Paso 0) y la ronda de Fase 1.6 (Downstream uses de Review & Forward).
-
-type AnchorKind = 'checkpoint' | 'handoff' | 'saved_selection' | 'loaded_context' | 'review_forward'
-
-type AnchorItem =
-  | { kind: 'checkpoint';      cp: DocCheckpoint }
-  | { kind: 'handoff';         hp: DocHandoffPackage }
-  | { kind: 'saved_selection'; ss: DocSavedSelection }
-  | { kind: 'loaded_context';  lc: DocLoadedContextItem }
-  | { kind: 'review_forward';  rf: DocAuditEvent }
-
-export interface AnchorMeta {
-  id:          string
-  date:        string
-  wsId:        string
-  wsName:      string
-  teamId:      string | null
-  teamName:    string | null
-  teamStatus:  'active' | 'archived' | null
-  projectId:   string | null
-  projectName: string | null
-}
-
-const AGENT_LABEL: Record<string, string> = {
-  manager:    'Manager',
-  worker1:    'Worker 1',
-  worker2:    'Worker 2',
-  human_chat: 'Human Chat',
-}
-
-const ORIGIN_LABEL: Record<string, string> = {
-  checkpoint:      'Checkpoint',
-  handoff_package: 'Handoff Package',
-  saved_selection: 'Saved Selection',
-}
+// AnchorKind/AnchorItem/AnchorMeta/anchorId/anchorMeta/anchorTitle/anchorFlow
+// extraídos a src/lib/documentation/anchors.ts (2026-08-20) — reusados
+// también por Investigate View, sin cambio de comportamiento acá.
 
 const TYPE_BADGE: Record<AnchorKind, { label: string; className: string }> = {
   checkpoint:      { label: 'CHECKPOINT',      className: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
@@ -59,16 +45,6 @@ const TYPE_BADGE: Record<AnchorKind, { label: string; className: string }> = {
   saved_selection: { label: 'SAVE SELECTION',  className: 'text-amber-700 bg-amber-50 border-amber-200' },
   loaded_context:  { label: 'LOADED CONTEXT',  className: 'text-blue-700 bg-blue-50 border-blue-200' },
   review_forward:  { label: 'R&F',             className: 'text-pink-700 bg-pink-50 border-pink-200' },
-}
-
-// Nombre completo por tipo — para el header del panel derecho ("Audit
-// Target"). TYPE_BADGE.label es la versión corta/mayúscula de la card.
-const ANCHOR_KIND_LABEL: Record<AnchorKind, string> = {
-  checkpoint:      'Checkpoint',
-  handoff:         'Handoff Package',
-  saved_selection: 'Saved Selection',
-  loaded_context:  'Loaded Context',
-  review_forward:  'Review & Forward',
 }
 
 const CHAIN_BADGE: Record<'used' | 'not_used', { label: string; className: string }> = {
@@ -93,58 +69,6 @@ const PRIOR_STEP_TYPES = new Set([
   'prompt_unassigned',
   'agent_model_changed',
 ])
-
-function anchorId(item: AnchorItem): string {
-  switch (item.kind) {
-    case 'checkpoint':      return item.cp.id
-    case 'handoff':          return item.hp.id
-    case 'saved_selection':  return item.ss.id
-    case 'loaded_context':   return item.lc.id
-    case 'review_forward':   return item.rf.id
-  }
-}
-
-function anchorMeta(item: AnchorItem): AnchorMeta {
-  switch (item.kind) {
-    case 'checkpoint':
-      return { id: item.cp.id, date: item.cp.created_at, wsId: item.cp.workspace_id, wsName: item.cp.workspace_name, teamId: item.cp.team_id || null, teamName: item.cp.team_name, teamStatus: item.cp.team_status, projectId: item.cp.project_id || null, projectName: item.cp.project_name }
-    case 'handoff':
-      return { id: item.hp.id, date: item.hp.created_at, wsId: item.hp.workspace_id, wsName: item.hp.workspace_name, teamId: item.hp.team_id, teamName: item.hp.team_name, teamStatus: item.hp.team_status, projectId: item.hp.project_id, projectName: item.hp.project_name }
-    case 'saved_selection':
-      return { id: item.ss.id, date: item.ss.created_at, wsId: item.ss.workspace_id, wsName: item.ss.workspace_name, teamId: item.ss.team_id, teamName: item.ss.team_name, teamStatus: item.ss.team_status, projectId: item.ss.project_id, projectName: item.ss.project_name }
-    case 'loaded_context':
-      return { id: item.lc.id, date: item.lc.created_at, wsId: item.lc.workspace_id, wsName: item.lc.workspace_name, teamId: item.lc.team_id, teamName: item.lc.team_name, teamStatus: item.lc.team_status, projectId: item.lc.project_id, projectName: item.lc.project_name }
-    case 'review_forward':
-      return { id: item.rf.id, date: item.rf.created_at, wsId: item.rf.workspace_id ?? '', wsName: item.rf.workspace_name ?? '—', teamId: item.rf.team_id, teamName: item.rf.team_name, teamStatus: item.rf.team_status, projectId: item.rf.project_id, projectName: item.rf.project_name }
-  }
-}
-
-function anchorTitle(item: AnchorItem): string {
-  switch (item.kind) {
-    case 'checkpoint':      return item.cp.name
-    case 'handoff':          return item.hp.name
-    case 'saved_selection':  return item.ss.name
-    case 'loaded_context':   return item.lc.flavor === 'context_files' ? item.lc.title : 'Loaded into Chat'
-    case 'review_forward': {
-      const from = AGENT_LABEL[(item.rf.metadata?.from as string) ?? ''] ?? (item.rf.metadata?.from as string) ?? '—'
-      const to   = AGENT_LABEL[(item.rf.metadata?.to as string)   ?? ''] ?? (item.rf.metadata?.to as string)   ?? '—'
-      return `Review & Forward: ${from} → ${to}`
-    }
-  }
-}
-
-// "origen→destino (si aplica)" — solo Handoff y Loaded Context tienen un
-// movimiento origen/destino real que mostrar; los demás vuelven null.
-function anchorFlow(item: AnchorItem): string | null {
-  switch (item.kind) {
-    case 'handoff':
-      return `${AGENT_LABEL[item.hp.from_agent] ?? item.hp.from_agent} → ${AGENT_LABEL[item.hp.to_agent] ?? item.hp.to_agent}`
-    case 'loaded_context':
-      return `${ORIGIN_LABEL[item.lc.origin_type] ?? item.lc.origin_type} → ${item.lc.flavor === 'context_files' ? 'Context Files' : 'Chat'}`
-    default:
-      return null
-  }
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-US', {
@@ -179,11 +103,13 @@ interface Props {
   workspaceSessions:        Record<string, DocWorkspaceSession[]>
   projects:                 ProjectWithTeams[]
   teamCodes?:               Record<string, string>
+  externalSelectedKey?:     string | null
 }
 
 export default function AuditView({
   checkpoints, handoffPackages, savedSelections, auditEvents,
   contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, projects, teamCodes,
+  externalSelectedKey,
 }: Props) {
   const [filterProject,    setFilterProject]    = useState('')
   const [filterTeam,       setFilterTeam]       = useState('')
@@ -194,77 +120,27 @@ export default function AuditView({
   const [sortOrder,        setSortOrder]        = useState<'newest' | 'oldest' | 'name'>('newest')
   const [selectedKey,      setSelectedKey]      = useState<string | null>(null)
 
+  // Ancla abierta desde afuera (link del SM de Documentation Mode, 2026-08-20)
+  // — mismo patrón que `externalSelectedId` de RepositoryView.tsx. `key` ya
+  // viene en formato `${kind}:${id}`, idéntico al `selectedKey` interno.
+  useEffect(() => {
+    if (externalSelectedKey) setSelectedKey(externalSelectedKey)
+  }, [externalSelectedKey])
+
   // ── Anclas unificadas (5 tipos) ─────────────────────────────────────────
-  const allAnchors = useMemo((): AnchorItem[] => {
-    const cps: AnchorItem[] = checkpoints.map(cp => ({ kind: 'checkpoint', cp }))
-    const hps: AnchorItem[] = handoffPackages.map(hp => ({ kind: 'handoff', hp }))
-    const sss: AnchorItem[] = savedSelections.map(ss => ({ kind: 'saved_selection', ss }))
-    const lcs: AnchorItem[] = contextSourcesWithOrigin.map(lc => ({ kind: 'loaded_context', lc }))
-    const mpChat: AnchorItem[] = messageProvenance
-      .filter(mp => mp.source_object_type !== 'review_forward')
-      .map(mp => ({
-        kind: 'loaded_context',
-        lc: {
-          id:             mp.id,
-          flavor:         'chat',
-          origin_type:    mp.source_object_type as DocLoadedContextItem['origin_type'],
-          origin_id:      mp.source_object_id,
-          title:          'Loaded into Chat',
-          workspace_id:   mp.workspace_id,
-          workspace_name: mp.workspace_name,
-          team_id:        mp.team_id,
-          team_name:      mp.team_name,
-          team_status:    mp.team_status,
-          project_id:     mp.project_id,
-          project_name:   mp.project_name,
-          created_at:     mp.created_at,
-        },
-      }))
-    const rfs: AnchorItem[] = auditEvents
-      .filter(e => e.event_type === 'review_forward')
-      .map(rf => ({ kind: 'review_forward', rf }))
-    return [...cps, ...hps, ...sss, ...lcs, ...mpChat, ...rfs]
-  }, [checkpoints, handoffPackages, savedSelections, contextSourcesWithOrigin, messageProvenance, auditEvents])
+  const allAnchors = useMemo(
+    () => buildAnchors(checkpoints, handoffPackages, savedSelections, contextSourcesWithOrigin, messageProvenance, auditEvents),
+    [checkpoints, handoffPackages, savedSelections, contextSourcesWithOrigin, messageProvenance, auditEvents],
+  )
 
   // ── Downstream uses — mapas construidos una vez, no por ancla ──────────
-  const downstreamMap = useMemo(() => {
-    const m = new Map<string, number>()
-    const bump = (key: string) => m.set(key, (m.get(key) ?? 0) + 1)
-    for (const cs of contextSourcesWithOrigin) bump(`${cs.origin_type}:${cs.origin_id}`)
-    for (const mp of messageProvenance) {
-      if (mp.source_object_type === 'review_forward') continue
-      bump(`${mp.source_object_type}:${mp.source_object_id}`)
-    }
-    return m
-  }, [contextSourcesWithOrigin, messageProvenance])
+  const downstreamMaps = useMemo(
+    () => buildDownstreamMaps(contextSourcesWithOrigin, messageProvenance, auditEvents),
+    [contextSourcesWithOrigin, messageProvenance, auditEvents],
+  )
 
-  const reviewForwardDownstreamMap = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const mp of messageProvenance) {
-      if (mp.source_object_type !== 'review_forward') continue
-      m.set(mp.source_object_id, (m.get(mp.source_object_id) ?? 0) + 1)
-    }
-    return m
-  }, [messageProvenance])
-
-  const contextFileInjectedMap = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const e of auditEvents) {
-      if (e.event_type !== 'context_file_injected') continue
-      const ids = (e.metadata?.context_source_ids as string[] | undefined) ?? []
-      for (const id of ids) m.set(id, (m.get(id) ?? 0) + 1)
-    }
-    return m
-  }, [auditEvents])
-
-  function downstreamUsesFor(item: AnchorItem): number {
-    switch (item.kind) {
-      case 'checkpoint':      return downstreamMap.get(`checkpoint:${item.cp.id}`) ?? 0
-      case 'handoff':          return downstreamMap.get(`handoff_package:${item.hp.id}`) ?? 0
-      case 'saved_selection':  return downstreamMap.get(`saved_selection:${item.ss.id}`) ?? 0
-      case 'loaded_context':   return item.lc.flavor === 'context_files' ? (contextFileInjectedMap.get(item.lc.id) ?? 0) : 0
-      case 'review_forward':   return reviewForwardDownstreamMap.get(item.rf.id) ?? 0
-    }
+  function downstreamUsesForItem(item: AnchorItem): number {
+    return downstreamUsesFor(item, downstreamMaps)
   }
 
   // ── Prior steps — eventos reales del mismo workspace entre audit_start
@@ -363,11 +239,9 @@ export default function AuditView({
   // todavía — antes un Project sin ningún objeto documental no aparecía acá.
   const uniqueProjects = useMemo(() => projects.map(p => [p.id, p.name] as [string, string]), [projects])
 
-  // Team depende de Project — mismo bug latente confirmado también en
-  // RepositoryView.tsx/InvestigateView.tsx (uniqueTeams ahí tampoco filtra
-  // por filterProject), no corregido acá porque no fue pedido; señalado en
-  // el handoff. Acá sí: si hay un Project elegido, la lista de Teams se
-  // acota a los que pertenecen a ese Project.
+  // Team depende de Project — mismo patrón ya aplicado también en
+  // RepositoryView.tsx/InvestigateView.tsx (2026-08-20): si hay un Project
+  // elegido, la lista de Teams se acota a los que pertenecen a ese Project.
   const uniqueTeams = useMemo(() => {
     const m = new Map<string, string>()
     for (const item of allAnchors) {
@@ -398,13 +272,13 @@ export default function AuditView({
     if (filterAnchorType  && item.kind      !== filterAnchorType) return false
     if (filterDate        && !meta.date.startsWith(filterDate))   return false
     if (filterChainState) {
-      const used = downstreamUsesFor(item) > 0
+      const used = downstreamUsesForItem(item) > 0
       if (filterChainState === 'used' && !used)     return false
       if (filterChainState === 'not_used' && used)  return false
     }
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [allAnchors, filterProject, filterTeam, filterAnchorType, filterDate, filterChainState, downstreamMap, reviewForwardDownstreamMap, contextFileInjectedMap])
+  }), [allAnchors, filterProject, filterTeam, filterAnchorType, filterDate, filterChainState, downstreamMaps])
 
   const displayItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -549,7 +423,7 @@ export default function AuditView({
                   const meta      = anchorMeta(item)
                   const badge     = TYPE_BADGE[item.kind]
                   const flow      = anchorFlow(item)
-                  const downstream = downstreamUsesFor(item)
+                  const downstream = downstreamUsesForItem(item)
                   const prior      = priorStepsFor(item, meta)
                   const chain      = CHAIN_BADGE[downstream > 0 ? 'used' : 'not_used']
                   const id         = anchorId(item)
@@ -558,7 +432,11 @@ export default function AuditView({
                   return (
                     <div
                       key={key}
-                      className={`rounded-[14px] border bg-[var(--color-surface)] px-4 py-3 ${
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedKey(key)}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedKey(key) } }}
+                      className={`rounded-[14px] border bg-[var(--color-surface)] px-4 py-3 cursor-pointer transition-colors hover:bg-[var(--color-surface-subtle)] hover:border-indigo-300 ${
                         selectedKey === key ? 'border-indigo-400 ring-1 ring-indigo-200' : 'border-[var(--color-border-subtle)]'
                       }`}
                     >
@@ -588,12 +466,6 @@ export default function AuditView({
                           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${chain.className}`}>
                             {chain.label}
                           </span>
-                          <button
-                            onClick={() => setSelectedKey(key)}
-                            className="ui-button min-h-7 px-3 text-[11px] text-[var(--color-text-secondary)]"
-                          >
-                            Audit
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -608,7 +480,7 @@ export default function AuditView({
         {selectedItem && (() => {
           const meta      = anchorMeta(selectedItem)
           const timeline  = computeTimeline(selectedItem, meta)
-          const downstream = downstreamUsesFor(selectedItem)
+          const downstream = downstreamUsesForItem(selectedItem)
           return (
             <AuditDetailPanel
               anchorKindLabel={ANCHOR_KIND_LABEL[selectedItem.kind]}

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMessage } from '@/lib/providers/types'
+import type { AnchorSearchItem } from '@/lib/documentation/anchors'
 import SMDisambiguationModal from './SMDisambiguationModal'
 
 const PROVIDER_MODELS: Record<string, string[]> = {
@@ -44,6 +45,14 @@ interface Props {
   customProviders?:    CustomProvider[]
   checkpoints?:        SMCheckpoint[]
   onSelectCheckpoint?: (id: string) => void
+  // Modo búsqueda (2026-08-20) — cuando `searchIndex` está presente, el panel
+  // deja de renderizar texto libre/regex-match (checkpoints/onSelectCheckpoint,
+  // usado hoy por /audit vía AuditClient.tsx, sin tocar) y pasa a esperar el
+  // contrato JSON estricto {"matches": ["key", ...]} de /api/sm-doc-chat,
+  // resolviendo cada key contra este índice real — nunca contra lo que diga
+  // el modelo. Ver DECISIONS.md 2026-08-20.
+  searchIndex?:        AnchorSearchItem[]
+  onOpenResult?:       (item: AnchorSearchItem) => void
 }
 
 function readOpenState(): boolean {
@@ -52,7 +61,9 @@ function readOpenState(): boolean {
 
 export default function SMPanel({
   pageContext, pageName, customProviders = [], checkpoints = [], onSelectCheckpoint,
+  searchIndex, onOpenResult,
 }: Props) {
+  const isSearchMode = searchIndex !== undefined
   const [open,        setOpen]        = useState(readOpenState)
   const [showConsent, setShowConsent] = useState(false)
   const [connection,  setConnection]  = useState<Connection | null>(null)
@@ -67,6 +78,7 @@ export default function SMPanel({
   const [streamingContent,  setStreamingContent]  = useState('')
   const [error,             setError]             = useState<string | null>(null)
   const [disambigResults,   setDisambigResults]   = useState<SMCheckpoint[] | null>(null)
+  const [searchDisambig,    setSearchDisambig]    = useState<AnchorSearchItem[] | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const contextStatus = useMemo(() => {
@@ -171,16 +183,27 @@ export default function SMPanel({
         throw new Error(body.error ?? 'Server error')
       }
 
-      const reader  = res.body!.getReader()
-      const decoder = new TextDecoder()
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        fullContent += decoder.decode(value, { stream: true })
-        setStreamingContent(fullContent)
-        scrollToBottom()
+      if (isSearchMode) {
+        // Modo búsqueda — JSON completo de una sola vez, se resuelve contra
+        // el índice real (nunca se confía en el modelo para id/kind/título).
+        const data = await res.json() as { matches?: string[] }
+        const keys = Array.isArray(data.matches) ? data.matches : []
+        const resolved = keys
+          .map(key => searchIndex?.find(item => item.key === key))
+          .filter((item): item is AnchorSearchItem => !!item)
+        setMessages(prev => [...prev, { role: 'assistant', content: JSON.stringify({ matches: resolved }) }])
+      } else {
+        const reader  = res.body!.getReader()
+        const decoder = new TextDecoder()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          fullContent += decoder.decode(value, { stream: true })
+          setStreamingContent(fullContent)
+          scrollToBottom()
+        }
+        setMessages(prev => [...prev, { role: 'assistant', content: fullContent }])
       }
-      setMessages(prev => [...prev, { role: 'assistant', content: fullContent }])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
@@ -246,6 +269,43 @@ export default function SMPanel({
     })
 
     return <span className="whitespace-pre-wrap">{result}</span>
+  }
+
+  // Modo búsqueda — content de cada mensaje assistant es
+  // `JSON.stringify({ matches: AnchorSearchItem[] })` (ya resuelto contra el
+  // índice real en sendMessage, nunca texto libre del modelo). 0 → "No
+  // results found." 1 → botón directo. >1 → modal de desambiguación.
+  function renderSearchResult(content: string): React.ReactNode {
+    let matches: AnchorSearchItem[] = []
+    try {
+      const parsed = JSON.parse(content) as { matches?: AnchorSearchItem[] }
+      matches = Array.isArray(parsed.matches) ? parsed.matches : []
+    } catch {
+      return <span>No results found.</span>
+    }
+
+    if (matches.length === 0) return <span>No results found.</span>
+
+    if (matches.length === 1) {
+      const item = matches[0]
+      return (
+        <button
+          onClick={() => onOpenResult?.(item)}
+          className="text-blue-500 underline cursor-pointer text-left"
+        >
+          → {item.title}
+        </button>
+      )
+    }
+
+    return (
+      <button
+        onClick={() => setSearchDisambig(matches)}
+        className="inline-block text-blue-400 underline cursor-pointer hover:text-blue-300 transition-colors"
+      >
+        View {matches.length} results →
+      </button>
+    )
   }
 
   return (
@@ -550,7 +610,7 @@ export default function SMPanel({
                           border: m.role === 'user' ? 'none' : '1px solid var(--color-border-subtle)',
                         }}
                       >
-                        {m.role === 'assistant' ? renderAssistantMessage(m.content) : m.content}
+                        {m.role === 'assistant' ? (isSearchMode ? renderSearchResult(m.content) : renderAssistantMessage(m.content)) : m.content}
                       </div>
                     </div>
                   ))}
@@ -635,12 +695,27 @@ export default function SMPanel({
         </span>
       </button>
 
-      {/* Disambiguation modal */}
+      {/* Disambiguation modal — legacy (regex-match, AuditClient.tsx/sm_audit) */}
       {disambigResults && (
         <SMDisambiguationModal
           results={disambigResults}
           onSelect={(id) => { onSelectCheckpoint?.(id); setDisambigResults(null) }}
           onClose={() => setDisambigResults(null)}
+        />
+      )}
+
+      {/* Disambiguation modal — modo búsqueda (2026-08-20) */}
+      {searchDisambig && (
+        <SMDisambiguationModal
+          results={searchDisambig.map(item => ({
+            id: item.id, name: item.title, team: item.team, workspace: item.workspace, date: item.date,
+          }))}
+          onSelect={(id) => {
+            const item = searchDisambig.find(i => i.id === id)
+            if (item) onOpenResult?.(item)
+            setSearchDisambig(null)
+          }}
+          onClose={() => setSearchDisambig(null)}
         />
       )}
     </>

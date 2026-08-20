@@ -4043,3 +4043,175 @@ Confirmado con query real que no hay ningun bug de integridad de datos detras de
 **Archivos modificados:** `src/components/documentation/RepositoryView.tsx`, `src/components/documentation/InvestigateView.tsx`, `src/components/documentation/KnowledgeMap.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/DocClient.tsx`.
 
 ---
+
+## OE 2026-08-20 — Investigate View rediseñada, Fase A: Investigation Brief + 5 anclas + Session Scan/Deep Search
+
+**Fecha:** 2026-08-20
+**Estado:** Código completo, lint ✅, build ✅. **NO cerrada todavía** — pendiente que Agus aplique la migración 056 en Supabase y ejecute la verificación visual/funcional de 3 pasos pedida en la consigna original. Sin commit ni push hasta esa validación.
+
+**Contexto:** rediseño de Investigate View (una de las 5 vistas de Documentation Mode) sobre el mockup en `design-refs/investigate-view/`, siguiendo el mismo patrón master-detail ya construido para Audit View (Fase 1/1.5/1.6/2, 2026-08-19). Fase A deliberadamente acotada — Fase B (Evidence Funnel con scoring automático, Evidence Board categorizado, "Investigation Cases" persistentes navegables, extensión del panel SM lateral) quedó explícitamente fuera, confirmado con Agus antes de escribir código.
+
+### Paso 0 (definiciones, reportadas y aprobadas antes de este cierre)
+
+- **Sesión de origen por tipo de ancla:** confirmado leyendo el código real de creación de cada tipo — Checkpoint (`POST /api/checkpoint`) SIEMPRE captura las 3 sesiones del workspace a la vez (`panels = workspace.agent_sessions.map(...)`), sin "sesión de origen única" que resolver. Saved Selection (`WorkspaceShell.tsx openSaveSelectionModal`) puede abarcar 1 a 3 sesiones según qué mensajes seleccionó el usuario en cada panel. Handoff Package (`from_agent`) y Review & Forward (`metadata.from`) sí tienen origen exacto y único. Loaded Context sabor "chat" tiene origen exacto vía `message_provenance → messages.session_id`; sabor "context_files" cascada al tipo de origen real.
+- **Schema `investigation_snapshot`:** aprobado tal cual se reportó — RLS por `account_id = auth.uid()` directo, mismo patrón que `audit_log` (no el `EXISTS` polimórfico de `entity_name_history` ni el FK real de `message_provenance`), porque es un registro de una acción del usuario, no un dato con jerarquía propia.
+- **Endpoint nuevo:** `POST/GET /api/investigation-scan`, sin compartir código con `sm-doc-chat` (que atiende `sm_documentation`/`sm_audit` en el mismo archivo — justo el patrón que la consigna pidió no heredar).
+- **Estimación de costo Deep Search:** `count(*)` de `messages` por sesiones del workspace, sin cálculo de tokens.
+- **Top Stats:** `Anchors in scope` = `filtered.length` sobre las 5 anclas unificadas tras Project/Team/Type/Date; `Events in selected range` = `auditEvents` filtrados por Project/Team/fecha, mismo patrón que `eventsInScope` de Audit View.
+
+**Nota de Agus al aprobar (no bloqueante, aplicada):** dado que Checkpoint/Saved Selection pueden terminar escaneando más de 1 sesión sin origen único, el bloque "Scope transparency" del panel derecho debe ser siempre la fuente de verdad visible de esa corrida específica — el tooltip genérico del botón no se reescribió, pero no debe contradecir lo que esa sección muestra. Implementado: `InvestigationScanPanel.tsx` renderiza Scanned/Not scanned únicamente desde `sourcesScanned`/`sourcesNotScanned` devueltos por el endpoint para ESA corrida, nunca un texto estático o asumido.
+
+### 1. Módulo compartido — `src/lib/documentation/anchors.ts` (nuevo)
+
+Antes de escribir Investigate View, se extrajo de `AuditView.tsx` la unificación de los 5 tipos de ancla (`AnchorKind`, `AnchorItem`, `AnchorMeta`, `AGENT_LABEL`, `ORIGIN_LABEL`, `anchorId`/`anchorMeta`/`anchorTitle`/`anchorFlow`, `buildAnchors()`) y el cómputo de downstream uses (`buildDownstreamMaps()`/`downstreamUsesFor()`, usado por el badge "Used downstream"/"Not used yet") — lógica idéntica que ahora necesitan 2 vistas sin cambios, evitando duplicar ~150 líneas propensas a divergir con el tiempo (el mismo tipo de bug que ya se corrigió varias veces esta semana en Documentation Mode). `AuditView.tsx` se refactorizó para consumir el módulo en vez de su copia local — extracción pura, sin cambio de comportamiento, confirmada con `build` exitoso (mismo bundle size esperado, sin diffs de lógica). Prior steps/timeline (`computeTimeline`, `PRIOR_STEP_TYPES`) quedó SOLO en `AuditView.tsx` — Investigate View no lo necesita, no se abstrajo sin necesidad real.
+
+### 2. Migración 056 — `investigation_snapshot` + system prompt `investigation_scan`
+
+Tabla nueva con el schema aprobado en Paso 0 (`investigation_focus`, `scope_project_id`/`scope_team_id`/`scope_date_start`/`scope_date_end`, `anchor_object_type`/`anchor_object_id`, `scan_mode`, `sources_scanned`/`sources_not_scanned` JSONB, `verdict`, `justification`, `evidence_refs` JSONB, `summary`, `provider_used`/`model_used`, `created_by`, `created_at`). RLS `account_id = auth.uid()` (SELECT + INSERT). Misma migración inserta el system prompt de rol `investigation_scan` en `system_prompts` (Capa 1, `ON CONFLICT DO NOTHING`) — instrucciones estrictas: solo puede citar evidencia literal de los mensajes provistos, nunca inventar, `verdict` DEBE ser `inconclusive` si la evidencia no alcanza, respuesta exclusivamente JSON sin fences ni texto extra.
+
+### 3. Endpoint — `src/app/api/investigation-scan/route.ts` (nuevo)
+
+**GET** — estimación liviana para el aviso de costo de Deep Search: `count(*)` de `messages` sobre todas las sesiones del workspace (barato, indexado por `session_id`).
+
+**POST** — recibe `{ mode, workspaceId, investigationFocus, anchor: { kind, id, title, originAgentRole?, flavor?, originType?, originId? } }`. El cliente ya pasa `originAgentRole` (Handoff/Review & Forward, dato disponible sin fetch extra) y `flavor`/`originType`/`originId` (Loaded Context, también ya cargado) — evita que el endpoint tenga que re-derivar lo que el cliente ya sabe.
+
+**`resolveOriginSessions()`** — implementa la resolución de Paso 0 punto 1: Checkpoint → todas las sesiones del workspace; Handoff/Review & Forward → sesión del `agent_role` indicado; Saved Selection → query a `saved_selections.messages` (JSONB), extrae `agent_role` distintos, mapea a sesiones; Loaded Context "chat" → query a `message_provenance → messages.session_id`; "context_files" → cascada recursiva al tipo de origen real (incluye un caso anidado: Loaded Context sobre un Handoff Package, único caso donde hace falta un query extra a `handoff_packages.from_agent` porque el cliente no tenía ese dato a mano). Cualquier resolución vacía cae a todas las sesiones del workspace (fallback documentado en la consigna original).
+
+**Provider/model:** de la sesión primaria escaneada (Manager si está entre las escaneadas, si no la primera) — sin selector nuevo en la UI, reusa la config ya existente del agente (ver DECISIONS.md 2026-08-20). **'IA Local' no soportado en esta fase:** devuelve 400 explícito — su endpoint solo se conoce desde el body de cada request del browser en chat en vivo, no hay endpoint persistido server-side para reconstruirlo acá (ver DECISIONS.md).
+
+**Llamada al modelo:** `provider.complete()` si el provider lo implementa (Anthropic/OpenAI/Google, ya soportado en el proyecto); si no (LocalProvider — custom OpenAI-compatible con `endpoint_url` persistido en `user_custom_providers`, distinto del caso 'IA Local' bloqueado arriba), se consume el `stream()` completo y se junta el texto — sin cambios en `src/lib/providers/*`.
+
+**`parseVerdict()`** — limpia fences ```json``` si el modelo los agrega pese a la instrucción, `JSON.parse` con try/catch; si falla, NO inventa un verdict optimista — cae a `inconclusive` con el texto crudo (primeros 300 caracteres) como justificación, para no romper la UI ni fabricar evidencia que no existe.
+
+**Persistencia:** insert a `investigation_snapshot` en try/catch aparte, fail-open — si falla, no bloquea la respuesta ya calculada al cliente (mismo criterio que Fase 1.6 de Audit View para el insert de auditoría antes del forward).
+
+### 4. `InvestigationScanPanel.tsx` (nuevo) — panel derecho
+
+Header con Project/Team/Workspace/Anchor type. 2 botones reales separados (`ui-button`, NO tabs — corrige la confusión de jerarquía visual señalada explícitamente en la consigna) `Session Scan`/`Deep Search`, cada uno con un ícono "i" propio (`InfoTooltip` local, hover/click) y su tooltip. Aviso de costo de Deep Search siempre visible (no solo al hacer hover), con el conteo real de `GET /api/investigation-scan` cuando está disponible. Loading state visible (`Scanning…`, botones disabled) mientras corre. Resultado: 4 cards de Verdict (Yes/Partial/No/Inconclusive, la real resaltada), Justification Summary, Evidence Used (lista con fuente + cita + timestamp), y Scope transparency — Scanned/Not scanned tomado exclusivamente de la respuesta del endpoint para esa corrida (nunca estático, por la nota de Agus del Paso 0).
+
+### 5. `InvestigateView.tsx` — reescritura completa
+
+Investigation Brief (campo de foco libre, usado como pregunta por default de Session Scan/Deep Search cuando el usuario no escribe nada) + filtros Project/Team/Type(5 anclas)/Date range (2 inputs de fecha, no 1 solo día como el resto de Documentation Mode — la consigna pidió explícitamente "range") + Top Stats (2 cards: Anchors in scope, Events in selected range) + lista master-detail de las 5 anclas (mismo componente visual que Audit View: badge de tipo, flow si aplica, badge "Used downstream"/"Not used yet", botón `Inspect`) + `InvestigationScanPanel` a la derecha al seleccionar una. Team depende de Project con el mismo `useEffect` de reset ya usado en las demás vistas. Se eliminó por completo el diseño anterior (checkpoints agrupados por fecha + sección aparte de Saved Selections, `getTimelineSpan`/`getRelatedPieces`/`getRelatedActors`) — reemplazado íntegramente por el patrón de anclas unificado.
+
+`DocClient.tsx` — `InvestigateView` ahora recibe también `auditEvents`, `contextSourcesWithOrigin`, `messageProvenance` (ya cargados en `documentation/page.tsx` para Audit View, solo faltaba pasarlos también acá — sin query nueva).
+
+### Alternativas descartadas
+
+- **No extraer `anchors.ts` y duplicar la lógica de anclas en `InvestigateView.tsx`** — descartado: ~150 líneas de lógica de negocio idéntica (qué es un Handoff, cómo se arma su flow, etc.) divergiendo en 2 archivos es exactamente la clase de bug que esta semana se corrigió repetidamente en Documentation Mode (Team/Project filters, códigos de team, Save Selection project_id).
+- **Persistir un endpoint de IA Local en `agent_sessions`** para que Investigate View pudiera escanear sesiones de IA Local — descartado, cambio de schema no pedido para un caso todavía no confirmado como necesario; en su lugar, error 400 explícito.
+- **Selector de provider/model nuevo en la UI de Investigate View** — descartado, la consigna no lo pidió; el agente ya tiene un provider configurado, reusarlo evita una superficie de decisión extra.
+- **Resolver `originAgentRole`/`flavor`/`originType`/`originId` server-side desde cero** en vez de que el cliente los pase cuando ya los tiene — descartado para Handoff/Review & Forward/Loaded Context (esos 3 casos el cliente ya tiene el dato cargado, un fetch extra hubiera sido redundante); sí se resuelve server-side para Checkpoint/Saved Selection (ahí el cliente no tiene ese detalle sin un fetch propio) y para el caso anidado Loaded Context→Handoff.
+
+### Riesgos conocidos / deuda técnica
+
+- **Migración 056 no aplicada aún en Supabase** — nada de esto funciona hasta que Agus la corra manualmente (mismo patrón que todas las migraciones del proyecto). Sin la migración, `investigation_snapshot` no existe y el `CHECK` viejo... no aplica acá (tabla nueva, no ALTER), pero el insert fallará con "relation does not exist" hasta aplicarla.
+- **Sin verificación funcional real todavía** — no se corrió ningún Session Scan/Deep Search real contra el dev server esta sesión (bloqueado por la migración pendiente). Los 3 puntos de verificación pedidos en la consigna original (screenshot Investigation Brief + lista, screenshot de un scan real, confirmación SQL de `investigation_snapshot`) quedan pendientes de Agus.
+- **'IA Local' no soportado** para Session Scan/Deep Search — límite conocido y documentado (ver Decisión 2026-08-20), no un bug. Si en el futuro se persiste un endpoint por sesión, se puede levantar este límite.
+- **Saved Selection con selección mixta agente+humano:** `resolveOriginSessions()` para `saved_selection` solo extrae `agent_role` del JSONB — mensajes de human chat guardados en la misma selección (`_isHumanMessage: true`, sin `agent_role`) no aportan a la resolución de sesión, lo cual es correcto (no tienen `agent_session` real), pero no se probó ese caso mixto específico end-to-end.
+- **Sin cálculo de tokens real** — la estimación de costo de Deep Search es cantidad de mensajes, no tokens, tal como se aprobó explícitamente en Paso 0.
+
+**Archivos modificados/nuevos:** `src/lib/documentation/anchors.ts` (nuevo), `src/components/documentation/AuditView.tsx` (refactor, extracción a anchors.ts), `src/components/documentation/InvestigateView.tsx` (reescritura completa), `src/components/documentation/InvestigationScanPanel.tsx` (nuevo), `src/components/documentation/DocClient.tsx`, `src/app/api/investigation-scan/route.ts` (nuevo), `supabase/migrations/056_investigation_snapshot.sql` (nuevo), `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
+
+---
+
+## Mini-OE 2026-08-20 — Card completa clickeable en la lista de anclas (Audit View + Investigate View)
+
+**Fecha:** 2026-08-20
+**Estado:** Closed — ajuste de UX puro, sin cambio de lógica de negocio. lint ✅, build ✅. Pendiente verificación visual de Agus (screenshot de ambas vistas).
+
+**Contexto:** el botón "Audit"/"Inspect" en cada card de la lista de anclas (Audit View e Investigate View, mismo patrón visual compartido) se reemplaza por toda la card clickeable, pedido explícito del PO.
+
+**Cambio:** en ambos archivos, el `<div>` de cada card ganó `role="button"`, `tabIndex={0}`, `onClick={() => setSelectedKey(key)}` y `onKeyDown` (Enter/Space) — mismo handler que antes disparaba el botón. Estilos agregados: `cursor-pointer transition-colors hover:bg-[var(--color-surface-subtle)] hover:border-indigo-300` (mismo token `--color-surface-subtle` ya usado en `AuditDetailPanel.tsx`). El botón (`Audit` en `AuditView.tsx`, `Inspect` en `InvestigateView.tsx`) se eliminó — el `chain` badge (`Used downstream`/`Not used yet`) quedó solo en esa columna derecha.
+
+**Checkbox de selección:** confirmado por grep (`checkbox` en ambos archivos) que ninguna de las 2 listas tiene checkbox — no hizo falta `stopPropagation` ni ninguna lógica de interacción independiente. Si en el futuro se agrega un checkbox a alguna de las 2 listas, ese click deberá cortar la propagación antes de llegar al `onClick` de la card.
+
+**Riesgos conocidos / deuda técnica:** ninguno nuevo — cambio puramente visual/de interacción, sin tocar props, tipos, ni la lógica de `anchors.ts`.
+
+**Archivos modificados:** `src/components/documentation/AuditView.tsx`, `src/components/documentation/InvestigateView.tsx`, `PRODUCT_STATUS.md`.
+
+---
+
+## OE 2026-08-20 — SM de Documentation Mode: diagnóstico + rediseño a buscador con contrato JSON (V1: Repository + Audit View)
+
+**Fecha:** 2026-08-20
+**Estado:** Código completo, lint ✅, build ✅. **NO cerrada todavía** — pendiente que Agus aplique la migración 057 en Supabase y ejecute la verificación funcional de 6 puntos. Sin commit ni push hasta esa validación.
+
+**Contexto:** el SM lateral de Documentation Mode se construyó en el Bloque 14 (system_prompts `sm_documentation`/`sm_audit`) pero Agus lo probó hace semanas y le pareció de comportamiento ambiguo, sin llegar a diagnosticar por qué en su momento. Esta OE pidió primero un diagnóstico solo-lectura con evidencia real (no asumir), y recién después de reportarlo y confirmar alcance con Agus, implementar.
+
+### Paso 0 — Diagnóstico solo-lectura (reportado y aprobado antes de tocar código)
+
+Evidencia real leída antes de proponer nada:
+1. **System prompt real (`sm_documentation`, migración 011b):** pedía texto plano — lista `[nombre exacto] — [equipo] — [workspace] — [fecha]` para búsquedas, "una oración máximo" para preguntas directas, "No results found." si no hay resultados. Nada de links ni formato navegable. `sm_audit` (rol del SM de `/audit`, página distinta) tenía el mismo patrón.
+2. **`src/app/api/sm-doc-chat/route.ts`:** solo streameaba texto crudo del modelo, sin parseo ni schema.
+3. **Mecanismo de navegación real (`SMPanel.tsx`):** NO lo genera el modelo — es el frontend haciendo regex-match del texto de la respuesta contra un array `checkpoints: SMCheckpoint[]` precargado. Si el texto del modelo contiene el nombre EXACTO de un checkpoint, ese substring se vuelve botón clickeable; si el modelo parafrasea aunque sea levemente, no queda nada clickeable. **Esto explica el "comportamiento ambiguo"** — no es que el SM decida no dar link, es que el link depende de una coincidencia de string frágil, no de un contrato garantizado.
+4. **Índice incompleto:** `smCheckpoints` (`DocClient.tsx`) se armaba solo desde `checkpoints` — nada de Handoff Package, Saved Selection, Loaded Context ni Review & Forward, los otros 4 tipos de ancla que hoy organizan las 5 vistas de Documentation Mode (desde el rediseño de Audit View/Investigate View). El SM nunca se actualizó tras esa unificación.
+5. **Destino del click, hoy:** `handleSelectCheckpoint()` hardcodeaba `setTab('repository')` siempre. Repository View sí aceptaba `externalSelectedId` y lo resolvía contra sus 3 tipos (Checkpoint/Handoff/SavedSelection) vía lookup genérico — funcionaba mejor de lo que parecía a primera vista. Audit View/Investigate View ya tenían `selectedKey` interno (construido en la OE anterior) pero sin ningún prop externo que lo alimentara. Structure View (`{projects, teamCodes}`) y Knowledge Map (`{checkpoints, projects}`) no tenían NINGÚN mecanismo de selección/resaltado de un ítem puntual — ni prop, ni estado.
+
+**Conclusión reportada:** el gap no era solo de prompt. Se dividía en partes de tamaño muy distinto — prompt (chico), matching confiable (mediano), indexar 5 anclas (chico, gracias a `anchors.ts` ya construido esa misma sesión), deep-link por vista (mixto: Repository/Audit/Investigate baratos, Structure View/Knowledge Map esfuerzo real desde cero). Se presentaron las 3 opciones a Agus: ocultar, V1 acotado a 3/5 vistas, o alcance completo 5/5. **Agus eligió V1 acotado a 3/5 vistas.**
+
+### Diseño de detalle — 2da ronda de confirmación con Agus
+
+Al bajar la opción elegida a diseño concreto apareció una pregunta real de producto: Loaded Context y Review & Forward no existen en Repository View, y Audit View/Investigate View los muestran de forma idéntica — no había una vía "natural" única entre las dos. Se le presentó la disyuntiva a Agus en vez de decidir unilateralmente. **Agus confirmó: siempre Audit View, sin importar la vista activa — Investigate View no recibe links del SM en este V1** (documentado como decisión de alcance, no como omisión).
+
+### 1. `src/lib/documentation/anchors.ts` — extensiones
+
+- `ANCHOR_KIND_LABEL` movido acá desde `AuditView.tsx` (antes local, ahora compartido — mismo criterio de extracción ya aplicado esta sesión a `buildAnchors`/`buildDownstreamMaps`).
+- `AnchorSearchItem` (nuevo tipo: `key`, `kind`, `id`, `title`, `project`, `team`, `workspace`, `date`) + `buildAnchorSearchIndex(anchors)`: arma el índice de búsqueda del SM sobre las 5 anclas, con `key` en formato `${kind}:${id}` — el mismo formato exacto que `selectedKey` interno de `AuditView.tsx`, así que se puede pasar directo como `externalSelectedKey` sin ninguna conversión.
+
+### 2. Migración 057 — `sm_documentation` pasa a contrato JSON estricto
+
+`UPDATE system_prompts` (no `INSERT`, el role ya existía desde 011b) — nuevo `role_prompt`: el modelo responde EXCLUSIVAMENTE `{"matches": ["key1", "key2", ...]}`, cada `key` copiado literalmente del índice provisto (nunca inventado), `{"matches": []}` si no hay match o si el mensaje no es una búsqueda. `sm_audit` **no se tocó** — sigue con su prompt conversacional original, fuera de alcance de esta OE.
+
+### 3. `src/lib/providers/completeText.ts` (nuevo) — helper compartido
+
+Extraído de `investigation-scan/route.ts` (llamada no-streaming a un provider ya resuelto: `complete()` si el provider lo implementa, si no consume el `stream()` completo) — reusado ahora también en `sm-doc-chat/route.ts` para el modo búsqueda. 2 call sites reales, no especulativo. `investigation-scan/route.ts` se refactorizó para usarlo (sin cambio de comportamiento).
+
+### 4. `src/app/api/sm-doc-chat/route.ts` — rama de modo búsqueda
+
+`SEARCH_ROLES = new Set(['sm_documentation'])` — si `smRole` está en ese set, la ruta deja de streamear: arma `fullMessages` igual que siempre, llama `completeText()` (manejando `IA Local` con el mismo patrón especial que ya existía — endpoint desde el body, buffer del stream), parsea el JSON con `parseSearchMatches()` (limpia fences, valida que sea un array de strings, cae a `{matches: []}` si el parseo falla — nunca rompe el frontend ni inventa contenido) y devuelve `Response.json({matches})`. Cualquier otro rol (`sm_audit`, futuros) sigue el camino streaming original sin ningún cambio — confirmado con el `if (isSearch)` como única bifurcación nueva, todo el código de abajo es el mismo de siempre.
+
+### 5. `src/components/sm/SMPanel.tsx` — 2 modos en el mismo componente
+
+Nuevos props opcionales `searchIndex?: AnchorSearchItem[]` + `onOpenResult?: (item) => void`. `isSearchMode = searchIndex !== undefined` decide la rama en 2 puntos: `sendMessage()` (JSON completo vía `res.json()` en vez del reader de streaming — se resuelve cada `key` contra `searchIndex`, ítems no encontrados en el índice se descartan silenciosamente, nunca se confía en que el modelo mandó algo válido) y el render de mensajes assistant (`renderSearchResult()` en vez de `renderAssistantMessage()`). `renderSearchResult()` parsea `content` como `{matches: AnchorSearchItem[]}` (ya resuelto en `sendMessage`, no texto libre): 0 → "No results found.", 1 → botón directo con el título real, >1 → reusa `SMDisambiguationModal` con un estado propio `searchDisambig` (separado del `disambigResults` legado, para no interferir con el modo conversacional de `/audit`). El modo legado (`checkpoints`/`onSelectCheckpoint`/`renderAssistantMessage`/`collectMatches`/`disambigResults`) queda **100% intacto** — `AuditClient.tsx` (`/audit`, rol `sm_audit`) no pasa `searchIndex`, así que sigue exactamente en el comportamiento de siempre.
+
+### 6. `src/components/documentation/AuditView.tsx` — nuevo prop `externalSelectedKey`
+
+Mismo patrón que `externalSelectedId` de `RepositoryView.tsx`: `useEffect` que setea `selectedKey` cuando `externalSelectedKey` cambia. Import de `ANCHOR_KIND_LABEL` ahora desde `anchors.ts` en vez de la copia local (eliminada).
+
+### 7. `src/components/documentation/DocClient.tsx` — reescritura de la integración con el SM
+
+- `allAnchorsForSm` (vía `buildAnchors()`) + `searchIndex` (vía `buildAnchorSearchIndex()`) reemplazan `smCheckpoints`.
+- `pageContext` reescrito: en vez de listar solo checkpoints con `[ID: uuid]`, lista las 5 anclas con `key: ${kind}:${id}` explícito (el modelo necesita ver el `key` exacto para poder citarlo) — cap en `MAX_CONTEXT` (100), igual criterio que antes.
+- **`filteredCheckpoints`/`handleFilterChange`/`onFilterChange` eliminados** — quedaron sin ningún consumidor tras el cambio (el SM ahora busca siempre sobre el índice completo, no "lo que Repository View tiene filtrado"), confirmado por grep antes de borrar. `RepositoryView.tsx` sigue calculando su propio filtrado interno sin depender de ese callback — su prop `onFilterChange` es opcional, dejar de pasarlo no rompe nada ahí.
+- `handleOpenSearchResult(item)`: Checkpoint/Handoff/SavedSelection → `setTab('repository')` + `setSelectedRepositoryId(item.id)`. Loaded Context/Review & Forward → `setTab('audit')` + `setSelectedAuditKey(item.key)`.
+- `selectedCheckpointId` renombrado a `selectedRepositoryId` (ya no es solo de checkpoints, también handoffs/saved selections vía el mismo mecanismo de siempre — el rename es solo claridad, sin cambio de comportamiento).
+
+### Verificación — pendiente de Agus (6 puntos pedidos en la consigna)
+
+1. Buscar algo que matchee un Checkpoint → Repository View con el ítem correcto abierto.
+2. Buscar algo que matchee un Handoff Package o Saved Selection → mismo chequeo en Repository View.
+3. Buscar algo que matchee un Loaded Context o Review & Forward → Audit View con el ítem correcto.
+4. Búsqueda con múltiples resultados → modal de desambiguación con datos reales.
+5. Búsqueda sin resultados → "No results found." sin texto extra.
+6. Confirmar que el modelo ya no devuelve prosa libre en ningún caso.
+
+No se pudo ejecutar ninguno de estos 6 puntos en esta sesión — requieren la migración 057 aplicada en Supabase y una API key real conectada al SM, ninguna de las dos disponibles en este momento del cierre.
+
+### Alternativas descartadas
+
+- **Mantener el regex-match pero solo ampliar el índice a las 5 anclas** — descartado, no resuelve la causa raíz (la fragilidad de depender de que el modelo repita el nombre exacto); el problema reportado por Agus era justamente ese.
+- **Destino "según la vista activa" para Loaded Context/Review & Forward** — descartado por Agus a favor de "siempre Audit View": más simple y predecible, no depende de que el SM sepa en qué tab está el usuario.
+- **Forzar Investigate View como destino de algún tipo de ancla** para que las "3 vistas" tuvieran presencia pareja — descartado, no había ninguna razón de producto real para esa asignación (Investigate View es para reconstrucción de varios documentos, no lookup de uno) y se prefirió señalarlo como tensión real antes que decidirlo en silencio.
+- **Tocar `sm_audit`** para unificar el comportamiento entre las 2 páginas — explícitamente fuera de alcance, Agus scopeó esto a "el SM de Documentation Mode" únicamente.
+
+### Riesgos conocidos / deuda técnica
+
+- **Migración 057 no aplicada aún en Supabase** — hasta entonces, `sm_documentation` sigue sirviendo el prompt viejo (conversacional) contra el nuevo frontend (que espera JSON) — comportamiento roto hasta que Agus la aplique. El fallback hardcodeado (`FALLBACK_SEARCH_PREAMBLE`) solo cubre el caso "sin fila en DB", no "fila vieja en DB" — si la migración no se aplica, el modelo va a seguir devolviendo texto libre que `parseSearchMatches()` interpretará como `{matches: []}` (fail-safe, no rompe la UI, pero tampoco encuentra nada).
+- **Sin verificación funcional real todavía** — ninguno de los 6 puntos de la consigna se probó end-to-end esta sesión (ver arriba).
+- **Structure View y Knowledge Map quedan permanentemente fuera del alcance de este V1** — no tienen mecanismo de selección/resaltado de ítem individual; si en el futuro se decide invertir ahí, es una pieza de UI nueva en cada una (árbol y grafo respectivamente), no una extensión menor.
+- **Índice de búsqueda cap en 100 anclas** (`MAX_CONTEXT`) — cuentas con más de 100 anclas activas no van a poder buscar las más viejas vía el SM; mismo límite que ya existía antes para checkpoints, ahora aplicado al conjunto de 5 tipos.
+- **`sm_audit` sigue con el mecanismo frágil de regex-match** — mismo problema de fondo que se diagnosticó acá, sin resolver, porque está fuera del alcance que Agus definió para esta OE.
+
+**Archivos modificados/nuevos:** `src/lib/documentation/anchors.ts`, `supabase/migrations/057_sm_documentation_search_prompt.sql` (nuevo), `src/lib/providers/completeText.ts` (nuevo), `src/app/api/sm-doc-chat/route.ts`, `src/app/api/investigation-scan/route.ts` (refactor a `completeText()`), `src/components/sm/SMPanel.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/DocClient.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
+
+---
