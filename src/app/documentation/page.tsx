@@ -4,7 +4,14 @@ import { getDocCheckpoints, getDocAuditEvents, getHandoffPackages, getSavedSelec
 import { getProjectsWithHierarchy } from '@/lib/db/projects'
 import DocClient from '@/components/documentation/DocClient'
 
-export default async function DocumentationPage() {
+interface Props {
+  // Deep-link desde Structure View (WorkspaceDetailPanel, 2026-08-20) — abre
+  // directo en Audit/Investigate View con el Team ya filtrado. Ver
+  // handoff-2026-07-b.md 2026-08-20.
+  searchParams: { tab?: string; team?: string }
+}
+
+export default async function DocumentationPage({ searchParams }: Props) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -43,6 +50,8 @@ export default async function DocumentationPage() {
       userName={userName}
       userEmail={userEmail}
       customProviders={customProviders}
+      initialTab={searchParams.tab}
+      initialFilterTeam={searchParams.team}
     />
   )
 }

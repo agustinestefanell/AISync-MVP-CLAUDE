@@ -1,6 +1,5 @@
 'use client'
 
-import { useMemo, useState } from 'react'
 import {
   type AnchorItem,
   type AnchorKind,
@@ -11,7 +10,8 @@ import {
   anchorFlow,
 } from '@/lib/documentation/anchors'
 
-// ── Structure View — panel de detalle por Workspace (2026-08-20) ───────────
+// ── Structure View — panel de detalle por Workspace (2026-08-20, ajustado
+// el mismo día: filtros movidos al padre + botones de navegación) ──────────
 // Al hacer click en un nodo Team (nivel Workspace) del árbol, muestra los 5
 // tipos de ancla de ese Workspace mezclados en orden cronológico. Nivel
 // "Agent individual" (Manager/Worker por separado) queda fuera de esta OE —
@@ -19,12 +19,14 @@ import {
 // los 5 tipos (Checkpoint/Saved Selection pueden abarcar más de una sesión),
 // mismo hallazgo ya confirmado para Session Scan. Ver DECISIONS.md 2026-08-20.
 //
+// Panel puramente presentacional — `anchors` ya viene filtrado y ordenado
+// por `StructureView.tsx` (los 7 filtros de la barra nueva viven ahí, no
+// acá, porque también atenúan el árbol incluso sin panel abierto).
+//
 // Sin panel secundario por ítem (a diferencia de Audit View/Investigation
 // Scan) — decisión deliberada, no un recorte accidental: acá el foco es
 // "qué hay en este Workspace", no reconstruir la auditoría de un ítem
-// puntual (eso ya lo resuelve Audit View). Un solo botón "Open Workspace →"
-// en el header alcanza, ya que los 5 tipos comparten el mismo workspace_id
-// por definición del filtro.
+// puntual (eso ya lo resuelve Audit View).
 
 const TYPE_BADGE: Record<AnchorKind, { label: string; className: string }> = {
   checkpoint:      { label: 'CHECKPOINT',       className: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
@@ -47,6 +49,10 @@ function teamLabel(id: string | null, name: string | null, codes?: Record<string
   return code ? `${code} · ${name}` : name
 }
 
+function openNewTab(url: string) {
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
 interface Props {
   workspaceId:   string
   workspaceName: string
@@ -61,31 +67,6 @@ interface Props {
 export default function WorkspaceDetailPanel({
   workspaceId, workspaceName, teamId, teamName, projectName, anchors, teamCodes, onClose,
 }: Props) {
-  const [filterType,   setFilterType]   = useState<AnchorKind | ''>('')
-  const [filterDate,   setFilterDate]   = useState('')
-  const [searchQuery,  setSearchQuery]  = useState('')
-
-  const filtered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    return anchors.filter(item => {
-      if (filterType && item.kind !== filterType) return false
-      const meta = anchorMeta(item)
-      if (filterDate && !meta.date.startsWith(filterDate)) return false
-      if (q && !anchorTitle(item).toLowerCase().includes(q)) return false
-      return true
-    })
-  }, [anchors, filterType, filterDate, searchQuery])
-
-  const displayItems = useMemo(
-    () => [...filtered].sort((a, b) => anchorMeta(b).date.localeCompare(anchorMeta(a).date)),
-    [filtered],
-  )
-
-  const hasFilter = filterType || filterDate || searchQuery
-  function resetFilters() {
-    setFilterType(''); setFilterDate(''); setSearchQuery('')
-  }
-
   return (
     <div className="h-full min-h-0 flex flex-col flex-1 min-w-0 bg-[var(--color-surface)]">
       <div className="shrink-0 px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-start justify-between gap-4">
@@ -98,65 +79,48 @@ export default function WorkspaceDetailPanel({
             {projectName ?? '—'} · {teamLabel(teamId, teamName, teamCodes)}
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={() => window.open(`/workspace/${workspaceId}`, '_blank', 'noopener,noreferrer')}
-            className="ui-button ui-button-primary min-h-7 px-3 text-[11px] text-white"
-          >
-            Open Workspace →
-          </button>
-          <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm">✕</button>
-        </div>
+        <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm shrink-0">✕</button>
       </div>
 
-      {/* Filtros — Type/Date/Search, sin Project/Team (ya resueltos por el árbol) */}
+      {/* Botones de acción — solo acá, abren en pestaña nueva, con el
+          filtro de este Workspace ya aplicado en destino (2026-08-20). */}
       <div className="shrink-0 px-6 py-3 border-b border-[var(--color-border-subtle)] flex flex-wrap gap-2">
-        <select value={filterType} onChange={e => setFilterType(e.target.value as AnchorKind | '')}
-          className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500">
-          <option value="">All anchor types (5)</option>
-          <option value="checkpoint">Checkpoint</option>
-          <option value="handoff">Handoff Package</option>
-          <option value="saved_selection">Saved Selection</option>
-          <option value="loaded_context">Loaded Context</option>
-          <option value="review_forward">Review &amp; Forward</option>
-        </select>
-        <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
-          className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500" />
-        <input
-          type="text"
-          placeholder="Search by title..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:border-indigo-500 min-w-[180px]"
-        />
-        {hasFilter && (
-          <button onClick={resetFilters} className="text-xs text-gray-500 hover:text-gray-600 px-2">
-            Reset
-          </button>
+        <button
+          onClick={() => openNewTab(`/workspace/${workspaceId}`)}
+          className="ui-button ui-button-primary min-h-7 px-3 text-[11px] text-white"
+        >
+          Open Workspace →
+        </button>
+        {teamId && (
+          <>
+            <button
+              onClick={() => openNewTab(`/documentation?tab=audit&team=${teamId}`)}
+              className="ui-button min-h-7 px-3 text-[11px] text-[var(--color-text-secondary)]"
+            >
+              Go to Audit →
+            </button>
+            <button
+              onClick={() => openNewTab(`/documentation?tab=investigate&team=${teamId}`)}
+              className="ui-button min-h-7 px-3 text-[11px] text-[var(--color-text-secondary)]"
+            >
+              Go to Investigate →
+            </button>
+          </>
         )}
       </div>
 
-      {/* Lista */}
+      {/* Lista — ya filtrada y ordenada por StructureView.tsx */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        {displayItems.length === 0 ? (
+        {anchors.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
-            <p className="text-[var(--color-text-primary)] font-medium">
-              {anchors.length === 0 ? 'No documents in this workspace yet' : 'No results found'}
-            </p>
+            <p className="text-[var(--color-text-primary)] font-medium">No documents match</p>
             <p className="text-sm text-[var(--color-text-secondary)] max-w-xs">
-              {anchors.length === 0
-                ? 'Save a checkpoint, handoff, selection, or forward a message from this Workspace to see it here.'
-                : 'Try different filters.'}
+              Save a checkpoint, handoff, selection, or forward a message from this Workspace to see it here — or try different filters.
             </p>
-            {hasFilter && (
-              <button onClick={resetFilters} className="mt-1 text-sm text-[var(--color-accent)] underline hover:opacity-75">
-                Clear filters
-              </button>
-            )}
           </div>
         ) : (
           <div className="space-y-3">
-            {displayItems.map(item => {
+            {anchors.map(item => {
               const meta  = anchorMeta(item)
               const badge = TYPE_BADGE[item.kind]
               const flow  = anchorFlow(item)

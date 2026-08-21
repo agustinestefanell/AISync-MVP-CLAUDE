@@ -78,15 +78,18 @@ interface Props {
   projects:                 ProjectWithTeams[]
   userEmail:                string
   teamCodes?:               Record<string, string>
+  // Deep-link desde el botón "Go to Investigate →" de Structure View
+  // (2026-08-20) — siembra el filtro Team al montar.
+  initialFilterTeam?:       string
 }
 
 export default function InvestigateView({
   checkpoints, handoffPackages, savedSelections, auditEvents,
-  contextSourcesWithOrigin, messageProvenance, projects, teamCodes,
+  contextSourcesWithOrigin, messageProvenance, projects, teamCodes, initialFilterTeam,
 }: Props) {
   const [investigationFocus, setInvestigationFocus] = useState('')
   const [filterProject,      setFilterProject]      = useState('')
-  const [filterTeam,         setFilterTeam]         = useState('')
+  const [filterTeam,         setFilterTeam]         = useState(initialFilterTeam ?? '')
   const [filterAnchorType,   setFilterAnchorType]   = useState<AnchorKind | ''>('')
   const [filterDateStart,    setFilterDateStart]    = useState('')
   const [filterDateEnd,      setFilterDateEnd]      = useState('')

@@ -4290,3 +4290,64 @@ Build y lint corridos. **Sin verificación visual esta sesión** — había un s
 **Archivos modificados/nuevos:** `src/lib/documentation/types.ts`, `src/lib/documentation/buildMirrorTree.ts`, `src/components/documentation/DocumentationMirrorTree.tsx`, `src/components/documentation/WorkspaceDetailPanel.tsx` (nuevo), `src/components/documentation/StructureView.tsx`, `src/components/documentation/DocClient.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## OE 2026-08-20 — Structure View: filtros completos (7) + navegación externa (ajuste sobre el panel recién cerrado)
+
+**Fecha:** 2026-08-20
+**Estado:** Código completo, lint ✅, build ✅. **NO cerrada todavía** — pendiente verificación visual de Agus. Sin commit ni push hasta esa validación.
+
+**Contexto:** ajuste sobre el panel de detalle de Structure View del commit `c98f337` (mismo día). Dos pedidos: (1) reemplazar los 3 filtros del panel (Type/Date/Search) por los 7 de Repository View (Project/Team/Type/State/Date/Search/Sort), con atenuación de Teams sin match en el árbol; (2) botones Open Workspace/Go to Audit/Go to Investigate, en pestaña nueva, con el Workspace ya filtrado en destino.
+
+### Paso 0 (reportado y confirmado antes de escribir código)
+
+- **Conteo real:** la lista de Agus (Project/Team/Type/State/Date/Search/Sort) son 7 campos, no 6 — falta "Archive Status" (Active/Archived teams) respecto al set completo real de `RepositoryView.tsx` (8 variables de filtro). Se le preguntó a Agus qué hacer con Archive Status vía `AskUserQuestion` — **confirmó mantenerlo como está, aparte** (sigue ocultando por completo, no se unifica con la atenuación nueva).
+- **"State" (`doc_state`) solo existe en `DocCheckpoint`** — ninguno de los otros 4 tipos de ancla lo tiene. Se replica el mismo comportamiento parcial que ya tiene Repository View hoy (State solo afecta checkpoints ahí también) — no es un gap nuevo.
+- **Redundancia Project/Team panel vs. click del árbol — resuelta como Agus propuso:** el panel siempre muestra UN Workspace ya elegido, todos sus ítems comparten el mismo Project/Team — un filtro "hacia adentro" sería un no-op. Se confirma la propuesta de Agus: el dropdown Project/Team del panel pasa a ser una **segunda forma de navegar** (re-apunta `selectedTeamId`, el mismo estado que ya usa el click del árbol), no un filtro paralelo.
+- **Costo de "qué Teams atenuar" — confirmado barato, sin query nueva:** `DocClient.tsx` ya carga los 5 tipos de ancla de toda la cuenta y `StructureView.tsx` ya construye `allAnchors` completo (lo usa el panel desde la OE anterior) — el cálculo es un `useMemo` puro sobre datos ya en memoria.
+- **Consecuencia de diseño reportada:** para que la atenuación reaccione incluso sin panel abierto, el estado de los 7 filtros tiene que vivir en `StructureView.tsx` (el padre), no adentro del panel — el panel pasa a ser puramente presentacional.
+- **Corrección de referencia:** Structure View no tenía ningún patrón de atenuación propio (su filtro de archivados existente OCULTA, no atenúa) — se tomó el valor real que usa Teams Map (`opacity: 0.45`, `TreeWorkspaceCard.tsx`) para consistencia visual entre vistas, en vez de un valor inventado.
+- **Botones — feasibility reportada:** `/documentation` no tenía query params (tab = 100% estado de React). Factible con infraestructura chica: `searchParams` en el server component + un prop `initialFilterTeam` sembrando el filtro Team al montar en Audit/Investigate View, mismo patrón que `externalSelectedKey` (Fase A de Investigate View).
+
+### 1. `src/app/documentation/page.tsx` — soporte de query params
+
+`Props.searchParams: { tab?: string; team?: string }` — se pasan como `initialTab`/`initialFilterTeam` a `DocClient`.
+
+### 2. `src/components/documentation/DocClient.tsx`
+
+`tab` ahora se inicializa desde `initialTab` (validado contra `VALID_TABS`, fallback `'repository'` si no es válido o falta). `initialFilterTeam` se reenvía a `AuditView`/`InvestigateView`.
+
+### 3. `src/components/documentation/AuditView.tsx` / `InvestigateView.tsx`
+
+Nuevo prop `initialFilterTeam?: string` — siembra `filterTeam` como valor inicial de `useState` (no `useEffect`: alcanza porque el componente se monta de cero al navegar directo por URL a esa tab).
+
+### 4. `src/components/documentation/StructureView.tsx` — reescritura de la barra de filtros
+
+Barra existente (Search teams/Project/Archive Status — oculta teams del árbol) queda intacta, sin tocar. Barra nueva, segunda fila: Project (solo acota opciones del dropdown Team, no oculta nada) + Team (`<select>` controlado directo sobre `selectedTeamId` — mismo estado que el click del árbol, sin duplicar) + Type/State/Date/Search (filtran de verdad `selectedWorkspaceAnchors` Y alimentan `dimmedTeamIds`) + Sort (orden de la lista del panel). `dimmedTeamIds` — `useMemo` que recorre `allAnchors` una vez, arma el set de `teamId`s que SÍ tienen al menos un ítem matcheando Type/State/Date/Search, y devuelve el complemento (todos los teams reales menos los que matchean) — vacío si no hay ningún filtro de contenido activo (nada atenuado por default).
+
+### 5. `src/components/documentation/DocumentationMirrorTree.tsx`
+
+Nuevo prop `dimmedTeamIds?: Set<string>`. `MirrorTreeNode` calcula `isDimmed` (team en el set, o heredado del padre — mismo criterio "Workers heredan opacity" de Teams Map) y aplica `opacity: 0.45` vía `style` en el wrapper del nodo, propagando `inheritedDimmed` a los hijos en la recursión. Nuevo `useEffect` sobre `selectedTeamId`: fuerza `openState` de `docs-root`/`docs-folder-teams`/el team elegido a `true` — cubre el caso de elegir un team desde el dropdown cuyo ancestro el usuario había colapsado manualmente antes (el click directo en el árbol ya lo tenía abierto por default, esto es solo para la vía del dropdown).
+
+### 6. `src/components/documentation/WorkspaceDetailPanel.tsx` — reescrito, presentacional
+
+Se sacó todo el filtro local (Type/Date/Search + su `useMemo`/`useState`) — ahora recibe `anchors` ya filtrado y ordenado por el padre. Header: 3 botones (`Open Workspace →`, `Go to Audit →`, `Go to Investigate →`), todos `window.open(url, '_blank', 'noopener,noreferrer')`. Los 2 nuevos apuntan a `/documentation?tab=audit&team=<teamId>` / `?tab=investigate&team=<teamId>`.
+
+### Verificación
+
+Lint y build corridos. **Sin verificación visual esta sesión** — mismo motivo que la OE anterior: hay un dev server activo en el puerto 3000 (posible sesión de Agus), sin Claude in Chrome disponible, no se quiso interferir sin confirmar antes. Pendiente el screenshot de los 3 puntos pedidos: los 7 filtros funcionando, Teams atenuados en el árbol, y los 3 botones abriendo en pestaña nueva con el filtro ya aplicado.
+
+### Alternativas descartadas
+
+- **Project/Team como filtros reales dentro del panel** — descartado, sería un control inerte (el panel ya muestra un solo team) o generaría dos fuentes de verdad distintas para "qué workspace está abierto".
+- **Unificar Archive Status con la atenuación nueva** — descartado, decisión explícita de Agus vía pregunta directa: se mantiene aparte, ocultando como siempre.
+- **Filtro local en el panel (como se había construido la OE anterior)** — descartado, no puede alimentar la atenuación del árbol cuando no hay panel abierto.
+
+### Riesgos conocidos / deuda técnica
+
+- **Sin verificación visual real todavía** — ver arriba.
+- **Deep-link a un Team sin ningún documento:** `uniqueTeams` de `AuditView.tsx`/`InvestigateView.tsx` se arma iterando anclas existentes, no la lista estática de `projects` — si el Team destino no tiene ningún ítem visible en esa vista, el dropdown no lo lista y el `useEffect` de reset existente en esas vistas limpia `filterTeam` de vuelta a vacío al montar. Comportamiento heredado de esas vistas (no introducido por esta OE), señalado por si se nota como bug en el futuro.
+- **`initialFilterTeam` no siembra `filterProject`** en Audit/Investigate View — si el team destino no es visible en "All projects" por algún filtro de proyecto activo... no aplica, `filterProject` arranca vacío siempre, sin conflicto real hoy.
+
+**Archivos modificados:** `src/app/documentation/page.tsx`, `src/components/documentation/DocClient.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/InvestigateView.tsx`, `src/components/documentation/StructureView.tsx`, `src/components/documentation/DocumentationMirrorTree.tsx`, `src/components/documentation/WorkspaceDetailPanel.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
+
+---

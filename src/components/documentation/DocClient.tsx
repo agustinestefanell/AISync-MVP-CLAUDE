@@ -126,10 +126,18 @@ interface DocClientProps {
   userName:                 string
   userEmail:                string
   customProviders:          CustomProvider[]
+  // Deep-link desde Structure View (WorkspaceDetailPanel, 2026-08-20) — ver
+  // src/app/documentation/page.tsx.
+  initialTab?:              string
+  initialFilterTeam?:       string
 }
 
-export default function DocClient({ pageName, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, userName, userEmail, customProviders }: DocClientProps) {
-  const [tab,                     setTab]                     = useState<Tab>('repository')
+const VALID_TABS: Tab[] = ['repository', 'structure', 'audit', 'investigate', 'knowledge']
+
+export default function DocClient({ pageName, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, userName, userEmail, customProviders, initialTab, initialFilterTeam }: DocClientProps) {
+  const [tab,                     setTab]                     = useState<Tab>(
+    () => (initialTab && (VALID_TABS as string[]).includes(initialTab) ? initialTab as Tab : 'repository'),
+  )
   const [helpTab,                 setHelpTab]                 = useState<Tab | null>(null)
   const [showMainGuide,           setShowMainGuide]           = useState(false)
   const [selectedRepositoryId,    setSelectedRepositoryId]    = useState<string | null>(null)
@@ -242,8 +250,8 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userName={userName} userEmail={userEmail} externalSelectedId={selectedRepositoryId} teamCodes={teamCodes} />}
               {tab === 'structure'   && <StructureView   checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} projects={projects} userName={userName} userEmail={userEmail} teamCodes={teamCodes} />}
-              {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} projects={projects} teamCodes={teamCodes} externalSelectedKey={selectedAuditKey} />}
-              {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} projects={projects} userEmail={userEmail} teamCodes={teamCodes} />}
+              {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} projects={projects} teamCodes={teamCodes} externalSelectedKey={selectedAuditKey} initialFilterTeam={initialFilterTeam} />}
+              {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} projects={projects} userEmail={userEmail} teamCodes={teamCodes} initialFilterTeam={initialFilterTeam} />}
               {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
             </div>
           </div>

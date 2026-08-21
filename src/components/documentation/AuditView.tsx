@@ -104,15 +104,18 @@ interface Props {
   projects:                 ProjectWithTeams[]
   teamCodes?:               Record<string, string>
   externalSelectedKey?:     string | null
+  // Deep-link desde el botón "Go to Audit →" de Structure View (2026-08-20)
+  // — siembra el filtro Team al montar, mismo criterio que `externalSelectedKey`.
+  initialFilterTeam?:       string
 }
 
 export default function AuditView({
   checkpoints, handoffPackages, savedSelections, auditEvents,
   contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, projects, teamCodes,
-  externalSelectedKey,
+  externalSelectedKey, initialFilterTeam,
 }: Props) {
   const [filterProject,    setFilterProject]    = useState('')
-  const [filterTeam,       setFilterTeam]       = useState('')
+  const [filterTeam,       setFilterTeam]       = useState(initialFilterTeam ?? '')
   const [filterAnchorType, setFilterAnchorType] = useState<AnchorKind | ''>('')
   const [filterChainState, setFilterChainState] = useState<'used' | 'not_used' | ''>('')
   const [filterDate,       setFilterDate]       = useState('')

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { buildDocumentationMirrorTree, type MirrorTreeInput } from '@/lib/documentation/buildMirrorTree'
 import type { DocumentationMirrorNode } from '@/lib/documentation/types'
 
@@ -123,20 +123,27 @@ function MirrorTreeNode({
   onToggle,
   selectedTeamId,
   onSelectTeam,
+  dimmedTeamIds,
+  inheritedDimmed,
 }: {
-  node:           DocumentationMirrorNode
-  depth:          number
-  openState:      Record<string, boolean>
-  onToggle:       (id: string) => void
-  selectedTeamId: string | null
-  onSelectTeam:   (teamId: string) => void
+  node:            DocumentationMirrorNode
+  depth:           number
+  openState:       Record<string, boolean>
+  onToggle:        (id: string) => void
+  selectedTeamId:  string | null
+  onSelectTeam:    (teamId: string) => void
+  dimmedTeamIds:   Set<string>
+  inheritedDimmed: boolean
 }) {
   const hasChildren = node.children.length > 0
   const open        = openState[node.id] ?? depth < 3
   const isSelected  = node.kind === 'team' && node.teamId === selectedTeamId
+  // Team dimmed si está en el set; Agent hereda el dim de su Team ancestro
+  // (mismo criterio "Workers heredan opacity" ya usado en Teams Map).
+  const isDimmed    = (node.kind === 'team' && !!node.teamId && dimmedTeamIds.has(node.teamId)) || inheritedDimmed
 
   return (
-    <div>
+    <div style={{ opacity: isDimmed ? 0.45 : 1 }}>
       <button
         className={`flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] transition-colors ${
           isSelected
@@ -176,6 +183,8 @@ function MirrorTreeNode({
           onToggle={onToggle}
           selectedTeamId={selectedTeamId}
           onSelectTeam={onSelectTeam}
+          dimmedTeamIds={dimmedTeamIds}
+          inheritedDimmed={isDimmed}
         />
       ))}
     </div>
@@ -185,9 +194,13 @@ function MirrorTreeNode({
 interface Props extends MirrorTreeInput {
   selectedTeamId?: string | null
   onSelectTeam?:   (teamId: string) => void
+  // Teams sin ningún documento que matchee el filtro activo (2026-08-20) —
+  // se atenúan (opacity 0.45, mismo valor que Teams Map usa para archived),
+  // nunca se ocultan.
+  dimmedTeamIds?:  Set<string>
 }
 
-export default function DocumentationMirrorTree({ rootLabel, teams, agents, selectedTeamId = null, onSelectTeam }: Props) {
+export default function DocumentationMirrorTree({ rootLabel, teams, agents, selectedTeamId = null, onSelectTeam, dimmedTeamIds }: Props) {
   const tree = useMemo(
     () => buildDocumentationMirrorTree({ rootLabel, teams, agents }),
     [rootLabel, teams, agents],
@@ -195,6 +208,15 @@ export default function DocumentationMirrorTree({ rootLabel, teams, agents, sele
   const [openState, setOpenState] = useState<Record<string, boolean>>({})
   const toggle = (id: string) =>
     setOpenState(prev => ({ ...prev, [id]: !(prev[id] ?? true) }))
+
+  // Auto-expandir hasta el Team seleccionado (click en el árbol ya lo tiene
+  // abierto por default — esto cubre el caso de selección desde el dropdown
+  // "Go to team..." del panel, que puede apuntar a un nodo cuyo ancestro el
+  // usuario colapsó manualmente antes).
+  useEffect(() => {
+    if (!selectedTeamId) return
+    setOpenState(prev => ({ ...prev, 'docs-root': true, 'docs-folder-teams': true, [`team:${selectedTeamId}`]: true }))
+  }, [selectedTeamId])
 
   return (
     <div className="h-full flex flex-col bg-[var(--color-surface)]">
@@ -223,6 +245,8 @@ export default function DocumentationMirrorTree({ rootLabel, teams, agents, sele
               onToggle={toggle}
               selectedTeamId={selectedTeamId}
               onSelectTeam={onSelectTeam ?? (() => {})}
+              dimmedTeamIds={dimmedTeamIds ?? new Set()}
+              inheritedDimmed={false}
             />
           </div>
         </TreeViewport>
