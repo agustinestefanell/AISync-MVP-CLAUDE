@@ -4294,7 +4294,7 @@ Build y lint corridos. **Sin verificación visual esta sesión** — había un s
 ## OE 2026-08-20 — Structure View: filtros completos (7) + navegación externa (ajuste sobre el panel recién cerrado)
 
 **Fecha:** 2026-08-20
-**Estado:** Código completo, lint ✅, build ✅. **NO cerrada todavía** — pendiente verificación visual de Agus. Sin commit ni push hasta esa validación.
+**Estado:** Closed — confirmado por Agus funcionando en localhost: los 7 filtros, la atenuación de Teams sin match, y los 3 botones abriendo en pestaña nueva con el filtro ya aplicado. Commiteado y pusheado a `main` (commit `24a9f30`, 2026-08-21), confirmado sincronizado con `origin/main`.
 
 **Contexto:** ajuste sobre el panel de detalle de Structure View del commit `c98f337` (mismo día). Dos pedidos: (1) reemplazar los 3 filtros del panel (Type/Date/Search) por los 7 de Repository View (Project/Team/Type/State/Date/Search/Sort), con atenuación de Teams sin match en el árbol; (2) botones Open Workspace/Go to Audit/Go to Investigate, en pestaña nueva, con el Workspace ya filtrado en destino.
 
