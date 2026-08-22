@@ -9,7 +9,7 @@ Audit Log — Registra todo lo que hacés, el 100%. Es tu punto de entrada para 
 Documentation Mode — Una única base de conocimiento, con cinco formas de verla:
 
 - Repository — Buscar y abrir. Imaginá que necesitás encontrar ese Checkpoint de hace dos semanas de un proyecto puntual: filtrás por proyecto, equipo, tipo y fecha, y lo encontrás en segundos.
-- Structure — Ver de dónde viene cada cosa y cómo se organiza. Imaginá que querés entender la jerarquía de un Team dentro de un Project: navegás el árbol con zoom y arrastre, filtrás por proyecto o por equipos activos/archivados.
+- User Library — Organizá tu material guardado con tags propios. Imaginá que guardaste varias Save Selections de distintas sesiones sobre un mismo cliente o tema: les asignás los mismos tags al guardarlas, y después las encontrás todas juntas haciendo click en ese tag — sin carpetas fijas, con la organización que vos elijas.
 - Audit — Documento + evento + traza. Imaginá que querés saber qué pasó con un Checkpoint específico: quién lo creó, cuándo se bloqueó, qué eventos tuvo — lo filtrás por estado, tipo de evento, equipo y fecha.
 - Investigate — Seguí un tema a lo largo del tiempo. Imaginá que querés ver cómo evolucionó un trabajo a través de varias sesiones: buscás por el foco de tu investigación y ves la cronología de Checkpoints y Selecciones relacionadas.
 - Knowledge Map (en desarrollo) — Relaciones entre lo que fuiste guardando. Hoy conecta Proyectos, Equipos, Workspaces y Checkpoints; se irán sumando más relaciones con el tiempo.

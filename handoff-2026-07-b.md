@@ -4416,3 +4416,13 @@ Build y lint corridos, sin errores nuevos (solo warnings preexistentes en `Canva
 **Archivos modificados:** `src/components/workspace/WorkspaceShell.tsx`, `src/components/audit/AuditTimeline.tsx`, `src/lib/db/audit.ts`, `src/lib/db/documentation.ts`, `src/lib/documentation/anchors.ts`, `src/components/documentation/AuditDetailPanel.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/InvestigateView.tsx`, `src/components/documentation/InvestigationScanPanel.tsx`, `src/components/documentation/DocClient.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## Nota de continuidad — archivo cerrado
+
+Este archivo (`handoff-2026-07-b.md`) se cierra en 2026-08-21 al llegar a
+~394KB, cerca del umbral de rotación (~400KB) definido en CLAUDE.md.
+
+**Archivo activo desde acá:** `handoff-2026-07-c.md` (desde 2026-08-21).
+
+La OE de User Library (reemplazo de Structure View, 2026-08-21) es la
+primera registrada en el archivo nuevo.

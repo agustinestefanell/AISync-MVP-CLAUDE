@@ -254,6 +254,8 @@ export interface DocSavedSelection {
   project_name:   string | null
   created_at:     string
   user_id:        string
+  // Tags de User Library (migración 058, 2026-08-21) — [] si no está en la library.
+  tags:           { id: string; name: string }[]
   // messages removed from list interface — fetch with getSavedSelectionDetail(id)
 }
 
@@ -270,13 +272,14 @@ interface RawSavedSelection {
     name: string
     teams: { id: string; name: string; status: string | null; projects: { id: string; name: string } | null } | null
   } | null
+  saved_selection_tags: { tags: { id: string; name: string } | null }[] | null
 }
 
 export async function getSavedSelections(userId: string): Promise<DocSavedSelection[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('saved_selections')
-    .select('id, name, messages, workspace_id, team_id, project_id, created_at, user_id, workspaces(name, teams(id, name, status, projects(id, name)))')
+    .select('id, name, messages, workspace_id, team_id, project_id, created_at, user_id, workspaces(name, teams(id, name, status, projects(id, name))), saved_selection_tags(tags(id, name))')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
@@ -309,9 +312,30 @@ export async function getSavedSelections(userId: string): Promise<DocSavedSelect
       project_name:   project?.name ?? null,
       created_at:     r.created_at,
       user_id:        r.user_id,
+      tags:           (r.saved_selection_tags ?? []).map(t => t.tags).filter((t): t is { id: string; name: string } => !!t),
       // messages array NOT returned — use getSavedSelectionDetail(id) to fetch full content
     }
   })
+}
+
+// ── User Library (2026-08-21) — reemplaza Structure View como tab de
+// Documentation Mode. Basada únicamente en Save Selection + tags manuales
+// libres (migración 058). "Estar en la library" se deriva de tener al menos
+// 1 tag (saved_selection_tags) — no hay columna in_user_library, ver
+// DECISIONS.md 2026-08-21.
+export interface DocTag {
+  id:   string
+  name: string
+}
+
+export async function getTags(): Promise<DocTag[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('tags')
+    .select('id, name')
+    .order('name', { ascending: true })
+
+  return (data ?? []) as DocTag[]
 }
 
 // Fetch full saved selection detail with all messages (for panel detalle)

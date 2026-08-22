@@ -11,8 +11,9 @@ Claude Code DEBE actualizar el archivo de handoff activo con:
 4. Alternativas descartadas y por qué se descartaron
 5. Riesgos conocidos o deuda técnica generada
 
-**Archivo activo:** `handoff-2026-07-b.md` (desde 2026-07-12)
+**Archivo activo:** `handoff-2026-07-c.md` (desde 2026-08-21)
 **Archivos anteriores:** 
+- `handoff-2026-07-b.md` (cerrado 2026-08-21, ~394KB)
 - `handoff-archive-2026-07-a.md` (cerrado 2026-07-12, 168KB)
 - `handoff-archive-2026-06.md` (cerrado 2026-06-30, 576KB, histórico)
 

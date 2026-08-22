@@ -1,13 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { getDocCheckpoints, getDocAuditEvents, getHandoffPackages, getSavedSelections, getContextSourcesWithOrigin, getAllMessageProvenance, getContextSourcesScopeStats, getWorkspaceSessionsMap } from '@/lib/db/documentation'
+import { getDocCheckpoints, getDocAuditEvents, getHandoffPackages, getSavedSelections, getContextSourcesWithOrigin, getAllMessageProvenance, getContextSourcesScopeStats, getWorkspaceSessionsMap, getTags } from '@/lib/db/documentation'
 import { getProjectsWithHierarchy } from '@/lib/db/projects'
 import DocClient from '@/components/documentation/DocClient'
 
 interface Props {
-  // Deep-link desde Structure View (WorkspaceDetailPanel, 2026-08-20) — abre
-  // directo en Audit/Investigate View con el Team ya filtrado. Ver
-  // handoff-2026-07-b.md 2026-08-20.
+  // Deep-link vía query params (?tab=&team=) — abre directo en Audit/
+  // Investigate View con el Team ya filtrado. Ver handoff-2026-07-b.md
+  // 2026-08-20.
   searchParams: { tab?: string; team?: string }
 }
 
@@ -16,7 +16,7 @@ export default async function DocumentationPage({ searchParams }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: account }, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, { data: rawCustomProviders }] = await Promise.all([
+  const [{ data: account }, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, tags, { data: rawCustomProviders }] = await Promise.all([
     supabase.from('accounts').select('name, email').eq('id', user.id).single(),
     getDocCheckpoints(),
     getHandoffPackages(),
@@ -27,6 +27,7 @@ export default async function DocumentationPage({ searchParams }: Props) {
     getAllMessageProvenance(),
     getContextSourcesScopeStats(),
     getWorkspaceSessionsMap(),
+    getTags(),
     supabase.from('user_custom_providers').select('name, model').eq('account_id', user.id).order('created_at'),
   ])
 
@@ -47,6 +48,7 @@ export default async function DocumentationPage({ searchParams }: Props) {
       messageProvenance={messageProvenance}
       contextSourcesScopeStats={contextSourcesScopeStats}
       workspaceSessions={workspaceSessions}
+      tags={tags}
       userName={userName}
       userEmail={userEmail}
       customProviders={customProviders}

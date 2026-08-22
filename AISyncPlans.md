@@ -395,11 +395,10 @@ AgentPanel (memo(forwardRef) → AgentPanelHandle)
 DocClient (Client)
   ├── SMPanel                   ← sidebar izquierdo (20rem | 52px collapsed)
   └── div.flex-1
-      ├── Tab bar               ← Repository | Structure | Audit | Investigate | Knowledge
+      ├── Tab bar               ← Repository | User Library | Audit | Investigate | Knowledge
       └── Vista activa
             repository  → RepositoryView
-            structure   → StructureView (DocumentationMirrorTree)
-                            └── WorkspaceDetailPanel (panel derecho, al click en un nodo Team)
+            library     → UserLibraryView (2026-08-21, reemplaza a Structure View)
             audit       → AuditView
                             └── AuditDetailPanel (panel derecho, Fase 2 Paso 3)
             investigate → InvestigateView
@@ -413,7 +412,7 @@ DocClient (Client)
 
 **Investigate View rediseñada — Fase A (2026-08-20):** master-detail sobre las mismas 5 anclas de `anchors.ts` — Investigation Brief (campo de foco libre + filtros Project/Team/Type/Date range) + Top Stats (`Anchors in scope`, `Events in selected range`) + lista con badge "Used downstream"/"Not used yet" y botón `Inspect`. Panel derecho `InvestigationScanPanel`: 2 botones reales (NO tabs) `Session Scan`/`Deep Search` con ícono "i" (tooltip propio por botón) + aviso de costo antes de ejecutar Deep Search (estimación liviana de mensajes, `GET /api/investigation-scan?workspaceId=`), resultado con Verdict (yes/partial/no/inconclusive), Justification Summary, Evidence Used, y Scope transparency (Scanned/Not scanned) — siempre la fuente de verdad real de esa corrida (`sourcesScanned`/`sourcesNotScanned` devueltos por el endpoint), nunca un texto estático. Explícitamente fuera de esta fase: Evidence Funnel con scoring automático, Evidence Board categorizado, "Investigation Cases" persistentes navegables, y cualquier extensión del panel SM lateral.
 
-**How to use guides por vista:** Repository = recuperación rápida y acceso diario. Structure = ubicación y árbol jerárquico. Audit = trazabilidad documental interna (distinta del Audit Log global). Investigate = reconstrucción profunda de temas. Knowledge Map = relaciones visuales entre objetos del repositorio. Los guides viven en el array `TABS` de `DocClient.tsx` como campos `guide` en template literals.
+**How to use guides por vista:** Repository = recuperación rápida y acceso diario. User Library = organización por tags manuales sobre Save Selections. Audit = trazabilidad documental interna (distinta del Audit Log global). Investigate = reconstrucción profunda de temas. Knowledge Map = relaciones visuales entre objetos del repositorio. Los guides viven en el array `TABS` de `DocClient.tsx` como campos `guide` en template literals — el de User Library es el único bilingüe (inglés/español, mismo texto exacto que el estado vacío de la vista, exportado como `USER_LIBRARY_GUIDE` desde `UserLibraryView.tsx` para que ambos usos nunca diverjan).
 
 **Flujo de contexto SM**: `DocClient.pageContext` se construye con `filteredCheckpoints` (post-filtros de RepositoryView). `onFilterChange` notifica al padre cuando cambian los filtros. SM busca solo dentro del contexto activo.
 
@@ -423,9 +422,7 @@ DocClient (Client)
 
 **Empty states en Repository View**: distinguir tres casos — (1) `allItems.length === 0`: cuenta vacía, sin objetos documentales — mostrar mensaje orientado a crear desde Workspace; (2) `allItems.length > 0 && displayItems.length === 0 && hasFilter`: filtros o búsqueda activos sin resultados — mostrar mensaje + botón `Clear filters` que resetea todos los filtros y `searchQuery`; (3) edge case sin filtros: mensaje genérico. `hasFilter` se deriva de `filterProject || filterTeam || filterType || filterState || filterDate || searchQuery`.
 
-**Structure View — filtros completos + navegación externa (2026-08-20, mismo día, ajuste sobre el panel de arriba):** el panel gana los 7 filtros de Repository View (Project/Team/Type/State/Date/Search/Sort) — pero Project/Team dejan de ser filtros y pasan a ser navegación: eligiendo un Team en el dropdown se re-apunta el mismo `selectedTeamId` que ya usa el click del árbol (sin estado duplicado). Type/State/Date/Search filtran de verdad y ADEMÁS atenúan (opacity 0.45, mismo valor que Teams Map usa para archived) los nodos Team del árbol sin ningún ítem que matchee — cascada a los Agent hijos, igual criterio que "Workers heredan opacity" de Teams Map. El estado de estos 7 filtros vive en `StructureView.tsx` (no en el panel), porque la atenuación del árbol debe reaccionar incluso sin panel abierto. `DocumentationMirrorTree.tsx` ganó `dimmedTeamIds?: Set<string>` + un `useEffect` que auto-expande el árbol hasta el Team elegido desde el dropdown. Panel: 3 botones de navegación (Open Workspace / Go to Audit / Go to Investigate), todos en pestaña nueva. `/documentation` ganó soporte de query params (`?tab=&team=`, antes no existía — el tab activo era 100% estado de React) — `documentation/page.tsx` lee `searchParams`, `DocClient.tsx` inicializa `tab` desde ahí, `AuditView.tsx`/`InvestigateView.tsx` ganaron `initialFilterTeam?: string` para sembrar su filtro Team al montar (mismo patrón que `externalSelectedKey`).
-
-**Structure View — panel de detalle por Workspace (2026-08-20):** al hacer click en un nodo Team del árbol (`DocumentationMirrorTree.tsx`), abre `WorkspaceDetailPanel` con las 5 anclas de ese Workspace (`buildAnchors()` filtrado por `anchorMeta(item).wsId === workspace.id`), orden cronológico, filtros Type/Date/Search (sin Project/Team — ya resueltos por la navegación del árbol). **Nivel Agent individual (Manager/Worker por separado) queda fuera de alcance** — decisión de producto: la atribución a un agente puntual es dispareja entre los 5 tipos de ancla (Checkpoint siempre abarca las 3 sesiones del workspace, Saved Selection puede mezclar varias) — mismo hallazgo ya confirmado para Session Scan de Investigate View. El nodo Agent sigue con su comportamiento de siempre (solo expand/collapse). `DocumentationMirrorNode` ganó un campo `teamId?: string` (solo en nodos `kind: 'team'`) para poder resolver el click sin parsear el `node.id`. Sin panel secundario por ítem (a diferencia de Audit View) — decisión deliberada: acá el foco es "qué hay en este Workspace", no reconstruir la auditoría de un ítem puntual; un botón único "Open Workspace →" en el header alcanza porque los 5 tipos comparten el mismo `workspace_id` por definición del filtro.
+**User Library (2026-08-21) — reemplaza a Structure View como tab.** Basada ÚNICAMENTE en Save Selection, organizada por tags manuales libres (no carpetas anidadas) — schema nuevo `tags`/`saved_selection_tags` (migración 058, ver sección 5.1). Un Save Selection puede tener varios tags. "Estar en la library" se deriva de tener ≥1 fila en `saved_selection_tags` — sin columna `in_user_library` en `saved_selections` (ver DECISIONS.md 2026-08-21): el modal de Save Selection exige elegir/crear al menos 1 tag cuando el usuario tilda "Add to User Library", así que ese estado intermedio (checkbox tildado, 0 tags) no existe en la práctica. `UserLibraryView.tsx`: panel izquierdo con buscador de tags (client-side, "contains", 2026-08-21) + lista A-Z con contador de Save Selections por tag (`useMemo` sobre `savedSelections[].tags`, sin query aparte) y selección múltiple (checkboxes, no exclusiva) — panel derecho en grid vertical responsive (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-3`, sin carrusel). Sin ningún tag marcado se ven TODOS los Save Selections de la library; marcar tags suma restricciones (AND — debe tener todos los marcados, no alguno). Estado vacío (ningún Save Selection con al menos 1 tag todavía) es bilingüe (inglés primero, español después) — mismo texto exacto también usado en el ícono "i" de la vista (`USER_LIBRARY_GUIDE`, ver arriba). El modal de Save Selection (`WorkspaceShell.tsx`) ganó: toggle "Add to User Library" (estilo card, no checkbox chico — peso visual pedido explícitamente), selector multi-tag (carga lazy vía `GET /api/tags` al activarlo por primera vez) y "+ Create new tag" inline (`POST /api/tags`, sin salir del modal). `POST /api/save-selection` acepta `tagIds?: string[]` opcional, inserta en `saved_selection_tags` después de crear la fila en `saved_selections` (fail-open respecto al Save Selection ya creado si la asociación de tags falla).
 
 **Investigate View — reescrita Fase A (2026-08-20):** ya no agrupa checkpoints por fecha ni tiene una sección aparte de Saved Selections — reemplazada por la lista unificada de 5 anclas de `anchors.ts` (mismo patrón que Audit View). `PURPOSE_LABELS`/agrupación por fecha quedaron solo en Repository View.
 
@@ -581,6 +578,8 @@ WorkspaceShell: openSaveSelectionModal()
 | `prompt_assignments` | Asignaciones prompt → team/worker |
 | `system_prompts` | Prompts de sistema por team (Capa 3) |
 | `saved_selections` | Selecciones de mensajes guardadas |
+| `tags` | Tags manuales libres del usuario — base de User Library (`UNIQUE account_id,name`, migración 058, 2026-08-21) |
+| `saved_selection_tags` | Junction muchos-a-muchos Save Selection ↔ Tag (migración 058, 2026-08-21) — "estar en User Library" = tener ≥1 fila acá, sin columna de flag en `saved_selections` |
 | `entity_name_history` | Historial inmutable de renombres de Project/Team (migración 053, 2026-08-19) |
 | `message_provenance` | FK real: qué objeto originó un mensaje — Load Saved Context → Chat (`checkpoint`\|`handoff_package`\|`saved_selection`, migración 054, 2026-08-19) o Review & Forward Agent↔Agente (`review_forward`, apunta a `audit_log.id`, migración 055, 2026-08-19) |
 
@@ -673,7 +672,8 @@ Ver sección 10.
 | GET/POST | `/api/context` | context_sources, audit_log (context_file_uploaded) | Session |
 | POST | `/api/handoff-package` | handoff_packages | Session |
 | POST | `/api/messages` | messages (+ provider/model poblados vía lookup a agent_sessions), message_provenance (opcional, si el body trae `provenance`: `checkpoint`\|`handoff_package`\|`saved_selection`\|`review_forward` desde migración 055), audit_log (attachment_summary_generated) | Session — fire-and-forget AI summary generation for attachments |
-| POST | `/api/save-selection` | saved_selections, audit_log | Session |
+| POST | `/api/save-selection` | saved_selections, saved_selection_tags (opcional, si el body trae `tagIds`, migración 058), audit_log | Session |
+| GET/POST | `/api/tags` | tags | Session — User Library (2026-08-21). POST hace upsert-like: si el nombre ya existe para la cuenta (`UNIQUE account_id,name`), devuelve el tag existente en vez de error |
 | POST | `/api/export/excel` | — (genera .xlsx, no escribe en DB) | Session |
 | POST | `/api/export/word` | — (genera .docx, no escribe en DB) | Session |
 | GET/POST/DELETE | `/api/settings/keys` | user_api_keys | Session |
@@ -963,6 +963,9 @@ Contrato `ToolExecutor`: `execute()` retorna `Promise<ToolExecutionResult>` con 
 | 053 | `053_entity_name_history.sql` | entity_name_history: historial de renombres Project/Team (Audit View redesign Fase 1, 2026-08-19) |
 | 054 | `054_message_provenance_and_model_tracking.sql` | message_provenance (FK real Load Saved Context → Chat) + messages.provider/model (Audit View redesign Fase 1.5, 2026-08-19) |
 | 055 | `055_review_forward_provenance.sql` | message_provenance: CHECK de source_object_type extendido con 'review_forward' (Audit View redesign Fase 1.6, 2026-08-19) |
+| 056 | `056_investigation_snapshot.sql` | investigation_snapshot + system prompt `investigation_scan` (Investigate View Fase A, 2026-08-20) |
+| 057 | `057_sm_documentation_search_prompt.sql` | system_prompts: `sm_documentation` pasa a contrato JSON estricto (buscador, no chatbot) |
+| 058 | `058_tags.sql` | tags + saved_selection_tags — base de User Library (reemplaza Structure View, 2026-08-21) |
 
 ### 10.2 Migraciones clave
 

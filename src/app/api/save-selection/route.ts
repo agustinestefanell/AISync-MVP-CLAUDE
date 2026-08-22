@@ -7,7 +7,14 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
 
   const body = await request.json()
-  const { workspace_id, team_id, project_id, name, messages } = body
+  const { workspace_id, team_id, project_id, name, messages, tagIds } = body as {
+    workspace_id: string
+    team_id?: string | null
+    project_id?: string | null
+    name: string
+    messages: unknown[]
+    tagIds?: string[]
+  }
 
   if (!workspace_id || !name || !messages) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -54,6 +61,19 @@ export async function POST(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // User Library (2026-08-21) — asociar tags si el usuario tildó "Add to
+  // User Library". Fail-open respecto al Save Selection ya creado (no lo
+  // deshace si esto falla), pero se reporta el error para que el modal no
+  // asuma silenciosamente que quedó en la library.
+  if (Array.isArray(tagIds) && tagIds.length > 0) {
+    const { error: tagsError } = await supabase
+      .from('saved_selection_tags')
+      .insert(tagIds.map(tagId => ({ saved_selection_id: data.id, tag_id: tagId })))
+    if (tagsError) {
+      return NextResponse.json({ ...data, tagsError: tagsError.message }, { status: 201 })
+    }
+  }
 
   try {
     await supabase.from('audit_log').insert({

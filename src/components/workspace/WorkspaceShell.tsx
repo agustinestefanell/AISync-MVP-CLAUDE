@@ -92,6 +92,17 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const [saveSelectionError, setSaveSelectionError]             = useState<string | null>(null)
   const [exportingFormat, setExportingFormat]                   = useState<'excel' | 'word' | null>(null)
 
+  // User Library (2026-08-21) — "Add to User Library" dentro del modal de Save
+  // Selection. availableTags se carga lazy (solo la primera vez que se tilda
+  // el checkbox), no en cada apertura del modal.
+  const [addToLibrary, setAddToLibrary]           = useState(false)
+  const [availableTags, setAvailableTags]         = useState<{ id: string; name: string }[]>([])
+  const [tagsLoaded, setTagsLoaded]               = useState(false)
+  const [selectedTagIds, setSelectedTagIds]       = useState<string[]>([])
+  const [showNewTagInput, setShowNewTagInput]     = useState(false)
+  const [newTagName, setNewTagName]               = useState('')
+  const [creatingTag, setCreatingTag]             = useState(false)
+
   const panelRefs       = useRef<Record<string, AgentPanelHandle | null>>({})
   const humanChatRef    = useRef<HumanChatPanelHandle | null>(null)
   const selectionCounts = useRef<Record<string, number>>({})
@@ -381,11 +392,65 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     setPendingSelectionMessages(allMessages)
     setSaveSelectionName('')
     setSaveSelectionError(null)
+    setAddToLibrary(false)
+    setSelectedTagIds([])
+    setShowNewTagInput(false)
+    setNewTagName('')
     setShowSaveSelectionModal(true)
   }, [workspace.agent_sessions, isConnectedWorkspace, connectionContext, currentUserId])
 
+  // User Library — carga lazy de tags existentes, solo la primera vez que se
+  // tilda "Add to User Library" en esta sesión de la página.
+  const loadAvailableTags = useCallback(async () => {
+    if (tagsLoaded) return
+    try {
+      const res = await fetch('/api/tags')
+      if (res.ok) setAvailableTags(await res.json())
+    } catch {
+      // Fail-open: el checkbox sigue usable, la lista de tags queda vacía
+      // (el usuario puede crear uno nuevo igual).
+    } finally {
+      setTagsLoaded(true)
+    }
+  }, [tagsLoaded])
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTagIds(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId])
+  }
+
+  const createTag = async () => {
+    const name = newTagName.trim()
+    if (!name || creatingTag) return
+    setCreatingTag(true)
+    try {
+      const res = await fetch('/api/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setSaveSelectionError(body?.error ?? 'Failed to create tag.')
+        return
+      }
+      const tag = await res.json() as { id: string; name: string }
+      setAvailableTags(prev => prev.some(t => t.id === tag.id) ? prev : [...prev, tag].sort((a, b) => a.name.localeCompare(b.name)))
+      setSelectedTagIds(prev => prev.includes(tag.id) ? prev : [...prev, tag.id])
+      setNewTagName('')
+      setShowNewTagInput(false)
+    } catch {
+      setSaveSelectionError('Network error — could not create tag, try again.')
+    } finally {
+      setCreatingTag(false)
+    }
+  }
+
   const handleSaveSelection = async () => {
     if (!saveSelectionName.trim() || pendingSelectionMessages.length === 0) return
+    if (addToLibrary && selectedTagIds.length === 0) {
+      setSaveSelectionError('Select at least one tag, or create a new one, to add this to User Library.')
+      return
+    }
     setSavingSelection(true)
     setSaveSelectionError(null)
     try {
@@ -398,6 +463,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           project_id:   null,
           name:         saveSelectionName.trim(),
           messages:     pendingSelectionMessages,
+          tagIds:       addToLibrary ? selectedTagIds : [],
         }),
       })
 
@@ -423,6 +489,10 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     setShowSaveSelectionModal(false)
     setSaveSelectionName('')
     setPendingSelectionMessages([])
+    setAddToLibrary(false)
+    setSelectedTagIds([])
+    setShowNewTagInput(false)
+    setNewTagName('')
     // Mismo patrón que Review & Forward y Create Handoff Package. Sin esto,
     // la selección anterior queda "oculta" pero activa y se cuela en la
     // próxima acción de selección.
@@ -774,6 +844,104 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
                 className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-gray-500 outline-none transition-colors focus:border-[var(--color-border-focus)]"
               />
             </div>
+
+            {/* User Library (2026-08-21) — tags manuales, opcional. Toggle
+                estilo card en vez de checkbox chico: pedido explícito de más
+                peso visual, ver ajuste de UX 2026-08-21. */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !addToLibrary
+                  setAddToLibrary(next)
+                  if (next) loadAvailableTags()
+                }}
+                className={`w-full flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-colors ${
+                  addToLibrary
+                    ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10'
+                    : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                }`}
+              >
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
+                    addToLibrary ? 'bg-[var(--color-accent)] border-[var(--color-accent)]' : 'border-gray-300 bg-white'
+                  }`}
+                >
+                  {addToLibrary && <span className="text-sm font-bold leading-none text-white">✓</span>}
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold text-[var(--color-text-primary)]">
+                    📚 Add to User Library
+                  </span>
+                  <span className="block text-xs text-gray-500">
+                    Tag this selection so you can find it again by topic.
+                  </span>
+                </span>
+              </button>
+              {addToLibrary && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+                  <p className="text-xs text-gray-500">
+                    Tags <span className="text-red-400">*</span>
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableTags.length === 0 && !showNewTagInput && (
+                      <p className="text-xs text-gray-400">No tags yet — create your first one.</p>
+                    )}
+                    {availableTags.map(tag => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleTag(tag.id)}
+                        className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                          selectedTagIds.includes(tag.id)
+                            ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
+                  </div>
+                  {showNewTagInput ? (
+                    <div className="flex gap-2">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={newTagName}
+                        onChange={e => setNewTagName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') createTag() }}
+                        placeholder="New tag name..."
+                        className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-primary)] placeholder-gray-500 outline-none focus:border-[var(--color-border-focus)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={createTag}
+                        disabled={!newTagName.trim() || creatingTag}
+                        className="px-3 py-1.5 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+                      >
+                        {creatingTag ? '…' : 'Add'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowNewTagInput(false); setNewTagName('') }}
+                        className="px-2 text-xs text-gray-500 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowNewTagInput(true)}
+                      className="text-xs font-medium text-[var(--color-accent)] hover:opacity-75"
+                    >
+                      + Create new tag
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
             {saveSelectionError && (
               <p className="text-xs bg-[var(--color-error-bg,#fee2e2)] border border-[var(--color-error-border,#fca5a5)] text-[var(--color-error-text,#991b1b)] rounded-lg px-3 py-2">
                 {saveSelectionError}
@@ -801,7 +969,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
             <div className="flex gap-3 pt-1">
               <button
                 onClick={handleSaveSelection}
-                disabled={!saveSelectionName.trim() || savingSelection || exportingFormat !== null}
+                disabled={!saveSelectionName.trim() || savingSelection || exportingFormat !== null || (addToLibrary && selectedTagIds.length === 0)}
                 className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
               >
                 {savingSelection ? 'Saving...' : 'Save Selection(s)'}

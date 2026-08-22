@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from 'react'
 import dynamic from 'next/dynamic'
-import type { DocCheckpoint, DocAuditEvent, DocHandoffPackage, DocSavedSelection, DocLoadedContextItem, DocMessageProvenanceItem, DocContextSourceScopeRow, DocWorkspaceSession } from '@/lib/db/documentation'
+import type { DocCheckpoint, DocAuditEvent, DocHandoffPackage, DocSavedSelection, DocLoadedContextItem, DocMessageProvenanceItem, DocContextSourceScopeRow, DocWorkspaceSession, DocTag } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 import { filterArchivedTeams } from '@/lib/teams/filterArchivedTeams'
 import { buildAnchors, buildAnchorSearchIndex, ANCHOR_KIND_LABEL, type AnchorSearchItem } from '@/lib/documentation/anchors'
 import RepositoryView from './RepositoryView'
-import StructureView from './StructureView'
+import UserLibraryView, { USER_LIBRARY_GUIDE } from './UserLibraryView'
 import AuditView from './AuditView'
 import InvestigateView from './InvestigateView'
 import SMPanel from '@/components/sm/SMPanel'
@@ -19,7 +19,7 @@ import TraceabilityGuideButton from '@/components/layout/TraceabilityGuideButton
 
 const KnowledgeMap = dynamic(() => import('./KnowledgeMap'), { ssr: false })
 
-type Tab = 'repository' | 'structure' | 'audit' | 'investigate' | 'knowledge'
+type Tab = 'repository' | 'library' | 'audit' | 'investigate' | 'knowledge'
 
 const TABS: { id: Tab; label: string; guide: string }[] = [
   {
@@ -41,11 +41,9 @@ If you are new to Documentation Mode and you are not sure where to start, start 
 If needed, you can always ask the Documentation Mode Sub-Manager to help you find documents using keywords.`,
   },
   {
-    id: 'structure',
-    label: 'Structure View',
-    guide: `Location, orientation, and folder tree.
-
-Use this view to see where things live inside the archive tree.`,
+    id: 'library',
+    label: 'User Library',
+    guide: USER_LIBRARY_GUIDE,
   },
   {
     id: 'audit',
@@ -123,18 +121,21 @@ interface DocClientProps {
   messageProvenance:        DocMessageProvenanceItem[]
   contextSourcesScopeStats: DocContextSourceScopeRow[]
   workspaceSessions:        Record<string, DocWorkspaceSession[]>
+  tags:                     DocTag[]
   userName:                 string
   userEmail:                string
   customProviders:          CustomProvider[]
-  // Deep-link desde Structure View (WorkspaceDetailPanel, 2026-08-20) — ver
-  // src/app/documentation/page.tsx.
+  // Deep-link vía query params (?tab=&team=) — ver src/app/documentation/page.tsx.
+  // Origen histórico: botones "Go to Audit/Investigate →" de Structure View
+  // (2026-08-20, código borrado en la OE de User Library) — mecanismo genérico,
+  // no exclusivo de esa vista.
   initialTab?:              string
   initialFilterTeam?:       string
 }
 
-const VALID_TABS: Tab[] = ['repository', 'structure', 'audit', 'investigate', 'knowledge']
+const VALID_TABS: Tab[] = ['repository', 'library', 'audit', 'investigate', 'knowledge']
 
-export default function DocClient({ pageName, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, userName, userEmail, customProviders, initialTab, initialFilterTeam }: DocClientProps) {
+export default function DocClient({ pageName, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, tags, userName, userEmail, customProviders, initialTab, initialFilterTeam }: DocClientProps) {
   const [tab,                     setTab]                     = useState<Tab>(
     () => (initialTab && (VALID_TABS as string[]).includes(initialTab) ? initialTab as Tab : 'repository'),
   )
@@ -249,7 +250,7 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
             {/* View */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userName={userName} userEmail={userEmail} externalSelectedId={selectedRepositoryId} teamCodes={teamCodes} />}
-              {tab === 'structure'   && <StructureView   checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} projects={projects} userName={userName} userEmail={userEmail} teamCodes={teamCodes} />}
+              {tab === 'library'     && <UserLibraryView savedSelections={savedSelections} tags={tags} teamCodes={teamCodes} />}
               {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} projects={projects} teamCodes={teamCodes} externalSelectedKey={selectedAuditKey} initialFilterTeam={initialFilterTeam} />}
               {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} workspaceSessions={workspaceSessions} projects={projects} userEmail={userEmail} teamCodes={teamCodes} initialFilterTeam={initialFilterTeam} />}
               {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
