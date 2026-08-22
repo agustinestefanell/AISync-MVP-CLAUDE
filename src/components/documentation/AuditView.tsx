@@ -24,9 +24,12 @@ import {
   anchorMeta,
   anchorTitle,
   anchorFlow,
+  anchorExecutedBy,
+  reviewForwardParties,
   buildAnchors,
   buildDownstreamMaps,
   downstreamUsesFor,
+  PRIOR_STEP_TYPES,
 } from '@/lib/documentation/anchors'
 
 export type { AnchorMeta } from '@/lib/documentation/anchors'
@@ -51,24 +54,6 @@ const CHAIN_BADGE: Record<'used' | 'not_used', { label: string; className: strin
   used:     { label: 'Used downstream', className: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
   not_used: { label: 'Not used yet',    className: 'text-gray-600 bg-gray-50 border-gray-200' },
 }
-
-// Eventos reales confirmados que cuentan para "Prior steps" — mismo listado
-// que el que va a alimentar el timeline "How this was produced" del Paso 3.
-// NO incluye handoff_package.created (solo handoff_received) — así quedó
-// definido en la consigna original de Fase 2; señalado en el reporte para
-// confirmar si es a propósito.
-const PRIOR_STEP_TYPES = new Set([
-  'save_version',
-  'resume_work',
-  'handoff_received',
-  'review_forward',
-  'save_selection',
-  'context_file_uploaded',
-  'context_file_injected',
-  'prompt_assigned',
-  'prompt_unassigned',
-  'agent_model_changed',
-])
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-US', {
@@ -429,6 +414,7 @@ export default function AuditView({
                   const downstream = downstreamUsesForItem(item)
                   const prior      = priorStepsFor(item, meta)
                   const chain      = CHAIN_BADGE[downstream > 0 ? 'used' : 'not_used']
+                  const executedBy = anchorExecutedBy(item)
                   const id         = anchorId(item)
 
                   const key = `${item.kind}:${id}`
@@ -459,6 +445,9 @@ export default function AuditView({
                           <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
                             {teamLabel(meta.teamId, meta.teamName, teamCodes)} · {meta.wsName} · <span suppressHydrationWarning>{formatDate(meta.date)}</span>
                           </p>
+                          {executedBy && (
+                            <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">Executed by: {executedBy}</p>
+                          )}
                           <p className="mt-1.5 text-[11px] text-[var(--color-text-secondary)]">
                             Prior steps: <span className="font-medium text-[var(--color-text-primary)]">{prior}</span>
                             {'   '}
@@ -498,6 +487,11 @@ export default function AuditView({
               downstreamItems={computeDownstreamItems(selectedItem)}
               sessionIds={(workspaceSessions[meta.wsId] ?? []).map(s => s.id)}
               teamCodes={teamCodes}
+              reviewForward={selectedItem.kind === 'review_forward' ? {
+                ...reviewForwardParties(selectedItem.rf),
+                isHumanTarget: (selectedItem.rf.metadata?.target_type === 'human_chat') || (selectedItem.rf.metadata?.to === 'human_chat'),
+                content: selectedItem.rf.forwarded_content,
+              } : undefined}
               onClose={() => setSelectedKey(null)}
             />
           )

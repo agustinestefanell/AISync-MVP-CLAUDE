@@ -53,6 +53,11 @@ function InfoTooltip({ text }: { text: string }) {
   )
 }
 
+const CHAIN_BADGE: Record<'used' | 'not_used', { label: string; className: string }> = {
+  used:     { label: 'Used downstream', className: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  not_used: { label: 'Not used yet',    className: 'text-gray-600 bg-gray-50 border-gray-200' },
+}
+
 interface Props {
   anchorKindLabel: string
   title:           string
@@ -66,6 +71,20 @@ interface Props {
   originId?:        string
   investigationFocus: string
   teamCodes?:      Record<string, string>
+  // Bloque de metadata nuevo (Pieza 5, 2026-08-21) — mismo formato de header
+  // que AuditDetailPanel.tsx (Audit Target / Produced from / Information used
+  // / Chain status), para los 5 tipos de ancla, no solo Review & Forward.
+  priorSteps:      number
+  chainState:      'used' | 'not_used'
+  auditStart:      string
+  sessionIds:      string[]
+  reviewForward?: {
+    from: string
+    to: string
+    executedBy: string | null
+    isHumanTarget: boolean
+    content: string | null
+  }
   onClose:         () => void
 }
 
@@ -77,12 +96,18 @@ function teamLabel(id: string | null, name: string | null, codes?: Record<string
 
 export default function InvestigationScanPanel({
   anchorKindLabel, title, meta, workspaceId, anchorKind, anchorId,
-  originAgentRole, flavor, originType, originId, investigationFocus, teamCodes, onClose,
+  originAgentRole, flavor, originType, originId, investigationFocus, teamCodes,
+  priorSteps, chainState, auditStart, sessionIds, reviewForward, onClose,
 }: Props) {
   const [estimate, setEstimate] = useState<{ messageCount: number; sessionCount: number } | null>(null)
   const [running,  setRunning]  = useState<ScanMode | null>(null)
   const [result,   setResult]   = useState<ScanResult | null>(null)
   const [error,    setError]    = useState<string | null>(null)
+
+  // Information used (Pieza 5) — mismo endpoint que AuditDetailPanel.tsx,
+  // solo se necesita el conteo acá, no el detalle de cada archivo/prompt.
+  const [infoUsedCount, setInfoUsedCount] = useState<number | null>(null)
+  const sessionIdsKey = sessionIds.join(',')
 
   useEffect(() => {
     let cancelled = false
@@ -93,6 +118,24 @@ export default function InvestigationScanPanel({
       .catch(() => {})
     return () => { cancelled = true }
   }, [workspaceId, anchorId])
+
+  useEffect(() => {
+    let cancelled = false
+    setInfoUsedCount(null)
+    const params = new URLSearchParams({ workspaceId, start: auditStart, end: meta.date })
+    if (meta.teamId) params.set('teamId', meta.teamId)
+    if (sessionIdsKey) params.set('sessionIds', sessionIdsKey)
+    fetch(`/api/documentation/audit-detail?${params.toString()}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data) return
+        const cf = (data.contextFiles ?? []).length
+        const pr = (data.prompts ?? []).length
+        setInfoUsedCount(cf + pr)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [workspaceId, meta.wsId, meta.teamId, meta.date, auditStart, sessionIdsKey])
 
   async function runScan(mode: ScanMode) {
     setRunning(mode)
@@ -137,6 +180,55 @@ export default function InvestigationScanPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+        {/* Bloque de metadata (Pieza 5, 2026-08-21) — mismo formato de header
+            que AuditDetailPanel.tsx (Audit Target / Produced from /
+            Information used / Chain status), arriba de Session Scan/Deep
+            Search. Cubre los 5 tipos de ancla, no solo Review & Forward. */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Audit target</p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)] mt-0.5">{anchorKindLabel}</p>
+          </div>
+          <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Produced from</p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)] mt-0.5">{priorSteps} prior step{priorSteps !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Information used</p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)] mt-0.5">
+              {infoUsedCount === null ? '…' : `${infoUsedCount} source${infoUsedCount !== 1 ? 's' : ''}`}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Chain status</p>
+            <span className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${CHAIN_BADGE[chainState].className}`}>
+              {CHAIN_BADGE[chainState].label}
+            </span>
+          </div>
+        </div>
+
+        {reviewForward && (
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
+              Forwarded content
+            </p>
+            {reviewForward.executedBy && (
+              <p className="text-xs text-[var(--color-text-secondary)] mb-2">Executed by: {reviewForward.executedBy}</p>
+            )}
+            {reviewForward.isHumanTarget ? (
+              <p className="text-xs text-[var(--color-text-muted)] italic">
+                Content not available for this forward type.
+              </p>
+            ) : reviewForward.content ? (
+              <div className="text-xs leading-relaxed whitespace-pre-wrap rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5 max-h-56 overflow-y-auto">
+                {reviewForward.content}
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--color-text-muted)] italic">Content not available.</p>
+            )}
+          </div>
+        )}
+
         {/* Botones — NO tabs, botones reales separados (mockup corrigió confusión de tabs anterior) */}
         <div className="flex flex-wrap items-start gap-4">
           <div className="flex items-center gap-1.5">

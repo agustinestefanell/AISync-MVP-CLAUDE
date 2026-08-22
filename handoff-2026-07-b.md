@@ -4351,3 +4351,68 @@ Lint y build corridos. **Sin verificación visual esta sesión** — mismo motiv
 **Archivos modificados:** `src/app/documentation/page.tsx`, `src/components/documentation/DocClient.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/InvestigateView.tsx`, `src/components/documentation/StructureView.tsx`, `src/components/documentation/DocumentationMirrorTree.tsx`, `src/components/documentation/WorkspaceDetailPanel.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## OE 2026-08-21 — Fix bugs Review & Forward (workspace_id/to_agent) + contenido real de mensaje + identidad de usuario + panel de metadata en Investigate View
+
+**Fecha:** 2026-08-21
+**Estado:** Closed — build y lint confirmados sin errores nuevos. Sin verificación visual en localhost por decisión explícita de Agus (localhost no tiene suficiente documentación real generada para probar las 5 piezas a fondo) — validación visual completa queda para producción, una vez arriba el deploy de Vercel. Commiteado y pusheado a `main`.
+
+**Contexto:** encargo tipo "fix + mejora" con 5 piezas independientes sobre Review & Forward y Documentation Mode: 2 bugs de causa raíz confirmada (`workspace_id`/`to_agent`), 2 mejoras de trazabilidad (contenido real del mensaje, identidad de usuario en Connected Teams) y 1 pieza nueva de UI (bloque de metadata en Investigate View). Structure View excluida a propósito — Agus la va a transformar en otra cosa más adelante.
+
+### Pieza 1 — Bug workspace_id/workspaceId (causa raíz del "—" en Team/Workspace)
+
+**Decisión:** los 3 call sites de `review_forward` en `WorkspaceShell.tsx` (`handlePanelForward` → human_chat, `handlePanelForward` → agente, `handleHumanForward`) mandaban `workspace_id` (snake_case) al POST de `/api/audit`, que espera `workspaceId` (camelCase) — nunca se poblaba, quedaba NULL en la fila insertada. Se alinearon los 3 call sites a `workspaceId`, **sin tocar la ruta**.
+
+**Por qué ese lado y no el otro:** grep exhaustivo de los 8 call sites reales de `/api/audit` confirmó que los otros 5 (`resume_work`, `session_backup` en `WorkspaceShell.tsx`; 2 en `AgentPanel.tsx`; 1 en `LoadContextModal.tsx`) ya usaban `workspaceId` correctamente. Cambiar la ruta hubiera roto esos 5 para arreglar los 3 de `review_forward` — el fix de menor blast radius es alinear los 3 call sites rotos al contrato ya mayoritario.
+
+**Verificación:** grep post-fix confirmó cero call sites de `/api/audit` usando `workspace_id`. El único `workspace_id:` restante en `WorkspaceShell.tsx` (línea ~396, Save Selection) apunta a `/api/save-selection`, una ruta distinta que sí espera snake_case — no es el mismo bug, no se tocó.
+
+### Pieza 2 — Bug metadata.to_agent/metadata.to en /audit
+
+**Decisión:** `AuditTimeline.tsx` (`eventTitle()` y la fila "To Agent" del panel derecho) leía `metadata.to_agent`, pero el dato real guardado siempre fue `metadata.to` — la fila nunca se mostraba. Corregida la lectura en ambos puntos.
+
+### Pieza 3 — Contenido real del mensaje (Agente→Agente, Humano→Agente)
+
+**Decisión:** `getAuditEvents()` (`src/lib/db/audit.ts`) y `getDocAuditEvents()` (`src/lib/db/documentation.ts`) ahora resuelven `forwarded_content` con una query batch a `message_provenance` (`source_object_type = 'review_forward'`, `source_object_id IN (...ids de eventos review_forward de esta página)`) → `messages.content` — un solo round-trip extra por página, no un fetch por evento. Se muestra en un bloque "Forwarded content" en 3 lugares: panel derecho de `/audit` (`AuditTimeline.tsx`), panel de Audit View (`AuditDetailPanel.tsx`, nuevo prop `reviewForward`) y el bloque nuevo de Investigate View (`InvestigationScanPanel.tsx`, mismo prop). Para Agente→Chat humano se muestra explícitamente "Content not available for this forward type." — la migración 055 documenta que ese destino (`human_messages`) no tiene FK posible, no se intenta ninguna aproximación.
+
+**Por qué batch y no lazy-fetch por evento:** `getAuditEvents()`/`getDocAuditEvents()` ya son las fuentes server-side de estas 3 vistas — agregar el join ahí evita un endpoint nuevo y mantiene un solo lugar de verdad para "cómo se resuelve el contenido de un review_forward", reusado por las 3 vistas sin duplicar lógica de fetch en cada componente.
+
+### Pieza 4 — Identidad de usuario real (Connected Teams)
+
+**Decisión:**
+- `audit_log.account_id` (ya existente, FK a `accounts`) ahora se joinea contra `accounts(name, email)` en `getAuditEvents()`/`getDocAuditEvents()`.
+- Nueva función compartida `reviewForwardParties()` en `src/lib/documentation/anchors.ts` — resuelve `from`/`to`/`executedBy` legibles: usa `metadata.target_email` en vez del literal `'human_chat'` para el destino, y la cuenta ejecutora (`account_email`/`account_name`) solo cuando el evento involucra `human_chat` (Agente→Chat humano o Chat humano→Agente). Para Agente→Agente mismo team, `executedBy` es `null` a propósito — no aplica, no hay 2 cuentas.
+- Call site de Chat humano→Agente (`WorkspaceShell.tsx`, `handleHumanForward`) no tenía ningún campo de identidad — se agregó `connection_id`/`partner_email` al metadata en el momento de creación del evento.
+- Se muestra en el card/label de `/audit`, Audit View e Investigate View como línea "Executed by", y en los 3 paneles de detalle como filas "From"/"To Agent"/"Executed by".
+
+**Por qué centralizar en `anchors.ts` y no repetir la lógica en cada vista:** `anchorTitle()` ya vivía ahí como fuente única para el título de un `review_forward` en las 3 vistas — resolver `target_email`/`executedBy` en el mismo archivo evita que un fix quede aplicado en una vista y no en las otras 2 (exactamente el tipo de bug que motivó Piezas 1 y 2). Ver nueva sección 8.8 de `AISyncPlans.md`.
+
+### Pieza 5 — Panel de detalle nuevo en Investigate View
+
+**Decisión:** se agregó, arriba de los botones Session Scan/Deep Search (`InvestigationScanPanel.tsx`), el mismo grid de 4 cards que ya tiene el header de `AuditDetailPanel.tsx` (Audit Target / Produced from / Information used / Chain status), para los 5 tipos de ancla — Investigate View no tenía ningún bloque de metadata del ítem seleccionado hasta ahora. Para Review & Forward específicamente, el bloque incluye también el contenido real del mensaje (Pieza 3).
+
+**Refactor de soporte:** `PRIOR_STEP_TYPES` (antes privado de `AuditView.tsx`) y una nueva `computePriorSteps()` se movieron/agregaron a `anchors.ts` para que Investigate View calcule "Produced from" con la misma lógica exacta que Audit View, sin duplicar el algoritmo de ventana de auditoría. `AuditView.tsx` mantiene su propia versión memoizada (`computeTimeline`/`priorStepsFor`) sin cambios de comportamiento — la necesita para recorrer una lista completa de anclas de forma eficiente; `computePriorSteps()` es la versión "bajo demanda" para un solo ítem seleccionado, que es lo único que necesita Investigate View. "Information used" (conteo de Context Files + Prompts) se resuelve con un fetch propio de `InvestigationScanPanel.tsx` al mismo endpoint que ya usa `AuditDetailPanel.tsx` (`/api/documentation/audit-detail`) — se necesitaba `workspaceSessions` como prop nueva en `InvestigateView.tsx` (ya cargado en `DocClient.tsx`, solo faltaba pasarlo).
+
+**Explícitamente fuera de alcance:** Structure View — decisión de producto de Agus, la va a transformar en otra cosa más adelante, no se invirtió tiempo ahí.
+
+### Verificación
+
+Build y lint corridos, sin errores nuevos (solo warnings preexistentes en `CanvasViewport.tsx` x3, archivos no tocados por esta OE). **Sin verificación visual en localhost** — decisión explícita de Agus: localhost no tiene suficiente documentación real generada para probar las 5 piezas a fondo (necesita casos reales de Connected Teams, R&F Agente↔Agente, Agente→Humano y Humano→Agente en volumen). La validación visual completa se hace en producción, después del deploy de Vercel.
+
+### Alternativas descartadas
+
+- **Cambiar `/api/audit/route.ts` a `workspace_id` en vez de los 3 call sites** — descartado, hubiera roto los otros 5 call sites que ya usaban `workspaceId` correctamente (mayor blast radius para el mismo fix).
+- **Fetch lazy por evento para el contenido reenviado** (endpoint nuevo tipo `/api/documentation/audit-detail` pero para `review_forward`) — descartado a favor de resolver `forwarded_content` batch dentro de `getAuditEvents()`/`getDocAuditEvents()`, ya que esas funciones son la fuente server-side existente de las 3 vistas — evita un round-trip por evento y un endpoint nuevo para un dato que ya se puede traer en la misma query.
+- **Reusar `AuditDetailPanel.tsx` completo como panel de Investigate View** — descartado, la consigna pidió específicamente reusar el FORMATO del header (4 cards), no el panel completo (Prior steps timeline + Chain of Custody) — Investigate View ya tiene su propio panel de Session Scan/Deep Search con un propósito distinto.
+- **Duplicar `computeTimeline`/`priorStepsFor` de `AuditView.tsx` tal cual en `InvestigateView.tsx`** — descartado, se extrajo una versión reusable (`computePriorSteps`) a `anchors.ts` en vez de copiar el algoritmo, para no tener 2 fuentes de verdad del mismo cálculo (mismo criterio que ya motivó extraer `anchorTitle`/`anchorFlow` en la OE de Investigate View Fase A).
+
+### Riesgos conocidos / deuda técnica
+
+- **Sin verificación visual real todavía** — validación queda pendiente en producción, por decisión explícita de Agus (ver arriba). Si algo no se ve como se espera, es la primera OE a revisar.
+- **`executedBy`/`account_email` siempre resuelve a la cuenta logueada actual, nunca a la del partner** — es correcto por diseño: RLS de `audit_log` ya restringe `SELECT` a `account_id = auth.uid()`, así que el join a `accounts` nunca puede traer otra cuenta. El campo documenta "quién ejecutó el forward desde esta cuenta", no "las 2 identidades de la conexión" — el receptor humano se identifica aparte, vía `target_email`/`partner_email` de metadata, no vía el join.
+- **`forwarded_content` no retroactivo** — igual que `message_provenance` en general (migraciones 054/055), solo cubre mensajes/eventos creados después de que esas migraciones se aplicaron. Eventos `review_forward` viejos sin fila de provenance muestran "Content not available." (fallback honesto, no error).
+- **`InvestigationScanPanel.tsx` ahora hace 2 fetches al montar** (estimate de Session Scan + audit-detail para Information used) — mismo patrón que `AuditDetailPanel.tsx` ya usaba con 1 fetch; no se detectó impacto de performance esperable dado el volumen actual (auditoría de Fase 2 midió ~586 filas de audit_log totales).
+
+**Archivos modificados:** `src/components/workspace/WorkspaceShell.tsx`, `src/components/audit/AuditTimeline.tsx`, `src/lib/db/audit.ts`, `src/lib/db/documentation.ts`, `src/lib/documentation/anchors.ts`, `src/components/documentation/AuditDetailPanel.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/InvestigateView.tsx`, `src/components/documentation/InvestigationScanPanel.tsx`, `src/components/documentation/DocClient.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
+
+---

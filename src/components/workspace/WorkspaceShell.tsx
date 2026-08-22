@@ -220,7 +220,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            workspace_id: workspace.id,
+            workspaceId: workspace.id,
             event_type: 'review_forward',
             metadata: {
               from: fromSession.agent_role,
@@ -259,7 +259,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          workspace_id: workspace.id,
+          workspaceId: workspace.id,
           event_type:   'review_forward',
           metadata:     { from: fromSession.agent_role, to: targetRole },
         }),
@@ -301,12 +301,14 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          workspace_id: workspace.id,
+          workspaceId: workspace.id,
           event_type:  'review_forward',
           metadata:    {
             from:          'human_chat',
             to:            targetRole,
             message_count: messages.length,
+            connection_id: connectionContext?.connectionId ?? null,
+            partner_email: connectionContext?.otherUserEmail ?? null,
           },
         }),
       })

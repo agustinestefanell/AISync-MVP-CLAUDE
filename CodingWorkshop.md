@@ -1804,3 +1804,17 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Nota aparte, también de esta sesión:** un proceso Node corriendo `next start` (modo producción, sin hot-reload) puede confundirse con un `next dev` viejo si solo se mira el puerto — vale la pena revisar el comando real del proceso (`wmic process ... get CommandLine`) antes de asumir que un servidor local está desactualizado o al día.
 
 **Referencia:** handoff-2026-07-b.md OE 2026-08-20, `src/components/documentation/AuditView.tsx`.
+
+---
+
+## 2026-08-21 — Un campo NULL "silencioso" casi siempre es un mismatch de nombre entre quien escribe y quien lee, no un dato faltante
+
+**Síntoma:** los eventos `review_forward` mostraban "—" en Team/Workspace en `/audit`, y la fila "To Agent" del panel de detalle nunca aparecía — para TODOS los eventos de ese tipo, sin excepción, desde siempre.
+
+**Causa real (2 bugs de la misma familia, en el mismo flujo):** (1) los 3 call sites de `review_forward` en `WorkspaceShell.tsx` mandaban `workspace_id` (snake_case) al POST de `/api/audit`, que desestructura `workspaceId` (camelCase) del body — el campo llegaba `undefined`, se insertaba NULL en la columna, sin ningún error visible (ni en el cliente ni en Supabase: `workspace_id` es nullable). (2) `AuditTimeline.tsx` leía `metadata.to_agent` para la fila "To Agent", pero el dato real siempre se guardó como `metadata.to` — TypeScript no marca error porque `metadata` es `Record<string, unknown>`, cualquier clave inventada compila.
+
+**Cómo se confirmó (no se asumió):** grep de los 8 call sites reales de `POST /api/audit` (no solo los de `review_forward`) contra la firma que la ruta realmente desestructura — confirmó que 5 de 8 ya usaban `workspaceId` correctamente y los otros 3 no, antes de decidir qué lado cambiar. Mismo criterio para `to_agent`: grep de dónde se ESCRIBE el metadata de `review_forward` (3 call sites, todos usan `to`) contra dónde se LEE (`to_agent`) — el mismatch quedó confirmado con evidencia de ambos lados, no solo leyendo el componente que fallaba.
+
+**Lección central:** cuando un campo derivado de `metadata`/un body de request JSON está sistemáticamente vacío o "—" para el 100% de las filas de un tipo (no algunas, todas), sospechar primero de un mismatch de nombre entre el que escribe y el que lee, antes que de un problema de datos o de lógica de negocio. `Record<string, unknown>` y JSON sin schema estricto no dan ningún error de compilación ante una clave mal escrita en ninguno de los 2 lados — el único chequeo real es grep cruzado: buscar TODOS los call sites que escriben el campo Y todos los que lo leen, no solo el que está fallando a la vista. La corrección correcta no es "arreglar el lado que veo roto" sino "confirmar cuál lado es la minoría" — cambiar la ruta/el lector hubiera sido igual de fácil pero con mayor blast radius si la mayoría de call sites ya usaba la convención contraria.
+
+**Referencia:** handoff-2026-07-b.md OE 2026-08-21, `src/components/workspace/WorkspaceShell.tsx`, `src/app/api/audit/route.ts`, `src/components/audit/AuditTimeline.tsx`.

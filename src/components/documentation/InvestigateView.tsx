@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import type { DocCheckpoint, DocHandoffPackage, DocSavedSelection, DocAuditEvent, DocLoadedContextItem, DocMessageProvenanceItem } from '@/lib/db/documentation'
+import type { DocCheckpoint, DocHandoffPackage, DocSavedSelection, DocAuditEvent, DocLoadedContextItem, DocMessageProvenanceItem, DocWorkspaceSession } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import {
   type AnchorKind,
@@ -10,6 +10,9 @@ import {
   anchorTitle,
   anchorFlow,
   anchorOriginAgentRole,
+  anchorExecutedBy,
+  reviewForwardParties,
+  computePriorSteps,
   buildAnchors,
   buildDownstreamMaps,
   downstreamUsesFor,
@@ -75,6 +78,7 @@ interface Props {
   auditEvents:              DocAuditEvent[]
   contextSourcesWithOrigin: DocLoadedContextItem[]
   messageProvenance:        DocMessageProvenanceItem[]
+  workspaceSessions:        Record<string, DocWorkspaceSession[]>
   projects:                 ProjectWithTeams[]
   userEmail:                string
   teamCodes?:               Record<string, string>
@@ -85,7 +89,7 @@ interface Props {
 
 export default function InvestigateView({
   checkpoints, handoffPackages, savedSelections, auditEvents,
-  contextSourcesWithOrigin, messageProvenance, projects, teamCodes, initialFilterTeam,
+  contextSourcesWithOrigin, messageProvenance, workspaceSessions, projects, teamCodes, initialFilterTeam,
 }: Props) {
   const [investigationFocus, setInvestigationFocus] = useState('')
   const [filterProject,      setFilterProject]      = useState('')
@@ -254,6 +258,7 @@ export default function InvestigateView({
                   const flow       = anchorFlow(item)
                   const downstream = downstreamUsesFor(item, downstreamMaps)
                   const chain      = CHAIN_BADGE[downstream > 0 ? 'used' : 'not_used']
+                  const executedBy = anchorExecutedBy(item)
                   const id         = anchorId(item)
                   const key        = `${item.kind}:${id}`
 
@@ -282,6 +287,9 @@ export default function InvestigateView({
                           <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
                             {meta.projectName ?? '—'} · {teamLabel(meta.teamId, meta.teamName, teamCodes)} · {meta.wsName} · <span suppressHydrationWarning>{formatDate(meta.date)}</span>
                           </p>
+                          {executedBy && (
+                            <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">Executed by: {executedBy}</p>
+                          )}
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-2">
                           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${chain.className}`}>
@@ -301,6 +309,8 @@ export default function InvestigateView({
         {selectedItem && (() => {
           const meta = anchorMeta(selectedItem)
           const lc = selectedItem.kind === 'loaded_context' ? selectedItem.lc : null
+          const downstream = downstreamUsesFor(selectedItem, downstreamMaps)
+          const { auditStart, count: priorSteps } = computePriorSteps(selectedItem, meta, auditEvents)
           return (
             <InvestigationScanPanel
               anchorKindLabel={ANCHOR_KIND_LABEL[selectedItem.kind]}
@@ -315,6 +325,15 @@ export default function InvestigateView({
               originId={lc?.flavor === 'context_files' ? lc.origin_id : undefined}
               investigationFocus={investigationFocus}
               teamCodes={teamCodes}
+              priorSteps={priorSteps}
+              chainState={downstream > 0 ? 'used' : 'not_used'}
+              auditStart={auditStart}
+              sessionIds={(workspaceSessions[meta.wsId] ?? []).map(s => s.id)}
+              reviewForward={selectedItem.kind === 'review_forward' ? {
+                ...reviewForwardParties(selectedItem.rf),
+                isHumanTarget: (selectedItem.rf.metadata?.target_type === 'human_chat') || (selectedItem.rf.metadata?.to === 'human_chat'),
+                content: selectedItem.rf.forwarded_content,
+              } : undefined}
               onClose={() => setSelectedKey(null)}
             />
           )

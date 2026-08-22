@@ -867,6 +867,10 @@ La CLI de Supabase no está vinculada al proyecto remoto en este entorno. Toda m
 2. Ejecutarse manualmente en Supabase Dashboard → SQL Editor
 3. Documentarse en `PRODUCT_STATUS.md` + `handoff-archive-2026-06.md`
 
+### 8.8 Patrón: identidad/contenido de Review & Forward, centralizado en `anchors.ts` (2026-08-21)
+
+`src/lib/documentation/anchors.ts` es la fuente única para resolver emisor/receptor legibles de un evento `review_forward` (`reviewForwardParties()`) y quién ejecutó el forward cuando involucra Connected Teams (`anchorExecutedBy()`) — consumido por `AuditTimeline.tsx` (`/audit`), `AuditView.tsx` y `InvestigateView.tsx` (Documentation Mode). Mismo criterio ya establecido para `anchorTitle`/`anchorFlow`: cualquier lectura nueva de `metadata.from`/`metadata.to`/`target_email` de un `review_forward` debe pasar por estas funciones, nunca leer `metadata` directo en un componente — evita que un fix de label quede aplicado en una sola vista y no en las otras 2 (ver Pieza 4, handoff-2026-07-b.md 2026-08-21). El contenido real del mensaje reenviado (`forwarded_content`) se resuelve batch en `getAuditEvents()`/`getDocAuditEvents()` (`src/lib/db/audit.ts`/`documentation.ts`) vía `message_provenance`, nunca con un fetch por evento.
+
 ---
 
 ## 9. Zonas sensibles — no tocar sin diagnóstico previo

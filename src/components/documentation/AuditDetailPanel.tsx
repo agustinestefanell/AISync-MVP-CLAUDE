@@ -39,8 +39,9 @@ function describeEvent(e: DocAuditEvent): { label: string; object: string; resul
     case 'handoff_received':
       return { label: 'Handoff received', object: 'Handoff Package', result: 'Marked as received', agentRole: '—' }
     case 'review_forward': {
-      const from = AGENT_LABEL[(m.from as string) ?? ''] ?? (m.from as string) ?? '—'
-      const to   = AGENT_LABEL[(m.to as string)   ?? ''] ?? (m.to as string)   ?? '—'
+      const isToHuman = (m.target_type === 'human_chat') || (m.to === 'human_chat')
+      const from = m.from === 'human_chat' ? 'Human Chat' : (AGENT_LABEL[(m.from as string) ?? ''] ?? (m.from as string) ?? '—')
+      const to   = isToHuman ? ((m.target_email as string) ?? 'Connected human') : (AGENT_LABEL[(m.to as string) ?? ''] ?? (m.to as string) ?? '—')
       return { label: 'Review & Forward', object: `${from} → ${to}`, result: 'Forwarded', agentRole: from }
     }
     case 'save_selection':
@@ -107,12 +108,21 @@ interface Props {
   downstreamItems: { label: string; date: string }[]
   sessionIds:      string[]
   teamCodes?:      Record<string, string>
+  // Solo presente cuando la ancla seleccionada es Review & Forward — contenido
+  // real del mensaje reenviado (Pieza 3, 2026-08-21) + emisor/receptor legibles.
+  reviewForward?: {
+    from: string
+    to: string
+    executedBy: string | null
+    isHumanTarget: boolean
+    content: string | null
+  }
   onClose:         () => void
 }
 
 export default function AuditDetailPanel({
   anchorKindLabel, title, flow, meta, priorSteps, chainState,
-  auditStart, timelineEvents, origin, downstreamItems, sessionIds, teamCodes, onClose,
+  auditStart, timelineEvents, origin, downstreamItems, sessionIds, teamCodes, reviewForward, onClose,
 }: Props) {
   const [messages,     setMessages]     = useState<AuditMessage[]>([])
   const [contextFiles, setContextFiles] = useState<AuditContextFile[]>([])
@@ -211,6 +221,28 @@ export default function AuditDetailPanel({
 
         {flow && (
           <p className="text-xs text-[var(--color-text-secondary)]">{flow}</p>
+        )}
+
+        {reviewForward && (
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
+              Forwarded content
+            </p>
+            {reviewForward.executedBy && (
+              <p className="text-xs text-[var(--color-text-secondary)] mb-2">Executed by: {reviewForward.executedBy}</p>
+            )}
+            {reviewForward.isHumanTarget ? (
+              <p className="text-xs text-[var(--color-text-muted)] italic">
+                Content not available for this forward type.
+              </p>
+            ) : reviewForward.content ? (
+              <div className="text-xs leading-relaxed whitespace-pre-wrap rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5 max-h-56 overflow-y-auto">
+                {reviewForward.content}
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--color-text-muted)] italic">Content not available.</p>
+            )}
+          </div>
         )}
 
         {/* 3b — Timeline */}

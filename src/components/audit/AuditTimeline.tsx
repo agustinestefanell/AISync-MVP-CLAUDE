@@ -100,6 +100,24 @@ function hasCheckpoint(e: AuditEventRow) {
   return (e.event_type === 'save_version' || e.event_type === 'resume_work') && !!e.metadata?.checkpoint_id
 }
 
+// review_forward: emisor/receptor legibles — human_chat usa target_email/account
+// (Pieza 4, 2026-08-21) en vez del literal 'human_chat'. account_email/account_name
+// vienen del join a accounts en getAuditEvents()/getDocAuditEvents() (quien ejecutó
+// el forward — no necesariamente el autor de cada mensaje reenviado).
+function reviewForwardParties(e: AuditEventRow): { from: string; to: string; executedBy: string | null } {
+  const m = e.metadata ?? {}
+  const isToHuman   = (m.target_type === 'human_chat') || (m.to === 'human_chat')
+  const isFromHuman = m.from === 'human_chat'
+
+  const from = isFromHuman ? 'Human Chat' : (AGENT_LABEL[m.from as string] ?? (m.from as string) ?? '—')
+  const to   = isToHuman
+    ? ((m.target_email as string) ?? 'Connected human')
+    : (AGENT_LABEL[m.to as string] ?? (m.to as string) ?? '—')
+  const executedBy = (isToHuman || isFromHuman) ? (e.account_email ?? e.account_name ?? null) : null
+
+  return { from, to, executedBy }
+}
+
 function eventTitle(e: AuditEventRow): string {
   const m = e.metadata ?? {}
   if (e.event_type === 'save_version')   return (m.name as string) ?? 'Unnamed checkpoint'
@@ -107,7 +125,7 @@ function eventTitle(e: AuditEventRow): string {
   if (e.event_type === 'resume_work')    return `Resumed "${(m.name as string) ?? 'checkpoint'}"`
   if (e.event_type === 'lock')           return 'Workspace locked'
   if (e.event_type === 'unlock')         return 'Workspace unlocked'
-  if (e.event_type === 'review_forward')     return `Forwarded to ${(m.to_agent as string) ?? 'agent'}`
+  if (e.event_type === 'review_forward')     return `Forwarded to ${reviewForwardParties(e).to}`
   if (e.event_type === 'attachment_uploaded') return (m.filename as string) ?? 'File attached'
   if (e.event_type === 'tool_call_executed')  return (m.query as string) ?? 'Web search executed'
   if (e.event_type === 'connection_accepted') {
@@ -133,7 +151,11 @@ function eventDetail(e: AuditEventRow): string | null {
   const m = e.metadata ?? {}
   if (e.event_type === 'save_version')   return [m.purpose, `${m.message_count ?? 0} msgs`].filter(Boolean).join(' · ')
   if (e.event_type === 'session_backup') return `${m.total_messages ?? 0} messages exported`
-  if (e.event_type === 'review_forward')     return `${m.message_count ?? ''} message(s)`
+  if (e.event_type === 'review_forward') {
+    const { from, to, executedBy } = reviewForwardParties(e)
+    return [`${m.message_count ?? ''} message(s)`, `${from} → ${to}`, executedBy ? `by ${executedBy}` : null]
+      .filter(Boolean).join(' · ')
+  }
   if (e.event_type === 'attachment_uploaded') return (m.mime_type as string) ?? (m.attachment_type as string) ?? null
   if (e.event_type === 'tool_call_executed')  return `${(m.tool_name as string) ?? 'web_search'} · ${(m.provider as string) ?? ''}`
   if (e.event_type === 'connection_accepted' || e.event_type === 'connection_disconnected') {
@@ -759,15 +781,40 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                   {selectedEvent.metadata?.message_count !== undefined && (
                     <Row label="Messages">{String(selectedEvent.metadata.message_count)}</Row>
                   )}
-                  {!!selectedEvent.metadata?.to_agent && (
-                    <Row label="To Agent">
-                      {AGENT_LABEL[String(selectedEvent.metadata.to_agent)] ?? String(selectedEvent.metadata.to_agent)}
-                    </Row>
-                  )}
+                  {selectedEvent.event_type === 'review_forward' && (() => {
+                    const { from, to, executedBy } = reviewForwardParties(selectedEvent)
+                    return (
+                      <>
+                        <Row label="From">{from}</Row>
+                        <Row label="To Agent">{to}</Row>
+                        {executedBy && <Row label="Executed by">{executedBy}</Row>}
+                      </>
+                    )
+                  })()}
                   {!!selectedEvent.metadata?.traceability_note && (
                     <Row label="Note">{String(selectedEvent.metadata.traceability_note)}</Row>
                   )}
                 </div>
+
+                {selectedEvent.event_type === 'review_forward' && (
+                  <div className="mt-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] mb-2"
+                      style={{ color: 'var(--color-text-secondary)' }}>
+                      Forwarded content
+                    </p>
+                    {(selectedEvent.metadata?.target_type === 'human_chat' || selectedEvent.metadata?.to === 'human_chat') ? (
+                      <p className="text-xs text-[var(--color-text-muted)] italic">
+                        Content not available for this forward type.
+                      </p>
+                    ) : selectedEvent.forwarded_content ? (
+                      <div className="text-xs leading-relaxed whitespace-pre-wrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2 max-h-56 overflow-y-auto">
+                        {selectedEvent.forwarded_content}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[var(--color-text-muted)] italic">Content not available.</p>
+                    )}
+                  </div>
+                )}
 
                 {selectedEvent.event_type === 'tool_call_executed' &&
                   Array.isArray(selectedEvent.metadata?.sources) &&

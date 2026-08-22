@@ -82,6 +82,24 @@ export function anchorMeta(item: AnchorItem): AnchorMeta {
   }
 }
 
+// review_forward: emisor/receptor legibles — human_chat usa target_email/account
+// (Pieza 4, 2026-08-21) en vez del literal 'human_chat'. account_email/account_name
+// vienen del join a accounts en getDocAuditEvents() (quien ejecutó el forward —
+// no necesariamente el autor de cada mensaje reenviado).
+export function reviewForwardParties(rf: DocAuditEvent): { from: string; to: string; executedBy: string | null } {
+  const m = rf.metadata ?? {}
+  const isToHuman   = (m.target_type === 'human_chat') || (m.to === 'human_chat')
+  const isFromHuman = m.from === 'human_chat'
+
+  const from = isFromHuman ? 'Human Chat' : (AGENT_LABEL[m.from as string] ?? (m.from as string) ?? '—')
+  const to   = isToHuman
+    ? ((m.target_email as string) ?? 'Connected human')
+    : (AGENT_LABEL[m.to as string] ?? (m.to as string) ?? '—')
+  const executedBy = (isToHuman || isFromHuman) ? (rf.account_email ?? rf.account_name ?? null) : null
+
+  return { from, to, executedBy }
+}
+
 export function anchorTitle(item: AnchorItem): string {
   switch (item.kind) {
     case 'checkpoint':      return item.cp.name
@@ -89,11 +107,18 @@ export function anchorTitle(item: AnchorItem): string {
     case 'saved_selection':  return item.ss.name
     case 'loaded_context':   return item.lc.flavor === 'context_files' ? item.lc.title : 'Loaded into Chat'
     case 'review_forward': {
-      const from = AGENT_LABEL[(item.rf.metadata?.from as string) ?? ''] ?? (item.rf.metadata?.from as string) ?? '—'
-      const to   = AGENT_LABEL[(item.rf.metadata?.to as string)   ?? ''] ?? (item.rf.metadata?.to as string)   ?? '—'
+      const { from, to } = reviewForwardParties(item.rf)
       return `Review & Forward: ${from} → ${to}`
     }
   }
+}
+
+// Cuenta que ejecutó el forward — solo relevante cuando el evento involucra
+// human_chat (Connected Teams); null para Agente→Agente mismo team (no aplica,
+// no hay 2 cuentas, ver Pieza 4 2026-08-21).
+export function anchorExecutedBy(item: AnchorItem): string | null {
+  if (item.kind !== 'review_forward') return null
+  return reviewForwardParties(item.rf).executedBy
 }
 
 // "origen→destino (si aplica)" — solo Handoff y Loaded Context tienen un
@@ -197,6 +222,55 @@ export function buildDownstreamMaps(
   }
 
   return { general, reviewForward, contextFileInjected }
+}
+
+// Eventos reales confirmados que cuentan para "Prior steps" — mismo listado
+// que el que alimenta el timeline "How this was produced" de Audit View
+// (Paso 3). NO incluye handoff_package.created (solo handoff_received) — así
+// quedó definido en la consigna original de Fase 2.
+export const PRIOR_STEP_TYPES = new Set([
+  'save_version',
+  'resume_work',
+  'handoff_received',
+  'review_forward',
+  'save_selection',
+  'context_file_uploaded',
+  'context_file_injected',
+  'prompt_assigned',
+  'prompt_unassigned',
+  'agent_model_changed',
+])
+
+// Versión reusable de AuditView.tsx computeTimeline()/priorStepsFor() — usada
+// por Investigate View (Pieza 5, 2026-08-21) para el bloque de metadata nuevo.
+// AuditView.tsx mantiene su propia versión memoizada (misma fuente, misma
+// lógica) porque la recorre por cada ítem de una lista grande; acá alcanza con
+// recalcular sobre demanda para el único ítem seleccionado.
+export function computePriorSteps(
+  item: AnchorItem,
+  meta: AnchorMeta,
+  auditEvents: DocAuditEvent[],
+): { auditStart: string; count: number } {
+  const events = auditEvents
+    .filter(e => e.workspace_id === meta.wsId)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+  if (events.length === 0) return { auditStart: meta.date, count: 0 }
+
+  let auditStart: string | null = null
+  for (const e of events) {
+    if (e.created_at >= meta.date) break
+    if (e.event_type === 'save_version' || e.event_type === 'resume_work') auditStart = e.created_at
+  }
+  const start = auditStart ?? events[0].created_at
+  const selfId = item.kind === 'review_forward' ? item.rf.id : null
+  const count = events.filter(e =>
+    e.id !== selfId &&
+    e.created_at > start &&
+    e.created_at <= meta.date &&
+    PRIOR_STEP_TYPES.has(e.event_type)
+  ).length
+
+  return { auditStart: start, count }
 }
 
 export function downstreamUsesFor(item: AnchorItem, maps: DownstreamMaps): number {

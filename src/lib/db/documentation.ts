@@ -40,6 +40,11 @@ export interface DocAuditEvent {
   project_name: string | null
   metadata: Record<string, unknown> | null
   created_at: string
+  account_name: string | null
+  account_email: string | null
+  // Ver comentario equivalente en src/lib/db/audit.ts (getAuditEvents) —
+  // mismo mecanismo de lookup vía message_provenance (migración 055).
+  forwarded_content: string | null
 }
 
 interface RawCheckpoint {
@@ -324,6 +329,27 @@ export async function getSavedSelectionDetail(selectionId: string) {
   return messages as { role?: string; content?: string; agent_role?: string }[]
 }
 
+// review_forward hacia un agente (Agente↔Agente y Humano→Agente) deja una fila
+// en message_provenance con source_object_id = audit_log.id. La variante hacia
+// human_chat NO la tiene (destino human_messages, sin FK posible — migración 055).
+async function getForwardedContentMap(
+  supabase: ReturnType<typeof createClient>,
+  eventIds: string[]
+): Promise<Map<string, string>> {
+  if (eventIds.length === 0) return new Map()
+  const { data } = await supabase
+    .from('message_provenance')
+    .select('source_object_id, messages(content)')
+    .eq('source_object_type', 'review_forward')
+    .in('source_object_id', eventIds)
+
+  const map = new Map<string, string>()
+  for (const row of (data ?? []) as unknown as Array<{ source_object_id: string; messages: { content: string } | null }>) {
+    if (row.messages?.content) map.set(row.source_object_id, row.messages.content)
+  }
+  return map
+}
+
 export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
   const supabase = createClient()
   // Sin .limit() — Audit View (Fase 2, 2026-08-19) necesita el historial completo
@@ -333,35 +359,45 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
     .from('audit_log')
     .select(`
       id, event_type, workspace_id, metadata, created_at,
-      workspaces (name, teams (id, name, status, projects (id, name)))
+      workspaces (name, teams (id, name, status, projects (id, name))),
+      accounts (name, email)
     `)
     .order('created_at', { ascending: false })
 
-  return ((data ?? []) as unknown as Array<{
+  const rows = (data ?? []) as unknown as Array<{
     id: string
     event_type: string
     workspace_id: string | null
     metadata: Record<string, unknown> | null
     created_at: string
     workspaces: { name: string; teams: { id: string; name: string; status: string | null; projects: { id: string; name: string } | null } | null } | null
-  }>).map(r => {
+    accounts: { name: string | null; email: string | null } | null
+  }>
+
+  const forwardIds = rows.filter(r => r.event_type === 'review_forward').map(r => r.id)
+  const contentMap = await getForwardedContentMap(supabase, forwardIds)
+
+  return rows.map(r => {
     // For events without workspace (e.g. connection_accepted), extract team info from metadata if available
     const teamId = r.workspaces?.teams?.id ?? null
     const teamName = r.workspaces?.teams?.name ?? (r.metadata?.requester_team_name as string | null | undefined) ?? null
     const teamStatus = (r.workspaces?.teams?.status as 'active' | 'archived' | null) ?? null
 
     return {
-      id:             r.id,
-      event_type:     r.event_type,
-      workspace_id:   r.workspace_id,
-      workspace_name: r.workspaces?.name ?? null,
-      team_id:        teamId,
-      team_name:      teamName,
-      team_status:    teamStatus,
-      project_id:     r.workspaces?.teams?.projects?.id ?? null,
-      project_name:   r.workspaces?.teams?.projects?.name ?? null,
-      metadata:       r.metadata,
-      created_at:     r.created_at,
+      id:                r.id,
+      event_type:        r.event_type,
+      workspace_id:      r.workspace_id,
+      workspace_name:    r.workspaces?.name ?? null,
+      team_id:           teamId,
+      team_name:         teamName,
+      team_status:       teamStatus,
+      project_id:        r.workspaces?.teams?.projects?.id ?? null,
+      project_name:      r.workspaces?.teams?.projects?.name ?? null,
+      metadata:          r.metadata,
+      created_at:        r.created_at,
+      account_name:      r.accounts?.name ?? null,
+      account_email:     r.accounts?.email ?? null,
+      forwarded_content: contentMap.get(r.id) ?? null,
     }
   })
 }

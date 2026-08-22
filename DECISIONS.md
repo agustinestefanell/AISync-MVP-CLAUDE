@@ -1385,3 +1385,21 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 - **Botones de navegación (Open Workspace / Go to Audit / Go to Investigate):** los 3 viven solo en el panel derecho, abren en pestaña nueva (`window.open(..., '_blank')`). Audit/Investigate deep-linkean con `?tab=audit&team=<id>` / `?tab=investigate&team=<id>` — infraestructura nueva: `/documentation` no tenía soporte de query params antes de esta OE (el tab activo era 100% estado de React sin URL). Se agregó lectura de `searchParams` en el server component (`documentation/page.tsx`) + un prop `initialFilterTeam` en `AuditView.tsx`/`InvestigateView.tsx` que siembra su filtro Team al montar (mismo patrón ya usado para `externalSelectedKey`).
 - **Alternativas descartadas:** mantener Project/Team del panel como filtros reales sobre un Workspace ya elegido — descartado, sería un control inerte (siempre un solo valor posible) o confuso; construir una atenuación basada en dato nuevo (ej. persistir qué teams tienen documentos) — descartado, los datos ya viajan completos a `DocClient.tsx`, el cálculo es gratis en memoria.
 - **Referencia:** handoff-2026-07-b.md OE 2026-08-20 (ajustes de Structure View), `src/components/documentation/StructureView.tsx`, `src/components/documentation/WorkspaceDetailPanel.tsx`, `src/components/documentation/DocumentationMirrorTree.tsx`, `src/app/documentation/page.tsx`, `src/components/documentation/DocClient.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/InvestigateView.tsx`.
+
+---
+
+## 2026-08-21 — Fix workspace_id/workspaceId: se alineó el cliente a la ruta, no al revés
+
+- **Decisión:** los 3 call sites de `review_forward` en `WorkspaceShell.tsx` mandaban `workspace_id` (snake_case) a `POST /api/audit`, que espera `workspaceId` (camelCase) — el campo nunca se poblaba, quedaba NULL. Se cambiaron los 3 call sites a `workspaceId`; la ruta no se tocó.
+- **Motivo:** grep de los 8 call sites reales de `/api/audit` confirmó que los otros 5 (`resume_work`, `session_backup`, 2 en `AgentPanel.tsx`, 1 en `LoadContextModal.tsx`) ya usaban `workspaceId` correctamente — era el contrato mayoritario ya establecido, no un empate 50/50. Cambiar la ruta hubiera arreglado 3 call sites rompiendo los otros 5.
+- **Alternativas descartadas:** cambiar `/api/audit/route.ts` a `workspace_id` — descartado por el motivo de arriba (mayor blast radius para el mismo resultado).
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-21, `src/components/workspace/WorkspaceShell.tsx`, `src/app/api/audit/route.ts`.
+
+---
+
+## 2026-08-21 — Identidad/contenido de Review & Forward centralizados en `anchors.ts`, no repetidos por vista
+
+- **Decisión:** toda lectura de `metadata.from`/`metadata.to`/`target_email`/contenido reenviado de un evento `review_forward` pasa por funciones compartidas de `src/lib/documentation/anchors.ts` (`reviewForwardParties()`, `anchorExecutedBy()`) — nunca se lee `metadata` directo dentro de un componente de `/audit`, Audit View o Investigate View.
+- **Motivo:** Piezas 1 y 2 de esta misma OE fueron exactamente este tipo de bug — un dato correcto en `metadata`, leído con la clave equivocada en un solo lugar mientras otros lugares lo leían bien (o ninguno lo leía). `anchorTitle()`/`anchorFlow()` ya establecían este patrón para el título de un `review_forward`; extender el mismo archivo para emisor/receptor/contenido evita que un fix quede aplicado en una vista y no en las otras 2.
+- **Alternativas descartadas:** resolver `target_email`/`executedBy` inline en cada componente (`AuditTimeline.tsx`, `AuditView.tsx`, `InvestigateView.tsx`) — descartado, es la causa raíz exacta de los bugs de Piezas 1/2 replicada a propósito.
+- **Referencia:** handoff-2026-07-b.md OE 2026-08-21, `src/lib/documentation/anchors.ts`, AISyncPlans.md sección 8.8.
