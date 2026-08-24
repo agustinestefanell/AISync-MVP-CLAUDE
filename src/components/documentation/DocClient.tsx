@@ -250,7 +250,7 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
             {/* View */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userName={userName} userEmail={userEmail} externalSelectedId={selectedRepositoryId} teamCodes={teamCodes} />}
-              {tab === 'library'     && <UserLibraryView savedSelections={savedSelections} tags={tags} teamCodes={teamCodes} />}
+              {tab === 'library'     && <UserLibraryView savedSelections={savedSelections} tags={tags} projects={projects} teamCodes={teamCodes} />}
               {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} projects={projects} teamCodes={teamCodes} externalSelectedKey={selectedAuditKey} initialFilterTeam={initialFilterTeam} />}
               {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} workspaceSessions={workspaceSessions} projects={projects} userEmail={userEmail} teamCodes={teamCodes} initialFilterTeam={initialFilterTeam} />}
               {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}

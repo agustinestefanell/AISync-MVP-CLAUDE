@@ -3,7 +3,7 @@
 // treated as migratable client property. See src/lib/db/planes.ts
 
 import { createClient } from '@/lib/supabase/server'
-import { stripMarkdown } from '@/lib/text/stripMarkdown'
+import { stripMarkdown, stripMarkdownPreserveParagraphs } from '@/lib/text/stripMarkdown'
 
 export interface DocCheckpoint {
   id: string
@@ -254,8 +254,12 @@ export interface DocSavedSelection {
   project_name:   string | null
   created_at:     string
   user_id:        string
+  // Versión de content_preview que preserva párrafos/saltos de línea (2026-08-22)
+  // — solo para User Library, cuyas cards muestran altura libre. content_preview
+  // (arriba) sigue intacto para Repository View, que no cambió en esta OE.
+  content_preview_full?: string
   // Tags de User Library (migración 058, 2026-08-21) — [] si no está en la library.
-  tags:           { id: string; name: string }[]
+  tags:           { id: string; name: string; color: string | null }[]
   // messages removed from list interface — fetch with getSavedSelectionDetail(id)
 }
 
@@ -272,14 +276,14 @@ interface RawSavedSelection {
     name: string
     teams: { id: string; name: string; status: string | null; projects: { id: string; name: string } | null } | null
   } | null
-  saved_selection_tags: { tags: { id: string; name: string } | null }[] | null
+  saved_selection_tags: { tags: { id: string; name: string; color: string | null } | null }[] | null
 }
 
 export async function getSavedSelections(userId: string): Promise<DocSavedSelection[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('saved_selections')
-    .select('id, name, messages, workspace_id, team_id, project_id, created_at, user_id, workspaces(name, teams(id, name, status, projects(id, name))), saved_selection_tags(tags(id, name))')
+    .select('id, name, messages, workspace_id, team_id, project_id, created_at, user_id, workspaces(name, teams(id, name, status, projects(id, name))), saved_selection_tags(tags(id, name, color))')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
@@ -297,6 +301,9 @@ export async function getSavedSelections(userId: string): Promise<DocSavedSelect
       content_preview: typeof content === 'string' && content.length > 0
         ? stripMarkdown(content, 200)
         : undefined,
+      content_preview_full: typeof content === 'string' && content.length > 0
+        ? stripMarkdownPreserveParagraphs(content)
+        : undefined,
       workspace_id:   r.workspace_id,
       workspace_name: r.workspaces?.name ?? '—',
       team_id:        r.team_id ?? null,
@@ -312,7 +319,7 @@ export async function getSavedSelections(userId: string): Promise<DocSavedSelect
       project_name:   project?.name ?? null,
       created_at:     r.created_at,
       user_id:        r.user_id,
-      tags:           (r.saved_selection_tags ?? []).map(t => t.tags).filter((t): t is { id: string; name: string } => !!t),
+      tags:           (r.saved_selection_tags ?? []).map(t => t.tags).filter((t): t is { id: string; name: string; color: string | null } => !!t),
       // messages array NOT returned — use getSavedSelectionDetail(id) to fetch full content
     }
   })
@@ -324,15 +331,16 @@ export async function getSavedSelections(userId: string): Promise<DocSavedSelect
 // 1 tag (saved_selection_tags) — no hay columna in_user_library, ver
 // DECISIONS.md 2026-08-21.
 export interface DocTag {
-  id:   string
-  name: string
+  id:    string
+  name:  string
+  color: string | null
 }
 
 export async function getTags(): Promise<DocTag[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('tags')
-    .select('id, name')
+    .select('id, name, color')
     .order('name', { ascending: true })
 
   return (data ?? []) as DocTag[]

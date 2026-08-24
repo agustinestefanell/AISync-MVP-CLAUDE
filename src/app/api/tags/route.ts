@@ -16,7 +16,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('tags')
-    .select('id, name')
+    .select('id, name, color')
     .order('name', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from('tags')
     .insert({ account_id: user.id, name })
-    .select('id, name')
+    .select('id, name, color')
     .single()
 
   if (error) {
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     if (error.code === '23505') {
       const { data: existing, error: fetchError } = await supabase
         .from('tags')
-        .select('id, name')
+        .select('id, name, color')
         .eq('account_id', user.id)
         .eq('name', name)
         .single()

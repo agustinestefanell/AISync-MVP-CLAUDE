@@ -125,3 +125,139 @@ Build y lint corridos, sin errores nuevos. **Sin verificación visual esta sesi�
 **Archivos modificados:** `src/components/documentation/UserLibraryView.tsx`, `src/components/workspace/WorkspaceShell.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## OE 2026-08-22 — User Library: edición inline (layout 4 columnas, Expandir, Delete/Add Tag/Remove tag, Edit Tag con color)
+
+**Fecha:** 2026-08-22
+**Estado:** Closed — build y lint confirmados sin errores nuevos en las 6 rondas de ajustes de esta OE. **Verificación visual confirmada por Agus (2026-08-24):** todos los ajustes de User Library aprobados (mosaico con columnas explícitas, tope de altura por columna, truncado real por altura, filtros Project/Team, tipografía serif en títulos, fondo blanco + sombra sutil) — sin pedir cambios adicionales a los valores propuestos (`COLUMN_MAX_HEIGHTS`, paleta de tags, etc.). Commit + push ejecutados en este cierre. Pendiente (no bloqueante para el commit): aplicar migraciones 058 y 059 en Supabase — sin eso, `/api/tags`, `PATCH /api/tags/[id]` y el color de tags fallan en runtime real.
+
+**Contexto:** Ajustes de UX sobre User Library ya construida (layout, expandir, edición inline de tags por card y desde el panel de tags). Paso 0 reportado y confirmado con Agus antes de escribir código — ver DECISIONS.md 2026-08-22.
+
+### 1. Migración 059 — `supabase/migrations/059_tags_color.sql`
+
+`ALTER TABLE tags ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#1f4e79'` — nullable, default = mismo azul de `--color-accent` en `tokens.css`. **Pendiente de aplicar en Supabase** (igual que la 058) — sin esto, "Edit Tag" y los colores de tag no funcionan en runtime real.
+
+### 2. `src/lib/db/documentation.ts`
+
+`DocTag` gana `color: string | null`. `getTags()` selecciona `color`. `DocSavedSelection.tags[]` y `RawSavedSelection.saved_selection_tags[].tags` ganan `color` — `getSavedSelections()` extiende su select anidado a `saved_selection_tags(tags(id, name, color))`.
+
+### 3. `src/app/api/tags/route.ts`
+
+`GET`/`POST` seleccionan/devuelven `color` además de `id, name` (sin cambios de comportamiento, solo el campo nuevo viajando).
+
+### 4. `src/app/api/tags/[id]/route.ts` (nuevo)
+
+`PATCH` — "Edit Tag". Body `{ name?, color? }`, al menos uno de los dos. Filtra explícitamente por `account_id = user.id` además de RLS. `23505` (nombre duplicado para la cuenta) → `409` con mensaje claro en vez de error genérico.
+
+### 5. `src/app/api/documentation/selection/[id]/tags/route.ts` (nuevo)
+
+Único lugar que modifica `saved_selection_tags` para un Save Selection **ya existente** (hasta esta OE solo se insertaba una vez, al crear el Save Selection). Ownership check explícito (patrón SEC-008 de `save-selection/route.ts`) antes de mutar, no solo RLS.
+- `POST { tagIds: string[] }` → `upsert` con `onConflict: 'saved_selection_id,tag_id'` + `ignoreDuplicates: true` ("Add Tag" — agrega uno o más, sin error si ya estaba agregado).
+- `DELETE { tagId?: string }` → sin `tagId`, borra TODAS las filas de ese Save Selection ("Delete" de la card — lo saca de User Library, el Save Selection en sí no se toca). Con `tagId`, borra solo esa fila ("Remove tag").
+
+### 6. `src/components/documentation/UserLibraryView.tsx` (reescrito)
+
+- **Layout:** grid pasa de `grid-cols-1 sm:grid-cols-2 xl:grid-cols-3` a `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` — 4 columnas en pantallas anchas.
+- **Expandir:** botón "⤢" por card abre un modal (mismo patrón visual que `EditTeamModal.tsx` — overlay + header/body scrolleable con `max-h-[90vh]`/footer), trae el contenido completo vía `GET /api/documentation/selection/[id]` (ya existía, reusado sin cambios) de forma lazy al abrir.
+- **Card — Delete:** botón con confirmación de 2 clicks (mismo patrón `confirming`/"Confirm deletion?" ya usado en `EditTeamModal.tsx` para "Erase Team") → `DELETE .../tags` sin `tagId`.
+- **Card — Remove tag:** "×" en cada chip de tag → `DELETE .../tags` con `tagId` puntual.
+- **Card — Add Tag:** botón "+ Add tag" abre un popover con los tags de la cuenta que todavía no están en esa card (chips clickeables, aplicación inmediata por click — no junta selección con un paso de "confirmar", ver DECISIONS.md por qué difiere del modal de creación) + "+ Create new tag" inline (crea vía `POST /api/tags` y lo agrega en la misma acción).
+- **Panel de tags — Add a New Tag:** botón "+ New" junto al header "Tags (N)", abre un input inline (mismo flujo que ya existía en el modal de Save Selection) → `POST /api/tags`.
+- **Panel de tags — Edit Tag:** ícono "✎" por fila abre un bloque inline con input de nombre + 8 swatches de color fijos (`TAG_COLORS`) → `PATCH /api/tags/[id]`.
+- **Color de tags:** punto de color (`tag.color ?? DEFAULT_TAG_COLOR`) en las filas del panel izquierdo y en los chips de las cards.
+- **Todas las mutaciones:** `fetch` → si falla, mensaje de error inline (no bloquea la vista); si OK, `router.refresh()` — sin estado local duplicado de `savedSelections`/`tags` (ver DECISIONS.md, mismo patrón que `TeamsClient.tsx`/`EditTeamModal.tsx`).
+
+### Verificación
+
+`npm run lint` y `npm run build` sin errores nuevos (mismos 3 warnings preexistentes de `CanvasViewport.tsx`, no tocados). Grep exhaustivo de `from('tags')`/`saved_selection_tags` confirmó que todos los selects que traen tags (`documentation.ts`, `api/tags/route.ts`, `api/tags/[id]/route.ts`) quedaron consistentes con la columna `color` nueva. Sin Claude in Chrome disponible esta sesión no se hizo verificación visual en el momento; **confirmado visualmente por Agus el 2026-08-24** (aprobado sin cambios, ver Estado de la OE arriba). No se intentó levantar el dev server para una prueba funcional real porque además la migración 059 todavía no está aplicada en Supabase — no habría datos reales con los que probar el flujo de color.
+
+### Alternativas descartadas
+
+Ver DECISIONS.md 2026-08-22 para el detalle completo (color nullable vs. NOT NULL, paleta fija vs. color picker libre, router.refresh() vs. estado local duplicado, aplicación inmediata vs. selección+confirmar en "Add Tag", endpoint separado vs. extender `/api/tags`).
+
+### Riesgos conocidos / deuda técnica
+
+- **Migración 059 sin aplicar todavía en Supabase** — heredado el mismo bloqueante que la 058 (tampoco aplicada). Hasta que Agus corra ambas, `/api/tags/[id]` y el color de tags fallan en runtime real.
+- ~~Sin verificación visual real todavía~~ — **resuelto:** confirmado por Agus el 2026-08-24 (grid a 4 columnas, modal Expandir, Delete/Add Tag/Remove tag, Add a New Tag/Edit Tag con color, todos aprobados).
+- ~~Commit/push pendientes~~ — **resuelto:** ejecutados en el cierre del 2026-08-24, ver final de este archivo/PRODUCT_STATUS.md para el hash real.
+- **`saved_selection_tags` ahora se muta desde 2 endpoints distintos** (`save-selection/route.ts` en creación, `selection/[id]/tags/route.ts` en edición post-creación) — ambos con el mismo chequeo de ownership pero código separado (no factorizado en un helper compartido). Señalado por si en el futuro se agrega una tercera vía de mutación y conviene extraer un helper común — no se hizo en esta OE porque solo 2 call sites todavía no justifica la abstracción.
+
+**Archivos modificados/nuevos:** `supabase/migrations/059_tags_color.sql` (nuevo), `src/lib/db/documentation.ts`, `src/app/api/tags/route.ts`, `src/app/api/tags/[id]/route.ts` (nuevo), `src/app/api/documentation/selection/[id]/tags/route.ts` (nuevo), `src/components/documentation/UserLibraryView.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
+
+### Ajuste mismo día — chips de tag con fondo completo del color + contraste automático
+
+**Pedido:** en las cards de Save Selection, los chips de tag pasan de "punto de color chico + fondo neutro" a fondo completo del chip pintado con el color del tag, con texto blanco/negro calculado automáticamente por luminancia (fórmula estándar `0.299R + 0.587G + 0.114B`, blanco si `< 128`, negro si `>= 128`) para que ninguna combinación de los 8 colores de la paleta quede ilegible.
+
+**Implementado:** nueva función `tagTextColor(hex)` en `UserLibraryView.tsx` (parsea hex 3 o 6 dígitos, calcula luminancia, devuelve `#FFFFFF`/`#000000`). El chip de tag dentro de cada card (`ss.tags.map(...)`) pasa de `<span className="...bg-[var(--color-surface-subtle)]...">` + punto de color separado, a `style={{ backgroundColor: bg, color: fg }}` sobre el chip completo (sin punto, sin borde — el fondo ya es el color). El botón "×" de "Remove tag" hereda el mismo `color: fg` para mantenerse legible sobre cualquier fondo.
+
+**Sin tocar (confirmar con Agus si se quiere unificar a futuro):** el punto de color en la lista de tags del panel izquierdo queda como estaba (punto chico + texto en color de la app) — pedido explícitamente así por Agus para esta OE ("puede quedar como está"). Mi recomendación es dejarlo así: es una lista angosta y densa (nombre + contador + ícono editar en la misma fila), un chip de fondo completo ahí competiría visualmente con esos otros elementos: el punto ya cumple su función de identificar el color sin ese ruido.
+
+**Verificación:** build ✅. Sin Claude in Chrome disponible no se hizo verificación visual en el momento; **confirmado por Agus el 2026-08-24** (tags con colores distintos, contraste de texto correcto en todos los casos).
+
+### Ajuste mismo día — botones, separador, tags sin color, altura libre y párrafos preservados
+
+**7 puntos pedidos por Agus sobre las cards de `UserLibraryView.tsx`:**
+
+1. **Rename:** botón "Delete" → "Delete From Library" (único lugar donde aparecía).
+2. **"Open Workspace →"** pasa de relleno azul sólido a estilo secundario/outline: `bg-[var(--color-surface-subtle)]` + `text-black` en vez de `bg-[var(--color-accent)]` + `text-white`.
+3. **Borde engrosado** en ambos botones (`Open Workspace →` y `Delete From Library`): `border` (1px) → `border-2` (2px) en los 3 estados (Open Workspace, Delete normal, Delete confirmando).
+4. **Separador `<hr>`** entre el bloque de texto/tags y la fila de botones, dentro de cada card.
+5. **Tags sin color (NULL):** ya no heredan `DEFAULT_TAG_COLOR` (el azul del acento) — nueva constante `NO_COLOR_TAG_BG = '#E5E7EB'` (gris claro) + texto negro fijo, a propósito distinto de `DEFAULT_TAG_COLOR` (que sigue siendo el color inicial que ofrece el selector de "Edit Tag", no un color "real" heredado). Solo los tags con `color` explícito en la base pintan con `tagTextColor()`.
+6. **Altura libre, ancho fijo:** grid ganó `items-start` (evita que CSS Grid estire todas las cards de una fila a la altura de la más alta — comportamiento default de `align-items: stretch`); se sacó `line-clamp-2` del preview.
+7. **Párrafos preservados:** nueva función `stripMarkdownPreserveParagraphs()` en `src/lib/text/stripMarkdown.ts` — mismo stripping de sintaxis Markdown que `stripMarkdown()`, pero SIN colapsar `\n+` a espacio (solo normaliza 3+ líneas vacías a 1) y sin truncado agresivo (cap de seguridad en 4000 chars, no un largo de preview diseñado). Nuevo campo `DocSavedSelection.content_preview_full` en `documentation.ts`, poblado en paralelo a `content_preview` (que queda intacto, sin tocar). **Decisión importante:** NO se modificó `stripMarkdown()` ni el `content_preview` existente — ese campo/función es compartido con Repository View (`RepositoryView.tsx` lo consume para Checkpoint/Saved Selection/Handoff Package), tocarlo hubiera cambiado el comportamiento de esa vista sin que Agus lo pidiera. `UserLibraryView.tsx` es el único consumidor de `content_preview_full`, renderizado con `whitespace-pre-wrap` (sin `line-clamp`).
+
+**Verificación:** build ✅. Grep confirmó que `RepositoryView.tsx` sigue usando `content_preview` (no `content_preview_full`) sin cambios. **Confirmado visualmente por Agus el 2026-08-24** (separador, botones con el nuevo estilo, tags con y sin color).
+
+### Ajuste mismo día — layout mosaico, tope de altura con "Partial summary", filtros Project/Team
+
+**3 puntos pedidos por Agus:**
+
+1. **Layout mosaico (masonry):** el grid `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` (que fuerza altura pareja por fila vía CSS Grid `align-items: stretch`) pasa a CSS Columns: `columns-1 sm:columns-2 lg:columns-4 gap-4` en el contenedor, y cada card gana `break-inside-avoid mb-4` (el `gap` de CSS Columns solo separa columnas entre sí, no items apilados dentro de la misma columna — de ahí el `mb-4` en cada card). Con esto las cards de altura variable se acomodan compactas, sin huecos grandes debajo de las más cortas.
+2. **Tope de altura + "Partial summary":** nueva constante `PREVIEW_CHAR_LIMIT = 420` (≈ 6-8 líneas de texto-xs en el ancho de una columna de mosaico) + función `truncatePreview()` en `UserLibraryView.tsx`. Es un corte por cantidad de caracteres, NO una medición real del DOM — pragmático porque el layout es responsive (1 a 4 columnas) y la altura real en píxeles depende del ancho de cada viewport, que solo se conoce en el navegador. Si `content_preview_full` excede el límite, se corta en el último espacio/salto de línea antes del límite y se agrega "…"; debajo aparece un botón "Partial summary — Expand for full content →" que abre el mismo modal de Expandir ya existente (única vía para ver el contenido completo). Si no excede, se muestra completo tal cual (sin cambios respecto al ajuste anterior).
+3. **Filtros Project/Team:** mismo patrón exacto ya usado en `RepositoryView.tsx`/`AuditView.tsx`/`InvestigateView.tsx` (no hay un componente compartido real en el proyecto — cada vista replica el mismo `<select>` + lógica `uniqueProjects`/`uniqueTeams` inline) — replicado en `UserLibraryView.tsx`: `uniqueProjects` desde el prop `projects` (ya lo recibían las otras 4 vistas, agregado ahora también acá vía `DocClient.tsx`), `uniqueTeams` derivado de `savedSelections` acotado por `filterProject` si hay uno elegido, con el mismo `useEffect` que resetea `filterTeam` si deja de pertenecer al Project recién elegido. Filtran sobre `project_id`/`team_id` de cada Save Selection (ya resueltos vía JOIN desde la OE del fix de `project_id`, ver `documentation.ts`). Conviven (AND) con el filtro de tags existente — un botón "Clear" aparece solo cuando alguno de los 2 está activo.
+
+**Archivos:** `src/components/documentation/UserLibraryView.tsx`, `src/components/documentation/DocClient.tsx` (agrega prop `projects` a `<UserLibraryView>`, ya estaba disponible en el componente padre — no requirió tocar `page.tsx`).
+
+**Verificación:** lint ✅, build ✅. **Nota:** el layout mosaico (CSS Columns) y el truncado por caracteres (`PREVIEW_CHAR_LIMIT`) de este punto fueron reemplazados en la ronda siguiente (columnas manuales + tope de altura real) antes de cualquier verificación visual — el punto 3 (filtros Project/Team) sí llegó sin cambios hasta la aprobación final de Agus el 2026-08-24.
+
+### Riesgo nuevo — PREVIEW_CHAR_LIMIT es una aproximación, no una medición real
+
+El corte a 420 caracteres es una estimación basada en ancho/fuente típicos de una columna de mosaico — en una pantalla muy angosta (1 columna) o muy ancha (4 columnas), la altura visual real de esos 420 caracteres puede variar bastante (menos o más de las "6-8 líneas" buscadas). No se resolvió con medición real del DOM (`ResizeObserver`/`scrollHeight`) porque hubiera requerido convertir cada card en un componente con estado propio de "measured/truncated" — complejidad no pedida para un ajuste de este tamaño. Si en la verificación visual el corte se ve claramente mal calibrado en algún breakpoint, es la primera constante a ajustar (`PREVIEW_CHAR_LIMIT` en `UserLibraryView.tsx`).
+
+**Superado por el ajuste siguiente (mismo día) — ver abajo:** Agus detectó el bug anticipado arriba (listas de nombres con muchas líneas cortas y pocos caracteres no se cortaban) y pidió reemplazar el corte por caracteres por un tope de altura real en píxeles. `PREVIEW_CHAR_LIMIT`/`truncatePreview()` fueron eliminados del archivo, no quedan como código muerto.
+
+### Ajuste mismo día — columnas manuales (round-robin) + tope de altura real en píxeles por columna
+
+**2 cambios de técnica pedidos por Agus, sobre el layout mosaico de la ronda anterior:**
+
+1. **CSS Columns → 4 columnas manuales:** el contenedor `columns-1 sm:columns-2 lg:columns-4` (que dejaba la distribución de cards en manos del navegador) se reemplaza por un array `columns: DocSavedSelection[][]` armado a mano — `filteredSelections.forEach((ss, i) => columns[i % columnCount].push(ss))` (round-robin: card 0 → columna 0, card 1 → columna 1, card 2 → columna 2, card 3 → columna 3, card 4 → columna 0 de nuevo...). Cada columna se renderiza como su propio `flex flex-col gap-4` dentro de un `flex` horizontal — control total de qué card cae en qué columna, a diferencia de CSS Columns que decide el orden de llenado por su cuenta. Nuevo hook `useColumnCount()` mantiene el colapso responsive que tenía CSS Columns (1 columna <640px, 2 entre 640-1024px, 4 desde 1024px) vía `window.innerWidth` + listener de `resize` — sin este hook, la distribución round-robin fija en 4 hubiera roto el colapso en pantallas chicas que ya se había pedido explícitamente en una ronda anterior.
+2. **Corte por caracteres → tope de altura real en píxeles:** nuevo componente `TruncatedPreview` (usa hooks — `useLayoutEffect` + `useRef` + `useState` — por eso es su propio componente, no puede vivir inline dentro del `.map()` del componente padre sin violar reglas de hooks). Renderiza el texto completo dentro de un `<p style={{ maxHeight, overflow: 'hidden' }}>` y mide `scrollHeight` vs `clientHeight` después de montar para saber si el contenido REALMENTE excede el tope — a diferencia del corte por caracteres anterior, esto es correcto para cualquier forma de contenido (una lista larga de líneas cortas ocupa muchas líneas con pocos caracteres; ahora se detecta por altura real, no por longitud de string). Cuando hay overflow real: degradado (`linear-gradient` de transparente a `var(--color-surface)`, para blend con el fondo de la card) + botón "More content — Expand →" superpuestos sobre las últimas líneas visibles, que abren el mismo modal de Expandir.
+3. **Valores iniciales por columna** (`COLUMN_MAX_HEIGHTS = [220, 260, 190, 220]`, en píxeles) — arbitrarios, pedidos así por Agus para variar el ritmo visual entre columnas. Con menos de 4 columnas activas (breakpoints chicos) se reusa por índice módulo 4 (columna 0 y 1 en vista de 2 columnas usan 220px/260px). **A reportar/ajustar tras la verificación visual** — son un punto de partida, no un valor final medido contra contenido real.
+
+**Archivos:** `src/components/documentation/UserLibraryView.tsx` (único archivo tocado).
+
+**Verificación:** lint ✅, build ✅. **Confirmado visualmente por Agus el 2026-08-24** — 4 columnas con topes distintos, cards largas (incluidas listas de nombres) cortándose correctamente con el indicador de "más contenido", Expandir mostrando el contenido completo; `COLUMN_MAX_HEIGHTS` aprobado sin pedir ajustes a los valores propuestos.
+
+### Ajuste mismo día — borde de card más grueso, título con más jerarquía tipográfica
+
+**2 puntos pedidos por Agus, ajuste fino sobre la card ya construida:**
+
+1. **Borde de card engrosado:** `border border-[var(--color-border-subtle)]` → `border-2 border-[var(--color-border-default)]` — además de más grueso (1px → 2px), se usa el token de borde más marcado (`--color-border-default`, el mismo que ya usan los botones "Open Workspace →"/"Expand" dentro de la misma card) en vez del sutil, para que las cards se separen mejor entre sí en el mosaico.
+2. **Título con más jerarquía editorial:** `text-[13px] font-semibold` → `text-[16px] font-bold tracking-tight leading-snug`. Sin agregar color nuevo ni elemento decorativo — solo tamaño, peso, tracking y line-height (pedido explícito de Agus: "solo tipografía"). Se mantiene `truncate` (una sola línea) para no desestabilizar el layout de columnas manuales de la ronda anterior.
+
+**Archivo:** `src/components/documentation/UserLibraryView.tsx` (único archivo tocado).
+
+**Verificación:** lint ✅, build ✅. **Nota:** el borde grueso de este punto fue reemplazado en la ronda siguiente (fondo blanco + sombra sutil) antes de la verificación visual final — el tamaño/tipografía del título se ajustó de nuevo también en esa ronda (serif + 18px).
+
+### Ajuste mismo día — título serif clásico, separación visual vía blanco puro + sombra (reemplaza el borde grueso)
+
+**2 puntos pedidos por Agus, sobre la card del ajuste anterior:**
+
+1. **Título serif:** `text-[16px] font-bold tracking-tight leading-snug` → `text-[18px]` + `style={{ fontFamily: "Georgia, 'Book Antiqua', Palatino, serif" }}` (stack websafe pedido explícitamente, no el `font-serif` default de Tailwind — que en este proyecto no está customizado y usa `ui-serif, Georgia, Cambria, "Times New Roman", Times, serif`, distinto del stack pedido). Peso/tracking/line-height del ajuste anterior sin tocar — solo tamaño y tipografía, resto de la card intacto (pedido explícito).
+2. **Separación visual — reemplaza el borde grueso del ajuste anterior, no lo suma:** `border-2 border-[var(--color-border-default)]` → `border border-[var(--color-border-subtle)]` (vuelve al grosor/color sutil original) + `bg-[var(--color-surface)]` → `bg-white` (verificado en `tokens.css`: `--color-surface` YA es `#ffffff` — no había ningún blanco grisáceo real, pero se usa `bg-white` explícito de todas formas para no depender de la resolución de la variable) + `shadow-sm` nuevo (sombra sutil de Tailwind, elevación mínima). Interpretación de "en vez de solo engrosar el borde": el pedido pide reemplazar la dependencia del borde grueso por estos 2 tratamientos nuevos, no sumar sombra+blanco ENCIMA del borde grueso — combinar borde grueso + sombra hubiera quedado "recargado" (justo lo que la verificación visual pide confirmar que NO pase).
+
+**Archivo:** `src/components/documentation/UserLibraryView.tsx` (único archivo tocado).
+
+**Verificación:** lint ✅, build ✅. **Confirmado visualmente por Agus el 2026-08-24** — título serif y fondo blanco + sombra sutil aprobados, cards bien diferenciadas sin sentirse recargadas.
+
+---
