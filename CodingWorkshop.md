@@ -1818,3 +1818,17 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección central:** cuando un campo derivado de `metadata`/un body de request JSON está sistemáticamente vacío o "—" para el 100% de las filas de un tipo (no algunas, todas), sospechar primero de un mismatch de nombre entre el que escribe y el que lee, antes que de un problema de datos o de lógica de negocio. `Record<string, unknown>` y JSON sin schema estricto no dan ningún error de compilación ante una clave mal escrita en ninguno de los 2 lados — el único chequeo real es grep cruzado: buscar TODOS los call sites que escriben el campo Y todos los que lo leen, no solo el que está fallando a la vista. La corrección correcta no es "arreglar el lado que veo roto" sino "confirmar cuál lado es la minoría" — cambiar la ruta/el lector hubiera sido igual de fácil pero con mayor blast radius si la mayoría de call sites ya usaba la convención contraria.
 
 **Referencia:** handoff-2026-07-b.md OE 2026-08-21, `src/components/workspace/WorkspaceShell.tsx`, `src/app/api/audit/route.ts`, `src/components/audit/AuditTimeline.tsx`.
+
+---
+
+## 2026-08-24 — "Internal Server Error" global tras varios `npm run build`: no era el código nuevo, era reescribir `.next` debajo de un servidor ya corriendo
+
+**Síntoma:** Agus reportó "Internal Server Error" al abrir localhost, sospecha inicial (razonable) apuntando al cambio más reciente — el breadcrumb del ribbon (`buildTeamAncestorChain()`, con un `while` que sube por `parent_id`).
+
+**Causa real:** nada que ver con ese código. Durante la sesión se corrió `npm run build` 3 veces (cierre de cada bloque de ajustes) mientras un proceso `node` (`next/dist/server/lib/start-server.js`) seguía corriendo en el puerto 3000 desde antes — arrancado a las 17:09, con el último rebuild terminando a las 17:53. `npm run build` reescribe `.next` completo; un servidor que ya cargó los manifests/chunks viejos en memoria queda sirviendo contra una carpeta en disco que cambió debajo suyo, y el primer request nuevo revienta con un error interno sin detalle (`Internal Server Error` a secas, sin stack — señal de que es el server ya arrancado, no el dev overlay).
+
+**Cómo se confirmó (no se asumió):** `netstat -ano` para identificar el proceso real en :3000 → `Get-CimInstance Win32_Process` para confirmar que era un server Next ya vivo, con su hora de arranque → comparado contra `LastWriteTime` de `.next/server` → arranque antes, rebuild después, coincide exactamente con la ventana del síntoma. Contraprueba: se levantó un `next dev` limpio en otro puerto (3002) con el código actual completo — respondió normal (307, redirect a login), sin error — descartando el código como causa antes de tocar nada.
+
+**Lección central:** si "Internal Server Error" aparece justo después de una tanda de `npm run build`, sospechar primero de un servidor local que ya estaba corriendo desde antes del build (no del código que se acaba de escribir) — comparar hora de arranque del proceso (`netstat` + `Win32_Process.CommandLine`) contra la hora de la última escritura en `.next` antes de asumir que el bug está en el diff. El fix no es de código: reiniciar el servidor. Corre en la misma familia que la nota de 2026-08-20 sobre confundir `next start` con `next dev` por mirar solo el puerto — acá el problema no es cuál comando corría, sino que corrió un `build` mientras cualquiera de los dos seguía vivo.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-08-24, `src/app/workspace/[id]/page.tsx`.

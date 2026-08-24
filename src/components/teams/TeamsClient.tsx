@@ -293,7 +293,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   const archivedCount = teams.filter(t => t.status === 'archived').length
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
+    <div className="h-dvh flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
       <TopRibbon
         pageName={pageName}
         pageSubtitle="How to use Teams Map"

@@ -296,6 +296,8 @@ Referencias cosméticas en badges/labels pendientes de limpieza en Mini-OE B.
 
 Función de acceso: `getProvider(name: string, config: ProviderConfig): ChatProvider`
 
+**`pickDefaultProvider.ts` (2026-08-24):** helper puro (sin dependencias de React/Supabase, usable client y server-side) para elegir el provider default de un SAT/Connect Team según qué API keys tiene configuradas la cuenta — prioridad Anthropic > OpenAI > Google. Antes de esto, `AddTeamModal.tsx` y el accept de Connect Team (`/api/connections/[id]`) hardcodeaban `'Anthropic'` o heredaban el provider de otra cuenta, ignorando `user_api_keys` por completo.
+
 ### 2.6 `supabase/migrations`
 
 19 migraciones. Ver sección 10.
@@ -670,7 +672,7 @@ Ver sección 10.
 | GET/POST | `/api/checkpoint` | checkpoints, checkpoint_messages | Session |
 | GET | `/api/checkpoint/[id]` | checkpoint_messages | Session |
 | GET/POST/DELETE | `/api/connections` | team_connections | Session |
-| DELETE | `/api/connections/[id]` | team_connections | Session |
+| PATCH/DELETE | `/api/connections/[id]` | team_connections, teams, workspaces, agent_sessions, audit_log (connection_accepted), user_api_keys (lectura) | Session — PATCH `action: 'accept'` crea los isolated teams de Host e Invitee. El provider/model default del Host se hereda de su propio team original; el del Invitee se calcula con `pickDefaultProvider()` sobre sus propias `user_api_keys` (Ajuste 4, 2026-08-24 — antes heredaba ciegamente el del Host) |
 | GET/POST | `/api/context` | context_sources, audit_log (context_file_uploaded) | Session |
 | POST | `/api/handoff-package` | handoff_packages | Session |
 | POST | `/api/messages` | messages (+ provider/model poblados vía lookup a agent_sessions), message_provenance (opcional, si el body trae `provenance`: `checkpoint`\|`handoff_package`\|`saved_selection`\|`review_forward` desde migración 055), audit_log (attachment_summary_generated) | Session — fire-and-forget AI summary generation for attachments |

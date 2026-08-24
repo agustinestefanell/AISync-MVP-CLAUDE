@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
+import { pickDefaultProvider } from '@/lib/providers/pickDefaultProvider'
 
 const CLOUD_PROVIDERS = ['Anthropic', 'OpenAI', 'Google'] as const
 type CloudProvider = typeof CLOUD_PROVIDERS[number]
@@ -78,6 +79,7 @@ export default function AddTeamModal({ projectId, projects, teams, parentTeamId,
   const [selectedProjectId, setSelectedProjectId] = useState(projectId)
   const [matProviders, setMatProviders] = useState<[string, string, string]>(['Anthropic', 'OpenAI', 'Google'])
   const [satProvider, setSatProvider]   = useState<string>('Anthropic')
+  const [satProviderTouched, setSatProviderTouched] = useState(false)
   const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([])
   const [error, setError]               = useState('')
   const [saving, setSaving]             = useState(false)
@@ -89,6 +91,21 @@ export default function AddTeamModal({ projectId, projects, teams, parentTeamId,
       .then(r => r.json())
       .then((data: CustomProviderInfo[]) => setCustomProviders(Array.isArray(data) ? data : []))
       .catch(() => {})
+  }, [])
+
+  // Ajuste 4: default de SAT según qué API keys tiene configuradas la cuenta,
+  // en vez del 'Anthropic' hardcodeado. Solo pisa el default si el usuario
+  // todavía no tocó el selector de provider a mano.
+  useEffect(() => {
+    fetch('/api/settings/keys')
+      .then(r => r.json())
+      .then((data: Array<{ provider: string }>) => {
+        if (satProviderTouched || !Array.isArray(data)) return
+        const configured = data.map(k => k.provider)
+        setSatProvider(prev => pickDefaultProvider(configured, prev))
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const allProviders: readonly string[] = [
@@ -277,7 +294,7 @@ export default function AddTeamModal({ projectId, projects, teams, parentTeamId,
                   <ProviderButtons
                     providers={allProviders}
                     selected={satProvider}
-                    onSelect={setSatProvider}
+                    onSelect={p => { setSatProviderTouched(true); setSatProvider(p) }}
                     disabled={teamMode !== 'SAT'}
                   />
                 </div>

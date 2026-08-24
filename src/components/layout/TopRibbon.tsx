@@ -2,6 +2,7 @@ import React from 'react'
 
 interface TopRibbonProps {
   pageName:               string
+  pageNameSegments?:      string[]
   pageSubtitle?:          string
   pageSubtitleHref?:      string
   pageSubtitleOnClick?:   () => void
@@ -13,7 +14,7 @@ interface TopRibbonProps {
 }
 
 export default function TopRibbon({
-  pageName, pageSubtitle, pageSubtitleHref, pageSubtitleOnClick, projectName, userName, accentColor, badge, rightBadge,
+  pageName, pageNameSegments, pageSubtitle, pageSubtitleHref, pageSubtitleOnClick, projectName, userName, accentColor, badge, rightBadge,
 }: TopRibbonProps) {
   const rightInfo = [
     projectName ? `Project: ${projectName}` : null,
@@ -33,8 +34,8 @@ export default function TopRibbon({
       }}
     >
 
-      {/* LEFT — logo + wordmark (clickeable → start) */}
-      <a href="/start" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+      {/* LEFT — logo + wordmark (clickeable → Teams Map) */}
+      <a href="/teams" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
         <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center shrink-0">
           <span className="text-white text-xs font-bold leading-none">AI</span>
         </div>
@@ -44,9 +45,20 @@ export default function TopRibbon({
       {/* CENTER — page name + subtitle */}
       <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold tracking-widest uppercase" style={{ color: textPrimary }}>
-            {pageName}
-          </span>
+          {pageNameSegments && pageNameSegments.length > 1 ? (
+            <span className="text-xs tracking-widest uppercase" style={{ color: textPrimary }}>
+              {pageNameSegments.map((segment, i) => (
+                <span key={i} className={i === pageNameSegments.length - 1 ? 'font-bold' : 'font-light'}>
+                  {segment}
+                  {i < pageNameSegments.length - 1 && '/'}
+                </span>
+              ))}
+            </span>
+          ) : (
+            <span className="text-xs font-bold tracking-widest uppercase" style={{ color: textPrimary }}>
+              {pageName}
+            </span>
+          )}
           {badge && (
             <span
               className="rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wider leading-none border"

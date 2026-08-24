@@ -7,7 +7,7 @@ import { CORPORATE_PALETTES } from '@/lib/teams/getProjectColor'
 import { getUserIsolatedTeamId } from '@/lib/db/connections'
 import type { Message, HumanMessage } from '@/lib/db/types'
 
-type MinimalTeam = { id: string; parent_id: string | null; created_at: string }
+type MinimalTeam = { id: string; name: string; parent_id: string | null; created_at: string }
 
 function computePaletteIndexForTeam(teamId: string, allTeams: MinimalTeam[]): number {
   const team = allTeams.find(t => t.id === teamId)
@@ -25,6 +25,25 @@ function computePaletteIndexForTeam(teamId: string, allTeams: MinimalTeam[]): nu
   }
 
   return computePaletteIndexForTeam(team.parent_id, allTeams)
+}
+
+// Ribbon superior — breadcrumb completo de Sub-Teams (Ajuste 1, corrección
+// 2026-08-24): sube por parent_id desde el team actual hasta la raíz. Mismo
+// dato (`projectTeams`, ya cargado para computePaletteIndexForTeam) — sin
+// query nueva, solo una segunda lectura sobre el mismo array.
+const MAX_ANCESTOR_DEPTH = 50
+
+function buildTeamAncestorChain(teamId: string, allTeams: MinimalTeam[]): string[] {
+  const byId = new Map(allTeams.map(t => [t.id, t]))
+  const chain: string[] = []
+  let current = byId.get(teamId)
+  let depth = 0
+  while (current && depth < MAX_ANCESTOR_DEPTH) {
+    chain.unshift(current.name)
+    current = current.parent_id ? byId.get(current.parent_id) : undefined
+    depth++
+  }
+  return chain
 }
 
 export default async function WorkspacePage({
@@ -50,7 +69,28 @@ export default async function WorkspacePage({
   const initialMessages = Object.fromEntries(entries)
 
   const team = workspace.teams
-  const pageName = team?.name ?? 'Workspace'
+
+  let projectName: string | undefined
+  let accentColor: string | undefined
+  let teamChain: string[] = team?.name ? [team.name] : []
+
+  if (team?.project_id) {
+    const [{ data: projectRow }, { data: projectTeams }] = await Promise.all([
+      supabase.from('projects').select('name').eq('id', team.project_id).single(),
+      supabase.from('teams').select('id, name, parent_id, created_at').eq('project_id', team.project_id),
+    ])
+
+    projectName = projectRow?.name ?? undefined
+
+    if (projectTeams) {
+      const paletteIndex = computePaletteIndexForTeam(team.id, projectTeams)
+      accentColor = CORPORATE_PALETTES[paletteIndex].base
+      teamChain = buildTeamAncestorChain(team.id, projectTeams)
+    }
+  }
+
+  const pageNameSegments = projectName ? [projectName, ...teamChain] : teamChain
+  const pageName = pageNameSegments.join('/') || 'Workspace'
 
   // Read team.type from persisted data (single source of truth)
   const rawTeamType = team?.type
@@ -61,19 +101,6 @@ export default async function WorkspacePage({
     })
   }
   const teamType = rawTeamType === 'isolated' ? 'SAT' : (rawTeamType ?? undefined)
-
-  let accentColor: string | undefined
-  if (team?.project_id) {
-    const { data: projectTeams } = await supabase
-      .from('teams')
-      .select('id, parent_id, created_at')
-      .eq('project_id', team.project_id)
-
-    if (projectTeams) {
-      const paletteIndex = computePaletteIndexForTeam(team.id, projectTeams)
-      accentColor = CORPORATE_PALETTES[paletteIndex].base
-    }
-  }
 
   // Check if this is an isolated team workspace
   let welcomeMetadata: {
@@ -166,6 +193,7 @@ export default async function WorkspacePage({
   return (
     <WorkspaceClient
       pageName={pageName}
+      pageNameSegments={pageNameSegments}
       accentColor={accentColor}
       badge={teamType}
       workspace={workspace}

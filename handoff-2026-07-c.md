@@ -261,3 +261,72 @@ El corte a 420 caracteres es una estimación basada en ancho/fuente típicos de 
 **Verificación:** lint ✅, build ✅. **Confirmado visualmente por Agus el 2026-08-24** — título serif y fondo blanco + sombra sutil aprobados, cards bien diferenciadas sin sentirse recargadas.
 
 ---
+
+## OE 2026-08-24 — Workspace: 4 ajustes de UX + corrección del ribbon (breadcrumb con Sub-Teams)
+
+**Fecha:** 2026-08-24
+**Estado:** Closed — **confirmación visual positiva de Agus de los 5 puntos** (ribbon con breadcrumb, logo → Teams Map, límite de conexiones a 10, provider default correcto, fix de Mac). lint ✅, build ✅. Commit + push ejecutados en este cierre.
+
+**Contexto:** consigna original de 4 ajustes sobre Workspace (2 directos, 2 con diagnóstico previo obligatorio antes de implementar). Ya cerrado el bloque de los 4, Agus pidió extender el Ajuste 1 (ribbon superior) para reflejar la jerarquía completa de Sub-Teams — no solo Project/Team. En el medio, un incidente aparte (no de código) interrumpió la verificación: ver nota al final de esta entrada.
+
+### 1. Ribbon superior — breadcrumb completo (Project/Team raíz/Sub-Team/…)
+
+Pedido inicial: `[Project]/[Team]` en el centro del ribbon de Workspace. Agus lo extendió el mismo día a la jerarquía completa vía `parent_id` (mecanismo ya usado por Teams Map, Bloque 7).
+
+`src/app/workspace/[id]/page.tsx`: nueva función `buildTeamAncestorChain(teamId, allTeams)` — sube por `parent_id` desde el team actual hasta la raíz, con un `Map` para lookup O(1) y un tope defensivo `MAX_ANCESTOR_DEPTH = 50` (agregado a pedido de Agus tras el diagnóstico del incidente de abajo — no ligado a ningún bug real encontrado, puramente preventivo ante un ciclo de datos hipotético). Reusa la misma query `projectTeams` que ya se hacía para el color del ribbon (`computePaletteIndexForTeam`) — se le agregó la columna `name` que faltaba, sin query nueva de más; las 2 queries del bloque (`projects.name` + `teams` del Project) ahora corren en paralelo vía `Promise.all`.
+
+`TopRibbon.tsx`: nuevo prop opcional `pageNameSegments?: string[]`. Con 2+ elementos, cada segmento se renderiza separado por "/", todos en `font-light` excepto el último (el team donde está parado el usuario) en `font-bold`. Sin el prop (todas las demás vistas: Dashboard, Audit, Documentation, Context, Teams Map), cae al `pageName` plano de siempre — cero impacto fuera de Workspace. `WorkspaceClient.tsx` solo pasa el prop nuevo hacia abajo.
+
+Caso sin Sub-Teams (el más común hoy): sigue siendo `Project/Team`, con Team en negrita — comportamiento sin cambios para ese caso.
+
+### 2a. Fix — ribbon inferior desaparece en Mac (diagnosticado y confirmado antes de implementar)
+
+**Causa:** `h-screen` (Tailwind → `height: 100vh`) como contenedor de layout + `BottomRibbon` en `position: sticky`. En Safari/macOS, `100vh` no se recalcula cuando la barra de herramientas del navegador cambia de tamaño — el contenedor queda más alto que el viewport visible real, empujando el ribbon sticky fuera de pantalla. No es exclusivo de Workspace (mismo patrón en Dashboard/Teams, Audit, Documentation, Context) — Workspace es donde más se nota por el foco/scroll constante del chat.
+
+**Fix confirmado con Agus:** `h-screen` → `h-dvh` (dynamic viewport height, soportado nativamente desde Tailwind 3.4.1, ya la versión del proyecto) en **6 lugares**: `WorkspaceClient.tsx`, `TeamsClient.tsx`, `AuditClient.tsx`, `DocClient.tsx`, `ContextPageClient.tsx`, y un 6to hallado por grep exhaustivo que no estaba en la lista original — `AppLayout.tsx` (rama `scrollable={false}`, usada por `/admin`) — confirmado por Agus para incluirlo también.
+
+Sin dispositivo Mac disponible para verificación directa esta sesión — es el fix estándar y documentado para este patrón. **Confirmado por Agus el 2026-08-24** tras probar en su Mac real.
+
+### 2b. Logo → Teams Map
+
+`TopRibbon.tsx`: el link del logo (arriba a la izquierda) pasó de `/start` (página de inicio en desuso) a `/teams` (Teams Map). `TopRibbon` es compartido por toda la app — aplica en las 6 vistas, no solo Workspace.
+
+### 3. Connect Team — límite total 2 → 10
+
+`src/lib/constants/connectionLimits.ts`: `MAX_ACTIVE_CONNECTIONS_PER_ACCOUNT` de 2 a 10. Grep exhaustivo confirmó un solo lugar de definición, usado en los 2 únicos call sites reales (`POST /api/connections`, `PATCH /api/connections/[id]` accept). `MAX_ACTIVE_CONNECTIONS_PER_PAIR` (1 conexión activa por par de cuentas) se mantiene sin cambios — regla separada, no pedida.
+
+### 4. Provider default de SAT/Connect Team (diagnosticado y confirmado antes de implementar)
+
+**Causa (2 lugares, mismo problema de fondo — ninguno consultaba `user_api_keys`):**
+1. `AddTeamModal.tsx` — provider default de SAT hardcodeado en el estado inicial (`'Anthropic'`).
+2. `PATCH /api/connections/[id]` (accept) — el team aislado del **Invitee** heredaba ciegamente el provider que el **Host** usaba en su propio team (`firstSession.provider`), sin mirar las keys del Invitee.
+
+**Lógica aprobada por Agus:** 1 provider configurado → ese; 2+ → prioridad Anthropic > OpenAI > Google; 0 → comportamiento actual (`'Anthropic'` hardcoded).
+
+**Implementación:** nuevo helper puro `src/lib/providers/pickDefaultProvider.ts` (`pickDefaultProvider()` + `pickDefaultModel()`, sin dependencias de React/Supabase — usable client y server-side), usado en ambos lugares:
+- `AddTeamModal.tsx`: nuevo `useEffect` que consulta `GET /api/settings/keys` (mismo endpoint que ya usa Settings, sin endpoint nuevo) y aplica el default calculado — con un flag `satProviderTouched` para no pisar una elección manual del usuario si llega a tocar el selector antes de que resuelva el fetch.
+- `PATCH /api/connections/[id]`: el bloque del **Host** queda sin cambios (`defaultProvider`/`defaultModel`, ya refleja su propia elección). El bloque del **Invitee** ahora consulta sus propias `user_api_keys` y calcula `inviteeDefaultProvider`/`inviteeDefaultModel` — corrige de paso un mismatch preexistente (el fallback hardcodeado de modelo era `'Claude 3.5 Sonnet'`, un nombre que no existe en ningún otro lugar del proyecto; `pickDefaultModel()` ahora mantiene provider/modelo sincronizados si el provider del Invitee difiere del Host).
+
+**Fuera de alcance, confirmado con Agus:** MAT no se tocó (por diseño usa providers distintos por worker a propósito). El team del Host en el accept tampoco se tocó (ya reflejaba su propia elección).
+
+### Incidente en el medio — "Internal Server Error" (no era código, ver CodingWorkshop.md 2026-08-24)
+
+Entre el cierre del bloque de 4 ajustes y la corrección del breadcrumb, Agus reportó `Internal Server Error` global en localhost. Diagnóstico solo-lectura confirmó que la causa era un servidor Next ya corriendo en el puerto 3000 (arrancado antes de la sesión) sirviendo contra una carpeta `.next` reescrita 3 veces por los `npm run build` de cierre de cada bloque — mismatch de manifests en memoria vs. disco, no relacionado a ningún código de esta OE. Confirmado con un `next dev` limpio en otro puerto (respondió normal) antes de tocar nada. Fix: reinicio manual del servidor de Agus (no del lado del código). Detalle completo en `CodingWorkshop.md` 2026-08-24.
+
+### Verificación
+
+lint ✅ y build ✅ en cada ronda de esta OE, sin errores ni warnings nuevos (mismos 3 warnings preexistentes de `CanvasViewport.tsx`, no tocados). **Confirmación visual positiva de Agus (2026-08-24) de los 5 puntos:** ribbon con breadcrumb completo (Project/Team/Sub-Teams, último en negrita), logo → Teams Map, límite de conexiones a 10, provider default correcto, fix de Mac (h-dvh).
+
+### Alternativas descartadas
+
+Ver DECISIONS.md 2026-08-24 para el detalle completo (breadcrumb vs. solo Project/Team, alcance del fix de `h-dvh`, por qué MAT y el lado Host del accept no se tocaron).
+
+### Riesgos conocidos / deuda técnica
+
+- **`buildTeamAncestorChain()` corta a 50 niveles** ante un ciclo de `parent_id` — defensa preventiva, no hay forma conocida de crear ese ciclo desde la UI actual.
+- **Grep exhaustivo de `h-screen` confirmó un 7mo lugar fuera de alcance:** `src/components/teams/preview/TeamsMapV3Preview.tsx` (componente de preview, no en producción, código sin trackear en git al momento de esta OE) — no corregido, señalado por si ese preview se promueve a producción en el futuro.
+- **No verificar Mac real esta sesión de mi lado** — la confirmación de Agus fue posterior a un `npm run build` que rompió su servidor temporalmente (ver incidente arriba); quedó resuelto con su reinicio manual.
+
+**Archivos modificados/nuevos:** `src/app/workspace/[id]/page.tsx`, `src/components/layout/TopRibbon.tsx`, `src/components/layout/AppLayout.tsx`, `src/components/workspace/WorkspaceClient.tsx`, `src/components/teams/TeamsClient.tsx`, `src/components/audit/AuditClient.tsx`, `src/components/documentation/DocClient.tsx`, `src/app/context/ContextPageClient.tsx`, `src/lib/constants/connectionLimits.ts`, `src/lib/providers/pickDefaultProvider.ts` (nuevo), `src/components/teams/AddTeamModal.tsx`, `src/app/api/connections/[id]/route.ts`, `AISyncPlans.md`, `DECISIONS.md`, `CodingWorkshop.md`, `PRODUCT_STATUS.md`.
+
+---

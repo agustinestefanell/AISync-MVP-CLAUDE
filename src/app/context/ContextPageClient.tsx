@@ -154,7 +154,7 @@ export default function ContextPageClient({ pageName, userId, userName }: Props)
   })
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
+    <div className="h-dvh flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
       <TopRibbon
         pageName={pageName}
         pageSubtitle="How to use Context Files"

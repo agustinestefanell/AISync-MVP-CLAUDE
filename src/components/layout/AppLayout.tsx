@@ -27,7 +27,7 @@ export default function AppLayout({
 }: AppLayoutProps) {
   return (
     <div
-      className={scrollable ? 'min-h-screen flex flex-col' : 'h-screen flex flex-col overflow-hidden'}
+      className={scrollable ? 'min-h-screen flex flex-col' : 'h-dvh flex flex-col overflow-hidden'}
       style={{ background: 'var(--color-app-bg)' }}
     >
       <TopRibbon

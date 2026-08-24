@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { MAX_ACTIVE_CONNECTIONS_PER_ACCOUNT } from '@/lib/constants/connectionLimits'
+import { pickDefaultProvider, pickDefaultModel } from '@/lib/providers/pickDefaultProvider'
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
@@ -176,10 +177,24 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           .eq('id', data.requester_team_id)
           .single()
 
-        // Get provider/model from requester team's first agent_session
+        // Get provider/model from requester team's first agent_session — this is
+        // what the Host's own isolated team keeps using (it's already the Host's
+        // own choice).
         const firstSession = requesterTeam?.workspaces?.[0]?.agent_sessions?.[0]
         const defaultProvider = firstSession?.provider || 'Anthropic'
         const defaultModel = firstSession?.model || 'Claude 3.5 Sonnet'
+
+        // Ajuste 4: el Invitee NO hereda ciegamente el provider del Host — si
+        // el Invitee tiene sus propias API keys configuradas, su team aislado
+        // debe defaultear a una de esas, no a lo que el Host eligió para sí.
+        const { data: inviteeKeys } = await supabase
+          .from('user_api_keys')
+          .select('provider')
+          .eq('account_id', user.id)
+
+        const inviteeConfiguredProviders = (inviteeKeys ?? []).map(k => k.provider)
+        const inviteeDefaultProvider = pickDefaultProvider(inviteeConfiguredProviders, defaultProvider)
+        const inviteeDefaultModel = pickDefaultModel(inviteeDefaultProvider, defaultModel)
 
         // Use requester_project_id from team_connections (persisted at request time)
         // Fallback for legacy pending requests: use project_id of the host team
@@ -295,25 +310,26 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
                 },
               ])
 
-              // Create 3 agent_sessions for Invitee
+              // Create 3 agent_sessions for Invitee — usa el provider propio del
+              // Invitee (inviteeDefaultProvider), no el del Host.
               await createAdminClient().from('agent_sessions').insert([
                 {
                   workspace_id: inviteeWorkspace.id,
                   agent_role: 'manager',
-                  provider: defaultProvider,
-                  model: defaultModel,
+                  provider: inviteeDefaultProvider,
+                  model: inviteeDefaultModel,
                 },
                 {
                   workspace_id: inviteeWorkspace.id,
                   agent_role: 'worker1',
-                  provider: defaultProvider,
-                  model: defaultModel,
+                  provider: inviteeDefaultProvider,
+                  model: inviteeDefaultModel,
                 },
                 {
                   workspace_id: inviteeWorkspace.id,
                   agent_role: 'worker2',
-                  provider: defaultProvider,
-                  model: defaultModel,
+                  provider: inviteeDefaultProvider,
+                  model: inviteeDefaultModel,
                 },
               ])
 

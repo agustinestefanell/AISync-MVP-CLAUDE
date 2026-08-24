@@ -51,6 +51,7 @@ interface ConnectionContext {
 
 interface Props {
   pageName:             string
+  pageNameSegments?:    string[]
   accentColor?:         string
   badge?:               string
   workspace:            WorkspaceWithAgents
@@ -64,14 +65,15 @@ interface Props {
   currentUserId?:       string
 }
 
-export default function WorkspaceClient({ pageName, accentColor, badge, workspace, initialMessages, initialCheckpointId, prefillMessage, userEmail, welcomeMetadata, connectionContext, initialHumanMessages, currentUserId }: Props) {
+export default function WorkspaceClient({ pageName, pageNameSegments, accentColor, badge, workspace, initialMessages, initialCheckpointId, prefillMessage, userEmail, welcomeMetadata, connectionContext, initialHumanMessages, currentUserId }: Props) {
   const [showMainGuide, setShowMainGuide] = useState(false)
   const [showWelcome, setShowWelcome] = useState(!!welcomeMetadata)
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
+    <div className="h-dvh flex flex-col overflow-hidden" style={{ background: 'var(--color-app-bg)' }}>
       <TopRibbon
         pageName={pageName}
+        pageNameSegments={pageNameSegments}
         pageSubtitle="How to work in Workspace"
         pageSubtitleOnClick={() => setShowMainGuide(true)}
         accentColor={accentColor}
