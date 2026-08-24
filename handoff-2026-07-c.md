@@ -179,7 +179,7 @@ Ver DECISIONS.md 2026-08-22 para el detalle completo (color nullable vs. NOT NUL
 
 - **Migración 059 sin aplicar todavía en Supabase** — heredado el mismo bloqueante que la 058 (tampoco aplicada). Hasta que Agus corra ambas, `/api/tags/[id]` y el color de tags fallan en runtime real.
 - ~~Sin verificación visual real todavía~~ — **resuelto:** confirmado por Agus el 2026-08-24 (grid a 4 columnas, modal Expandir, Delete/Add Tag/Remove tag, Add a New Tag/Edit Tag con color, todos aprobados).
-- ~~Commit/push pendientes~~ — **resuelto:** ejecutados en el cierre del 2026-08-24, ver final de este archivo/PRODUCT_STATUS.md para el hash real.
+- ~~Commit/push pendientes~~ — **resuelto:** commit `1fc8d22` en `main`, pusheado el 2026-08-24.
 - **`saved_selection_tags` ahora se muta desde 2 endpoints distintos** (`save-selection/route.ts` en creación, `selection/[id]/tags/route.ts` en edición post-creación) — ambos con el mismo chequeo de ownership pero código separado (no factorizado en un helper compartido). Señalado por si en el futuro se agrega una tercera vía de mutación y conviene extraer un helper común — no se hizo en esta OE porque solo 2 call sites todavía no justifica la abstracción.
 
 **Archivos modificados/nuevos:** `supabase/migrations/059_tags_color.sql` (nuevo), `src/lib/db/documentation.ts`, `src/app/api/tags/route.ts`, `src/app/api/tags/[id]/route.ts` (nuevo), `src/app/api/documentation/selection/[id]/tags/route.ts` (nuevo), `src/components/documentation/UserLibraryView.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `PRODUCT_STATUS.md`.
