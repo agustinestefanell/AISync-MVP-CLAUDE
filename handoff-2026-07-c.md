@@ -329,4 +329,18 @@ Ver DECISIONS.md 2026-08-24 para el detalle completo (breadcrumb vs. solo Projec
 
 **Archivos modificados/nuevos:** `src/app/workspace/[id]/page.tsx`, `src/components/layout/TopRibbon.tsx`, `src/components/layout/AppLayout.tsx`, `src/components/workspace/WorkspaceClient.tsx`, `src/components/teams/TeamsClient.tsx`, `src/components/audit/AuditClient.tsx`, `src/components/documentation/DocClient.tsx`, `src/app/context/ContextPageClient.tsx`, `src/lib/constants/connectionLimits.ts`, `src/lib/providers/pickDefaultProvider.ts` (nuevo), `src/components/teams/AddTeamModal.tsx`, `src/app/api/connections/[id]/route.ts`, `AISyncPlans.md`, `DECISIONS.md`, `CodingWorkshop.md`, `PRODUCT_STATUS.md`.
 
+### Continuación misma OE (2026-08-24) — Breadcrumb: 3 rondas más de refinamiento tras la primera confirmación visual
+
+Después del cierre y push de la OE de arriba (commit `2f71448`), Agus pidió 3 ajustes más sobre el breadcrumb del ribbon, todos sobre `TopRibbon.tsx` únicamente. Se documentan juntos acá porque son continuación directa del mismo Ajuste 1, no una OE nueva.
+
+**Ronda 1 — colapso a 4+ niveles:** nueva función `buildBreadcrumbItems(segments)` — con 3 o menos segmentos, cadena completa sin cambios (comportamiento de la OE original). Con 4+, colapsa a `Project / (...) / último Sub-Team`: el primer y el último segmento siempre visibles, todo lo intermedio detrás de un `(...)` con tooltip. El tooltip reusa el mismo patrón visual que ya existía en el proyecto para el badge "Coming soon" de `BottomRibbon.tsx` (`group`/`group-hover:opacity-100`, fondo gris oscuro) — pero abriendo hacia abajo (`top-full`) en vez de hacia arriba, porque este ribbon está arriba de la pantalla y no del bottom.
+
+**Ronda 2 — sin mayúsculas forzadas:** se sacó la clase `uppercase` únicamente del `<span>` que envuelve el breadcrumb (`pageNameSegments`). El `pageName` plano de las demás vistas (Documentation Mode, Teams Map, etc., cuando no viene `pageNameSegments`) mantiene su `uppercase` intacto — cambio acotado a un solo `className`, confirmado con lint/build que no afectó otro texto. El subtítulo "How to work in Workspace" se revisó y **nunca tuvo `uppercase`** en ninguna de sus 3 variantes (link/botón/texto plano) — no había nada que cambiar ahí, se lo reportó así en vez de tocar código sin necesidad.
+
+**Ronda 3 — tooltip con cadena completa (no solo lo colapsado):** el tooltip pasó de mostrar `middle.join(' / ')` (solo los niveles ocultos) a `segments.join(' / ')` (todos los segmentos reales, de punta a punta, incluyendo Project y el último Sub-Team que ya se ven fuera del colapso). El hover se mantuvo donde ya estaba armado — sobre el `(...)` — en vez de extenderlo a todo el breadcrumb, decisión tomada porque el pedido daba margen explícito ("donde tenga más sentido") y el `(...)` ya es el elemento que comunica visualmente "hay más para ver acá". Comportamiento de aparición/desaparición es CSS `group-hover` estándar — sin JS de estado, sin click, desaparece solo al retirar el mouse.
+
+**Verificación:** lint ✅ y build ✅ en las 3 rondas. **Confirmación visual positiva de Agus (2026-08-24)** en cada ronda — colapso a 4+ niveles funcionando, capitalización normal confirmada, tooltip con cadena completa apareciendo/desapareciendo correctamente al hover.
+
+**Archivo modificado:** `src/components/layout/TopRibbon.tsx` (único archivo tocado en las 3 rondas).
+
 ---

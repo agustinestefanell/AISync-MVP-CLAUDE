@@ -1,5 +1,24 @@
 import React from 'react'
 
+interface BreadcrumbItem {
+  label:            string
+  collapsedTooltip?: string
+}
+
+// Ajuste ribbon (2026-08-24): con más de 3 niveles, colapsa los intermedios
+// detrás de "(...)" — tooltip muestra la cadena COMPLETA (no solo lo oculto),
+// Project y el último Sub-Team siempre visibles fuera del colapso.
+function buildBreadcrumbItems(segments: string[]): BreadcrumbItem[] {
+  if (segments.length <= 3) return segments.map(label => ({ label }))
+  const first = segments[0]
+  const last = segments[segments.length - 1]
+  return [
+    { label: first },
+    { label: '(...)', collapsedTooltip: segments.join(' / ') },
+    { label: last },
+  ]
+}
+
 interface TopRibbonProps {
   pageName:               string
   pageNameSegments?:      string[]
@@ -46,13 +65,23 @@ export default function TopRibbon({
       <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
         <div className="flex items-center gap-2">
           {pageNameSegments && pageNameSegments.length > 1 ? (
-            <span className="text-xs tracking-widest uppercase" style={{ color: textPrimary }}>
-              {pageNameSegments.map((segment, i) => (
-                <span key={i} className={i === pageNameSegments.length - 1 ? 'font-bold' : 'font-light'}>
-                  {segment}
-                  {i < pageNameSegments.length - 1 && '/'}
-                </span>
-              ))}
+            <span className="text-xs tracking-widest" style={{ color: textPrimary }}>
+              {buildBreadcrumbItems(pageNameSegments).map((item, i, items) => {
+                const isLast = i === items.length - 1
+                return (
+                  <span key={i} className={isLast ? 'font-bold' : 'font-light'}>
+                    {item.collapsedTooltip ? (
+                      <span className="relative group cursor-default">
+                        {item.label}
+                        <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 bg-gray-700 text-gray-300 text-[11px] font-normal rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                          {item.collapsedTooltip}
+                        </span>
+                      </span>
+                    ) : item.label}
+                    {!isLast && ' / '}
+                  </span>
+                )
+              })}
             </span>
           ) : (
             <span className="text-xs font-bold tracking-widest uppercase" style={{ color: textPrimary }}>
