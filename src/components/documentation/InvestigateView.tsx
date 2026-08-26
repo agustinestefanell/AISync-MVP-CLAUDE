@@ -11,11 +11,14 @@ import {
   anchorFlow,
   anchorOriginAgentRole,
   anchorExecutedBy,
+  anchorEvidenceUrl,
+  anchorContextOrigin,
   reviewForwardParties,
   computePriorSteps,
   buildAnchors,
   buildDownstreamMaps,
   downstreamUsesFor,
+  LOADED_CONTEXT_FLAVOR_LABEL,
 } from '@/lib/documentation/anchors'
 import InvestigationScanPanel from './InvestigationScanPanel'
 
@@ -85,11 +88,16 @@ interface Props {
   // Deep-link desde el botón "Go to Investigate →" de Structure View
   // (2026-08-20) — siembra el filtro Team al montar.
   initialFilterTeam?:       string
+  // "Audit This" (2026-08-26) — mismo mecanismo que el SM lateral
+  // (DocClient.tsx handleOpenSearchResult): cambia a la tab Audit View y
+  // siembra su selección con la misma key `${kind}:${id}` que ya se calcula
+  // acá abajo.
+  onAuditThis?:             (key: string) => void
 }
 
 export default function InvestigateView({
   checkpoints, handoffPackages, savedSelections, auditEvents,
-  contextSourcesWithOrigin, messageProvenance, workspaceSessions, projects, teamCodes, initialFilterTeam,
+  contextSourcesWithOrigin, messageProvenance, workspaceSessions, projects, teamCodes, initialFilterTeam, onAuditThis,
 }: Props) {
   const [investigationFocus, setInvestigationFocus] = useState('')
   const [filterProject,      setFilterProject]      = useState('')
@@ -231,7 +239,7 @@ export default function InvestigateView({
 
       <div className="flex-1 min-h-0 flex">
         {/* Panel izquierdo: lista de anclas */}
-        <div className={`flex flex-col min-h-0 ${selectedItem ? 'w-1/2' : 'flex-1'} min-w-0 ${selectedItem ? 'border-r border-[var(--color-border-subtle)]' : ''}`}>
+        <div className={`flex flex-col min-h-0 ${selectedItem ? 'w-1/2' : 'flex-1'} min-w-0 border-r border-[var(--color-border-subtle)]`}>
           <div className="flex-1 overflow-y-auto">
             {sortedItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
@@ -269,8 +277,10 @@ export default function InvestigateView({
                       tabIndex={0}
                       onClick={() => setSelectedKey(key)}
                       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedKey(key) } }}
-                      className={`rounded-[14px] border bg-[var(--color-surface)] px-4 py-3 cursor-pointer transition-colors hover:bg-[var(--color-surface-subtle)] hover:border-indigo-300 ${
-                        selectedKey === key ? 'border-indigo-400 ring-1 ring-indigo-200' : 'border-[var(--color-border-subtle)]'
+                      className={`rounded-[14px] border px-4 py-3 cursor-pointer transition-colors hover:border-indigo-300 ${
+                        selectedKey === key
+                          ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-200'
+                          : 'bg-[var(--color-surface)] border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-subtle)]'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -282,6 +292,11 @@ export default function InvestigateView({
                             <span className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
                               {anchorTitle(item)}
                             </span>
+                            {item.kind === 'loaded_context' && (
+                              <span className="shrink-0 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                                {LOADED_CONTEXT_FLAVOR_LABEL[item.lc.flavor]}
+                              </span>
+                            )}
                           </div>
                           {flow && <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{flow}</p>}
                           <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
@@ -315,6 +330,7 @@ export default function InvestigateView({
             <InvestigationScanPanel
               anchorKindLabel={ANCHOR_KIND_LABEL[selectedItem.kind]}
               title={anchorTitle(selectedItem)}
+              projects={projects}
               meta={meta}
               workspaceId={meta.wsId}
               anchorKind={selectedItem.kind}
@@ -334,10 +350,22 @@ export default function InvestigateView({
                 isHumanTarget: (selectedItem.rf.metadata?.target_type === 'human_chat') || (selectedItem.rf.metadata?.to === 'human_chat'),
                 content: selectedItem.rf.forwarded_content,
               } : undefined}
+              evidenceUrl={anchorEvidenceUrl(selectedItem)}
+              contextOrigin={anchorContextOrigin(selectedItem)}
+              onAuditThis={key => onAuditThis?.(key)}
               onClose={() => setSelectedKey(null)}
             />
           )
         })()}
+
+        {/* Panel derecho siempre visible (2026-08-26) — mismo patrón que
+            Repository View: estado vacío cuando no hay selección, en vez de
+            dejar la lista a ancho completo. */}
+        {!selectedItem && (
+          <div className="hidden md:flex flex-1 items-center justify-center text-[var(--color-text-muted)] text-sm">
+            Select a document to view details
+          </div>
+        )}
       </div>
     </div>
   )

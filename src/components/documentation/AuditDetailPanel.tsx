@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import type { DocAuditEvent } from '@/lib/db/documentation'
+import type { ProjectWithTeams } from '@/lib/db/types'
 import type { AnchorMeta } from './AuditView'
+import LoadAsContextButton from './LoadAsContextButton'
 
 // ── Panel derecho de Audit View (Fase 2, Paso 3) — reconstrucción de
 // auditoría de una ancla seleccionada. Model/Agent y Related object quedan
@@ -117,12 +119,19 @@ interface Props {
     isHumanTarget: boolean
     content: string | null
   }
+  // "Load as Context" (2026-08-26) — null para Review & Forward (ver
+  // anchors.ts anchorEvidenceUrl/anchorContextOrigin). projects alimenta el
+  // selector de destino Project/Team.
+  evidenceUrl?:    string | null
+  contextOrigin?:  { originType: 'checkpoint' | 'handoff_package' | 'saved_selection'; originId: string } | null
+  projects:        ProjectWithTeams[]
   onClose:         () => void
 }
 
 export default function AuditDetailPanel({
   anchorKindLabel, title, flow, meta, priorSteps, chainState,
-  auditStart, timelineEvents, origin, downstreamItems, sessionIds, teamCodes, reviewForward, onClose,
+  auditStart, timelineEvents, origin, downstreamItems, sessionIds, teamCodes, reviewForward,
+  evidenceUrl, contextOrigin, projects, onClose,
 }: Props) {
   const [messages,     setMessages]     = useState<AuditMessage[]>([])
   const [contextFiles, setContextFiles] = useState<AuditContextFile[]>([])
@@ -218,6 +227,19 @@ export default function AuditDetailPanel({
             </span>
           </div>
         </div>
+
+        {evidenceUrl && contextOrigin && (
+          <LoadAsContextButton
+            key={evidenceUrl}
+            title={title}
+            evidenceUrl={evidenceUrl}
+            contextOrigin={contextOrigin}
+            workspaceId={meta.wsId}
+            projects={projects}
+            originProjectId={meta.projectId}
+            originTeamId={meta.teamId}
+          />
+        )}
 
         {flow && (
           <p className="text-xs text-[var(--color-text-secondary)]">{flow}</p>

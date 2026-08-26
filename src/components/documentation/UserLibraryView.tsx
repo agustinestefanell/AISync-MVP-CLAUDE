@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { DocSavedSelection, DocTag } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
+import LoadAsContextButton from './LoadAsContextButton'
 
 // ── User Library (2026-08-21) — reemplaza Structure View como tab de
 // Documentation Mode. Basada ÚNICAMENTE en Save Selection, organizada por
@@ -783,6 +784,19 @@ export default function UserLibraryView({ savedSelections, tags, projects, teamC
                     >
                       {deletingId === ss.id ? 'Removing…' : confirmDeleteId === ss.id ? 'Confirm?' : 'Delete From Library'}
                     </button>
+                  </div>
+
+                  <div className="mt-2">
+                    <LoadAsContextButton
+                      key={ss.id}
+                      title={ss.name}
+                      evidenceUrl={`/api/documentation/selection/${ss.id}`}
+                      contextOrigin={{ originType: 'saved_selection', originId: ss.id }}
+                      workspaceId={ss.workspace_id}
+                      projects={projects}
+                      originProjectId={ss.project_id}
+                      originTeamId={ss.team_id}
+                    />
                   </div>
                 </div>
               )

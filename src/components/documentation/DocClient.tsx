@@ -173,6 +173,14 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
     }
   }
 
+  // "Audit This" (Investigate View, 2026-08-26) — mismo mecanismo que el SM
+  // lateral de arriba, reusado tal cual: cambia a la tab Audit View y siembra
+  // su selección con la key ya calculada por InvestigateView.
+  function handleAuditThis(key: string) {
+    setTab('audit')
+    setSelectedAuditKey(key)
+  }
+
   const pageContext = useMemo(() => {
     const total = searchIndex.length
     let header = `DOCUMENTATION MODE SEARCH INDEX (${total} anchors: Checkpoint, Handoff Package, Saved Selection, Loaded Context, Review & Forward)\nFULL CONTEXT — searches across all anchors, not limited to any active filter.`
@@ -252,7 +260,7 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
               {tab === 'repository'  && <RepositoryView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} projects={projects} userName={userName} userEmail={userEmail} externalSelectedId={selectedRepositoryId} teamCodes={teamCodes} />}
               {tab === 'library'     && <UserLibraryView savedSelections={savedSelections} tags={tags} projects={projects} teamCodes={teamCodes} />}
               {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} projects={projects} teamCodes={teamCodes} externalSelectedKey={selectedAuditKey} initialFilterTeam={initialFilterTeam} />}
-              {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} workspaceSessions={workspaceSessions} projects={projects} userEmail={userEmail} teamCodes={teamCodes} initialFilterTeam={initialFilterTeam} />}
+              {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} workspaceSessions={workspaceSessions} projects={projects} userEmail={userEmail} teamCodes={teamCodes} initialFilterTeam={initialFilterTeam} onAuditThis={handleAuditThis} />}
               {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
             </div>
           </div>

@@ -25,11 +25,14 @@ import {
   anchorTitle,
   anchorFlow,
   anchorExecutedBy,
+  anchorEvidenceUrl,
+  anchorContextOrigin,
   reviewForwardParties,
   buildAnchors,
   buildDownstreamMaps,
   downstreamUsesFor,
   PRIOR_STEP_TYPES,
+  LOADED_CONTEXT_FLAVOR_LABEL,
 } from '@/lib/documentation/anchors'
 
 export type { AnchorMeta } from '@/lib/documentation/anchors'
@@ -336,7 +339,7 @@ export default function AuditView({
 
       <div className="flex-1 min-h-0 flex">
         {/* Panel izquierdo: filtros + lista */}
-        <div className={`flex flex-col min-h-0 ${selectedItem ? 'w-1/2' : 'flex-1'} min-w-0 ${selectedItem ? 'border-r border-[var(--color-border-subtle)]' : ''}`}>
+        <div className={`flex flex-col min-h-0 ${selectedItem ? 'w-1/2' : 'flex-1'} min-w-0 border-r border-[var(--color-border-subtle)]`}>
           {/* Filtros */}
           <div className="shrink-0 px-4 py-3 border-b border-[var(--color-border-subtle)] flex flex-wrap gap-2">
             <select value={filterProject} onChange={e => setFilterProject(e.target.value)}
@@ -425,8 +428,10 @@ export default function AuditView({
                       tabIndex={0}
                       onClick={() => setSelectedKey(key)}
                       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedKey(key) } }}
-                      className={`rounded-[14px] border bg-[var(--color-surface)] px-4 py-3 cursor-pointer transition-colors hover:bg-[var(--color-surface-subtle)] hover:border-indigo-300 ${
-                        selectedKey === key ? 'border-indigo-400 ring-1 ring-indigo-200' : 'border-[var(--color-border-subtle)]'
+                      className={`rounded-[14px] border px-4 py-3 cursor-pointer transition-colors hover:border-indigo-300 ${
+                        selectedKey === key
+                          ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-200'
+                          : 'bg-[var(--color-surface)] border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-subtle)]'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -438,6 +443,11 @@ export default function AuditView({
                             <span className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
                               {anchorTitle(item)}
                             </span>
+                            {item.kind === 'loaded_context' && (
+                              <span className="shrink-0 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                                {LOADED_CONTEXT_FLAVOR_LABEL[item.lc.flavor]}
+                              </span>
+                            )}
                           </div>
                           {flow && (
                             <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{flow}</p>
@@ -478,6 +488,7 @@ export default function AuditView({
               anchorKindLabel={ANCHOR_KIND_LABEL[selectedItem.kind]}
               title={anchorTitle(selectedItem)}
               flow={anchorFlow(selectedItem)}
+              projects={projects}
               meta={meta}
               priorSteps={timeline.events.length}
               chainState={downstream > 0 ? 'used' : 'not_used'}
@@ -492,10 +503,20 @@ export default function AuditView({
                 isHumanTarget: (selectedItem.rf.metadata?.target_type === 'human_chat') || (selectedItem.rf.metadata?.to === 'human_chat'),
                 content: selectedItem.rf.forwarded_content,
               } : undefined}
+              evidenceUrl={anchorEvidenceUrl(selectedItem)}
+              contextOrigin={anchorContextOrigin(selectedItem)}
               onClose={() => setSelectedKey(null)}
             />
           )
         })()}
+
+        {/* Panel derecho siempre visible (2026-08-26) — mismo patrón que
+            Repository View: estado vacío cuando no hay selección. */}
+        {!selectedItem && (
+          <div className="hidden md:flex flex-1 items-center justify-center text-[var(--color-text-muted)] text-sm">
+            Select a document to view details
+          </div>
+        )}
       </div>
     </div>
   )

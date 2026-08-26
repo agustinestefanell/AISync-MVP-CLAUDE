@@ -344,3 +344,89 @@ Después del cierre y push de la OE de arriba (commit `2f71448`), Agus pidió 3 
 **Archivo modificado:** `src/components/layout/TopRibbon.tsx` (único archivo tocado en las 3 rondas).
 
 ---
+
+## OE 2026-08-26 — Investigate View: 3 acciones sobre el ancla, fix de título "Loaded Context", Load as Context en las 5 vistas, panel siempre abierto, resaltado con relleno, selector de destino real
+
+**Fecha:** 2026-08-26
+**Estado:** Closed — **confirmación visual positiva de Agus** en las 4 vistas (preselección de origen, cambio de Project/Team, exclusión de Connected/Shared, toast con destino real). lint ✅, build ✅ en cada ronda. Commit + push ejecutados en este cierre.
+
+**Contexto:** sesión con varias rondas de diagnóstico + implementación + corrección sobre Documentation Mode, encadenadas en el mismo hilo:
+1. Diagnóstico de esfuerzo (solo lectura) de 3 botones propuestos sobre el ancla seleccionada en Investigate View: "Open Evidence", "Load as Context", "Audit This".
+2. Implementación de los 3, confirmada por Agus.
+3. Ajustes de UX pedidos sobre Documentation Mode en general (toast, panel siempre abierto, resaltado) — en el medio, malentendido sobre si hacía falta un botón nuevo de "Load as Context" o si el problema real era el título genérico de "Loaded Context"; se resolvió con un pedido consolidado que hacía ambas cosas.
+4. Corrección: la primera versión de "Load as Context" resolvía Team/Project automáticamente sin preguntar — no era lo pedido. Se reescribió con un selector de destino real.
+
+### 1. Diagnóstico de esfuerzo — 3 botones sobre el ancla (solo lectura, sin código)
+
+Reportado antes de escribir nada: **"Open Evidence"** (chico) — reusa los 3 endpoints ya existentes (`GET /api/documentation/{checkpoint|handoff|selection}/[id]`), Review & Forward no lo necesita (contenido ya inline). **"Load as Context"** (mediano, en su versión original solo-Investigate) — el contenido se resuelve gratis, pero resolver "a qué Workspace/sesión" desde una vista sin Workspace abierto no es automático. **"Audit This"** (casi gratis) — Investigate View y Audit View son tabs del mismo `DocClient`, así que el mecanismo correcto es el que ya usa el SM lateral (`selectedAuditKey`), no el deep-link de query params de Structure View (pensado para abrir una página nueva, no para cambiar de tab en memoria).
+
+### 2. Implementación inicial — los 3 botones en Investigate View
+
+- **`src/lib/documentation/anchors.ts`:** nuevos helpers `anchorEvidenceUrl(item)` (URL del endpoint de contenido completo por tipo de ancla — Loaded Context resuelve en cascada contra `origin_type`/`origin_id`, Review & Forward vuelve `null`) y `anchorContextOrigin(item)` (par `originType`/`originId` para `POST /api/context`, mismo criterio de exclusión).
+- **`src/components/documentation/ExpandContentModal.tsx` (nuevo):** modal "Expandir" genérico — mismo patrón visual que ya vivía duplicado en `UserLibraryView.tsx`/`EditTeamModal.tsx` (overlay + header/body scrolleable + footer). Recibe `fetchUrl` y lista mensajes `{role, content, agent_role}`.
+- **`src/components/documentation/InvestigationScanPanel.tsx`:** 3 botones nuevos sobre el ancla — "Open Evidence" (abre `ExpandContentModal`), "Load as Context" (lógica inline en esta ronda, migrada a componente compartido en la ronda siguiente), "Audit This" (`onAuditThis(key)`).
+- **`src/components/documentation/InvestigateView.tsx`/`DocClient.tsx`:** callback `onAuditThis` enhebrado `DocClient → InvestigateView → InvestigationScanPanel` — reusa el mismo `setTab('audit')`/`setSelectedAuditKey(key)` que ya usaba `handleOpenSearchResult` del SM, sin lógica nueva.
+
+**Verificación:** lint ✅, build ✅ (se encontró y limpió una caché `.next` corrupta de una sesión anterior, incidente ya conocido, no relacionado al código).
+
+### 3. Fix — título de "Loaded Context" mostraba texto genérico en vez del nombre real
+
+**Diagnóstico confirmado:** `anchorTitle()` para `flavor: 'chat'` devolvía el literal `'Loaded into Chat'` en vez del nombre real del objeto origen — la rama hermana (`flavor: 'context_files'`) sí traía el nombre real porque `context_sources.title` ya lo guarda desde que se creó. Ver detalle completo en `CodingWorkshop.md` 2026-08-26.
+
+**Fix:** `buildAnchors()` (`anchors.ts`) ya recibe `checkpoints`/`handoffPackages`/`savedSelections` completos — se agregaron 3 `Map<id, name>` y `resolveOriginName()`, sin query ni fetch nuevo. `anchorTitle()` simplificado a `return item.lc.title` en ambos flavors. El texto "Loaded into Chat"/"Loaded to Context Files" pasa a ser un badge aparte (`LOADED_CONTEXT_FLAVOR_LABEL`, exportado de `anchors.ts`), renderizado al lado del título — nunca el título en sí — en las listas de `AuditView.tsx` e `InvestigateView.tsx`.
+
+### 4. Load as Context — extendido a las 5 vistas (Knowledge Map excluida)
+
+**Paso 0 (diagnóstico, reportado antes de implementar):** Repository View, Audit View, Investigate View y User Library ya tienen paneles/cards de detalle por ítem — directo. **Knowledge Map confirmada NO viable:** grafo ReactFlow puro, sin `onNodeClick` ni ningún mecanismo de selección de nodo/panel de detalle (`KnowledgeMap.tsx`) — construirlo sería una OE aparte, mayor que las otras 4 vistas juntas. Frenado y reportado, no implementado.
+
+**`src/components/documentation/LoadAsContextButton.tsx` (nuevo, componente compartido):** único lugar que resuelve fetch de contenido + `POST /api/context` + confirmación con destino real — evita repetir la lógica async en 4+ paneles. Usado en:
+- `InvestigationScanPanel.tsx` (migrado de la lógica inline de la ronda 2)
+- `AuditDetailPanel.tsx` (nuevo, recibe `projects`/`evidenceUrl`/`contextOrigin` de `AuditView.tsx`)
+- `RepositoryView.tsx` — los 3 paneles de detalle (`CheckpointDetailPanel`/`HandoffDetailPanel`/`SavedSelectionDetailPanel`)
+- `UserLibraryView.tsx` — cada card de Save Selection
+
+Alcance: solo destino "→ Context Files", sin "→ Chat" (requeriría selector de Workspace/sesión aparte, no construido esta sesión).
+
+### 5. Panel derecho siempre abierto — Audit View e Investigate View
+
+Replican ahora el patrón exacto de Repository View: contenedor de lista `${selectedItem ? 'w-1/2' : 'flex-1'}` + `border-r` incondicional (antes condicional a `selectedItem`), y un bloque `!selectedItem && <div className="hidden md:flex flex-1 items-center justify-center ...">Select a document to view details</div>` — antes, sin selección, el panel derecho simplemente no existía.
+
+### 6. Resaltado del ítem seleccionado — relleno de fondo, no solo borde
+
+Diagnóstico confirmó que Repository View **tampoco** usaba relleno de fondo (solo `border-indigo-500 ring-1 ring-indigo-500`) — la premisa del pedido ("igualar a Repository View si ya usa relleno") no aplicaba tal cual. Se aplicó un tratamiento nuevo (`bg-indigo-50 border-indigo-400 ring-1 ring-indigo-200`) a las 3 vistas por igual (Repository, Audit, Investigate), reemplazando el borde-only en las 3.
+
+### 7. Corrección — selector de destino real en "Load as Context" (reemplaza auto-resolución)
+
+**Malentendido identificado por Agus:** la versión de los puntos 2 y 4 resolvía Team/Project automáticamente desde la meta del ancla, sin preguntar nada — no era lo pedido. El pedido real: un selector que arranca en el Project/Team de origen pero permite cambiar a cualquier otro Project/Team **100% propio del usuario**.
+
+**`LoadAsContextButton.tsx` reescrito completo:** al hacer click abre un popover (mismo patrón visual que "+ Add tag" de `UserLibraryView.tsx` — `absolute top-full ... shadow-lg`, sin click-outside listener, igual que ese precedente) con:
+- **Project:** dropdown con todos los `projects` del usuario, preseleccionado en `originProjectId`.
+- **Team:** dropdown dependiente del Project elegido (`eligibleTeamsFor()`), preseleccionado en `originTeamId` si pertenece al Project elegido — **excluye siempre `type === 'isolated'`** (Connected/Shared Teams, riesgo de seguridad cross-cuenta) — si el Team de origen fuera uno de esos, cae al primer Team elegible del Project.
+- Si el Project elegido no tiene ningún Team elegible, el dropdown lo indica y "Confirm" queda deshabilitado.
+- Recién al apretar "Confirm" se ejecuta el fetch (`evidenceUrl`) + `POST /api/context` con `scope: 'team'` y el Team/Project realmente elegidos (ya no depende de si el origen tenía o no Team).
+- Confirmación inline ("Loaded to Context Files — Team: X, Project: Y", auto-oculta a los 6s) con el destino REAL usado.
+
+**Props nuevos enhebrados en los 4 call sites** (`projects`, `originProjectId`, `originTeamId` reemplazan a `teamId`/`teamName`/`projectId`/`projectName`): `InvestigationScanPanel`/`InvestigateView`, `AuditDetailPanel`/`AuditView`, los 3 paneles de `RepositoryView` (ya recibían `projects` a nivel de vista, solo hubo que threadearlo un nivel más), `UserLibraryView` (ya tenía `projects` en scope directo, sin threading).
+
+### Verificación
+
+lint ✅ y build ✅ en cada ronda de esta OE (mismos 3 warnings preexistentes de `CanvasViewport.tsx` ×3 archivos, no tocados). **Confirmación visual positiva de Agus:** título real + badge en un ítem Loaded Context (Audit e Investigate); "Load as Context" funcionando en las 4 vistas con selector de destino, preselección de origen, cambio de Project/Team, exclusión de Connected/Shared Teams confirmada, toast con destino real; panel derecho abierto por default en Audit e Investigate con el estado vacío; ítem seleccionado con el nuevo resaltado de fondo.
+
+### Alternativas descartadas
+
+- **Migrar `UserLibraryView.tsx`/`RepositoryView.tsx` a consumir el nuevo `ExpandContentModal`** — descartado en esta OE, no pedido tocar vistas que ya funcionaban; señalado como candidato a unificar a futuro (ver DECISIONS.md).
+- **Endpoint dedicado `GET /api/context/[id]`** para leer contenido de `context_sources` — descartado, no existe (solo `DELETE`) y no hacía falta: el contenido de un ancla Loaded Context se resuelve igual de bien vía `origin_type`/`origin_id` contra los 3 endpoints ya existentes.
+- **Toast global (portal/context provider)** — descartado a favor de confirmación inline por instancia de `LoadAsContextButton`, mismo criterio ya usado en el resto de la app para feedback puntual.
+- **Auto-resolución de Team/Project sin selector** — descartado explícitamente por Agus tras la primera implementación, ver punto 7.
+- **Implementar Load as Context en Knowledge Map** — descartado esta sesión, requiere infraestructura de selección de nodo que no existe (ver punto 4).
+
+### Riesgos conocidos / deuda técnica
+
+- **`ExpandContentModal` sin migrar en `UserLibraryView.tsx`/`RepositoryView.tsx`** — 3 implementaciones del mismo patrón visual siguen coexistiendo con la nueva versión compartida (ahora 4ta), señalado, no resuelto.
+- **`LoadAsContextButton` sin click-outside listener** — mismo criterio que el popover "+ Add tag" de `UserLibraryView.tsx` (precedente ya existente en el proyecto), pero significa que el popover solo se cierra con "Cancel", "Confirm", o clickeando el botón de nuevo — no al clickear afuera.
+- **`workspaceId` en `POST /api/context` sigue siendo el Workspace de origen del ancla**, incluso si el usuario elige un Team/Project de destino distinto — decisión implícita (no gatea visibilidad en runtime, confirmado contra `getContextSourcesForRuntime()` que solo filtra por `team_id`/`project_id`/`session_id`, nunca `workspace_id`), pero queda como dato "informativo" potencialmente inconsistente con el Team elegido. No señalado como bug — el campo nunca tuvo esa expectativa.
+- **Load as Context "→ Chat" queda fuera de alcance** en las 5 vistas — decisión de producto explícita, no pendiente omitido (requeriría selector de Workspace/sesión aparte).
+
+**Archivos modificados/nuevos:** `src/lib/documentation/anchors.ts`, `src/components/documentation/ExpandContentModal.tsx` (nuevo), `src/components/documentation/LoadAsContextButton.tsx` (nuevo), `src/components/documentation/InvestigationScanPanel.tsx`, `src/components/documentation/InvestigateView.tsx`, `src/components/documentation/AuditDetailPanel.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/RepositoryView.tsx`, `src/components/documentation/UserLibraryView.tsx`, `src/components/documentation/DocClient.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `CodingWorkshop.md`, `PRODUCT_STATUS.md`.
+
+---

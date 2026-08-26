@@ -105,12 +105,27 @@ export function anchorTitle(item: AnchorItem): string {
     case 'checkpoint':      return item.cp.name
     case 'handoff':          return item.hp.name
     case 'saved_selection':  return item.ss.name
-    case 'loaded_context':   return item.lc.flavor === 'context_files' ? item.lc.title : 'Loaded into Chat'
+    // item.lc.title ya trae el nombre real del objeto original en ambos
+    // flavors (2026-08-26, fix de bug) — context_files lo hereda de
+    // context_sources.title (puesto al crearse, mismo nombre del objeto
+    // origen); chat se resuelve en buildAnchors() abajo contra los arrays de
+    // checkpoints/handoffPackages/savedSelections ya cargados. Antes, chat
+    // mostraba el literal "Loaded into Chat" como título — ese texto pasa a
+    // ser un badge aparte (LOADED_CONTEXT_FLAVOR_LABEL), no el título.
+    case 'loaded_context':   return item.lc.title
     case 'review_forward': {
       const { from, to } = reviewForwardParties(item.rf)
       return `Review & Forward: ${from} → ${to}`
     }
   }
+}
+
+// Badge chico ("→ Chat"/"→ Context Files") a mostrar al lado del título de
+// una ancla Loaded Context — separado del título real (ver anchorTitle,
+// fix 2026-08-26).
+export const LOADED_CONTEXT_FLAVOR_LABEL: Record<'context_files' | 'chat', string> = {
+  context_files: 'Loaded to Context Files',
+  chat:          'Loaded into Chat',
 }
 
 // Cuenta que ejecutó el forward — solo relevante cuando el evento involucra
@@ -131,6 +146,49 @@ export function anchorFlow(item: AnchorItem): string | null {
       return `${ORIGIN_LABEL[item.lc.origin_type] ?? item.lc.origin_type} → ${item.lc.flavor === 'context_files' ? 'Context Files' : 'Chat'}`
     default:
       return null
+  }
+}
+
+// Segmento de ruta REST por origin_type — único lugar que traduce
+// checkpoint/handoff_package/saved_selection al nombre real del endpoint
+// GET /api/documentation/{segment}/[id] (2026-08-26, botones "Open Evidence"/
+// "Load as Context" de Investigate View).
+const ORIGIN_ENDPOINT_SEGMENT: Record<'checkpoint' | 'handoff_package' | 'saved_selection', string> = {
+  checkpoint:      'checkpoint',
+  handoff_package: 'handoff',
+  saved_selection: 'selection',
+}
+
+// URL del endpoint que devuelve el contenido completo (mensajes) de esta
+// ancla — mismos 3 endpoints ya usados por Repository View/User Library/
+// Load Saved Context. Loaded Context resuelve en cascada contra el objeto
+// real que se cargó (origin_type/origin_id), no contra context_sources (que
+// no tiene GET). Review & Forward vuelve null a propósito — su contenido
+// (forwarded_content) ya viaja en memoria sin fetch y ya se muestra inline
+// en InvestigationScanPanel/AuditDetailPanel — no necesita "Open Evidence".
+export function anchorEvidenceUrl(item: AnchorItem): string | null {
+  switch (item.kind) {
+    case 'checkpoint':      return `/api/documentation/checkpoint/${item.cp.id}`
+    case 'handoff':          return `/api/documentation/handoff/${item.hp.id}`
+    case 'saved_selection':  return `/api/documentation/selection/${item.ss.id}`
+    case 'loaded_context':   return `/api/documentation/${ORIGIN_ENDPOINT_SEGMENT[item.lc.origin_type]}/${item.lc.origin_id}`
+    case 'review_forward':   return null
+  }
+}
+
+// origin_type/origin_id a declarar en POST /api/context (Load Saved Context)
+// para esta ancla — mismo par que ya acepta handleLoadFromDocumentation en
+// api/context/route.ts. null para Review & Forward: no es un objeto guardado
+// con origin_type propio (mismo motivo que anchorEvidenceUrl), se excluye del
+// botón "Load as Context" en vez de forzar un origin_type que el endpoint no
+// declara soportar.
+export function anchorContextOrigin(item: AnchorItem): { originType: 'checkpoint' | 'handoff_package' | 'saved_selection'; originId: string } | null {
+  switch (item.kind) {
+    case 'checkpoint':      return { originType: 'checkpoint', originId: item.cp.id }
+    case 'handoff':          return { originType: 'handoff_package', originId: item.hp.id }
+    case 'saved_selection':  return { originType: 'saved_selection', originId: item.ss.id }
+    case 'loaded_context':   return { originType: item.lc.origin_type, originId: item.lc.origin_id }
+    case 'review_forward':   return null
   }
 }
 
@@ -162,6 +220,22 @@ export function buildAnchors(
   const hps: AnchorItem[] = handoffPackages.map(hp => ({ kind: 'handoff', hp }))
   const sss: AnchorItem[] = savedSelections.map(ss => ({ kind: 'saved_selection', ss }))
   const lcs: AnchorItem[] = contextSourcesWithOrigin.map(lc => ({ kind: 'loaded_context', lc }))
+
+  // Nombre real del objeto origen para message_provenance flavor='chat'
+  // (fix 2026-08-26) — resuelto contra los arrays ya cargados por
+  // DocClient.tsx, sin query/fetch nuevo. Fallback solo si el objeto origen
+  // ya no existe (ej. Saved Selection borrado después del Load to Chat).
+  const checkpointNameById     = new Map(checkpoints.map(cp => [cp.id, cp.name]))
+  const handoffNameById        = new Map(handoffPackages.map(hp => [hp.id, hp.name]))
+  const savedSelectionNameById = new Map(savedSelections.map(ss => [ss.id, ss.name]))
+  function resolveOriginName(originType: DocMessageProvenanceItem['source_object_type'], originId: string): string {
+    const name =
+      originType === 'checkpoint'      ? checkpointNameById.get(originId) :
+      originType === 'handoff_package' ? handoffNameById.get(originId) :
+      originType === 'saved_selection' ? savedSelectionNameById.get(originId) : undefined
+    return name ?? 'Loaded into Chat'
+  }
+
   const mpChat: AnchorItem[] = messageProvenance
     .filter(mp => mp.source_object_type !== 'review_forward')
     .map(mp => ({
@@ -171,7 +245,7 @@ export function buildAnchors(
         flavor:         'chat',
         origin_type:    mp.source_object_type as DocLoadedContextItem['origin_type'],
         origin_id:      mp.source_object_id,
-        title:          'Loaded into Chat',
+        title:          resolveOriginName(mp.source_object_type, mp.source_object_id),
         workspace_id:   mp.workspace_id,
         workspace_name: mp.workspace_name,
         team_id:        mp.team_id,

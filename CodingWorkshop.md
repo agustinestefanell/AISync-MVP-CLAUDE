@@ -1832,3 +1832,27 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección central:** si "Internal Server Error" aparece justo después de una tanda de `npm run build`, sospechar primero de un servidor local que ya estaba corriendo desde antes del build (no del código que se acaba de escribir) — comparar hora de arranque del proceso (`netstat` + `Win32_Process.CommandLine`) contra la hora de la última escritura en `.next` antes de asumir que el bug está en el diff. El fix no es de código: reiniciar el servidor. Corre en la misma familia que la nota de 2026-08-20 sobre confundir `next start` con `next dev` por mirar solo el puerto — acá el problema no es cuál comando corría, sino que corrió un `build` mientras cualquiera de los dos seguía vivo.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-08-24, `src/app/workspace/[id]/page.tsx`.
+
+---
+
+## 2026-08-26 — Bug: "Loaded Context" (flavor chat) mostraba un título genérico en vez del nombre real del objeto
+
+**Síntoma:** en Audit View e Investigate View, las anclas "Loaded Context" que venían de `message_provenance` (destino "→ Chat") mostraban el literal `"Loaded into Chat"` como título — sin forma de saber, a golpe de vista en la lista, CUÁL Checkpoint/Handoff/Saved Selection era el que se había cargado.
+
+**Causa:** en `buildAnchors()` (`src/lib/documentation/anchors.ts`), al construir las entradas `loaded_context` desde `messageProvenance` (rama `mpChat`), el campo `title` se hardcodeaba como `'Loaded into Chat'` en vez de resolverse contra el objeto real (`source_object_type`/`source_object_id`). La rama hermana (`flavor: 'context_files'`, construida desde `context_sources`) SÍ traía el nombre real porque `context_sources.title` ya se guarda con el nombre del objeto origen al crearse (`POST /api/context` recibe `title: item.name` desde `LoadContextModal`) — la asimetría entre las 2 ramas de construcción de `loaded_context` es lo que hizo que solo una de las dos mostrara el bug.
+
+**Fix:** `buildAnchors()` ya recibe `checkpoints`/`handoffPackages`/`savedSelections` completos como parámetros (se usan para construir las otras 3 ramas de anclas) — se agregó un lookup `Map<id, name>` por cada uno y una función `resolveOriginName()` que los consulta según `source_object_type`, sin query ni fetch nuevo. El literal `'Loaded into Chat'` queda solo como fallback para el caso borde de un objeto origen ya borrado.
+
+**Lección:** cuando 2 ramas de código construyen el "mismo" tipo de objeto (acá, las 2 formas de generar una ancla `loaded_context`) a partir de fuentes de datos distintas, verificar explícitamente que ambas ramas pueblan los mismos campos con el mismo nivel de fidelidad — una asimetría así puede pasar el build/lint sin ningún error de tipos (ambas ramas satisfacen la misma interfaz `DocLoadedContextItem`, `title: string` acepta cualquier string) y solo se nota mirando el dato real en pantalla.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-08-26, `src/lib/documentation/anchors.ts`.
+
+---
+
+## 2026-08-26 — Proceso: "Load as Context" se construyó dos veces por no confirmar el diseño del selector antes de programar
+
+**Qué pasó:** la consigna original pedía "resolver Team/Project automáticamente desde la meta del ancla, sin selector nuevo" — se implementó tal cual, con build/lint verdes. La siguiente sesión aclaró que eso había sido un malentendido: el pedido real siempre fue un selector de destino (Project/Team editable, arrancando en el de origen). Hubo que reescribir `LoadAsContextButton.tsx` completo y volver a enhebrar props (`projects`/`originProjectId`/`originTeamId`) en los 4 call sites ya integrados.
+
+**Lección:** cuando una consigna describe un comportamiento de UI con una palabra ambigua entre "automático" y "con confirmación del usuario" (acá, "resolver Team/Project" podía leerse como cualquiera de las dos), y la feature ya tiene un patrón hermano en la misma sesión que SÍ usa selector explícito (Session Scan, Deep Search, los filtros Project→Team de las otras vistas), vale la pena confirmar el punto puntual antes de escribir el componente — no asumir la lectura más simple de implementar. El costo de preguntar es mucho menor que el de reescribir un componente ya integrado en 4 lugares.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-08-26, `src/components/documentation/LoadAsContextButton.tsx`.

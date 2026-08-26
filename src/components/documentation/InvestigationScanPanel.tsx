@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import type { AnchorMeta } from '@/lib/documentation/anchors'
+import type { ProjectWithTeams } from '@/lib/db/types'
+import ExpandContentModal from './ExpandContentModal'
+import LoadAsContextButton from './LoadAsContextButton'
 
 // ── Panel derecho de Investigate View (Fase A, 2026-08-20) — Session Scan /
 // Deep Search sobre un ancla seleccionada. Endpoint dedicado
@@ -85,6 +88,15 @@ interface Props {
     isHumanTarget: boolean
     content: string | null
   }
+  // 3 botones de acción (2026-08-26, ver handoff) — null/undefined en los
+  // campos de abajo oculta el botón correspondiente en vez de forzarlo.
+  // evidenceUrl/contextOrigin: null para Review & Forward (ver anchors.ts).
+  evidenceUrl:     string | null
+  contextOrigin:   { originType: 'checkpoint' | 'handoff_package' | 'saved_selection'; originId: string } | null
+  // Selector de destino de "Load as Context" (2026-08-26) — projects para
+  // poblar los dropdowns Project/Team del selector.
+  projects:        ProjectWithTeams[]
+  onAuditThis:     (key: string) => void
   onClose:         () => void
 }
 
@@ -97,12 +109,16 @@ function teamLabel(id: string | null, name: string | null, codes?: Record<string
 export default function InvestigationScanPanel({
   anchorKindLabel, title, meta, workspaceId, anchorKind, anchorId,
   originAgentRole, flavor, originType, originId, investigationFocus, teamCodes,
-  priorSteps, chainState, auditStart, sessionIds, reviewForward, onClose,
+  priorSteps, chainState, auditStart, sessionIds, reviewForward,
+  evidenceUrl, contextOrigin, projects, onAuditThis, onClose,
 }: Props) {
   const [estimate, setEstimate] = useState<{ messageCount: number; sessionCount: number } | null>(null)
   const [running,  setRunning]  = useState<ScanMode | null>(null)
   const [result,   setResult]   = useState<ScanResult | null>(null)
   const [error,    setError]    = useState<string | null>(null)
+
+  // Open Evidence
+  const [showEvidence, setShowEvidence] = useState(false)
 
   // Information used (Pieza 5) — mismo endpoint que AuditDetailPanel.tsx,
   // solo se necesita el conteo acá, no el detalle de cada archivo/prompt.
@@ -112,6 +128,7 @@ export default function InvestigationScanPanel({
   useEffect(() => {
     let cancelled = false
     setEstimate(null); setResult(null); setError(null)
+    setShowEvidence(false)
     fetch(`/api/investigation-scan?workspaceId=${workspaceId}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (!cancelled && data) setEstimate(data) })
@@ -205,6 +222,39 @@ export default function InvestigationScanPanel({
               {CHAIN_BADGE[chainState].label}
             </span>
           </div>
+        </div>
+
+        {/* 3 botones de acción sobre el ancla seleccionada (2026-08-26) —
+            Open Evidence / Load as Context oculto para Review & Forward
+            (evidenceUrl/contextOrigin null, ver anchors.ts), Audit This
+            siempre disponible para los 5 tipos. */}
+        <div className="flex flex-wrap items-start gap-2">
+          {evidenceUrl && (
+            <button
+              onClick={() => setShowEvidence(true)}
+              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:border-indigo-300 hover:text-[var(--color-text-primary)] transition-colors"
+            >
+              Open Evidence
+            </button>
+          )}
+          {evidenceUrl && contextOrigin && (
+            <LoadAsContextButton
+              key={`${anchorKind}:${anchorId}`}
+              title={title}
+              evidenceUrl={evidenceUrl}
+              contextOrigin={contextOrigin}
+              workspaceId={meta.wsId}
+              projects={projects}
+              originProjectId={meta.projectId}
+              originTeamId={meta.teamId}
+            />
+          )}
+          <button
+            onClick={() => onAuditThis(`${anchorKind}:${anchorId}`)}
+            className="text-xs px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:border-indigo-300 hover:text-[var(--color-text-primary)] transition-colors"
+          >
+            Audit This
+          </button>
         </div>
 
         {reviewForward && (
@@ -339,6 +389,15 @@ export default function InvestigationScanPanel({
           </>
         )}
       </div>
+
+      {showEvidence && evidenceUrl && (
+        <ExpandContentModal
+          title={title}
+          subtitle={`${meta.projectName ?? '—'} · ${teamLabel(meta.teamId, meta.teamName, teamCodes)} · ${meta.wsName}`}
+          fetchUrl={evidenceUrl}
+          onClose={() => setShowEvidence(false)}
+        />
+      )}
     </div>
   )
 }

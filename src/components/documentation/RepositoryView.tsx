@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { DocCheckpoint, DocHandoffPackage, DocSavedSelection } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
+import LoadAsContextButton from './LoadAsContextButton'
 
 // ── Discriminated union for the unified list ──────────────────────────────
 type ListItem =
@@ -91,7 +92,7 @@ function MetaRow({ label, value, mono }: { label: string; value: string; mono?: 
   )
 }
 
-function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCheckpoint; userName: string; onClose: () => void; teamCodes?: Record<string, string> }) {
+function CheckpointDetailPanel({ cp, userName, onClose, teamCodes, projects }: { cp: DocCheckpoint; userName: string; onClose: () => void; teamCodes?: Record<string, string>; projects: ProjectWithTeams[] }) {
   const [messages, setMessages] = useState<{ role: string; content: string; position: number; agent_role?: string }[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -190,12 +191,23 @@ function CheckpointDetailPanel({ cp, userName, onClose, teamCodes }: { cp: DocCh
             View in Audit Log
           </button>
         </div>
+
+        <LoadAsContextButton
+          key={cp.id}
+          title={cp.name}
+          evidenceUrl={`/api/documentation/checkpoint/${cp.id}`}
+          contextOrigin={{ originType: 'checkpoint', originId: cp.id }}
+          workspaceId={cp.workspace_id}
+          projects={projects}
+          originProjectId={cp.project_id}
+          originTeamId={cp.team_id}
+        />
       </div>
     </div>
   )
 }
 
-function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: () => void }) {
+function HandoffDetailPanel({ hp, onClose, projects }: { hp: DocHandoffPackage; onClose: () => void; projects: ProjectWithTeams[] }) {
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -289,12 +301,23 @@ function HandoffDetailPanel({ hp, onClose }: { hp: DocHandoffPackage; onClose: (
             View in Audit Log
           </button>
         </div>
+
+        <LoadAsContextButton
+          key={hp.id}
+          title={hp.name}
+          evidenceUrl={`/api/documentation/handoff/${hp.id}`}
+          contextOrigin={{ originType: 'handoff_package', originId: hp.id }}
+          workspaceId={hp.workspace_id}
+          projects={projects}
+          originProjectId={hp.project_id}
+          originTeamId={hp.team_id}
+        />
       </div>
     </div>
   )
 }
 
-function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSelection; onClose: () => void; teamCodes?: Record<string, string> }) {
+function SavedSelectionDetailPanel({ ss, onClose, teamCodes, projects }: { ss: DocSavedSelection; onClose: () => void; teamCodes?: Record<string, string>; projects: ProjectWithTeams[] }) {
   const [messages, setMessages] = useState<{ role?: string; content?: string; agent_role?: string }[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -357,6 +380,17 @@ function SavedSelectionDetailPanel({ ss, onClose, teamCodes }: { ss: DocSavedSel
             Open Workspace →
           </button>
         </div>
+
+        <LoadAsContextButton
+          key={ss.id}
+          title={ss.name}
+          evidenceUrl={`/api/documentation/selection/${ss.id}`}
+          contextOrigin={{ originType: 'saved_selection', originId: ss.id }}
+          workspaceId={ss.workspace_id}
+          projects={projects}
+          originProjectId={ss.project_id}
+          originTeamId={ss.team_id}
+        />
       </div>
     </div>
   )
@@ -740,10 +774,10 @@ export default function RepositoryView({
                     <article
                       key={id}
                       onClick={() => setSelectedId(isActive ? null : id)}
-                      className={`rounded-[14px] border bg-[var(--color-surface)] overflow-hidden cursor-pointer transition-colors hover:bg-[var(--color-surface-subtle)] ${
+                      className={`rounded-[14px] border overflow-hidden cursor-pointer transition-colors ${
                         isActive
-                          ? 'border-indigo-500 ring-1 ring-indigo-500'
-                          : 'border-[var(--color-border-subtle)]'
+                          ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-200'
+                          : 'bg-[var(--color-surface)] border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-subtle)]'
                       }`}
                     >
                       {item.kind === 'checkpoint' ? (
@@ -981,13 +1015,13 @@ export default function RepositoryView({
         {selectedItem && (
           <div className="w-1/2 min-w-0 overflow-hidden">
             {selectedItem.kind === 'checkpoint' && (
-              <CheckpointDetailPanel cp={selectedItem.cp} userName={userName} onClose={() => setSelectedId(null)} teamCodes={teamCodes} />
+              <CheckpointDetailPanel cp={selectedItem.cp} userName={userName} onClose={() => setSelectedId(null)} teamCodes={teamCodes} projects={projects} />
             )}
             {selectedItem.kind === 'handoff' && (
-              <HandoffDetailPanel hp={selectedItem.hp} onClose={() => setSelectedId(null)} />
+              <HandoffDetailPanel hp={selectedItem.hp} onClose={() => setSelectedId(null)} projects={projects} />
             )}
             {selectedItem.kind === 'saved_selection' && (
-              <SavedSelectionDetailPanel ss={selectedItem.ss} onClose={() => setSelectedId(null)} teamCodes={teamCodes} />
+              <SavedSelectionDetailPanel ss={selectedItem.ss} onClose={() => setSelectedId(null)} teamCodes={teamCodes} projects={projects} />
             )}
           </div>
         )}
