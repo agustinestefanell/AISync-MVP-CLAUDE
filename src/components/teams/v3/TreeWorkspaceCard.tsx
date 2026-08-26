@@ -166,7 +166,7 @@ export function TreeWorkspaceCard({
           </span>
         ) : null}
         <div className="text-[10px] uppercase tracking-[0.18em] opacity-70">{subtitle}</div>
-        <div className={`mt-1 min-h-[2.8rem] font-semibold ${compact ? 'text-[12px]' : 'text-[14px]'}`}>
+        <div className={`mt-1 min-h-[2.8rem] font-semibold ${compact ? 'text-[16px]' : 'text-[19px]'}`}>
           {titleContent ?? title}
         </div>
       </div>
