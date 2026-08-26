@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
+import ReactMarkdown from 'react-markdown'
 import type { AuditEventRow } from '@/lib/db/audit'
 import { getProjectColorTokens, teamCodeToPaletteIndex } from '@/lib/teams/getProjectColor'
+import { DOCUMENT_MARKDOWN_REMARK_PLUGINS, DOCUMENT_MARKDOWN_COMPONENTS } from '@/lib/markdown/documentMarkdown'
 
 // ─── Row helper — metadata rows for side panel ───────────────────────────────
 
@@ -807,8 +809,10 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                         Content not available for this forward type.
                       </p>
                     ) : selectedEvent.forwarded_content ? (
-                      <div className="text-xs leading-relaxed whitespace-pre-wrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2 max-h-56 overflow-y-auto">
-                        {selectedEvent.forwarded_content}
+                      <div className="text-xs leading-relaxed rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2 max-h-56 overflow-y-auto">
+                        <ReactMarkdown remarkPlugins={DOCUMENT_MARKDOWN_REMARK_PLUGINS} components={DOCUMENT_MARKDOWN_COMPONENTS}>
+                          {selectedEvent.forwarded_content}
+                        </ReactMarkdown>
                       </div>
                     ) : (
                       <p className="text-xs text-[var(--color-text-muted)] italic">Content not available.</p>
@@ -916,7 +920,7 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                         {g.messages.map((msg, i) => (
                           <div
                             key={i}
-                            className={`text-xs rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap ${
+                            className={`text-xs rounded-lg px-3 py-2 leading-relaxed ${
                               msg.role === 'user'
                                 ? 'bg-indigo-900/50 text-indigo-100 ml-3'
                                 : 'bg-gray-100 text-gray-800 mr-3'
@@ -925,7 +929,9 @@ export default function AuditTimeline({ events, externalDetailCpId, onFilterChan
                             <span className="font-medium text-gray-400 block mb-0.5">
                               {msg.role === 'user' ? 'User' : 'Agent'}
                             </span>
-                            {msg.content}
+                            <ReactMarkdown remarkPlugins={DOCUMENT_MARKDOWN_REMARK_PLUGINS} components={DOCUMENT_MARKDOWN_COMPONENTS}>
+                              {msg.content}
+                            </ReactMarkdown>
                           </div>
                         ))}
                       </div>

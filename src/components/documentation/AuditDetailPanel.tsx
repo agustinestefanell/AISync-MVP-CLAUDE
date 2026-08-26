@@ -1,9 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import type { DocAuditEvent } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import type { AnchorMeta } from './AuditView'
+import { DOCUMENT_MARKDOWN_REMARK_PLUGINS, DOCUMENT_MARKDOWN_COMPONENTS } from '@/lib/markdown/documentMarkdown'
+import { stripMarkdown } from '@/lib/text/stripMarkdown'
 import LoadAsContextButton from './LoadAsContextButton'
 
 // ── Panel derecho de Audit View (Fase 2, Paso 3) — reconstrucción de
@@ -183,7 +186,13 @@ export default function AuditDetailPanel({
       kind:      'message',
       time:      m.created_at,
       label:     m.role === 'user' ? 'Message sent' : 'Agent response',
-      detail:    m.content.length > 140 ? `${m.content.slice(0, 140)}…` : m.content,
+      // stripMarkdown() en vez de un slice crudo (2026-08-26, fix de bug) —
+      // este excerpt es un preview corto de una fila de timeline, no
+      // contenido completo (eso lo cubre "Open Evidence"/ExpandContentModal
+      // con el renderer real) — mismo criterio ya usado en los previews de
+      // Repository/User Library, evita mostrar sintaxis Markdown cortada a
+      // mitad (ej. un "**" sin cerrar) en vez de renderizarla mal.
+      detail:    stripMarkdown(m.content, 140),
       agentRole: m.agent_role ? (AGENT_LABEL[m.agent_role] ?? m.agent_role) : '—',
     })),
   ].sort((a, b) => a.time.localeCompare(b.time))
@@ -258,8 +267,10 @@ export default function AuditDetailPanel({
                 Content not available for this forward type.
               </p>
             ) : reviewForward.content ? (
-              <div className="text-xs leading-relaxed whitespace-pre-wrap rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5 max-h-56 overflow-y-auto">
-                {reviewForward.content}
+              <div className="text-xs leading-relaxed rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5 max-h-56 overflow-y-auto">
+                <ReactMarkdown remarkPlugins={DOCUMENT_MARKDOWN_REMARK_PLUGINS} components={DOCUMENT_MARKDOWN_COMPONENTS}>
+                  {reviewForward.content}
+                </ReactMarkdown>
               </div>
             ) : (
               <p className="text-xs text-[var(--color-text-muted)] italic">Content not available.</p>

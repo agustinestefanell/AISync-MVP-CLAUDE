@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { DocSavedSelection, DocTag } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
 import LoadAsContextButton from './LoadAsContextButton'
+import ExpandContentModal from './ExpandContentModal'
 
 // ── User Library (2026-08-21) — reemplaza Structure View como tab de
 // Documentation Mode. Basada ÚNICAMENTE en Save Selection, organizada por
@@ -137,7 +138,6 @@ function teamLabel(id: string | null, name: string | null, codes?: Record<string
   return code ? `${code} · ${name}` : name
 }
 
-type DetailMessage = { role?: string; content?: string; agent_role?: string }
 
 interface Props {
   savedSelections: DocSavedSelection[]
@@ -173,10 +173,9 @@ export default function UserLibraryView({ savedSelections, tags, projects, teamC
   const [editTagColor, setEditTagColor] = useState(DEFAULT_TAG_COLOR)
   const [savingTagEdit, setSavingTagEdit] = useState(false)
 
-  // ── Card: Expandir (2026-08-22) ──
+  // ── Card: Expandir (2026-08-22) ── fetch de contenido delegado a
+  // ExpandContentModal (migrado 2026-08-26, ver fix de Markdown crudo).
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [expandedMessages, setExpandedMessages] = useState<DetailMessage[] | null>(null)
-  const [loadingExpanded, setLoadingExpanded] = useState(false)
 
   // ── Card: Add Tag / Remove tag / Delete (2026-08-22) ──
   const [addTagPopoverFor, setAddTagPopoverFor] = useState<string | null>(null)
@@ -430,18 +429,8 @@ export default function UserLibraryView({ savedSelections, tags, projects, teamC
   }
 
   // ── Card: Expandir ──
-  async function openExpanded(selectionId: string) {
+  function openExpanded(selectionId: string) {
     setExpandedId(selectionId)
-    setExpandedMessages(null)
-    setLoadingExpanded(true)
-    try {
-      const res = await fetch(`/api/documentation/selection/${selectionId}`)
-      setExpandedMessages(res.ok ? await res.json() : [])
-    } catch {
-      setExpandedMessages([])
-    } finally {
-      setLoadingExpanded(false)
-    }
   }
 
   const expandedSelection = expandedId ? savedSelections.find(ss => ss.id === expandedId) ?? null : null
@@ -814,48 +803,16 @@ export default function UserLibraryView({ savedSelections, tags, projects, teamC
           })()}
       </div>
 
-      {/* Modal Expandir — mismo patrón visual que EditTeamModal.tsx */}
+      {/* Modal Expandir — migrado a ExpandContentModal compartido (2026-08-26,
+          ver fix de Markdown crudo) — mismo patrón visual que antes, ahora
+          también con react-markdown/remark-gfm. */}
       {expandedSelection && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={e => { if (e.target === e.currentTarget) setExpandedId(null) }}
-        >
-          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-3xl mx-4 shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="shrink-0 px-6 py-3.5 border-b border-[var(--color-border-default)] flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <h3 className="text-base font-semibold text-[var(--color-text-primary)] truncate">{expandedSelection.name}</h3>
-                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                  {teamLabel(expandedSelection.team_id, expandedSelection.team_name, teamCodes)} · {expandedSelection.workspace_name} · <span suppressHydrationWarning>{formatDate(expandedSelection.created_at)}</span>
-                </p>
-              </div>
-              <button onClick={() => setExpandedId(null)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm px-2 shrink-0">✕</button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-              {loadingExpanded ? (
-                <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
-              ) : !expandedMessages || expandedMessages.length === 0 ? (
-                <p className="text-sm text-[var(--color-text-muted)]">No content.</p>
-              ) : (
-                expandedMessages.map((m, i) => (
-                  <div key={i} className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-4 py-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-                      {m.agent_role ?? m.role ?? 'message'}
-                    </p>
-                    <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">{m.content ?? ''}</p>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="shrink-0 px-6 py-3.5 border-t border-[var(--color-border-default)] flex justify-end">
-              <button
-                onClick={() => setExpandedId(null)}
-                className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-4 py-2 rounded-lg transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <ExpandContentModal
+          title={expandedSelection.name}
+          subtitle={`${teamLabel(expandedSelection.team_id, expandedSelection.team_name, teamCodes)} · ${expandedSelection.workspace_name} · ${formatDate(expandedSelection.created_at)}`}
+          fetchUrl={`/api/documentation/selection/${expandedSelection.id}`}
+          onClose={() => setExpandedId(null)}
+        />
       )}
     </div>
   )

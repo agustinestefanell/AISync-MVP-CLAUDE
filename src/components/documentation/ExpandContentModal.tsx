@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { DOCUMENT_MARKDOWN_REMARK_PLUGINS, DOCUMENT_MARKDOWN_COMPONENTS } from '@/lib/markdown/documentMarkdown'
 
 // Modal "Expandir" genérico — extraído del patrón que ya vivía duplicado en
 // UserLibraryView.tsx (Expandir de Save Selection) y en el mismo estilo
@@ -8,6 +10,10 @@ import { useEffect, useState } from 'react'
 // Usado primero por Investigate View ("Open Evidence", 2026-08-26) —
 // UserLibraryView sigue con su propia copia inline (fuera de alcance de esa
 // OE migrarla, señalado como candidato a futuro en el handoff).
+//
+// Fix 2026-08-26: el contenido se mostraba como texto Markdown crudo
+// (###, **, tablas sin parsear) — mismo renderer que ya usa el chat en vivo
+// (react-markdown + remark-gfm, ver src/lib/markdown/documentMarkdown.tsx).
 
 interface EvidenceMessage {
   role?:       string
@@ -62,7 +68,11 @@ export default function ExpandContentModal({ title, subtitle, fetchUrl, onClose 
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
                   {m.agent_role ?? m.role ?? 'message'}
                 </p>
-                <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">{m.content ?? ''}</p>
+                <div className="text-sm text-[var(--color-text-primary)]">
+                  <ReactMarkdown remarkPlugins={DOCUMENT_MARKDOWN_REMARK_PLUGINS} components={DOCUMENT_MARKDOWN_COMPONENTS}>
+                    {m.content ?? ''}
+                  </ReactMarkdown>
+                </div>
               </div>
             ))
           )}

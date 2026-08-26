@@ -1856,3 +1856,27 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** cuando una consigna describe un comportamiento de UI con una palabra ambigua entre "automático" y "con confirmación del usuario" (acá, "resolver Team/Project" podía leerse como cualquiera de las dos), y la feature ya tiene un patrón hermano en la misma sesión que SÍ usa selector explícito (Session Scan, Deep Search, los filtros Project→Team de las otras vistas), vale la pena confirmar el punto puntual antes de escribir el componente — no asumir la lectura más simple de implementar. El costo de preguntar es mucho menor que el de reescribir un componente ya integrado en 4 lugares.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-08-26, `src/components/documentation/LoadAsContextButton.tsx`.
+
+---
+
+## 2026-08-26 — Proceso: edité un componente "plausible" antes de confirmar que era el que realmente se renderiza
+
+**Qué pasó:** al buscar dónde se renderiza el título de Team en Teams Map, un grep de `TreeWorkspaceCard` devolvió 2 archivos con un componente casi idéntico: uno dentro de `src/components/teams/map/TeamAgentCard.tsx`, otro en `src/components/teams/v3/TreeWorkspaceCard.tsx`. Edité el primero (nombre de archivo/patrón de código igualmente plausible) sin haber confirmado antes que efectivamente se renderiza desde `/teams` — recién después de editar hice el grep de `TeamAgentCard` en todo `src/` y descubrí que no tiene ningún import real: es código muerto. Tuve que revertir el cambio y rehacerlo en el archivo correcto (`v3/TreeWorkspaceCard.tsx`, confirmado por la cadena real `TeamsClient.tsx → MapView.tsx → TreeWorkspaceCard`).
+
+**Lección:** cuando hay más de un archivo con un nombre/patrón igualmente plausible para el componente que hay que tocar, confirmar la cadena de imports real (`TeamsClient` → página → componente) ANTES de editar, no después — un grep del nombre del archivo/componente que se va a tocar (`grep -rn "NombreDelArchivo" src/`, sin extensión) contra todo `src/` es más barato que escribir el cambio y descubrir después que apuntaba a código muerto. Mismo espíritu que la "Regla de búsqueda exhaustiva pre-cierre" de CLAUDE.md, pero aplicada ANTES de escribir el fix, no solo antes de cerrarlo.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-08-26 (Teams Map), `src/components/teams/v3/TreeWorkspaceCard.tsx`.
+
+---
+
+## 2026-08-26 — Bug: contenido guardado se mostraba en Markdown crudo en 6 lugares — el chat en vivo sí renderizaba bien
+
+**Síntoma:** el chat en vivo (`AgentPanel.tsx`) mostraba tablas, headers y negritas correctamente vía react-markdown. Ese mismo contenido, guardado como Save Selection/Checkpoint/Handoff/Review & Forward y reabierto después (User Library "Expandir", Investigate View "Open Evidence", Audit View, y el Audit Log global en `/audit`), se mostraba con la sintaxis Markdown cruda sin parsear.
+
+**Causa:** cada uno de los 6 lugares que muestran contenido completo guardado renderizaba `{content}` directo en un `<p>`/`<div>` de texto plano — nunca pasaba por `ReactMarkdown`. El chat en vivo SÍ lo hacía porque `AgentPanel.tsx`/`HumanChatPanel.tsx` tienen su propia config de `react-markdown` + `remark-gfm`, pero esa config nunca se compartió con los componentes de Documentation Mode/Audit Log que muestran el mismo contenido después de guardado — cada superficie nueva (Repository View, User Library, Investigate View, Audit View, Audit Log global) se construyó por separado sin heredar el renderer correcto, y el patrón "texto plano" simplemente se copió de una a la siguiente.
+
+**Cómo se confirmó el alcance real (no se asumió que era solo 1 lugar):** grep exhaustivo de `ReactMarkdown`/`remark-gfm` en todo `src/` primero (para saber CUÁLES componentes ya lo hacían bien — 3 archivos), después grep de patrones `{msg.content}`/`{...content}` en `src/components` para encontrar los que NO pasaban por ese renderer — apareció un 6to lugar (`AuditTimeline.tsx`, el Audit Log global) que no estaba en el pedido original de Agus (que solo mencionaba User Library/ExpandContentModal).
+
+**Lección:** cuando un bug de "esto se ve distinto acá que allá" aparece en un componente puntual, buscar el patrón de renderizado correcto/incorrecto (acá: `ReactMarkdown` presente vs. ausente) en TODO el codebase antes de dar el fix por completo — un componente compartido nuevo (`ExpandContentModal`, construido apenas la sesión anterior) hace que el mismo bug de origen se propague rápido a cada lugar nuevo que lo usa, pero el bug real puede preexistir en varios otros lugares que nunca pasaron por ese componente.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-08-26 (fix de Markdown), `src/lib/markdown/documentMarkdown.tsx`.

@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import type { AnchorMeta } from '@/lib/documentation/anchors'
 import type { ProjectWithTeams } from '@/lib/db/types'
+import { DOCUMENT_MARKDOWN_REMARK_PLUGINS, DOCUMENT_MARKDOWN_COMPONENTS } from '@/lib/markdown/documentMarkdown'
 import ExpandContentModal from './ExpandContentModal'
 import LoadAsContextButton from './LoadAsContextButton'
 
@@ -270,8 +272,10 @@ export default function InvestigationScanPanel({
                 Content not available for this forward type.
               </p>
             ) : reviewForward.content ? (
-              <div className="text-xs leading-relaxed whitespace-pre-wrap rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5 max-h-56 overflow-y-auto">
-                {reviewForward.content}
+              <div className="text-xs leading-relaxed rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5 max-h-56 overflow-y-auto">
+                <ReactMarkdown remarkPlugins={DOCUMENT_MARKDOWN_REMARK_PLUGINS} components={DOCUMENT_MARKDOWN_COMPONENTS}>
+                  {reviewForward.content}
+                </ReactMarkdown>
               </div>
             ) : (
               <p className="text-xs text-[var(--color-text-muted)] italic">Content not available.</p>

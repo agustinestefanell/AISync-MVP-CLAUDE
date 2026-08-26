@@ -430,3 +430,98 @@ lint ✅ y build ✅ en cada ronda de esta OE (mismos 3 warnings preexistentes d
 **Archivos modificados/nuevos:** `src/lib/documentation/anchors.ts`, `src/components/documentation/ExpandContentModal.tsx` (nuevo), `src/components/documentation/LoadAsContextButton.tsx` (nuevo), `src/components/documentation/InvestigationScanPanel.tsx`, `src/components/documentation/InvestigateView.tsx`, `src/components/documentation/AuditDetailPanel.tsx`, `src/components/documentation/AuditView.tsx`, `src/components/documentation/RepositoryView.tsx`, `src/components/documentation/UserLibraryView.tsx`, `src/components/documentation/DocClient.tsx`, `AISyncPlans.md`, `DECISIONS.md`, `CodingWorkshop.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## OE 2026-08-26 — Teams Map: agrandar título de Team en las cards
+
+**Fecha:** 2026-08-26
+**Estado:** Closed — sin verificación visual directa esta sesión (sin Claude in Chrome disponible), confirmación pendiente de Agus tras reiniciar su servidor local (ver incidente abajo). lint ✅, build ✅.
+
+**Contexto:** Agus pidió agrandar el título del Team en las cards de Teams Map (ej. "F-00 · ANN"), difícil de leer. 2 rondas: un ajuste chico inicial y, tras confirmar que no se notaba lo suficiente, un ajuste moderado.
+
+### 1. Diagnóstico — componente equivocado la primera vez
+
+Localicé primero `TreeWorkspaceCard` **dentro de `src/components/teams/map/TeamAgentCard.tsx`** (mismo patrón `${teamCode} · ${node.teamName}`) y edité ahí — pero un grep exhaustivo de `TeamAgentCard` en todo `src/` confirmó que **ese archivo no se importa desde ningún lado**: es código muerto. Revertido antes de seguir.
+
+**Componente real:** `TeamsClient.tsx` → `MapView.tsx` (dynamic import) → `TreeWorkspaceCard` importado de `./v3/TreeWorkspaceCard` — confirmado por los 3 call sites reales en `MapView.tsx` (nodo raíz/GM, Worker, Team/Sub-team manager), todos pasando por el mismo bloque de título (línea ~169 del componente).
+
+### 2. Ajuste chico (17px/14px) — insuficiente
+
+Primer cambio en `src/components/teams/v3/TreeWorkspaceCard.tsx`: `text-[14px]`/`text-[12px]` (compact) → `text-[17px]`/`text-[14px]`. Confirmado con Agus que no se notaba lo suficiente.
+
+**Diagnóstico pedido antes de la 2da ronda — confirmado `transform: scale()`:** el canvas de Teams Map (`v3/CanvasViewport.tsx`) aplica `contentRef.current.style.transform = translate3d(...) scale(${zoom})`, y el `zoom` inicial se auto-calcula para que todo el árbol entre en pantalla: `Math.min(initialZoom, availableWidth/contentWidth, availableHeight/contentHeight) * 0.92` — típicamente bien por debajo de 1x con varios teams/workers en pantalla. Esto explica por qué un salto de 3px en el CSS se sentía mucho más chico en pantalla real (escalado hacia abajo junto con el resto del canvas).
+
+### 3. Ajuste moderado (19px/16px) — final
+
+Con el diagnóstico del scale confirmado, segundo cambio en el mismo archivo/línea: `text-[17px]`/`text-[14px]` → **`text-[19px]`/`text-[16px]`** (compact) — punto intermedio entre el salto chico anterior y un extremo, pedido explícitamente así por Agus.
+
+### Incidente — servidor local sirviendo build vieja (mismo patrón ya documentado 2026-08-24)
+
+Al intentar verificar visualmente, encontré el puerto 3000 ocupado por un servidor de **producción** (`next start`, proceso `start-server.js`) arrancado antes de mis `npm run build` de esta sesión — la carpeta `.next` fue reescrita después de que ese servidor arrancara, así que estaba sirviendo código viejo (sin ninguno de los cambios de sesiones anteriores, no solo este). Contraprueba: levanté un `next dev` limpio en el puerto 3002 (sin tocar el server de Agus en 3000) — respondió `307` (redirect a login), confirmando que el código compila y sirve normal. Sin Claude in Chrome disponible para loguearme y ver la card real. Comuniqué a Agus que necesita reiniciar su servidor en 3000 para ver el cambio.
+
+### Verificación
+
+lint ✅, build ✅ en ambas rondas. **Sin verificación visual directa** (ver incidente arriba) — pendiente confirmación de Agus tras reiniciar su servidor.
+
+### Alternativas descartadas
+
+- **Editar `TeamAgentCard.tsx`** — descartado tras confirmar que es código muerto sin ningún import real.
+- **Saltar directo a un tamaño extremo** — descartado, Agus pidió explícitamente un punto intermedio "claramente perceptible pero sin dominar la card", no el extremo.
+
+### Riesgos conocidos / deuda técnica
+
+- **`src/components/teams/map/TeamAgentCard.tsx` sigue existiendo como código muerto** (no se borró, no era parte del pedido) — mismo patrón visual de `TreeWorkspaceCard` duplicado sin uso real; candidato a limpieza futura si se confirma que no se planea reactivar.
+- **Verificación visual pendiente** — depende de que Agus reinicie su servidor local (ver incidente).
+
+**Archivo modificado:** `src/components/teams/v3/TreeWorkspaceCard.tsx` (único archivo con cambio efectivo — la edición en `TeamAgentCard.tsx` fue revertida en la misma sesión).
+
+---
+
+## OE 2026-08-26 — Fix: contenido guardado se mostraba en Markdown crudo (no renderizado) en Documentation Mode y Audit Log
+
+**Fecha:** 2026-08-26
+**Estado:** Closed — pendiente validación visual de Agus (screenshot del informe con tabla vía "Expandir" en User Library). lint ✅, build ✅.
+
+**Contexto:** el chat en vivo (`AgentPanel.tsx`/`HumanChatPanel.tsx`) renderiza Markdown real (react-markdown + remark-gfm) — pero al guardar ese mismo contenido (Save Selection, Checkpoint, Handoff, Review & Forward) y volver a verlo en Documentation Mode o en el Audit Log global, se mostraba el texto crudo (`###`, `**`, `| tabla |` sin parsear).
+
+### Diagnóstico
+
+Confirmado que el chat en vivo usa `react-markdown` + `remark-gfm` con una config de `components` custom (`MARKDOWN_COMPONENTS`/`REMARK_PLUGINS`, definida localmente en `AgentPanel.tsx` y duplicada casi igual en `HumanChatPanel.tsx`). Grep exhaustivo de `ReactMarkdown`/patrones `{msg.content}`/`{...content}` confirmó **6 lugares** que mostraban contenido guardado completo como texto plano (no las previews cortas, que ya usan `stripMarkdown()`/`stripMarkdownPreserveParagraphs()` server-side y están bien):
+1. `ExpandContentModal.tsx` (compartido — Investigate View "Open Evidence")
+2. `UserLibraryView.tsx` — su propio modal "Expandir" inline (el que Agus probó y donde confirmó el bug)
+3. `InvestigationScanPanel.tsx` — bloque "Forwarded content" (Review & Forward)
+4. `AuditDetailPanel.tsx` — mismo bloque "Forwarded content" (Audit View, Documentation Mode)
+5. `src/components/audit/AuditTimeline.tsx` — bloque "Forwarded content" del Audit Log **global** (`/audit`, distinto de Audit View de Documentation Mode)
+6. `src/components/audit/AuditTimeline.tsx` — modal de detalle de Checkpoint (mensajes completos por agente)
+
+**No es exclusivo de `ExpandContentModal`** — el mismo bug de fondo (texto plano en vez de Markdown) estaba repetido en 6 lugares distintos, 2 de ellos en el Audit Log global (`/audit`), fuera de Documentation Mode.
+
+**Encontrado pero fuera de alcance, señalado:** `SMPanel.tsx` (`renderAssistantMessage`) tampoco renderiza Markdown — pero es el chat propio del SM (Sub-Manager), no contenido guardado reabierto; nunca tuvo el comportamiento correcto que se estaría "perdiendo" al guardar. No tocado en esta OE.
+
+### Fix
+
+**`src/lib/markdown/documentMarkdown.tsx` (nuevo)** — porta tal cual `MARKDOWN_COMPONENTS`/`REMARK_PLUGINS` de `AgentPanel.tsx` (el chat en vivo) a un módulo compartido (`DOCUMENT_MARKDOWN_COMPONENTS`/`DOCUMENT_MARKDOWN_REMARK_PLUGINS`), para no duplicar la config en cada uno de los 6 lugares. `AgentPanel.tsx`/`HumanChatPanel.tsx` **no se tocaron** — mantienen sus copias locales (ya funcionan bien, evita riesgo en el código de chat en vivo por un fix que no lo necesita).
+
+Los 4 lugares de contenido completo/sin truncar pasan a envolver el contenido en `<ReactMarkdown remarkPlugins={DOCUMENT_MARKDOWN_REMARK_PLUGINS} components={DOCUMENT_MARKDOWN_COMPONENTS}>`: `ExpandContentModal.tsx`, `InvestigationScanPanel.tsx`, `AuditDetailPanel.tsx`, `AuditTimeline.tsx` (2 bloques: Forwarded content + modal de Checkpoint).
+
+**`UserLibraryView.tsx` — migrado a `ExpandContentModal` en vez de parchear su copia inline:** su modal "Expandir" era prácticamente idéntico (byte a byte) al que ya se había extraído a `ExpandContentModal.tsx` en la OE anterior (que en ese momento se dejó sin migrar, señalado como candidato). En vez de aplicar el mismo fix 2 veces, se migró: `openExpanded()` pasa de hacer su propio fetch a solo `setExpandedId(selectionId)` (el fetch ahora vive dentro de `ExpandContentModal`), se eliminó el estado `expandedMessages`/`loadingExpanded` y el tipo `DetailMessage` (sin otro uso en el archivo), y el JSX del modal se reemplaza por `<ExpandContentModal title=... subtitle=... fetchUrl=... onClose=... />`. Resuelve de una sola vez el fix Y la deuda técnica señalada la OE anterior ("4ta copia del mismo patrón").
+
+**`AuditDetailPanel.tsx` — timeline "How this was produced" (`row.detail`) tratado distinto, a propósito:** ese campo es un EXCERPT truncado a 140 caracteres de `m.content` (mezclado en una lista con descripciones de eventos de auditoría), no el contenido completo — envolverlo en `ReactMarkdown` podía renderizar sintaxis cortada a mitad (ej. un `**` sin cerrar) de forma rara. En vez de eso, se reemplazó el `slice(0, 140)` crudo por `stripMarkdown(m.content, 140)` — mismo criterio ya usado en los previews de Repository/User Library (limpia la sintaxis en vez de truncarla cruda), sin renderizar Markdown ahí.
+
+### Verificación
+
+lint ✅, build ✅. Grep exhaustivo confirmó los 6 lugares corregidos y los 2 lugares señalados-pero-no-tocados (SM Panel, timeline excerpt con `stripMarkdown` en vez de render). **Pendiente:** screenshot de Agus con el informe con tabla, vía "Expandir" en User Library, confirmando tabla y headers renderizados.
+
+### Alternativas descartadas
+
+- **Refactorizar `AgentPanel.tsx`/`HumanChatPanel.tsx` para consumir el módulo nuevo** — descartado, ya funcionan correctamente; tocar el código de chat en vivo en una OE de fix de contenido guardado es riesgo sin beneficio funcional.
+- **Renderizar Markdown en el excerpt truncado de `AuditDetailPanel.tsx`** — descartado a favor de `stripMarkdown()`, ver razón arriba (sintaxis cortada a mitad).
+- **Arreglar `SMPanel.tsx`** — descartado, no es parte del bug reportado (no es contenido guardado reabierto, es el chat propio del SM). Señalado para una OE aparte si se quiere.
+
+### Riesgos conocidos / deuda técnica
+
+- **`SMPanel.tsx` sigue sin renderizar Markdown** en sus propias respuestas — señalado, no es un bug de esta OE.
+- **`AgentPanel.tsx`/`HumanChatPanel.tsx` mantienen su propia copia de `MARKDOWN_COMPONENTS`** en vez de importar del módulo compartido nuevo — 2 copias adicionales del mismo patrón coexisten con la fuente ahora compartida; decisión deliberada de no tocar código de chat en vivo funcionando, no deuda urgente.
+
+**Archivos modificados/nuevos:** `src/lib/markdown/documentMarkdown.tsx` (nuevo), `src/components/documentation/ExpandContentModal.tsx`, `src/components/documentation/UserLibraryView.tsx`, `src/components/documentation/InvestigationScanPanel.tsx`, `src/components/documentation/AuditDetailPanel.tsx`, `src/components/audit/AuditTimeline.tsx`.
+
+---
