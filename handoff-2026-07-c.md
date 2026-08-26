@@ -525,3 +525,68 @@ lint ✅, build ✅. Grep exhaustivo confirmó los 6 lugares corregidos y los 2 
 **Archivos modificados/nuevos:** `src/lib/markdown/documentMarkdown.tsx` (nuevo), `src/components/documentation/ExpandContentModal.tsx`, `src/components/documentation/UserLibraryView.tsx`, `src/components/documentation/InvestigationScanPanel.tsx`, `src/components/documentation/AuditDetailPanel.tsx`, `src/components/audit/AuditTimeline.tsx`.
 
 ---
+
+## OE 2026-08-26 — Ajuste: preview de tabla en cards colapsado a "[Table: N rows]"
+
+**Fecha:** 2026-08-26
+**Estado:** Closed — pendiente validación visual de Agus (card "Días de la semana" con `[Table: 7 rows]`). lint ✅, build ✅.
+
+**Contexto:** confirmado el fix de renderizado de Markdown en el modal "Expandir" (OE anterior), Agus reportó que el PREVIEW corto de la card (antes de expandir) seguía viéndose mal — `stripMarkdown()` convierte cada fila de una tabla en el literal `"[table row]"`, repetido una vez por fila (7 repeticiones para una tabla de 7 días).
+
+### Fix — `src/lib/text/stripMarkdown.ts`
+
+Nuevas funciones `isPipeRow()`/`isTableSeparatorRow()`/`collapseMarkdownTables()`: detecta un bloque de tabla Markdown completo (fila header + fila separadora GFM `| --- | --- |` + N filas de datos) y lo colapsa a un único `"[Table: N rows]"` — el conteo excluye header y separador, solo cuenta filas de datos reales. Corre como paso previo (antes del resto de los `.replace()` en cadena) en ambas funciones (`stripMarkdown()` y `stripMarkdownPreserveParagraphs()`, que comparten la misma lógica de colapso). El viejo `.replace(/\|.*\|/g, '[table row]')` queda como fallback solo para filas sueltas sin separador detectado (tabla malformada) — no debería alcanzarse con una tabla real bien formada.
+
+**Verificado con un caso real** (script de prueba, no solo lectura de código): tabla de 7 días con header+separador+7 filas → `"[Table: 7 rows]"`, una sola vez, conteo correcto.
+
+### Verificación
+
+lint ✅, build ✅. **Pendiente:** screenshot de Agus con la card "Días de la semana" mostrando el indicador colapsado.
+
+**Archivo modificado:** `src/lib/text/stripMarkdown.ts` (único archivo tocado).
+
+---
+
+## OE 2026-08-26 — Diagnóstico + fix: User Library pasa a Markdown real en el preview corto (Repository View/LoadContextModal quedan sin cambios)
+
+**Fecha:** 2026-08-26
+**Estado:** Closed — pendiente validación visual de Agus. lint ✅, build ✅.
+
+**Contexto:** Agus pidió reemplazar `stripMarkdown()` como mecanismo de preview visual por el mismo renderer de Markdown real (react-markdown + remark-gfm) en TODOS los lugares donde se usa, no solo para tablas. Diagnóstico solo-lectura primero, reportado antes de implementar.
+
+### Diagnóstico
+
+**Alcance real (grep exhaustivo):** solo 3 consumidores muestran `content_preview`/`content_preview_full` en pantalla — `RepositoryView.tsx` (los 3 tipos, con inconsistencia interna: Checkpoint/Handoff ya envueltos en `ReactMarkdown` + `line-clamp-3`, pero **inerte** porque el texto ya llega des-markdowneado; Saved Selection en `<p>` plano), `UserLibraryView.tsx` (Saved Selection vía `TruncatedPreview`/`content_preview_full`), y `LoadContextModal.tsx` (los 3 tipos, `content_preview`). Investigate View y Audit View no muestran preview de contenido — confirmado sin match de "preview" en ningún archivo, no afectados.
+
+**Hallazgo clave:** los campos actuales YA fueron limpiados por `stripMarkdown()` (server-side) — no hay sintaxis Markdown que renderizar, por eso el `ReactMarkdown` que ya envuelve Checkpoint/Handoff en Repository View no hace nada visible hoy. Para Markdown real en pantalla, el servidor tiene que dejar de pre-limpiar y mandar contenido crudo — no es solo cambiar el componente que renderiza.
+
+**`stripMarkdown()` tiene un segundo uso confirmado:** `LoadContextModal.tsx` usa `content_preview` también como corpus de búsqueda (`haystack` incluye `it.content_preview`) — la función no podía eliminarse, solo dejar de usarse para lo que se MUESTRA en pantalla donde correspondiera.
+
+**Tensión reportada:** implementar el pedido tal cual (contenido crudo sin cortar, truncado solo por CSS/altura) revierte parte de la optimización de payload de la OE 2026-07-30 (`44f0315`, ~95% de reducción) para Repository View/LoadContextModal, que hoy mandan solo 200 caracteres ya limpios por ítem en el listado completo.
+
+**Decisión de Agus tras el reporte:** acotar el cambio **solo a User Library** — es el único caso donde el campo ya mandaba casi todo el contenido (`content_preview_full`, sin cap chico real, solo un tope de seguridad de 4000 chars), así que no hay impacto de payload nuevo. Repository View y `LoadContextModal` quedan con `stripMarkdown()` tal como están, sin tocar.
+
+### Fix
+
+**`src/lib/db/documentation.ts`:** `DocSavedSelection.content_preview_full` (que aplicaba `stripMarkdownPreserveParagraphs()`) reemplazado por `content_raw` — mismo `content` de origen (último mensaje del Saved Selection), ahora SIN pasar por ninguna función de limpieza, con un cap de seguridad en 20000 caracteres (defensa ante input patológico, no un largo de preview diseñado — mismo criterio que tenía el campo anterior con su cap de 4000). Import de `stripMarkdownPreserveParagraphs` eliminado del archivo (ya no se usa ahí) — **la función en sí sigue existiendo sin cambios** en `stripMarkdown.ts`, exportada, solo sin caller activo por ahora.
+
+**`src/components/documentation/UserLibraryView.tsx`:** `TruncatedPreview` reescrito para renderizar el `text` recibido vía `<ReactMarkdown remarkPlugins={DOCUMENT_MARKDOWN_REMARK_PLUGINS} components={DOCUMENT_MARKDOWN_COMPONENTS}>` (mismo módulo compartido de la OE anterior) en vez de `<p className="whitespace-pre-wrap">` — el mecanismo de truncado visual (medir `scrollHeight` vs `clientHeight` del contenedor vía `useLayoutEffect`, gradiente + botón "More content — Expand →") no cambió: es agnóstico a si el hijo es texto plano o HTML renderizado, sigue funcionando igual. `ref` pasa de `HTMLParagraphElement` a `HTMLDivElement` (ReactMarkdown no puede anidar `<p>` dentro de `<p>`, mismo criterio que `ExpandContentModal.tsx`). Uso actualizado: `ss.content_preview_full` → `ss.content_raw`.
+
+### Verificación
+
+lint ✅, build ✅. Grep exhaustivo confirmó que `content_preview_full` ya no tiene ningún consumidor (solo queda mencionado en un comentario explicando el reemplazo) y que `content_raw` se usa consistentemente en los 2 puntos esperados. **Pendiente:** screenshot de Agus de la card "Días de la semana" con la tabla renderizada (truncada por altura), y de otra card con texto simple confirmando que sigue viéndose bien.
+
+### Alternativas descartadas
+
+- **Aplicar Markdown real también en Repository View y `LoadContextModal`** — descartado por Agus tras el reporte de la tensión de payload; queda señalado para una decisión futura si se quiere revisitar.
+- **Eliminar `stripMarkdownPreserveParagraphs()` del todo** — descartado, sigue existiendo sin cambios (pedido explícito de Agus) por si se necesita a futuro; solo se le quitó el único caller que tenía.
+
+### Riesgos conocidos / deuda técnica
+
+- **`stripMarkdownPreserveParagraphs()` queda sin ningún caller activo** — exportada pero no usada por ahora; no se borró porque Agus pidió explícitamente confirmar que sigue existiendo sin cambios.
+- **Inconsistencia ya señalada en Repository View queda sin resolver** (Checkpoint/Handoff con `ReactMarkdown` inerte, Saved Selection en texto plano) — fuera de alcance de esta OE (acotada solo a User Library).
+- **Cap de seguridad de `content_raw` en 20000 caracteres** — no debería afectar contenido real (Saved Selections típicas son mucho más chicas), pero un Saved Selection extremo se cortaría a mitad de Markdown en ese límite (mismo tipo de riesgo cosmético ya aceptado en otros cortes de esta sesión, no un crash).
+
+**Archivos modificados:** `src/lib/db/documentation.ts`, `src/components/documentation/UserLibraryView.tsx`.
+
+---

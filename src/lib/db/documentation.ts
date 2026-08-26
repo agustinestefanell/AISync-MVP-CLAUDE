@@ -3,7 +3,7 @@
 // treated as migratable client property. See src/lib/db/planes.ts
 
 import { createClient } from '@/lib/supabase/server'
-import { stripMarkdown, stripMarkdownPreserveParagraphs } from '@/lib/text/stripMarkdown'
+import { stripMarkdown } from '@/lib/text/stripMarkdown'
 
 export interface DocCheckpoint {
   id: string
@@ -254,10 +254,18 @@ export interface DocSavedSelection {
   project_name:   string | null
   created_at:     string
   user_id:        string
-  // Versión de content_preview que preserva párrafos/saltos de línea (2026-08-22)
-  // — solo para User Library, cuyas cards muestran altura libre. content_preview
-  // (arriba) sigue intacto para Repository View, que no cambió en esta OE.
-  content_preview_full?: string
+  // Contenido crudo SIN pasar por stripMarkdown (2026-08-26) — solo para el
+  // preview visual de User Library, que renderiza Markdown real (react-
+  // markdown + remark-gfm, mismo config que ExpandContentModal) y trunca por
+  // altura real (TruncatedPreview), no por caracteres. Reemplaza a
+  // content_preview_full (que aplicaba stripMarkdownPreserveParagraphs) —
+  // decisión acotada a User Library: Repository View y LoadContextModal
+  // siguen con content_preview (abajo) porque ese campo también sirve de
+  // corpus de búsqueda en LoadContextModal y mandar contenido crudo sin
+  // truncar ahí revertiría la optimización de payload de la OE 2026-07-30
+  // (ver DECISIONS.md 2026-08-26). Cap de seguridad en 20000 chars — no es
+  // un largo de preview diseñado, es una defensa ante input patológico.
+  content_raw?: string
   // Tags de User Library (migración 058, 2026-08-21) — [] si no está en la library.
   tags:           { id: string; name: string; color: string | null }[]
   // messages removed from list interface — fetch with getSavedSelectionDetail(id)
@@ -301,8 +309,8 @@ export async function getSavedSelections(userId: string): Promise<DocSavedSelect
       content_preview: typeof content === 'string' && content.length > 0
         ? stripMarkdown(content, 200)
         : undefined,
-      content_preview_full: typeof content === 'string' && content.length > 0
-        ? stripMarkdownPreserveParagraphs(content)
+      content_raw: typeof content === 'string' && content.length > 0
+        ? (content.length > 20000 ? content.slice(0, 20000) + '…' : content)
         : undefined,
       workspace_id:   r.workspace_id,
       workspace_name: r.workspaces?.name ?? '—',

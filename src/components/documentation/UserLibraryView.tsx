@@ -2,8 +2,10 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import ReactMarkdown from 'react-markdown'
 import type { DocSavedSelection, DocTag } from '@/lib/db/documentation'
 import type { ProjectWithTeams } from '@/lib/db/types'
+import { DOCUMENT_MARKDOWN_REMARK_PLUGINS, DOCUMENT_MARKDOWN_COMPONENTS } from '@/lib/markdown/documentMarkdown'
 import LoadAsContextButton from './LoadAsContextButton'
 import ExpandContentModal from './ExpandContentModal'
 
@@ -88,8 +90,13 @@ function useColumnCount(): number {
 // el tope — así el indicador de "más contenido" solo aparece cuando de
 // verdad hay algo cortado, sin importar si el texto tiene pocas líneas
 // largas o muchas líneas cortas (el bug que tenía el corte por caracteres).
+// Renderiza Markdown real (react-markdown + remark-gfm, mismo config que
+// ExpandContentModal) en vez de texto plano — 2026-08-26, ver fix de bug.
+// El truncado visual sigue siendo el mismo mecanismo de siempre (medir
+// scrollHeight vs clientHeight), agnóstico a si el hijo es texto plano o
+// HTML renderizado.
 function TruncatedPreview({ text, maxHeight, onExpand }: { text: string; maxHeight: number; onExpand: () => void }) {
-  const ref = useRef<HTMLParagraphElement>(null)
+  const ref = useRef<HTMLDivElement>(null)
   const [overflowing, setOverflowing] = useState(false)
 
   useLayoutEffect(() => {
@@ -100,13 +107,15 @@ function TruncatedPreview({ text, maxHeight, onExpand }: { text: string; maxHeig
 
   return (
     <div className="relative mt-1.5">
-      <p
+      <div
         ref={ref}
-        className="text-xs text-[var(--color-text-secondary)] whitespace-pre-wrap overflow-hidden"
+        className="text-xs text-[var(--color-text-secondary)] overflow-hidden"
         style={{ maxHeight }}
       >
-        {text}
-      </p>
+        <ReactMarkdown remarkPlugins={DOCUMENT_MARKDOWN_REMARK_PLUGINS} components={DOCUMENT_MARKDOWN_COMPONENTS}>
+          {text}
+        </ReactMarkdown>
+      </div>
       {overflowing && (
         <>
           <div
@@ -653,8 +662,8 @@ export default function UserLibraryView({ savedSelections, tags, projects, teamC
                   <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
                     {teamLabel(ss.team_id, ss.team_name, teamCodes)} · {ss.workspace_name} · <span suppressHydrationWarning>{formatDate(ss.created_at)}</span> · {ss.message_count} message{ss.message_count !== 1 ? 's' : ''}
                   </p>
-                  {ss.content_preview_full && (
-                    <TruncatedPreview text={ss.content_preview_full} maxHeight={maxHeight} onExpand={() => openExpanded(ss.id)} />
+                  {ss.content_raw && (
+                    <TruncatedPreview text={ss.content_raw} maxHeight={maxHeight} onExpand={() => openExpanded(ss.id)} />
                   )}
 
                   {/* Tags: chips con color + X para "Remove tag", más "+ Add tag" */}

@@ -1,3 +1,47 @@
+// Detecta si una línea es parte de una fila de tabla Markdown (heurística,
+// no un parser CommonMark completo — alcanza para el contenido real que
+// produce el chat en vivo, siempre con formato `| a | b |`).
+function isPipeRow(line: string): boolean {
+  return /\|.*\|/.test(line)
+}
+
+// Fila separadora de tabla GFM (`| --- | :---: |`) — cada celda solo tiene
+// guiones, dos puntos opcionales y espacios.
+function isTableSeparatorRow(line: string): boolean {
+  const trimmed = line.trim().replace(/^\||\|$/g, '')
+  if (!trimmed) return false
+  const cells = trimmed.split('|')
+  return cells.length > 0 && cells.every(cell => /^\s*:?-+:?\s*$/.test(cell))
+}
+
+// Colapsa cada tabla Markdown completa (header + separador + N filas de
+// datos) a un único indicador "[Table: N rows]" — antes cada fila se
+// reemplazaba por separado ("[table row]" repetido N veces), ilegible en
+// tablas de varias filas (2026-08-26, ver bug reportado sobre el preview
+// corto de las cards sí ya renderizaba bien el contenido completo). El
+// conteo de filas excluye header y separador — solo filas de datos reales.
+function collapseMarkdownTables(text: string): string {
+  const lines = text.split('\n')
+  const result: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    if (isPipeRow(lines[i]) && i + 1 < lines.length && isTableSeparatorRow(lines[i + 1])) {
+      let j = i + 2
+      let dataRows = 0
+      while (j < lines.length && isPipeRow(lines[j])) {
+        dataRows++
+        j++
+      }
+      result.push(`[Table: ${dataRows} row${dataRows !== 1 ? 's' : ''}]`)
+      i = j
+      continue
+    }
+    result.push(lines[i])
+    i++
+  }
+  return result.join('\n')
+}
+
 /**
  * Strip Markdown syntax and truncate to plain text preview
  * Used for Documentation Mode card previews
@@ -5,7 +49,7 @@
 export function stripMarkdown(text: string, maxLength: number = 200): string {
   if (!text || typeof text !== 'string') return ''
 
-  const cleaned = text
+  const cleaned = collapseMarkdownTables(text)
     // Headers (# ## ###)
     .replace(/^#{1,6}\s+/gm, '')
     // Bold (**text** or __text__)
@@ -31,7 +75,8 @@ export function stripMarkdown(text: string, maxLength: number = 200): string {
     // Lists (- item, * item, 1. item)
     .replace(/^\s*[-*+]\s+/gm, '')
     .replace(/^\s*\d+\.\s+/gm, '')
-    // Tables (| cell | cell |)
+    // Tables sin separador detectado (fallback — tabla malformada o fila
+    // suelta, ya no debería alcanzar esto una tabla real bien formada)
     .replace(/\|.*\|/g, '[table row]')
     // Multiple newlines → single space
     .replace(/\n+/g, ' ')
@@ -64,7 +109,7 @@ export function stripMarkdown(text: string, maxLength: number = 200): string {
 export function stripMarkdownPreserveParagraphs(text: string, maxLength: number = 4000): string {
   if (!text || typeof text !== 'string') return ''
 
-  const cleaned = text
+  const cleaned = collapseMarkdownTables(text)
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/__(.+?)__/g, '$1')
@@ -79,6 +124,7 @@ export function stripMarkdownPreserveParagraphs(text: string, maxLength: number 
     .replace(/^[-*_]{3,}\s*$/gm, '')
     .replace(/^\s*[-*+]\s+/gm, '')
     .replace(/^\s*\d+\.\s+/gm, '')
+    // Tables sin separador detectado (fallback, ver stripMarkdown())
     .replace(/\|.*\|/g, '[table row]')
     // A diferencia de stripMarkdown(): NO colapsa saltos de línea a espacio,
     // solo normaliza 3+ líneas vacías seguidas a 1 sola.
