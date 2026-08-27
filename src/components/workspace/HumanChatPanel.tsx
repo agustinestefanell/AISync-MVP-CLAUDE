@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import { createClient } from '@/lib/supabase/client'
 import type { HumanMessage } from '@/lib/db/types'
 import ReviewForwardModal from './ReviewForwardModal'
+import LoadContextModal, { type LoadToChatProvenance } from './LoadContextModal'
 
 // ── Public interface ─────────────────────────────────────────────────────────
 export interface HumanChatPanelHandle {
@@ -28,6 +29,13 @@ interface Props {
   onForward?: (messages: HumanMessage[], targetRole: string, instructions?: string) => void
   workspaceLocked?: boolean
   connectionStatus?: string
+  // Load Saved Context (2026-08-26) — siempre el Workspace/Team/Project PROPIO
+  // del usuario que abre este panel, nunca el del otro lado de la conexión
+  // (ver WorkspaceShell.tsx, resueltos ahí vía workspace.id/team_id/project_id
+  // ya scoped por RLS + el chequeo de connectionContext en workspace/[id]/page.tsx).
+  workspaceId?: string
+  teamId?: string
+  projectId?: string
 }
 
 // Day marker helper
@@ -161,6 +169,9 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   onForward,
   workspaceLocked = false,
   connectionStatus,
+  workspaceId,
+  teamId,
+  projectId,
 }, ref) {
   const [messages, setMessages] = useState<HumanMessage[]>(initialMessages)
   const [input, setInput] = useState('')
@@ -170,6 +181,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   const [isMounted, setIsMounted] = useState(false)
   const [forwardTarget, setForwardTarget] = useState(forwardTargets?.[0]?.role ?? '')
   const [showForwardModal, setShowForwardModal] = useState(false)
+  const [showLoadContextModal, setShowLoadContextModal] = useState(false)
   const [localConnectionInactive, setLocalConnectionInactive] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -474,6 +486,34 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
     }
   }
 
+  // Load Saved Context → "Chat" destino: mismo mecanismo de envío que
+  // handleSend (POST /api/human-chat + appendMessageWithDedupe) — el
+  // contenido llega ya armado ("[Loaded from Documentation Mode — ...]")
+  // desde LoadContextModal. Sin message_provenance real acá (mismo límite ya
+  // documentado para Review & Forward Agent→Human chat: destino
+  // human_messages, sin FK posible hacia message_provenance.message_id).
+  async function handleLoadToChat(content: string, _provenance: LoadToChatProvenance) {
+    try {
+      const res = await fetch('/api/human-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId, content }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null) as { error?: string } | null
+        setError(data?.error ?? 'Failed to load content into chat')
+        return
+      }
+      const sentMessage = await res.json() as HumanMessage
+      appendMessageWithDedupe(sentMessage)
+    } catch (err) {
+      setError('Network error')
+      console.error('[HumanChat] Exception in handleLoadToChat:', err)
+    } finally {
+      setShowLoadContextModal(false)
+    }
+  }
+
   // useCallback: identidad estable requerida por HumanMessageBubble (React.memo)
   const toggleSelection = useCallback((index: number) => {
     setSelectedIndices((prev) => {
@@ -539,6 +579,18 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           Chat with {otherUserEmail}
         </h2>
         <p className="text-xs text-gray-500 mt-0.5">Direct human-to-human communication</p>
+      </div>
+
+      {/* Tools row */}
+      <div className="shrink-0 px-3 py-1.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+        <div className="ui-chat-tools-row">
+          <button
+            className="ui-chat-prompt shrink-0"
+            onClick={() => setShowLoadContextModal(true)}
+          >
+            Load Saved Context
+          </button>
+        </div>
       </div>
 
       {/* Inactive connection banner - only for server-known inactive connections */}
@@ -699,6 +751,16 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
       open={showForwardModal}
       onCancel={() => setShowForwardModal(false)}
       onSend={handleForwardConfirm}
+    />
+
+    <LoadContextModal
+      open={showLoadContextModal}
+      onClose={() => setShowLoadContextModal(false)}
+      projectId={projectId}
+      teamId={teamId}
+      workspaceId={workspaceId}
+      onLoadToChat={handleLoadToChat}
+      chatOnly
     />
     </Fragment>
   )

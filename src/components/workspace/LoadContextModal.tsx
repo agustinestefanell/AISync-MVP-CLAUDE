@@ -41,6 +41,11 @@ interface Props {
   // provenance viaja hasta la persistencia del mensaje (message_provenance,
   // migración 054) — ver AgentPanel.tsx handleLoadToChat/sendPrompt.
   onLoadToChat: (content: string, provenance: LoadToChatProvenance) => void
+  // Human Chat (Connected Teams, 2026-08-26): no hay sesión de agente ni
+  // destino "Context Files" con sentido (no hay team/session propios de un
+  // agente a los que asociar el archivo) — oculta el selector de scope y el
+  // botón "→ Context Files", deja solo "→ Chat" por ítem. Ver HumanChatPanel.tsx.
+  chatOnly?:    boolean
 }
 
 type Destination = 'context_files' | 'chat'
@@ -63,7 +68,7 @@ function joinMessages(messages: DetailMessage[]): string {
     .join('\n\n')
 }
 
-export default function LoadContextModal({ open, onClose, projectId, teamId, workspaceId, sessionId, onLoadToChat }: Props) {
+export default function LoadContextModal({ open, onClose, projectId, teamId, workspaceId, sessionId, onLoadToChat, chatOnly = false }: Props) {
   const [items,    setItems]    = useState<BrowseItem[]>([])
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
   const [loading,  setLoading]  = useState(false)
@@ -282,29 +287,31 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
         )}
 
         {/* Scope selector — mismo patrón que Add Context File. Solo aplica al destino "Context Files". */}
-        <div className="px-5 pt-3 shrink-0">
-          <label className="text-xs text-gray-400 mb-1.5 block">Context Files scope <span className="text-gray-500 normal-case">(only applies when loading to Context Files)</span></label>
-          <div className="flex gap-2">
-            {(['session', 'team', 'project'] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => setScope(s)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors capitalize ${
-                  scope === s
-                    ? 'bg-indigo-600 border-indigo-500 text-white'
-                    : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-500'
-                }`}
-              >
-                {s === 'session' ? 'Session' : s === 'team' ? 'Team' : 'Project'}
-              </button>
-            ))}
+        {!chatOnly && (
+          <div className="px-5 pt-3 shrink-0">
+            <label className="text-xs text-gray-400 mb-1.5 block">Context Files scope <span className="text-gray-500 normal-case">(only applies when loading to Context Files)</span></label>
+            <div className="flex gap-2">
+              {(['session', 'team', 'project'] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setScope(s)}
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors capitalize ${
+                    scope === s
+                      ? 'bg-indigo-600 border-indigo-500 text-white'
+                      : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  {s === 'session' ? 'Session' : s === 'team' ? 'Team' : 'Project'}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-600 mt-1">
+              {scope === 'session' && 'Available only in this agent session.'}
+              {scope === 'team'    && 'Available to all agents in this team.'}
+              {scope === 'project' && 'Available across all teams in the project.'}
+            </p>
           </div>
-          <p className="text-[10px] text-gray-600 mt-1">
-            {scope === 'session' && 'Available only in this agent session.'}
-            {scope === 'team'    && 'Available to all agents in this team.'}
-            {scope === 'project' && 'Available across all teams in the project.'}
-          </p>
-        </div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-wrap gap-2 px-5 py-3 shrink-0">
@@ -358,19 +365,23 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
                       )}
                     </div>
                     <div className="shrink-0 flex flex-col gap-1">
-                      <button
-                        onClick={() => handleLoad(it, 'context_files')}
-                        disabled={loadingId === it.id}
-                        title="Keep it as background context for this session"
-                        className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {loadingId === it.id ? 'Loading…' : loadedId === it.id ? 'Loaded ✓' : '→ Context Files'}
-                      </button>
+                      {!chatOnly && (
+                        <button
+                          onClick={() => handleLoad(it, 'context_files')}
+                          disabled={loadingId === it.id}
+                          title="Keep it as background context for this session"
+                          className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {loadingId === it.id ? 'Loading…' : loadedId === it.id ? 'Loaded ✓' : '→ Context Files'}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleLoad(it, 'chat')}
                         disabled={loadingId === it.id}
                         title="Inject it as a message and start working on it now"
-                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className={chatOnly
+                          ? 'text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors'
+                          : 'text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors'}
                       >
                         {loadingId === it.id ? 'Loading…' : '→ Chat'}
                       </button>

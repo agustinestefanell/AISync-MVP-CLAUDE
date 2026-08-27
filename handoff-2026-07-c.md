@@ -629,3 +629,48 @@ Ninguno nuevo identificado — cambio acotado a 4 archivos, sin tocar schema, en
 **Archivos modificados/nuevos:** `src/components/workspace/ReviewForwardModal.tsx` (nuevo), `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/HumanChatPanel.tsx`, `src/components/workspace/WorkspaceShell.tsx`, `PRODUCT_STATUS.md`.
 
 ---
+
+## OE 2026-08-26 — Documentation Mode: User Library como tab por default + Load Saved Context en Human Chat (Connected Teams)
+
+**Fecha:** 2026-08-26
+**Estado:** Closed — Ajuste 1 sin verificación visual requerida (cambio de orden/default, bajo riesgo). Ajuste 2 **sin verificación visual en esta sesión, autorizado explícitamente por Agus** — se verificará en producción (mismo patrón ya usado antes cuando localhost no tiene datos reales de Connected Teams a mano). lint ✅, build ✅. Commit + push ejecutados en este cierre.
+
+**Contexto:** 2 ajustes sobre Documentation Mode, el 2do precedido de diagnóstico solo-lectura confirmado con Agus antes de implementar (ver turno anterior de esta conversación).
+
+### Ajuste 1 — User Library primero y por default
+
+`src/components/documentation/DocClient.tsx`: entrada `library` movida a la primera posición del array `TABS` (antes era la 2da, después de `repository`). Default del tab activo (`useState<Tab>` inicial, cuando no hay `initialTab` válido en la URL) cambiado de `'repository'` a `'library'`. **Sin tocar** `handleOpenSearchResult()` (`setTab('repository')`, línea ~171) — es la navegación del buscador del SM hacia Checkpoint/Handoff/Saved Selection, un destino específico, no el tab de entrada por default.
+
+### Ajuste 2 — Load Saved Context en Human Chat (Connected Teams)
+
+**Diagnóstico (resumen, reportado y confirmado antes de implementar):** `HumanChatPanel.tsx` no tenía ningún mecanismo de Load Saved Context — solo `AgentPanel.tsx` lo tenía. Los datos necesarios (`workspaceId`/`teamId`/`projectId`) ya estaban resueltos en `WorkspaceShell.tsx` (`workspace.id`/`workspace.team_id`/`workspace.teams?.project_id`, mismos valores ya pasados a `AgentPanel` en 2 call sites) — solo faltaba threadearlos un nivel más. El destino "→ Chat" no tiene el problema de ambigüedad que sí tenía Investigate View (sin sesión resoluble): acá el chat humano ya está abierto y activo en el mismo panel. Verificado con evidencia de código que ningún dato cruza al team/account del otro lado de la conexión (ver `DECISIONS.md` 2026-08-26 para el detalle completo de los 4 puntos de evidencia).
+
+**`LoadContextModal.tsx`:** nuevo prop opcional `chatOnly?: boolean` (default `false`). Cuando es `true`: oculta el bloque completo "Context Files scope" (session/team/project) y el botón "→ Context Files" por ítem — deja un único botón "→ Chat" por ítem, con estilo primario (`bg-indigo-600`) en vez de outline (ya no compite visualmente con un botón hermano). `AgentPanel.tsx` sigue usando el modal sin este prop (`chatOnly` default `false`) — comportamiento sin cambios ahí.
+
+**`HumanChatPanel.tsx`:** 3 props nuevos opcionales (`workspaceId`, `teamId`, `projectId`). Nuevo botón "Load Saved Context" en una fila de herramientas agregada debajo del header (mismo patrón visual `ui-chat-prompt`/`ui-chat-tools-row` que ya usa `AgentPanel.tsx`). Nuevo `handleLoadToChat(content, provenance)` — mismo mecanismo que `handleSend()` ya existente (`POST /api/human-chat` con `{connectionId, content}` + `appendMessageWithDedupe(sentMessage)`), sin persistir `provenance` (mismo límite ya documentado para Review & Forward Agent→Human chat en Fase 1.6: destino `human_messages`, tabla distinta, sin FK posible hacia `message_provenance.message_id`). Modal renderizado con `chatOnly` fijo en `true`.
+
+**`WorkspaceShell.tsx`:** `<HumanChatPanel>` gana `workspaceId={workspace.id}` `teamId={workspace.team_id}` `projectId={workspace.teams?.project_id ?? undefined}` — mismos valores ya calculados y usados en los 2 call sites de `AgentPanel`, sin ningún cálculo nuevo.
+
+**Evidencia de seguridad (los 4 puntos verificados con código, no supuestos):**
+1. `GET /api/documentation/browse` (listado) usa `createClient()` scoped al usuario + RLS sobre `checkpoints`/`handoff_packages`/`saved_selections` — solo puede devolver filas del `account_id` propio.
+2. `GET /api/documentation/selection|checkpoint|handoff/[id]` (contenido completo) — mismo patrón, RLS a nivel tabla impide leer contenido cuyo `id` no pertenezca a la cuenta propia.
+3. `POST /api/human-chat` resuelve `from_account_id: user.id` **server-side desde la sesión autenticada** (`src/app/api/human-chat/route.ts`) — nunca desde un valor que mande el cliente. `human_messages` no tiene ningún campo `team_id` que pudiera quedar mal asignado.
+4. `workspace`/`team` que llegan a `WorkspaceShell` están garantizados como propios por `src/app/workspace/[id]/page.tsx:137` (`getUserIsolatedTeamId(connection, user.id) === team.id`) + RLS de `getWorkspaceWithAgents()` — nunca pueden resolver al lado opuesto de la conexión.
+
+### Verificación
+
+lint ✅, build ✅. **Ajuste 1:** sin verificación visual formal — cambio de bajo riesgo (orden de tabs + default), confirmable de un vistazo. **Ajuste 2:** sin verificación visual en localhost esta sesión (mismo patrón ya usado en otras OEs — localhost no tiene datos reales de Connected Teams a mano) — **Agus autorizó explícitamente proceder al cierre sin ella, verificación queda pendiente en producción.**
+
+### Alternativas descartadas
+
+- **Modal propio (fork completo) para Human Chat en vez de adaptar `LoadContextModal.tsx`** — descartado, la lógica de listar/filtrar/buscar/fetch de contenido es 100% reusable; solo el bloque de destino "Context Files" no aplica. Un prop `chatOnly` evita duplicar ~350 líneas de lógica de browse/filtros.
+- **Persistir `message_provenance` para este flujo** — descartado, mismo límite estructural ya aceptado para Review & Forward Agent→Human chat (destino `human_messages`, sin columna `message_id` real a la que enganchar una FK).
+
+### Riesgos conocidos / deuda técnica
+
+- **Ajuste 2 sin verificación visual/funcional real todavía** — pendiente en producción por decisión explícita de Agus (autorizado el cierre igual).
+- **`_provenance` recibido y descartado en `handleLoadToChat` (`HumanChatPanel.tsx`)** — parámetro requerido por la firma compartida de `onLoadToChat`, sin uso real acá (mismo límite de `human_messages` ya señalado). No es código muerto per se — la firma se mantiene igual a la de `AgentPanel.tsx` para no bifurcar el tipo `LoadToChatProvenance`/prop de `LoadContextModal.tsx`.
+
+**Archivos modificados:** `src/components/documentation/DocClient.tsx`, `src/components/workspace/LoadContextModal.tsx`, `src/components/workspace/HumanChatPanel.tsx`, `src/components/workspace/WorkspaceShell.tsx`, `PRODUCT_STATUS.md`, `DECISIONS.md`.
+
+---

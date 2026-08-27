@@ -761,6 +761,9 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
               onForward={handleHumanForward}
               workspaceLocked={locked}
               connectionStatus={connectionContext.status}
+              workspaceId={workspace.id}
+              teamId={workspace.team_id}
+              projectId={workspace.teams?.project_id ?? undefined}
             />
 
             {/* Manager Panel (identified by agent_role) */}

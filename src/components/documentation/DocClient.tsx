@@ -23,6 +23,11 @@ type Tab = 'repository' | 'library' | 'audit' | 'investigate' | 'knowledge'
 
 const TABS: { id: Tab; label: string; guide: string }[] = [
   {
+    id: 'library',
+    label: 'User Library',
+    guide: USER_LIBRARY_GUIDE,
+  },
+  {
     id: 'repository',
     label: 'Repository View',
     guide: `Imagine you are working on a new deliverable and you need to find something you created two months ago, but you do not remember exactly which team or session it came from. You only remember that it was related to real estate business strategy analysis, that you worked on it in June last year, and that it belonged to Project MK. In that case, you go to Repository View. You search by keyword, narrow the results by project, date, team, or document type, and quickly locate the right document without needing to reconstruct the whole history first.
@@ -39,11 +44,6 @@ In practical terms, Repository View is like the main working table of the archiv
 If you are new to Documentation Mode and you are not sure where to start, start here.
 
 If needed, you can always ask the Documentation Mode Sub-Manager to help you find documents using keywords.`,
-  },
-  {
-    id: 'library',
-    label: 'User Library',
-    guide: USER_LIBRARY_GUIDE,
   },
   {
     id: 'audit',
@@ -137,7 +137,7 @@ const VALID_TABS: Tab[] = ['repository', 'library', 'audit', 'investigate', 'kno
 
 export default function DocClient({ pageName, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, tags, userName, userEmail, customProviders, initialTab, initialFilterTeam }: DocClientProps) {
   const [tab,                     setTab]                     = useState<Tab>(
-    () => (initialTab && (VALID_TABS as string[]).includes(initialTab) ? initialTab as Tab : 'repository'),
+    () => (initialTab && (VALID_TABS as string[]).includes(initialTab) ? initialTab as Tab : 'library'),
   )
   const [helpTab,                 setHelpTab]                 = useState<Tab | null>(null)
   const [showMainGuide,           setShowMainGuide]           = useState(false)
