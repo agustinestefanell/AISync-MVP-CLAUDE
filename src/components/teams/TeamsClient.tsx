@@ -504,7 +504,6 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
         <IncomingRequestsPanel
           connections={connections}
           myTeams={teams}
-          projectId={projectId}
           projects={projectOptions}
           onClose={() => setShowIncoming(false)}
           onAccepted={handleAccepted}

@@ -674,3 +674,53 @@ lint ✅, build ✅. **Ajuste 1:** sin verificación visual formal — cambio de
 **Archivos modificados:** `src/components/documentation/DocClient.tsx`, `src/components/workspace/LoadContextModal.tsx`, `src/components/workspace/HumanChatPanel.tsx`, `src/components/workspace/WorkspaceShell.tsx`, `PRODUCT_STATUS.md`, `DECISIONS.md`.
 
 ---
+
+## OE 2026-08-27 — Connect Team: investigación cerrada sin bug + fix de UX del selector "Your Project"
+
+**Fecha:** 2026-08-27
+**Estado:** Closed (código), commiteado y pusheado a `main` por decisión explícita de Agus — lint ✅, build ✅. **Verificación visual PENDIENTE**, sin Claude in Chrome disponible esta sesión: Agus solo va a poder probarlo cuando se contacte con Alejandro (necesita una cuenta con 2+ Projects y una solicitud de conexión pendiente real para ver el dropdown "Your Project"). Queda explícitamente marcado como no verificado hasta entonces — no asumir aprobado.
+
+**Contexto:** Agus reportó que el Shared Team de una conexión nueva (aceptada el 2026-08-26) con `alejandro.balardini@gmail.com` "no respetaba el Team/Project de origen" — sospecha inicial de que el bug de julio (Projects creados automáticamente en el accept) seguía vivo pese al fix de `b803f1a`/`445f228` (2026-07-23). Se investigó en 2 sesiones encadenadas, con evidencia real de producción en cada paso (nunca solo lectura de código en `main`).
+
+### 1. Investigación — sin bug de backend, causa raíz real
+
+Se consultó directamente la base de producción (mismo proyecto Supabase que usa la app en Vercel, vía el service role key ya presente en `.env.local`, scripts de solo lectura descartados al terminar cada uno):
+
+- La fila real de `team_connections` (id `270a0a61-4afc-4722-b0d1-c4d2a82633f7`, creada/aceptada 2026-08-26) tiene `requester_project_id`/`receiver_project_id`/`host_isolated_team_id`/`invitee_isolated_team_id` poblados, ninguno en NULL.
+- Se cruzó cada `*_project_id` contra el `project_id` REAL de cada isolated team creado — **coinciden exactamente en ambos lados** (Agus: `AISync-HITR.io`; Alejandro: `hitr`). No hay divergencia entre lo persistido y lo real — descarta bug de persistencia y de visualización de una sola vez.
+- `entity_name_history` reveló que el Project de Agus (`AISync-HITR.io`) fue **renombrado por él mismo** desde `"AISync"` el 2026-08-22 — 4 días antes de la conexión, evidentemente en relación a este mismo trabajo. El de Alejandro (`hitr`) nunca fue renombrado, existe con ese nombre desde su creación. Ningún Project llamado exactamente "Hitr.io" existe en ninguna de las 2 cuentas.
+- Se revisó también la cadena de código que agrupa Teams Map por Project (`src/lib/db/projects.ts:4-23` → `src/app/teams/page.tsx:28,70,83` → `TeamsClient.tsx:149,264-271` → `MapView.tsx:277-297`, línea 282 `const pid = team.project_id`) — confirmado que usa el campo real `teams.project_id` de punta a punta, sin cache ni campo intermedio; y que `handleAccepted()` (`TeamsClient.tsx:250-254`) no inyecta el team nuevo con un `project_id` adivinado client-side — solo dispara `router.refresh()`, refetch real server-side.
+
+**Causa raíz real (reconstruida vía `audit_log`, minuto a minuto):** Agus desconectó una conexión VIEJA y distinta con el mismo Alejandro a las 20:01:07 UTC del 26/08, y aceptó la conexión NUEVA 85 segundos después (20:02:32), sin cambiar de Project activo en el medio. `accounts.active_project_id` venía heredado de esa conexión vieja anterior. El selector "Your Project" del modal de aceptar preselecciona en silencio ese valor global — Agus no lo notó/cambió en ese flujo rápido. **No hay bug — el sistema hizo exactamente lo que el código dice, con el valor que la UI le pasó.**
+
+**Conclusión confirmada por Agus:** investigación cerrada sin bug real. El team estaba correctamente ubicado en ambas cuentas desde el principio; la causa fue un nombre de Project mal recordado, no un error del sistema.
+
+### 2. Fix de UX — el hallazgo real que sí ameritaba corrección
+
+Aun sin bug de backend, la investigación encontró un gap de UX real y ya señalado en el propio código: `IncomingRequestsPanel.tsx` tenía un comentario en la prop `projectId` que decía *"optional default suggestion for the dropdown — never a hidden preselection"* — pero la implementación sí la usaba como preselección silenciosa (`useState(projectId ?? projects[0]?.id ?? '')`). El fix cumple ahora lo que ese comentario ya prometía.
+
+**`src/components/teams/IncomingRequestsPanel.tsx`:**
+- Prop `projectId` eliminada de la interfaz — ya no se usa como default. `selectedProjectId` arranca en `''` cuando `projects.length > 1` (fuerza elección consciente) y en `projects[0].id` cuando hay un solo Project (sin ambigüedad posible, auto-select se mantiene). Mismo criterio al reabrir "Accept" en cada card.
+- Dropdown "Your Project" gana una opción placeholder `<option value="" disabled>Select a Project...</option>`, seleccionada por default cuando `selectedProjectId === ''`.
+- Botón "Confirm" ahora `disabled={!!loading || !selectedProjectId}` — antes solo dependía de `loading`.
+
+**`src/components/teams/TeamsClient.tsx`:** se dejó de pasar `projectId={projectId}` a `<IncomingRequestsPanel>` (prop eliminada) — confirmado que el `projectId` de nivel `TeamsClient` sigue usándose en otros 5 puntos del archivo (switch de Project activo, `AddTeamModal`, `ConnectTeamModal`), no queda huérfano.
+
+Cambio 100% de UI — `handleAccept()` sigue mandando `receiver_project_id: selectedProjectId` igual que antes; el backend (`PATCH /api/connections/[id]`) sigue validando ownership sin tocar (ya confirmado en la sesión de diagnóstico).
+
+### Verificación
+
+lint ✅ (mismos 3 warnings preexistentes de `CanvasViewport.tsx` ×3 archivos, no tocados), build ✅. **Sin verificación visual esta sesión** — sin Claude in Chrome disponible. Pusheado igual por decisión explícita de Agus (no puede verificar hasta contactarse con Alejandro). Pendiente: screenshot de Agus del modal de aceptar con 2+ Projects mostrando el dropdown en "Select a Project..." y el botón Confirm deshabilitado hasta elegir.
+
+### Alternativas descartadas
+
+- **Proponer un UPDATE en producción para "corregir" el Project del Shared Team de Alejandro/Agus** — descartado, no hay evidencia de nada mal ubicado (ver investigación arriba). Ejecutar un UPDATE sin causa real hubiera sido la acción riesgosa, no el hallazgo.
+- **Mantener `projectId` como sugerencia pero no preselección (ej. ordenarlo primero en la lista)** — descartado a favor de eliminarlo directamente: no había ningún pedido de "sugerirlo de otra forma", y mantenerlo sin usarlo como default hubiera sido código muerto a mitad de camino.
+
+### Riesgos conocidos / deuda técnica
+
+Ninguno nuevo — cambio acotado a 2 archivos, sin tocar backend, RLS, ni schema.
+
+**Archivos modificados:** `src/components/teams/IncomingRequestsPanel.tsx`, `src/components/teams/TeamsClient.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---

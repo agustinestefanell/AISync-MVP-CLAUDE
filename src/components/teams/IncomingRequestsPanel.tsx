@@ -7,7 +7,6 @@ import type { Connection } from './ConnectTeamModal'
 interface IncomingRequestsPanelProps {
   connections: Connection[]
   myTeams: TeamWithWorkspaces[] // no longer used (isolated team is created automatically)
-  projectId?: string // optional default suggestion for the dropdown — never a hidden preselection
   projects: Array<{ id: string; name: string }>
   onClose: () => void
   onAccepted: (updated: Connection) => void
@@ -24,7 +23,6 @@ function formatDate(iso: string) {
 export default function IncomingRequestsPanel({
   connections,
   myTeams: _myTeams,
-  projectId,
   projects,
   onClose,
   onAccepted,
@@ -32,8 +30,12 @@ export default function IncomingRequestsPanel({
 }: IncomingRequestsPanelProps) {
   const pending = connections.filter(c => c.status === 'pending' && c.direction === 'incoming')
 
+  // Auto-select only when there's no ambiguity (a single Project). With 2+,
+  // the dropdown starts empty on purpose — it must never silently inherit
+  // accounts.active_project_id, which is what caused a Shared Team to land
+  // in a Project the user didn't consciously choose (see handoff 2026-08-27).
   const [acceptingId, setAcceptingId]   = useState<string | null>(null)
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(projectId ?? projects[0]?.id ?? '')
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(projects.length === 1 ? projects[0].id : '')
   const [loading, setLoading]           = useState<string | null>(null)
   const [error, setError]               = useState('')
 
@@ -149,6 +151,7 @@ export default function IncomingRequestsPanel({
                         onChange={e => setSelectedProjectId(e.target.value)}
                         className="w-full text-xs bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 outline-none focus:border-indigo-300 transition-colors"
                       >
+                        <option value="" disabled>Select a Project...</option>
                         {projects.map(p => (
                           <option key={p.id} value={p.id}>
                             {p.name}
@@ -163,7 +166,7 @@ export default function IncomingRequestsPanel({
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleAccept(conn)}
-                      disabled={!!loading}
+                      disabled={!!loading || !selectedProjectId}
                       className="flex-1 text-xs bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-700 border border-emerald-200 font-semibold py-2 rounded-lg transition-colors"
                     >
                       {loading === conn.id ? 'Accepting…' : 'Confirm'}
@@ -181,7 +184,7 @@ export default function IncomingRequestsPanel({
                   <button
                     onClick={() => {
                       setAcceptingId(conn.id)
-                      setSelectedProjectId(projectId ?? projects[0]?.id ?? '')
+                      setSelectedProjectId(projects.length === 1 ? projects[0].id : '')
                       setError('')
                     }}
                     className="flex-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold py-1.5 rounded-lg transition-colors"
