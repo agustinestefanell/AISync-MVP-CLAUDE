@@ -49,7 +49,7 @@ interface PanelSnapshot {
 interface PanelBinding {
   setRef:                 (el: AgentPanelHandle | null) => void
   onSelectionChange:      (count: number) => void
-  onForward:              (messages: ChatMessage[], targetRole: string) => void
+  onForward:              (messages: ChatMessage[], targetRole: string, instructions?: string) => void
   onCreateHandoff:        () => void
   getOtherPanelsSnapshot: () => PanelSnapshot[]
   forwardTargets:         { role: string; label: string }[]
@@ -193,7 +193,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   }
 
   // ── Panel-level Review & Forward ─────────────────────────────────────────
-  const handlePanelForward = useCallback(async (fromSession: AgentSession, messages: ChatMessage[], targetRole: string) => {
+  const handlePanelForward = useCallback(async (fromSession: AgentSession, messages: ChatMessage[], targetRole: string, instructions?: string) => {
     // Special case: forward to human chat in isolated teams
     if (targetRole === 'human_chat' && connectionContext) {
       const label = AGENT_LABEL[fromSession.agent_role] ?? fromSession.agent_role
@@ -201,7 +201,8 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
         .map(m => `${m.role === 'user' ? 'User' : label}: ${m.content}`)
         .join('\n\n')
 
-      const content = `[Forwarded from ${label}]\n\n${forwarded}`
+      const forwardedBlock = `[Forwarded from ${label}]\n\n${forwarded}`
+      const content = instructions?.trim() ? `${instructions.trim()}\n\n${forwardedBlock}` : forwardedBlock
 
       try {
         const res = await fetch('/api/human-chat', {
@@ -285,12 +286,14 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       console.error('[WorkspaceShell] review_forward audit insert failed:', err)
     }
 
-    targetRef.appendUserMessage(`[Forwarded from ${label}]\n\n${forwarded}`, provenance)
+    const forwardedBlock = `[Forwarded from ${label}]\n\n${forwarded}`
+    const content = instructions?.trim() ? `${instructions.trim()}\n\n${forwardedBlock}` : forwardedBlock
+    targetRef.appendUserMessage(content, provenance)
     panelRefs.current[fromSession.id]?.clearSelection()
   }, [connectionContext, workspace.agent_sessions, workspace.id])
 
   // ── Human chat Review & Forward ──────────────────────────────────────────
-  const handleHumanForward = useCallback(async (messages: HumanMessage[], targetRole: string) => {
+  const handleHumanForward = useCallback(async (messages: HumanMessage[], targetRole: string, instructions?: string) => {
     const targetSession = workspace.agent_sessions.find(s => s.agent_role === targetRole)
     if (!targetSession) return
     const targetRef = panelRefs.current[targetSession.id]
@@ -333,7 +336,9 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       console.error('[WorkspaceShell] review_forward audit insert failed:', err)
     }
 
-    targetRef.appendUserMessage(`[Forwarded from Human Chat]\n\n${forwarded}`, provenance)
+    const forwardedBlock = `[Forwarded from Human Chat]\n\n${forwarded}`
+    const content = instructions?.trim() ? `${instructions.trim()}\n\n${forwardedBlock}` : forwardedBlock
+    targetRef.appendUserMessage(content, provenance)
     humanChatRef.current?.clearSelection()
   }, [workspace.agent_sessions, workspace.id, currentUserId, connectionContext])
 
@@ -717,7 +722,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       map[session.id] = {
         setRef:                 el => { panelRefs.current[session.id] = el },
         onSelectionChange:      count => handleSelectionChange(session.id, count),
-        onForward:              (messages, targetRole) => handlePanelForward(session, messages, targetRole),
+        onForward:              (messages, targetRole, instructions) => handlePanelForward(session, messages, targetRole, instructions),
         onCreateHandoff:        () => setShowHandoffModal(true),
         getOtherPanelsSnapshot: () => buildOtherPanelsSnapshot(session.id),
         forwardTargets,

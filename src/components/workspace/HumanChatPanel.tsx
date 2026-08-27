@@ -1,10 +1,11 @@
 'use client'
 
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { Fragment, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { createClient } from '@/lib/supabase/client'
 import type { HumanMessage } from '@/lib/db/types'
+import ReviewForwardModal from './ReviewForwardModal'
 
 // ── Public interface ─────────────────────────────────────────────────────────
 export interface HumanChatPanelHandle {
@@ -24,7 +25,7 @@ interface Props {
   onSaveVersion?: () => void
   onOpenSaveSelection?: () => void
   forwardTargets?: { role: string; label: string }[]
-  onForward?: (messages: HumanMessage[], targetRole: string) => void
+  onForward?: (messages: HumanMessage[], targetRole: string, instructions?: string) => void
   workspaceLocked?: boolean
   connectionStatus?: string
 }
@@ -168,6 +169,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
   const [isMounted, setIsMounted] = useState(false)
   const [forwardTarget, setForwardTarget] = useState(forwardTargets?.[0]?.role ?? '')
+  const [showForwardModal, setShowForwardModal] = useState(false)
   const [localConnectionInactive, setLocalConnectionInactive] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -487,10 +489,16 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
 
   function handleForward() {
     if (!onForward || !hasSelection) return
+    setShowForwardModal(true)
+  }
+
+  function handleForwardConfirm(instructions: string) {
+    if (!onForward) return
     const indices = Array.from(selectedIndices).sort((a, b) => a - b)
     const selected = indices.map(i => messages[i]).filter(Boolean)
-    onForward(selected, forwardTarget)
+    onForward(selected, forwardTarget, instructions)
     setSelectedIndices(new Set())
+    setShowForwardModal(false)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -523,6 +531,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
   }
 
   return (
+    <Fragment>
     <div className="flex flex-col h-full bg-white border border-gray-200 rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="shrink-0 px-4 py-3 border-b border-gray-200 bg-gray-50">
@@ -685,6 +694,13 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
         </div>
       </div>
     </div>
+
+    <ReviewForwardModal
+      open={showForwardModal}
+      onCancel={() => setShowForwardModal(false)}
+      onSend={handleForwardConfirm}
+    />
+    </Fragment>
   )
 })
 

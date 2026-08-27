@@ -590,3 +590,42 @@ lint ✅, build ✅. Grep exhaustivo confirmó que `content_preview_full` ya no 
 **Archivos modificados:** `src/lib/db/documentation.ts`, `src/components/documentation/UserLibraryView.tsx`.
 
 ---
+
+## OE 2026-08-26 — Review & Forward: modal "Instructions?" antes de reenviar (las 3 variantes)
+
+**Fecha:** 2026-08-26
+**Estado:** Closed — **confirmación visual positiva de Agus** en todos los casos probados (modal al hacer Review & Forward, instrucciones + contenido reenviado como un solo mensaje, vacío + Send sin cambios de comportamiento, Cancel sin reenviar nada). lint ✅, build ✅. Commit + push ejecutados en este cierre.
+
+**Contexto:** al hacer Review & Forward, Agus pidió agregar un modal "Instructions?" antes de ejecutar el forward, que permite escribir contexto opcional para el destinatario. Vacío = comportamiento actual sin cambios. Precedido de diagnóstico solo-lectura del flujo exacto (reportado y confirmado antes de escribir código, ver turno anterior de esta conversación).
+
+### Diagnóstico (resumen)
+
+El click en "Review & Forward" vive en los componentes hijos, no en `WorkspaceShell.tsx`: `AgentPanel.tsx` (`handleForward()`) cubre **Agent→Agent** y **Agent→Human chat** con el mismo código (la bifurcación entre ambos pasa después, dentro de `handlePanelForward`); `HumanChatPanel.tsx` (`handleForward()`) cubre **Human chat→Agent**. Antes de este cambio, `handleForward()` llamaba a `onForward` de forma síncrona, sin ningún paso intermedio — el string final (`[Forwarded from X]\n\n...`) se arma recién en `WorkspaceShell.tsx`, junto con el insert `await`ado a `audit_log` (Fase 1.6) que genera el `message_provenance`.
+
+### Implementación
+
+**`src/components/workspace/ReviewForwardModal.tsx` (nuevo, compartido):** único componente de modal, mismo copy y comportamiento en las 3 variantes — título "Instructions?", subtítulo "Optional — add context for the recipient before forwarding.", textarea vacío por default (sin precargar nada del cuadro de envío normal), botones "Send" (siempre activo, texto o vacío) / "Cancel" (aborta sin reenviar). Mismo patrón visual que `LoadContextModal.tsx` (overlay + card blanca redondeada). Se extrajo como componente compartido en vez de duplicar — es 100% idéntico en las 2 variantes que lo usan (`AgentPanel.tsx`/`HumanChatPanel.tsx`), no una duplicación "parecida" que ameritara mantenerla separada.
+
+**`AgentPanel.tsx`/`HumanChatPanel.tsx`:** `handleForward()` ahora solo abre el modal (`setShowForwardModal(true)`) en vez de llamar a `onForward` directo. Nuevo `handleForwardConfirm(instructions)` — hace lo que antes hacía `handleForward()` (arma `selected`, llama `onForward(selected, forwardTarget, instructions)`, limpia selección) y cierra el modal. `onForward` gana un 3er parámetro opcional `instructions?: string` en ambos `Props` interfaces. `HumanChatPanel.tsx` no tenía `Fragment` en su root (un solo `<div>`) — se envolvió en `Fragment` para poder renderizar el modal como hermano, mismo patrón que ya usaba `AgentPanel.tsx` para `LoadContextModal`.
+
+**`WorkspaceShell.tsx`:** `handlePanelForward`/`handleHumanForward` ganan el mismo parámetro opcional `instructions?: string` (y el tipo `PanelBinding.onForward` correspondiente). En las 3 ramas (Agent→Agent, Agent→Human chat, Human chat→Agent) el string final pasa de armarse directo a: `const forwardedBlock = "[Forwarded from X]\n\n..."; const content = instructions?.trim() ? \`${instructions.trim()}\n\n${forwardedBlock}\` : forwardedBlock`. Vacío o solo espacios → mismo `content` que antes, sin ninguna línea agregada.
+
+**Confirmado que no rompe `message_provenance`:** `provenance` (`{source_object_type: 'review_forward', source_object_id}`) se arma a partir del `id` del insert de `audit_log`, totalmente independiente del string de `content` — combinar instrucciones dentro de `content` es un cambio de texto puro, sin ningún efecto sobre el mecanismo de "downstream uses" de Fase 1.6.
+
+### Verificación
+
+lint ✅, build ✅ (un error de tipo encontrado y corregido en el camino: `PanelBinding.onForward` en `WorkspaceShell.tsx` no tenía el 3er parámetro tipado, TypeScript inferría `any` en el callsite — corregido agregando `instructions?: string` a la interfaz). **Confirmación visual positiva de Agus:** modal aparece al hacer Review & Forward en las variantes probadas, instrucciones + contenido reenviado llegan como un solo mensaje con el formato esperado, dejar vacío + Send reproduce el comportamiento anterior sin cambios, Cancel aborta sin reenviar nada.
+
+### Alternativas descartadas
+
+- **Modal separado por componente (duplicar en `AgentPanel.tsx` y `HumanChatPanel.tsx`)** — descartado, es exactamente el mismo copy/comportamiento en ambos, extraerlo a un componente compartido evita 2 copias idénticas del mismo modal.
+- **Botón "Skip" separado de "Send"** — descartado por Agus en el diagnóstico previo: dejar el textarea vacío y tocar "Send" ya cubre ese caso, un botón aparte sería redundante.
+- **Prellenar el textarea con algo del cuadro de envío normal del panel** — descartado explícitamente, el modal arranca siempre vacío, campo 100% independiente.
+
+### Riesgos conocidos / deuda técnica
+
+Ninguno nuevo identificado — cambio acotado a 4 archivos, sin tocar schema, endpoints ni el mecanismo de `message_provenance` existente.
+
+**Archivos modificados/nuevos:** `src/components/workspace/ReviewForwardModal.tsx` (nuevo), `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/HumanChatPanel.tsx`, `src/components/workspace/WorkspaceShell.tsx`, `PRODUCT_STATUS.md`.
+
+---

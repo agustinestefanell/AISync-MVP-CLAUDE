@@ -204,6 +204,7 @@ components/
     PromptLibrary.tsx            ← Modal gestión de prompts
     ContextFilePanel.tsx         ← Modal gestión de context files
     HandoffPackageModal.tsx      ← Modal crear handoff package
+    ReviewForwardModal.tsx       ← Modal "Instructions?" antes de Review & Forward (compartido, 3 variantes)
   LogoutButton.tsx
   ProjectList.tsx
 ```

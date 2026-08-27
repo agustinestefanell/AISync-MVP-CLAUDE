@@ -10,6 +10,7 @@ import type { ChatMessage, ChatAttachment } from '@/lib/providers/types'
 import PromptLibrary from './PromptLibrary'
 import ContextFilePanel from './ContextFilePanel'
 import LoadContextModal, { type LoadToChatProvenance } from './LoadContextModal'
+import ReviewForwardModal from './ReviewForwardModal'
 import { createClient } from '@/lib/supabase/client'
 import { MAX_ATTACHMENT_FILE_BYTES, fileTooLargeMessage, payloadTooLargeMessage } from '@/lib/upload/limits'
 
@@ -297,7 +298,7 @@ interface Props {
   workspaceLocked:   boolean
   onSelectionChange: (count: number) => void
   forwardTargets?:   { role: string; label: string }[]
-  onForward?:        (messages: ChatMessage[], targetRole: string) => void
+  onForward?:        (messages: ChatMessage[], targetRole: string, instructions?: string) => void
   onCreateHandoff?:  () => void
   onSaveVersion?:    () => void
   onOpenSaveSelection?: () => void
@@ -338,6 +339,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
     const [streamingContent, setStreamingContent] = useState('')
     const [error, setError]                   = useState<string | null>(null)
     const [forwardTarget, setForwardTarget]   = useState(forwardTargets?.[0]?.role ?? '')
+    const [showForwardModal, setShowForwardModal] = useState(false)
     const [showRefreshConfirm, setShowRefreshConfirm]   = useState(false)
     const [copiedIndex, setCopiedIndex]                 = useState<number | null>(null)
     // Aviso de context files grandes: null = sin aviso abierto
@@ -441,13 +443,19 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
 
     function handleForward() {
       if (!onForward || !hasSelection) return
+      setShowForwardModal(true)
+    }
+
+    function handleForwardConfirm(instructions: string) {
+      if (!onForward) return
       const selected = Array.from(selectedIndices)
         .sort((a, b) => a - b)
         .map(i => messages[i])
         .filter(Boolean)
-      onForward(selected, forwardTarget)
+      onForward(selected, forwardTarget, instructions)
       setSelectedIndices(new Set())
       onSelectionChange(0)
+      setShowForwardModal(false)
     }
 
     const copyMessage = useCallback(async (index: number, content: string) => {
@@ -1247,6 +1255,12 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
         workspaceId={session.workspace_id}
         sessionId={session.id}
         onLoadToChat={handleLoadToChat}
+      />
+
+      <ReviewForwardModal
+        open={showForwardModal}
+        onCancel={() => setShowForwardModal(false)}
+        onSend={handleForwardConfirm}
       />
       </Fragment>
     )
