@@ -1,5 +1,20 @@
 # AISync MVP — Claude Code Reference
 
+## NOTA HISTÓRICA — Rebranding AISync → Hitr.io
+
+Este proyecto se llamó "AISync" hasta agosto de 2026. Se renombró a
+"Hitr.io" (rebranding completo de fines de agosto/principios de
+septiembre 2026, ver DECISIONS.md para el detalle completo).
+
+Si encontrás referencias a "AISync" en código, comentarios, nombres
+de archivo, nombre del repositorio (`aisync-mvp-claude`), o en la
+base de datos: es intencional en varios casos (el repo y ciertos
+nombres técnicos internos NO se renombraron, por decisión explícita
+— ver DECISIONS.md), pero también podría ser un lugar user-facing
+que se pasó por alto durante el rebrand. Ante la duda, verificar si
+es texto que ve el usuario (hay que corregirlo) o nombre técnico
+interno (se deja como está).
+
 ## RUTINA DURA — Actualización de handoff
 
 Al cerrar cada OE, ANTES de confirmar que está cerrada,
