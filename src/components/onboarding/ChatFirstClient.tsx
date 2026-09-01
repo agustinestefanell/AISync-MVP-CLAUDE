@@ -166,7 +166,7 @@ export default function ChatFirstClient() {
 
               {/* Footer */}
               <rect x="26" y="710" width="310" height="96" rx="16" fill="#F9FAFB" stroke="#D1D5DB"/>
-              <text className="font-sans text-[15px] fill-[#6B7280]" x="95" y="744">AISync organizes AI sessions while</text>
+              <text className="font-sans text-[15px] fill-[#6B7280]" x="95" y="744">Hitr organizes AI sessions while</text>
               <text className="font-sans text-[15px] fill-[#6B7280]" x="95" y="768">preserving context, checkpoints,</text>
               <text className="font-sans text-[15px] fill-[#6B7280]" x="95" y="792">and traceability.</text>
             </svg>
@@ -182,7 +182,7 @@ export default function ChatFirstClient() {
                   Start your AI work in a structured, traceable way
                 </h1>
                 <p className="mt-6 text-[17px] leading-7 text-[#6B7280]">
-                  Describe the work you want to structure. AISync helps you organize AI sessions, preserve context, and keep work traceable from the start.
+                  Describe the work you want to structure. Hitr helps you organize AI sessions, preserve context, and keep work traceable from the start.
                 </p>
               </div>
 
@@ -233,7 +233,7 @@ export default function ChatFirstClient() {
                     setMessage(e.target.value)
                     if (validationMessage) setValidationMessage('')
                   }}
-                  placeholder="Describe the task, decision, document, or workflow you want AISync to structure and track..."
+                  placeholder="Describe the task, decision, document, or workflow you want Hitr to structure and track..."
                   disabled={isStarting}
                   className="min-h-[260px] w-full resize-none rounded-[16px] border-[1.5px] border-[#4B5563] bg-white p-6 text-[18px] leading-8 text-[#1F2937] placeholder:text-[#6B7280] focus:border-[#374151] focus:outline-none focus:ring-1 focus:ring-[#374151]"
                 />
@@ -302,7 +302,7 @@ export default function ChatFirstClient() {
               {/* Step 2 */}
               <circle cx="53" cy="324" r="18" fill="#4B5563"/>
               <text className="font-sans text-[15px] font-extrabold fill-white" x="48" y="330">2</text>
-              <text className="font-sans text-[18px] font-bold fill-[#1F2937]" x="91" y="320">AISync structures your</text>
+              <text className="font-sans text-[18px] font-bold fill-[#1F2937]" x="91" y="320">Hitr structures your</text>
               <text className="font-sans text-[18px] font-bold fill-[#1F2937]" x="91" y="346">first work path.</text>
 
               {/* Mini card step 2 */}
@@ -317,12 +317,12 @@ export default function ChatFirstClient() {
               {/* Step 3 */}
               <circle cx="53" cy="549" r="18" fill="#4B5563"/>
               <text className="font-sans text-[15px] font-extrabold fill-white" x="48" y="555">3</text>
-              <text className="font-sans text-[18px] font-bold fill-[#1F2937]" x="91" y="542">AISync tracks context,</text>
+              <text className="font-sans text-[18px] font-bold fill-[#1F2937]" x="91" y="542">Hitr tracks context,</text>
               <text className="font-sans text-[18px] font-bold fill-[#1F2937]" x="91" y="568">checkpoints, and handoffs.</text>
 
               {/* Footer */}
               <rect x="31" y="724" width="300" height="96" rx="16" fill="#F9FAFB" stroke="#D1D5DB"/>
-              <text className="font-sans text-[15px] fill-[#6B7280]" x="119" y="754">AISync keeps your AI work</text>
+              <text className="font-sans text-[15px] fill-[#6B7280]" x="119" y="754">Hitr keeps your AI work</text>
               <text className="font-sans text-[15px] fill-[#6B7280]" x="119" y="778">traceable, recoverable, and</text>
               <text className="font-sans text-[15px] fill-[#6B7280]" x="119" y="802">ready to continue.</text>
             </svg>

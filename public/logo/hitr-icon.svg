@@ -1,0 +1,10 @@
+<svg width="420" height="420" viewBox="0 0 420 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="420" height="420" rx="90" fill="#2DD7D4"/>
+  <text x="210" y="210"
+        font-family="Inter, Arial, Helvetica, sans-serif"
+        font-size="280"
+        font-weight="700"
+        text-anchor="middle"
+        dominant-baseline="central"
+        fill="#000000">H</text>
+</svg>

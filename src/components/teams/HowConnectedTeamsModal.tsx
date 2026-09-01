@@ -5,11 +5,11 @@ type Section = { title: string; body: string }
 const SECTIONS: Section[] = [
   {
     title: 'What is a Connected Team.',
-    body: 'A Connected Team is a link between one of your teams and a team that belongs to another AISync account. Each side keeps its own structure, its own workspaces, and its own agents. The connection creates a channel between the two teams — specifically between their `Situation Managers` — without merging the accounts or sharing any internal content.',
+    body: 'A Connected Team is a link between one of your teams and a team that belongs to another Hitr account. Each side keeps its own structure, its own workspaces, and its own agents. The connection creates a channel between the two teams — specifically between their `Situation Managers` — without merging the accounts or sharing any internal content.',
   },
   {
     title: 'How to connect.',
-    body: 'Go to the Dashboard and click `+ Connect`. Choose which of your teams will host the connection, then enter the email of the external account you want to connect with. AISync sends a connection request to that account. Nothing becomes active until the other side accepts.',
+    body: 'Go to the Dashboard and click `+ Connect`. Choose which of your teams will host the connection, then enter the email of the external account you want to connect with. Hitr sends a connection request to that account. Nothing becomes active until the other side accepts.',
   },
   {
     title: 'How the other side accepts.',
@@ -60,7 +60,7 @@ export default function HowConnectedTeamsModal({ onClose }: { onClose: () => voi
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold text-[var(--color-text-primary)]">How Connected Teams Work</h3>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Cross-account team connections in AISync</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Cross-account team connections in Hitr</p>
           </div>
           <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm px-2">✕</button>
         </div>

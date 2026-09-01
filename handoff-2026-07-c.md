@@ -724,3 +724,65 @@ Ninguno nuevo — cambio acotado a 2 archivos, sin tocar backend, RLS, ni schema
 **Archivos modificados:** `src/components/teams/IncomingRequestsPanel.tsx`, `src/components/teams/TeamsClient.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## OE 2026-09-01 — Rebranding completo: AISync → Hitr.io
+
+**Fecha:** 2026-09-01
+**Estado:** Closed — **confirmación visual positiva de Agus** en las 4 verificaciones pedidas (Login, Dashboard, ribbon superior en 3 páginas, guía "How to use" en Audit Log) más 4 rondas de ajuste fino de layout en Login, todas con validación visual antes de avanzar a la siguiente. lint ✅, build ✅. Commit + push ejecutados en este cierre.
+
+**Contexto:** rebranding visual completo del producto de "AISync" a "Hitr.io", con alcance explícitamente acotado por Agus al inicio: **solo lo que ve el usuario** — texto en pantalla, logo, tipografía del wordmark, título de pestaña. El código interno (nombre del repo `aisync-mvp-claude`, nombres de tablas/columnas de DB, variables internas, rutas de API, comentarios de código) queda intacto a propósito — no es una migración técnica.
+
+### Paso 0 — Inventario (solo lectura, reportado y aprobado antes de tocar código)
+
+Grep exhaustivo de "AISync" en `src/` clasificado en 2 categorías: **user-facing** (15 sitios en 12 archivos — títulos, guías "How to use...", modales, subtítulos, 2 mensajes de error de API) vs **interno** (comentarios de código en `system-prompts.ts`, `planes.ts`, `log-layers.ts`, `audit.ts`, un comentario en `connections/route.ts`, y el fallback hardcoded de `sm-doc-chat/route.ts:24`).
+
+**Hallazgo clave del inventario:** no existe una "landing page" separada del login en el código — la ruta `/` es el Dashboard, requiere sesión y hace `redirect('/login')` si no hay usuario. Se resolvió con Agus: "Human in the Root" va en **Login y Dashboard** (no se crea ninguna página nueva).
+
+**Segundo hallazgo:** el archivo de logo mencionado originalmente (`Logo_HITR.png`) no existe en `design-refs/logo/` — ahí hay 3 archivos reales (`Hitr_io_logo_INTER_dark_figma.svg`, `Hitr_io_logo_INTER_transparent_figma.svg`, `Hitr_io_logo_INTER_dark_highres.png`). Agus confirmó usar el **SVG transparent** (no el PNG con fondo negro sólido, que se vería como un rectángulo oscuro en fondos claros como el Dashboard).
+
+### Decisión sobre los system prompts de IA (fallback vs. DB real)
+
+Antes de tocar el fallback hardcoded de `sm-doc-chat/route.ts:24` ("AISync" en el system prompt del Sub-Manager), se verificó si el rol `sm_documentation` tenía fila real activa en `system_prompts` en producción — la app siempre prioriza `rolePrompt || fallback` (`sm-doc-chat/route.ts:64`), así que tocar solo el fallback sin verificar podía no tener ningún efecto real. Consulta de solo lectura contra producción (service role key de `.env.local`, script temporal borrado al terminar) confirmó que **sí existen filas reales activas** para `sm_documentation` y `sm_audit`, ambas con "AISync" en `base_layer`/`role_prompt`.
+
+Reportado a Agus antes de tocar nada. Hubo un vaivén de decisión en la conversación (primero "sí, actualizar las 2 filas" → UPDATE aplicado y verificado → después un mensaje pidió explícitamente NO tocarlas → se le señaló la contradicción con el UPDATE ya aplicado → decisión final: **dejar como quedó, "Hitr" en las 2 filas**). El fallback del código (`sm-doc-chat/route.ts:24`) **no se tocó** — sigue diciendo "AISync", decisión explícita de Agus, consistente con que no tiene efecto real mientras las filas de DB estén activas.
+
+### Implementación
+
+**Logo:** `Hitr_io_logo_INTER_transparent_figma.svg` copiado a `public/logo/` — recortado en `hitr-icon.svg` (solo el cuadrado teal + "H", viewBox `0 0 420 420`, reutilizable en cualquier fondo) y copiado completo como `hitr-logo.svg` (lockup íntegro, terminó sin uso final en código — ver nota de Login más abajo).
+
+**`src/components/branding/HitrLogo.tsx` (nuevo, compartido):** ícono (`next/image`) + wordmark HTML "Hitr.io" (Inter, "Hitr." bold + "io" normal) + tagline opcional "Human in the Root". Props `size` (`sm`/`lg`/`xl`), `theme` (`dark`/`light` — controla el color del wordmark/tagline para fondos oscuros vs. claros), `tagline` (boolean). Usado en `TopRibbon.tsx` (`size="sm"`, sin tagline, reemplaza el div con gradiente + texto "AI" + span "AISync" que había antes) y en Dashboard (`src/app/page.tsx`, `size="lg"`, con tagline, agregado arriba del "Welcome...").
+
+**Tipografía:** `Inter` sumada en `src/app/layout.tsx` vía `next/font/google` (`variable: '--font-inter'`), agregada al `className` del `<body>` junto a las fuentes existentes — aplicada únicamente al wordmark (`font-[family-name:var(--font-inter)]`, mismo patrón ya usado en el proyecto para IBM Plex Sans). El resto de la app no cambió de fuente.
+
+**Textos "AISync"→"Hitr":** los 15 sitios user-facing del inventario, reemplazo directo (todos son prosa, ninguno es link/dominio, así que no aplicó el caso "Hitr.io" — ver `TeamsClient.tsx`, `HowConnectedTeamsModal.tsx`, `WorkspaceClient.tsx`, `AuditClient.tsx`, `ConnectTeamModal.tsx`, `SetupGuide.tsx`, `ApiKeyRequiredModal.tsx`, `ContextPageClient.tsx`, `ContextFilePanel.tsx`, `ChatFirstClient.tsx`, `connections/route.ts`). `title` de `layout.tsx` → `'Hitr.io'`. Grep exhaustivo post-cambio confirmó cero ocurrencias user-facing restantes — solo quedan las internas ya clasificadas.
+
+### Login — 4 rondas de iteración visual con Agus
+
+El layout de `/login` pasó por 4 ajustes sucesivos, cada uno con lint/build antes de pedir el siguiente screenshot:
+
+1. **Centrado en mitad superior:** el bloque de marca completo pasó de centrarse en el 100% del viewport a centrarse solo en el `h-[50vh]` superior — la card de login + términos se centran en el `flex-1` restante (mitad inferior), balance visual entre ambos bloques.
+2. **Tamaño del bloque de marca:** variante `size="xl"` agregada a `HitrLogo` (ícono 80px, wordmark `text-5xl`/48px, tagline `text-xl`/20px) — solo para Login, Dashboard se quedó en `size="lg"` sin tocar.
+3. **Reestructuración en 3 renglones** (con foto anotada a mano de Agus como referencia): (a) logo (ícono+wordmark) en su propio renglón, (b) "Human in the Root" en su propio renglón debajo con más aire (`mt-6`), (c) "Tu workspace de agentes de IA" **movido** de debajo de la tagline a la mitad inferior, pegado como subtítulo introductorio arriba de la card de login (`space-y-3`, mismo contenedor `max-w-sm` que la card).
+4. **Centrado del logo:** al implementar el punto 3 usando el SVG lockup plano (`hitr-logo.svg`, `w-full`) estirado a un contenedor `max-w-sm`, el logo se veía corrido a la izquierda — causa: el canvas del SVG es 2400×720 pero el ícono+wordmark real solo ocupa la mitad izquierda, dejando espacio transparente a la derecha que se estiraba junto con el resto. Fix: se abandonó el SVG plano para el renglón del logo y se volvió a una composición `flex justify-center` de `hitr-icon.svg` + wordmark HTML, con la misma proporción ícono:gap:fuente del asset original (420:150:270 escalado a 80px:28px:48px) — centra el contenido visual real, no una caja con relleno invisible.
+
+En un paso intermedio (ronda 3→4) Agus reportó que un ajuste previo había "achicado" el bloque de marca — se verificó con `git diff` completo contra el original que ningún tamaño se había reducido en ningún momento (el `size="xl"` se mantuvo igual desde que se creó); se reportó la evidencia y se pidió hard refresh en vez de aplicar un cambio a ciegas sin problema real confirmado.
+
+### Verificación
+
+lint ✅ (mismos 3 warnings preexistentes de `CanvasViewport.tsx` ×3 archivos + 1 warning nuevo de `<img>` en la primera versión de `HitrLogo.tsx`, corregido migrando a `next/image`), build ✅ en cada ronda. **Confirmación visual positiva de Agus** en las 4 verificaciones originales (Login, Dashboard, ribbon superior en `/teams`/`/documentation`/`/context`, guía "How to use" en Audit Log) y en la ronda final de Login tras las 4 iteraciones de ajuste.
+
+### Alternativas descartadas
+
+- **Usar el SVG lockup plano (`hitr-logo.svg`) para el renglón del logo en Login** — descartado en la ronda 4 por el problema de centrado real explicado arriba; se prefirió la composición `flex` por ícono+texto, más robusta ante cualquier ancho de contenedor.
+- **Revertir el UPDATE de `system_prompts` a "AISync"** — descartado, decisión final de Agus fue dejarlo en "Hitr" (ya aplicado), pese al vaivén de instrucciones sobre este punto.
+- **Cambiar también el fallback hardcoded de `sm-doc-chat/route.ts`** — descartado, sin efecto real mientras la fila de DB esté activa, decisión explícita de Agus de no generar una inconsistencia código/DB sin motivo funcional.
+
+### Riesgos conocidos / deuda técnica
+
+- **Inconsistencia cosmética entre el fallback de código y la DB real:** `sm-doc-chat/route.ts:24` sigue diciendo "AISync" mientras la fila real de `system_prompts` para `sm_documentation` dice "Hitr" — sin efecto funcional (el fallback nunca se ejecuta mientras la fila de DB esté activa), pero si algún día esa fila se desactiva o se borra, el fallback resucitaría con la marca vieja. Decisión explícita de Agus de dejarlo así.
+- **`hitr-logo.svg` (lockup plano) quedó copiado en `public/logo/` sin ningún consumidor en código** — se probó y se descartó en la ronda 4 de Login por el problema de centrado; no se borró por si sirve de referencia a futuro, pero es un asset sin uso real hoy.
+- **`design-refs/logo/` queda sin commitear** (mismo criterio que el resto de `design-refs/` — carpeta de referencia visual, no servida en producción).
+
+**Archivos modificados/nuevos:** `src/app/layout.tsx`, `src/app/login/page.tsx`, `src/app/page.tsx`, `src/components/layout/TopRibbon.tsx`, `src/components/branding/HitrLogo.tsx` (nuevo), `public/logo/hitr-icon.svg` (nuevo), `public/logo/hitr-logo.svg` (nuevo), `src/components/settings/SetupGuide.tsx`, `src/app/context/ContextPageClient.tsx`, `src/components/workspace/ContextFilePanel.tsx`, `src/components/onboarding/ChatFirstClient.tsx`, `src/components/onboarding/ApiKeyRequiredModal.tsx`, `src/components/teams/TeamsClient.tsx`, `src/components/teams/HowConnectedTeamsModal.tsx`, `src/components/audit/AuditClient.tsx`, `src/components/teams/ConnectTeamModal.tsx`, `src/app/api/connections/route.ts`, `src/components/workspace/WorkspaceClient.tsx`, `PRODUCT_STATUS.md`. Más el UPDATE directo en producción de `system_prompts` (roles `sm_documentation`, `sm_audit`) — no es un archivo de código, documentado acá por ser cambio de contenido productivo.
+
+---

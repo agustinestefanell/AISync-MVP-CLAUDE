@@ -224,7 +224,7 @@ export default function ConnectTeamModal({ teams, projectId, onClose, onConnecte
         <div className="px-6 py-4 border-b border-[var(--color-border-default)] flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Connect Team</h3>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Connect with a team from another AISync account</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Connect with a team from another Hitr account</p>
           </div>
           <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm px-2">✕</button>
         </div>

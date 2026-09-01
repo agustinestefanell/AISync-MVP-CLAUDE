@@ -261,7 +261,7 @@ export default function ContextPageClient({ pageName, userId, userName }: Props)
             </div>
             <div className="px-6 py-5">
               <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                Warning: The original file will be deleted from storage and cannot be recovered. AISync will keep only metadata and traceability records. This file will no longer be available as AI context. This action cannot be undone.
+                Warning: The original file will be deleted from storage and cannot be recovered. Hitr will keep only metadata and traceability records. This file will no longer be available as AI context. This action cannot be undone.
               </p>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-border-default)]">

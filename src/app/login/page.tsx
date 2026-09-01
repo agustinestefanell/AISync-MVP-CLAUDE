@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import Image from 'next/image'
 
 function LoginForm() {
   const searchParams = useSearchParams()
@@ -28,48 +29,76 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-8">
-        {/* Logo / nombre */}
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-white tracking-tight">AISync</h1>
-          <p className="mt-2 text-sm text-gray-400">
-            Tu workspace de agentes de IA
+    <div className="min-h-screen bg-gray-950 flex flex-col">
+      {/* Mitad superior — bloque de marca */}
+      <div className="h-[50vh] flex flex-col items-center justify-center px-4">
+        <div className="w-full max-w-sm flex flex-col items-center text-center">
+          {/* Renglón 1 — logo (H + Hitr.io), centrado; proporción ícono/gap/wordmark fiel al asset de marca (420:150:270 → 80px:28px:48px) */}
+          <div className="flex items-center justify-center gap-7">
+            <Image
+              src="/logo/hitr-icon.svg"
+              alt=""
+              aria-hidden="true"
+              width={80}
+              height={80}
+              className="w-20 h-20 shrink-0"
+              priority
+            />
+            <span className="text-5xl font-[family-name:var(--font-inter)] tracking-tight" style={{ color: '#F4F7FB' }}>
+              <span className="font-bold">Hitr.</span>
+              <span className="font-normal">io</span>
+            </span>
+          </div>
+          {/* Renglón 2 — tagline, en su propio renglón con aire respecto al logo */}
+          <p className="mt-6 text-xl font-[family-name:var(--font-inter)] tracking-tight" style={{ color: 'rgba(244,247,251,0.68)' }}>
+            Human in the Root
           </p>
         </div>
+      </div>
 
-        {/* Tarjeta de login */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 space-y-4">
-          <h2 className="text-lg font-semibold text-white text-center">
-            Inicia sesión
-          </h2>
+      {/* Mitad inferior — login */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
+        <div className="w-full max-w-sm space-y-6">
+          <div className="space-y-3">
+            {/* Subtítulo introductorio de la card, pegado a su borde superior */}
+            <p className="text-center text-sm text-gray-400">
+              Tu workspace de agentes de IA
+            </p>
 
-          {error && (
-            <div className="bg-red-950 border border-red-800 text-red-300 text-sm rounded-lg px-4 py-3">
-              Algo salió mal. Intenta de nuevo.
+            {/* Tarjeta de login */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 space-y-4">
+              <h2 className="text-lg font-semibold text-white text-center">
+                Inicia sesión
+              </h2>
+
+              {error && (
+                <div className="bg-red-950 border border-red-800 text-red-300 text-sm rounded-lg px-4 py-3">
+                  Algo salió mal. Intenta de nuevo.
+                </div>
+              )}
+
+              <button
+                onClick={signInWithGoogle}
+                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-900 font-medium rounded-xl px-4 py-3 transition-colors"
+              >
+                <GoogleIcon />
+                Continuar con Google
+              </button>
+
+              <button
+                onClick={signInWithGitHub}
+                className="w-full flex items-center justify-center gap-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl px-4 py-3 transition-colors border border-gray-700"
+              >
+                <GitHubIcon />
+                Continuar con GitHub
+              </button>
             </div>
-          )}
+          </div>
 
-          <button
-            onClick={signInWithGoogle}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-900 font-medium rounded-xl px-4 py-3 transition-colors"
-          >
-            <GoogleIcon />
-            Continuar con Google
-          </button>
-
-          <button
-            onClick={signInWithGitHub}
-            className="w-full flex items-center justify-center gap-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl px-4 py-3 transition-colors border border-gray-700"
-          >
-            <GitHubIcon />
-            Continuar con GitHub
-          </button>
+          <p className="text-center text-xs text-gray-600">
+            Al ingresar aceptas los términos de uso del servicio.
+          </p>
         </div>
-
-        <p className="text-center text-xs text-gray-600">
-          Al ingresar aceptas los términos de uso del servicio.
-        </p>
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { IBM_Plex_Sans, JetBrains_Mono } from 'next/font/google'
+import { IBM_Plex_Sans, JetBrains_Mono, Inter } from 'next/font/google'
 import './globals.css'
 import ClientLayout from '@/components/layout/ClientLayout'
 
@@ -17,8 +17,15 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
-  title: 'AISync',
+  title: 'Hitr.io',
   description: 'AI-assisted work control layer',
 }
 
@@ -29,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${ibmPlexSans.variable} ${jetbrainsMono.variable}`}>
+      <body className={`${ibmPlexSans.variable} ${jetbrainsMono.variable} ${inter.variable}`}>
         <ClientLayout>
           {children}
         </ClientLayout>

@@ -27,7 +27,7 @@ const AUDIT_GUIDE = `Imagine you are working on something today and suddenly rem
 Use Audit Log when you want to recover work that was already saved, check the sequence of events, or understand how the work evolved over time. It is especially useful when your question is not What am I doing now? but rather:
 What happened before, and where can I continue from?
 
-The main logic is simple. When you use Save Version in the Workspace, AISync creates a checkpoint. That checkpoint later appears in Audit Log. From there, you can open the saved detail, review the history around it, and continue working from that point. Audit Log is therefore the operational bridge between past work and resumed work.
+The main logic is simple. When you use Save Version in the Workspace, Hitr creates a checkpoint. That checkpoint later appears in Audit Log. From there, you can open the saved detail, review the history around it, and continue working from that point. Audit Log is therefore the operational bridge between past work and resumed work.
 
 The filters help you narrow down the visible history when the log grows larger. Use them when you know part of the context, but not the exact item. For example, they are useful when you want to find activity from a specific day, locate a checkpoint around a known moment, reduce the visible history to the most relevant items, or understand what happened during a particular time range.
 

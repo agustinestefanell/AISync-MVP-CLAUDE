@@ -20,14 +20,14 @@ const TEAMS_GUIDE = `Imagine you have been working for a while and now the struc
 
 Teams Map is the page that helps you understand the internal structure of the system. It shows how the General Manager, the Workers, and additional teams are organized. You do not always need this page as the very first step, but it becomes useful when you want to understand the structure more clearly and work with it more deliberately.
 
-AISync includes two ways to read the same team structure:
+Hitr includes two ways to read the same team structure:
 
 → Tree is the simplified structural view. It helps you locate and read the structure faster, with less visual weight.
 → Map is the richer structural view. It helps you inspect the same structure in a more detailed and visual way.
 
 Use this page when you want to understand how the system is organized, check how teams relate to each other, review the relation between managers and workers, or create and edit teams more consciously.
 
-In practical terms, Teams Map makes the structure of AISync visible. It reminds you that AISync is not only a chat interface. It is a structured work system.`
+In practical terms, Teams Map makes the structure of Hitr visible. It reminds you that Hitr is not only a chat interface. It is a structured work system.`
 
 const MapView = dynamic(() => import('./MapView'), { ssr: false })
 
@@ -40,7 +40,7 @@ export interface ExternalConnection {
 }
 
 const SAT_MAT_GUIDE = `How Single Agent Team (SAT) works
-Imagine you ask the Manager for an executive outline of how to build something. Once the structure is clear, you do not want to explain the whole context again to every Worker. You just want to say take point 1 or take point 2 and let them continue from there. You can only work that way with SAT. In SAT, all panels in the team use the same AI provider, and AISync allows the agents to receive a snapshot summary of the other panels in that same team. That gives the team more internal continuity and reduces repetition. SAT is the better choice when the work is linear, compact, and needs fast execution with shared continuity between panels.
+Imagine you ask the Manager for an executive outline of how to build something. Once the structure is clear, you do not want to explain the whole context again to every Worker. You just want to say take point 1 or take point 2 and let them continue from there. You can only work that way with SAT. In SAT, all panels in the team use the same AI provider, and Hitr allows the agents to receive a snapshot summary of the other panels in that same team. That gives the team more internal continuity and reduces repetition. SAT is the better choice when the work is linear, compact, and needs fast execution with shared continuity between panels.
 
 How Multiple Agent Team (MAT) works
 Now imagine the work benefits from different model styles. You may want one provider to explore options, another one to execute a defined path more strictly, and another one to work with larger or more multimodal context. In that case, MAT becomes more useful. In MAT, the team mixes different AI providers across its panels, and that snapshot is not injected in the same way. The work becomes more compartmentalized. In practice, this means you should ask the origin agent to prepare a clearer instruction, and then use Review & Forward to send that work to the panel that should continue. The receiving panel will get the message and respond based on its own context, without the shared snapshot that SAT provides. This gives you stronger compartmentalization and clearer contrast between provider behaviors.
@@ -73,7 +73,7 @@ Enter the new team name
 Choose the agents and providers
 In "Sub-team of (optional)" → where says "—None (root)—" select the existing Manager that should be the parent of this new team
 Confirm
-If you do this correctly, the new team will appear under that Manager in both Tree and Map. If you do not connect it to the right Manager, AISync will place it as a separate branch instead of growing the existing one.
+If you do this correctly, the new team will appear under that Manager in both Tree and Map. If you do not connect it to the right Manager, Hitr will place it as a separate branch instead of growing the existing one.
 
 How to add more Workers inside an existing team
 Use this when you do not need a new team, but simply more execution capacity inside the current one.
@@ -91,7 +91,7 @@ Use a new team under an existing Manager when the work is a new branch of the sa
 A practical note
 Keep each team focused on one subject or area. If the work grows, it is usually better to grow the structure by creating new branches in the right place than to overload one team with too many unrelated tasks.`
 
-const CONNECT_GUIDE = `Imagine you need to work with someone outside your own AISync account, but you do not want to merge structures, mix all repositories, or open a loose cross-account channel. You want one clear, governed connection between one local team and one external team. In that case, you use Connect Team.
+const CONNECT_GUIDE = `Imagine you need to work with someone outside your own Hitr account, but you do not want to merge structures, mix all repositories, or open a loose cross-account channel. You want one clear, governed connection between one local team and one external team. In that case, you use Connect Team.
 
 Connect Team is the place where you create a simple and credible link between a local host team and an external team. It is not meant to simulate a full integration between accounts. It is meant to define one controlled relationship clearly: who the external account is, what type of connection you want, what scope is shared, and which objects from the selected local team are allowed to cross that link.
 
@@ -134,7 +134,7 @@ What to expect in Teams Map
 
 The external team will appear in Teams Map. The view of external teams is intentionally simplified at this stage.
 
-In practical terms, Connect Team is how you create a governed link between one of your teams and an external team, without turning AISync into a fully shared multi-account workspace.`
+In practical terms, Connect Team is how you create a governed link between one of your teams and an external team, without turning Hitr into a fully shared multi-account workspace.`
 
 interface TeamsClientProps {
   pageName:     string

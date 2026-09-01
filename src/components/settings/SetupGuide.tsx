@@ -102,7 +102,7 @@ export default function SetupGuide() {
         <div className="border-t border-gray-800 px-5 py-5 space-y-6 bg-white/40">
           {/* Intro */}
           <p className="text-xs text-gray-400 leading-relaxed max-w-xl">
-            AISync lets you work with the AI models you choose.
+            Hitr lets you work with the AI models you choose.
             The platform organizes and governs the work — the API keys and usage costs are yours.
           </p>
 
@@ -199,7 +199,7 @@ export default function SetupGuide() {
 
           {/* Footer note */}
           <p className="text-xs text-gray-600 border-t border-gray-800 pt-4 leading-relaxed">
-            <span className="text-gray-500 font-medium">Note:</span> AISync never stores your
+            <span className="text-gray-500 font-medium">Note:</span> Hitr never stores your
             keys in plain text. Your data, your cost, your control.
           </p>
         </div>

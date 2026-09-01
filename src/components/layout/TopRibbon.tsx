@@ -1,4 +1,5 @@
 import React from 'react'
+import HitrLogo from '@/components/branding/HitrLogo'
 
 interface BreadcrumbItem {
   label:            string
@@ -54,11 +55,8 @@ export default function TopRibbon({
     >
 
       {/* LEFT — logo + wordmark (clickeable → Teams Map) */}
-      <a href="/teams" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-        <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center shrink-0">
-          <span className="text-white text-xs font-bold leading-none">AI</span>
-        </div>
-        <span className="text-sm font-semibold tracking-tight" style={{ color: textPrimary }}>AISync</span>
+      <a href="/teams" className="hover:opacity-80 transition-opacity">
+        <HitrLogo size="sm" theme="dark" />
       </a>
 
       {/* CENTER — page name + subtitle */}

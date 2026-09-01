@@ -9,7 +9,7 @@ import TokenUsageBadge from './TokenUsageBadge'
 import WelcomeScreen from './WelcomeScreen'
 import type { WorkspaceWithAgents, Message, HumanMessage } from '@/lib/db/types'
 
-const WORKSPACE_GUIDE = `First of all, Workspace is where you chat with AI. It is one of the two core sides of AISync: operational work. This is the place where you talk to an AI the way you normally do, but inside a more organized system.
+const WORKSPACE_GUIDE = `First of all, Workspace is where you chat with AI. It is one of the two core sides of Hitr: operational work. This is the place where you talk to an AI the way you normally do, but inside a more organized system.
 
 We recommend this basic setup: use one Manager session to think, organize, plan, and keep the main direction clear. Use the other sessions as Workers and give them concrete or parallel tasks. Use one team per specific topic. If the work or investigation grows, create more teams. Keep each team focused on one subject, and use one agent per task or area whenever possible. Always keep the main checklist, base logic, and overall coherence in one main Manager. Do not distract that Manager with execution tasks.
 

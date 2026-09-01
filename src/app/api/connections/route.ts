@@ -118,7 +118,7 @@ export async function POST(req: Request) {
 
   if (!receiverAccountData.data) {
     return NextResponse.json(
-      { error: 'No AISync account found with that email.' },
+      { error: 'No Hitr account found with that email.' },
       { status: 400 }
     )
   }
@@ -234,7 +234,7 @@ export async function POST(req: Request) {
 
   if (!receiverAccount) {
     return NextResponse.json(
-      { error: 'No AISync account found with that email.' },
+      { error: 'No Hitr account found with that email.' },
       { status: 400 }
     )
   }
