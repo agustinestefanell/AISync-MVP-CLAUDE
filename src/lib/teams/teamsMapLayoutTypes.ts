@@ -73,6 +73,10 @@ export const MAP_ROOT_HEIGHT = 260  // Increased from 212 to prevent Executive T
 export const MAP_NODE_WIDTH = 356
 export const MAP_WORKER_WIDTH = 316
 export const MAP_SUB_MANAGER_HEIGHT = 364
+// Extra height added to Shared Team cards so the "SHARED TEAM" ribbon doesn't
+// push Open/Edit buttons past the card's bottom edge — measured from the
+// rendered ribbon (py-2.5 + text-[11px] leading-tight, up to 2 lines wrap).
+export const MAP_SHARED_TEAM_RIBBON_HEIGHT = 48
 export const MAP_WORKER_HEIGHT = 312
 export const MAP_LEVEL_GAP = 140
 export const MAP_SIBLING_GAP = 92

@@ -103,8 +103,14 @@ function buildGraphNodesForProject(
     // Add subteams recursively
     addSubteamsRecursive(team.id, teams, nodes, teamCodes, connectionMetadata, connectionStatus)
 
-    // Add workers for this team (MAX 2)
-    const workers = team.workspaces?.[0]?.agent_sessions?.filter(s => s.agent_role !== 'manager') ?? []
+    // Add workers for this team (MAX 2) — isolated/Shared teams never have
+    // real workers (agent_sessions worker1/worker2 there are DB scaffolding
+    // created on connection accept, not user-added agents; EditTeamModal
+    // doesn't even expose them for editing) — skip so an empty Shared Team
+    // shows only its Manager box.
+    const workers = isConnected
+      ? []
+      : team.workspaces?.[0]?.agent_sessions?.filter(s => s.agent_role !== 'manager') ?? []
     workers.slice(0, 2).forEach(worker => {
       const workerNode: TeamsGraphNode = {
         id: `${worker.id}_worker`,
@@ -158,8 +164,11 @@ function addSubteamsRecursive(
     // Recursive subteams
     addSubteamsRecursive(subteam.id, allTeams, nodes, teamCodes, connectionMetadata, connectionStatus)
 
-    // Workers for subteam (MAX 2)
-    const workers = subteam.workspaces?.[0]?.agent_sessions?.filter(s => s.agent_role !== 'manager') ?? []
+    // Workers for subteam (MAX 2) — same reasoning as root teams above:
+    // isolated/Shared subteams never have real workers.
+    const workers = isConnected
+      ? []
+      : subteam.workspaces?.[0]?.agent_sessions?.filter(s => s.agent_role !== 'manager') ?? []
     workers.slice(0, 2).forEach(worker => {
       const workerNode: TeamsGraphNode = {
         id: `${worker.id}_worker`,
@@ -482,7 +491,7 @@ export default function MapView({
                     paddingX={MAP_CANVAS_PADDING_X}
                     paddingY={MAP_CANVAS_PADDING_Y}
                     connectorColor="rgba(100, 116, 139, 0.52)"
-                    connectorStrokeWidth={2}
+                    connectorStrokeWidth={3}
                   >
                     {(placement: TreeLayoutPlacement) => {
                       const node = placement.node

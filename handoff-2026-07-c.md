@@ -788,3 +788,96 @@ lint ✅ (mismos 3 warnings preexistentes de `CanvasViewport.tsx` ×3 archivos +
 **Archivos modificados/nuevos:** `src/app/layout.tsx`, `src/app/login/page.tsx`, `src/app/page.tsx`, `src/components/layout/TopRibbon.tsx`, `src/components/branding/HitrLogo.tsx` (nuevo), `public/logo/hitr-icon.svg` (nuevo), `public/logo/hitr-logo.svg` (nuevo), `src/components/settings/SetupGuide.tsx`, `src/app/context/ContextPageClient.tsx`, `src/components/workspace/ContextFilePanel.tsx`, `src/components/onboarding/ChatFirstClient.tsx`, `src/components/onboarding/ApiKeyRequiredModal.tsx`, `src/components/teams/TeamsClient.tsx`, `src/components/teams/HowConnectedTeamsModal.tsx`, `src/components/audit/AuditClient.tsx`, `src/components/teams/ConnectTeamModal.tsx`, `src/app/api/connections/route.ts`, `src/components/workspace/WorkspaceClient.tsx`, `PRODUCT_STATUS.md`. Más el UPDATE directo en producción de `system_prompts` (roles `sm_documentation`, `sm_audit`) — no es un archivo de código, documentado acá por ser cambio de contenido productivo.
 
 ---
+
+## OE 2026-09-01 — Teams Map: altura de card Shared Team + ocultar Workers fantasma
+
+**Fecha:** 2026-09-01
+**Estado:** Closed — **confirmación visual positiva de Agus** en los 2 casos pedidos (botones Open/Edit ya no cortados en Shared Team, Shared Team vacío mostrando solo la caja del Manager). lint ✅, build ✅. Commit + push ejecutados en este cierre (junto con la OE de separación de niveles, mismo commit).
+
+**Contexto:** 2 bugs visuales puntuales en Teams Map, reportados juntos por Agus.
+
+### 1. Altura de card Shared Team
+
+**Causa:** la altura de las cards de Teams Map es un valor fijo en píxeles (`MAP_SUB_MANAGER_HEIGHT`, calculado por `buildTreeLayout.ts` y aplicado como `height` explícito del contenedor en `TreeLayoutCanvas.tsx`) — no crece con el contenido. El ribbon negro "SHARED TEAM — Host/Invitee connection with..." (`TreeWorkspaceCard.tsx`) se agrega arriba de la card SIN que ese alto se sume al total, empujando el resto del contenido (botones Open/Edit) hacia abajo y cortándolo contra el borde inferior fijo de la card.
+
+**Fix:** nueva constante `MAP_SHARED_TEAM_RIBBON_HEIGHT = 48` (`teamsMapLayoutTypes.ts`) — estimado a partir del ribbon real (`py-2.5` = 20px de padding vertical + texto `text-[11px] leading-tight`, con margen para que quepan hasta 2 líneas si el email/org del partner es largo). `buildTreeLayout.ts` → `getNodeLayoutSize()` la suma a `MAP_SUB_MANAGER_HEIGHT` únicamente cuando `node.isConnected` es `true` (Shared Team) — el resto de las cards no cambia.
+
+### 2. Ocultar Workers fantasma en Shared Team vacío
+
+**Causa:** al aceptar una conexión, `POST /api/connections/[id]` (acción accept) crea automáticamente 3 `agent_sessions` por lado (manager + worker1 + worker2) para el isolated team nuevo — sin excepción, aunque el producto ya establece (`EditTeamModal.tsx`, confirmado sin cambios desde 2026-06-22, ver DECISIONS.md de esa fecha) que un isolated/Shared Team **nunca tiene Workers reales editables** — solo Manager. `MapView.tsx` armaba los nodos de Worker del Teams Map leyendo esos `agent_sessions` sin filtrar por tipo de team, así que esas 2 filas de scaffolding vacías (sin descripción, sin uso posible) se dibujaban igual como 2 cajas de Worker vacías.
+
+**Fix:** en `buildGraphNodesForProject()` y `addSubteamsRecursive()` (`MapView.tsx`), cuando `isConnected` (`team.type === 'isolated'`) es `true`, `workers = []` directamente — no se arma ningún nodo de Worker para ese team, independientemente de lo que haya en `agent_sessions`. Un Shared Team con contenido real solo muestra su card de Manager.
+
+### Verificación
+
+lint ✅, build ✅ (mismos 3 warnings preexistentes de `CanvasViewport.tsx`, no tocados). **Confirmado visualmente por Agus (2026-09-01):** Shared Team con botones Open/Edit completamente visibles, Shared Team vacío mostrando solo la caja del Manager.
+
+### Alternativas descartadas
+
+- **Medir el ribbon en tiempo real con `ResizeObserver`** en vez de una constante fija — descartado por complejidad no justificada para este alcance; el layout entero de Teams Map ya usa constantes en píxeles ajustadas a mano (mismo patrón que `MAP_ROOT_HEIGHT`, ya bumped antes por el mismo tipo de problema de corte de texto).
+- **Ocultar Workers fantasma solo cuando `agent_sessions` está vacío de contenido** (en vez de por `team.type === 'isolated'`) — descartado: bajo las reglas actuales del producto, un isolated team JAMÁS tiene Workers reales (`EditTeamModal` no permite editarlos), así que condicionar por tipo de team es más simple y correcto que inspeccionar contenido caso por caso.
+
+### Riesgos conocidos / deuda técnica
+
+- **`MAP_SHARED_TEAM_RIBBON_HEIGHT = 48` es una estimación, no una medición real del DOM** — si en el futuro el texto del ribbon crece mucho (partner email + org muy largos, más de 2 líneas), podría volver a cortarse. Si eso pasa, es la primera constante a ajustar.
+- **Si el producto alguna vez permite Workers reales en isolated teams** (cambio de decisión ya señalado como posible en DECISIONS.md 2026-06-22), el `workers = []` condicional en `MapView.tsx` debe removerse junto con esa decisión.
+
+**Archivos modificados:** `src/lib/teams/teamsMapLayoutTypes.ts`, `src/lib/teams/buildTreeLayout.ts`, `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---
+
+## OE 2026-09-01 — Teams Map: separar niveles de Workers propios y Sub-Managers
+
+**Fecha:** 2026-09-01
+**Estado:** Closed — **confirmación visual positiva de Agus** en los 4 casos pedidos (Workers/Sub-Managers en filas separadas, hueco razonable sin Workers propios, caso simple sin regresión, conectores más gruesos). lint ✅, build ✅. Commit + push ejecutados en este cierre (junto con la OE de Shared Team, mismo commit).
+
+**Contexto:** diagnóstico previo (mismo día, sin implementar) confirmó que Teams Map usa un algoritmo de layout propio (`buildTreeLayout.ts`, sin librería externa) que ya calculaba una "profundidad" (`depth`) por nodo, pero trataba a los Workers propios de un Manager y a sus Sub-Teams como hermanos del mismo nivel (mismo `parentId`, sin distinguir tipo) — por eso se dibujaban en la misma fila. Agus aprobó el criterio propuesto en el diagnóstico antes de tocar código.
+
+### Criterio aprobado e implementado
+
+Para cualquier Manager (Team o Sub-Team) en profundidad `d`: sus Workers propios van a `d+1`, sus Sub-Teams van a `d+2` **siempre** (aunque ese Manager puntual tenga 0 Workers propios — se acepta el hueco visual para mantener alineación global entre ramas, no se colapsa la fila). Recursivo: cada Sub-Team aplica la misma regla desde su propia profundidad. Excepción: el nodo raíz sintético "Executive Team" nunca reserva fila de Workers — sus hijos van directo a `d+1`.
+
+**Alcance confirmado explícitamente FUERA de esta OE** (a pedido de Agus): sin wrap a múltiples filas para muchos Sub-Teams (el zoom/pan existente de `CanvasViewport.tsx` ya alcanza); sin marcos de fondo grises agrupando niveles; conectores con el mismo color de siempre, solo más gruesos (parejo para todo el canvas, no diferenciado por tipo).
+
+### Implementación — `src/lib/teams/buildTreeLayout.ts`
+
+- **`assignDepths()`:** ahora distingue `node.type`. Nodo `worker` es hoja (sin recursión). Nodo `general_manager` (raíz): sus hijos van a `depth+1` sin reserva de fila. Nodo `senior_manager`: sus hijos `worker` van a `depth+1`, sus hijos `senior_manager` (Sub-Teams) van a `depth+2` — la reserva de la fila "vacía" es automática (si ningún nodo real ocupa `depth+1` en esa rama, simplemente no hay nada ahí, pero `depth+2` se usa igual).
+- **`measureSubtree()`:** el ancho de la rama pasa a ser el máximo entre "ancho de la fila de Workers" y "ancho de la fila de Sub-Teams" (antes era la suma de todos los hijos juntos en una sola fila).
+- **`placeSubtree()`:** Workers y Sub-Teams se colocan ahora como 2 filas independientes (`placeRow()`), cada una centrada por separado en el `centerX` del Manager — antes iban en una sola fila combinada con un cursor compartido.
+- **`MapView.tsx`:** `connectorStrokeWidth` de `2` a `3`, mismo `connectorColor`, sin cambios de lógica.
+
+### Bug real encontrado y corregido durante la verificación (no estaba en el pedido original)
+
+Al reservar siempre la fila `depth+1` de Workers aunque quede vacía, si NINGÚN nodo del árbol completo llega a ocupar esa profundidad (ej. un Manager con Sub-Teams pero 0 Workers propios, sin ningún otro Manager en el mismo Project que sí tenga Workers a esa profundidad), `levelHeights[depth+1]` quedaba como un **hueco** en el array (índice nunca asignado). El cálculo de `depthOffsets` usaba `levelHeights.reduce(...)` — y en JavaScript, los métodos de iteración de arrays (`.reduce()`, `.forEach()`, etc.) **saltean los huecos de un array sparse en vez de tratarlos como `undefined`/0**. Eso dejaba `depthOffsets[depth+1]` sin asignar, y el offset del Sub-Team en `depth+2` se calculaba como `undefined + undefined + gap` → `NaN`, rompiendo la posición Y de todo lo que estuviera debajo en esa rama.
+
+**Encontrado con evidencia, no supuesto:** se compiló `buildTreeLayout.ts` real (no una reimplementación) a JS con `tsc` y se corrieron 5 simulaciones numéricas (las 3 pedidas por Agus más 2 extra — anidamiento recursivo y 2 ramas en paralelo para confirmar alineación global) — el escenario "Manager sin Workers propios + 1 Sub-Team" dio `NaN` en la primera corrida, confirmando el bug antes de tocar nada más.
+
+**Fix:** `depthOffsets` reemplazó el `.reduce()` sobre el array sparse por un loop `for` indexado explícito (`for (let index = 0; index < levelHeights.length; index += 1)`), que sí recorre todos los índices sin saltear huecos, tratando cada hueco como altura 0 (`levelHeights[index - 1] ?? 0`).
+
+### Verificación con evidencia
+
+5 escenarios simulados (script temporal en scratchpad, no versionado) contra el `buildTreeLayout.ts` real compilado:
+1. **Manager + 2 Workers + 3 Sub-Teams** (ejemplo de Agus): Workers en fila propia centrada, 3 Sub-Teams en fila propia debajo, ambas centradas en el mismo eje del Manager. ✅
+2. **Manager + 0 Workers + 1 Sub-Team:** ya no da `NaN` — el Sub-Team queda con un hueco vertical de ~280px (el doble del gap normal, tal como se anticipó en el diagnóstico) en vez de pegado al Manager. ✅
+3. **Manager simple, solo Workers, sin Sub-Teams:** idéntico al comportamiento previo, sin regresión. ✅
+4. **Sub-Team con su propio Sub-Team anidado:** la recursividad funciona sin caso especial, cada nivel adicional agrega su gap correctamente (profundidad 5 sin romperse). ✅
+5. **2 Managers en paralelo, uno con Workers propios y otro sin:** confirmado que sus Sub-Teams quedan exactamente a la misma altura (Y) — la alineación global entre ramas se mantiene aunque una rama no tenga fila de Workers. ✅
+
+lint ✅, build ✅ (mismos 3 warnings preexistentes de `CanvasViewport.tsx`, no tocados). **Confirmado visualmente por Agus (2026-09-01)** en los 4 casos pedidos con datos reales en `/teams`.
+
+### Alternativas descartadas
+
+- **Colapsar la fila de Workers vacía** (Sub-Team sube a `depth+1` cuando el Manager no tiene Workers propios) — descartado explícitamente por Agus en el diagnóstico previo: rompe la alineación horizontal global de la fila de Sub-Managers entre ramas distintas del mismo Project.
+- **Wrap a múltiples filas para Managers con muchos Sub-Teams** — descartado explícitamente por Agus: el zoom/pan ya existente de `CanvasViewport.tsx` alcanza sin necesidad de un mecanismo nuevo.
+- **Marcos de fondo grises agrupando cada nivel** — descartado para esta OE, queda exactamente como está hoy (sin marcos).
+- **Conector con color/grosor distinto para Manager→Sub-Managers vs. Manager→Workers** — descartado, Agus pidió un ensanchado parejo para todo el canvas en vez de diferenciación por tipo.
+
+### Riesgos conocidos / deuda técnica
+
+- **`MAP_FAMILY_BREAK_GAP` (176px) queda como código muerto** — antes se usaba cuando 2 hermanos de tipo distinto (Worker y Sub-Manager) compartían fila; con la separación en filas independientes, dentro de una misma fila los hermanos siempre son del mismo tipo, así que esa rama de `getSiblingGapBetween()` ya no se dispara nunca en la práctica. Señalado explícitamente por Agus como deuda técnica menor, NO se tocó en esta OE.
+- **El hueco vertical de ~280px cuando un Manager no tiene Workers propios es una decisión de diseño aceptada, no un bug** — documentado y confirmado visualmente por Agus, pero vale la pena recordarlo si en el futuro alguien lo reporta como "se ve raro" sin contexto de esta OE.
+- **El script de verificación con las 5 simulaciones no quedó versionado** (vivió en el scratchpad de la sesión) — si se necesita repetir esta verificación en el futuro, hay que reconstruirlo (compilar `buildTreeLayout.ts` con `tsc` a JS plano y correr nodos sintéticos con `parentId` armado a mano).
+
+**Archivos modificados:** `src/lib/teams/buildTreeLayout.ts`, `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---
