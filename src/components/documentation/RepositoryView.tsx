@@ -689,7 +689,7 @@ export default function RepositoryView({
               <option value="">All types</option>
               <option value="Checkpoint">Checkpoint</option>
               <option value="Session Backup">Session Backup</option>
-              <option value="Handoff">Handoff</option>
+              <option value="Handoff">Checkpoint (Handoff purpose)</option>
               <option value="Evidence">Evidence</option>
               <option value="Handoff Package">Handoff Package</option>
               <option value="Saved Selection">Saved Selection</option>

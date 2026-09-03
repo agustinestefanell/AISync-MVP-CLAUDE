@@ -881,3 +881,46 @@ lint ✅, build ✅ (mismos 3 warnings preexistentes de `CanvasViewport.tsx`, no
 **Archivos modificados:** `src/lib/teams/buildTreeLayout.ts`, `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## OE 2026-09-03 — Diagnóstico Documentation Mode: Handoff Package (Investigate View, cerrado), colisión de nombres en dropdown (Repository View, fix), Review & Forward ausente en Repository View (backlog)
+
+**Fecha:** 2026-09-03
+**Estado:** Closed (esta entrada) — rename del dropdown con lint ✅/build ✅, pendiente de verificación visual de Agus en producción antes de considerarse aprobado.
+
+**Contexto:** 3 hilos de diagnóstico encadenados sobre Documentation Mode, iniciados por un reporte de Agus de que Handoff Packages "no se renderizaba" en Investigate View.
+
+### 1. Investigate View — Handoff Packages: pendiente cerrado retroactivamente, sin bug real
+
+Trazado completo de código (page.tsx → DocClient.tsx → InvestigateView.tsx → `buildAnchors()` en `anchors.ts`) no encontró ningún punto donde el prop `handoffPackages` se pierda, filtre o mapee mal — la cadena es incondicional en las 5 anclas. Búsqueda en los 4 archivos de handoff (activo + 3 archivados) confirmó que no hubo ningún intento previo de "arreglar" este bug puntual: una nota de 2026-08-14 que decía "Investigate View no tiene bloque Handoff Package para filtrar" describía la arquitectura **anterior** a la reescritura de Fase A (commit `b0c2095`, 2026-08-20), que fue la que introdujo Handoff Package como una de las 5 anclas unificadas por primera vez — nunca hubo una versión rota intermedia después de esa fecha. **Agus confirmó en producción, en modo incógnito, que Investigate View funciona correctamente con Project + Type=Handoff Package combinados.** Se cierra el pendiente retroactivamente — ver nota exacta en `PRODUCT_STATUS.md`/`AISyncPlans.md`.
+
+### 2. Repository View — colisión de nombres en el dropdown de Type (bug real, fix aplicado)
+
+**Causa raíz confirmada con `git blame`:** el dropdown de Type (`RepositoryView.tsx:687-696`) tenía 2 opciones con nombres casi idénticos que filtran campos distintos — `"Handoff"` (línea 692, filtra `purpose` de Checkpoint, línea 584) y `"Handoff Package"` (línea 694, filtra el tipo de documento real, línea 564) — ambas nacidas juntas en el mismo commit (`2438de7b`, 2026-05-13), sin relación con ningún cambio reciente. Al elegir "Handoff" (la opción más corta, la que un usuario elegiría naturalmente buscando ver Handoff Packages), `filterType='Handoff'` excluye TODOS los ítems `kind==='handoff'` (línea 564: `filterType !== 'Handoff Package'`) — Results cae a 0 mientras la tarjeta "HANDOFF PKGS" (línea 668) sigue mostrando el total de cuenta sin filtrar (por diseño, ya documentado en Fase 2 de Audit View 2026-08-19: solo "Results" reacciona a filtros en Repository View).
+
+**Fix — decisión de Agus (Opción 1, confirmada):** renombrar solo el label visible, sin tocar `value` ni la lógica de `filterType`. `RepositoryView.tsx:692`: `<option value="Handoff">Handoff</option>` → `<option value="Handoff">Checkpoint (Handoff purpose)</option>`. Grep exhaustivo de `>Handoff<`/`value="Handoff"` en todo `src/` confirmó que es la única ocurrencia de esta colisión en la app.
+
+**Verificación:** lint ✅, build ✅. **Pendiente de verificación visual de Agus en producción (hitr.io)** antes de dar la instrucción por cerrada — screenshot del dropdown con ambas opciones ya distinguibles.
+
+### 3. Review & Forward — ausente en Repository View, no es un bug
+
+Grep exhaustivo de `review_forward`/`reviewForward`/`Review & Forward` en `RepositoryView.tsx`: **0 resultados**. El dropdown de Type no tiene esa opción, `ListItem` (líneas 11-14) es un union de solo 3 kinds (`checkpoint`/`handoff`/`saved_selection`), y `Props` de `RepositoryView` (líneas 491-501) ni siquiera recibe `auditEvents` — la fuente de la que sale `review_forward` en `buildAnchors()`. Confirmado por contraste: `AuditView.tsx:359` sí tiene `<option value="review_forward">Review &amp; Forward</option>` y consume `auditEvents` correctamente. Confirmado en el modelo de datos que `review_forward` nunca fue una tabla propia — vive solo como `event_type` de `audit_log`, con `message_provenance.source_object_id` apuntando a `audit_log.id` (migración 055, comentario explícito).
+
+**Conclusión:** no es un bug — Repository View nunca tuvo Review & Forward implementado, ni el filtro ni el dato. Es una decisión de producto pendiente (agregarlo como 4º tipo filtrable), anotada en `AISyncPlans.md` como backlog, a definir después de cerrar el bug real de Audit/Investigate View (punto 4 de esta OE, que sigue abierto).
+
+### 4. Review & Forward no filtra en Audit View e Investigate View — EN CURSO, no cerrado en esta entrada
+
+Reportado por Agus en producción, confirmado real: `Type = Review & Forward` da 0 resultados en ambas vistas pese a haber R&F reales existentes. Diagnóstico pedido por Agus (archivo/línea, sin asumir misma causa que Handoff ni causa compartida entre las 2 vistas) — **todavía no ejecutado al momento de cerrar esta entrada de handoff**, queda para el resto de esta sesión.
+
+### Alternativas descartadas
+
+- **Eliminar o fusionar la opción "Handoff" (purpose) del dropdown** — descartado por Agus a favor de solo renombrar (Opción 1), preservando el filtro por `purpose` de Checkpoint que sigue teniendo uso real.
+- **Asumir que el reporte de Review & Forward en Repository View era el mismo bug que Audit/Investigate** — descartado explícitamente por consigna de Agus antes de diagnosticar; el trazado confirmó que son 2 situaciones distintas (ausencia total vs. filtro roto sobre funcionalidad existente).
+
+### Riesgos conocidos / deuda técnica
+
+- **Punto 4 (Review & Forward roto en Audit/Investigate View) queda abierto** — sin diagnóstico todavía, prioridad inmediata de la sesión.
+- **Repository View sin Review & Forward** — backlog de producto, no deuda técnica; ver nota en `AISyncPlans.md`.
+
+**Archivos modificados:** `src/components/documentation/RepositoryView.tsx`, `PRODUCT_STATUS.md`, `AISyncPlans.md`, `handoff-2026-07-c.md`.
+
+---

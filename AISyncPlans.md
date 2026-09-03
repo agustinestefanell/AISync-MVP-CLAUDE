@@ -439,6 +439,8 @@ DocClient (Client)
 
 **Investigate View — reescrita Fase A (2026-08-20):** ya no agrupa checkpoints por fecha ni tiene una sección aparte de Saved Selections — reemplazada por la lista unificada de 5 anclas de `anchors.ts` (mismo patrón que Audit View). `PURPOSE_LABELS`/agrupación por fecha quedaron solo en Repository View.
 
+**Investigate View — Handoff Packages no renderizaba: resuelto por la reescritura de Fase A (commit b0c2095, 2026-08-20), nunca verificado explícitamente hasta hoy (2026-09-03). Se cierra retroactivamente. Confirmado en producción por Agus en modo incógnito.**
+
 **Fix — título de "Loaded Context" (2026-08-26).** `anchorTitle()` en `anchors.ts` para `flavor: 'chat'` mostraba el literal `"Loaded into Chat"` como título — corregido: `buildAnchors()` ahora resuelve el nombre real del objeto origen (Checkpoint/Handoff/Saved Selection) contra los arrays ya cargados (`checkpointNameById`/`handoffNameById`/`savedSelectionNameById`, sin query nueva), fallback al literal solo si el objeto origen ya no existe. El texto "Loaded into Chat"/"Loaded to Context Files" pasa a ser un badge aparte (`LOADED_CONTEXT_FLAVOR_LABEL`, exportado de `anchors.ts`), renderizado al lado del título en las listas de Audit View e Investigate View — nunca el título en sí.
 
 **3 acciones sobre el ancla seleccionada — Investigate View (2026-08-26):** `InvestigationScanPanel` gana "Open Evidence" (abre `ExpandContentModal` — nuevo componente compartido en `src/components/documentation/`, extraído del modal "Expandir" que ya vivía duplicado en `UserLibraryView.tsx`/patrón `EditTeamModal.tsx`; `UserLibraryView.tsx` migrado a consumirlo en la OE siguiente, ver fix de Markdown abajo), "Load as Context" (ver componente `LoadAsContextButton` abajo) y "Audit This" (reusa el mecanismo `selectedAuditKey`/`setTab('audit')` que ya usaba el SM lateral — callback `onAuditThis` enhebrado `DocClient → InvestigateView → InvestigationScanPanel`, sin deep-link de query params). Resolución de URL/origen centralizada en `anchors.ts`: `anchorEvidenceUrl()` (mapea cada tipo de ancla al endpoint `GET /api/documentation/{checkpoint|handoff|selection}/[id]` correspondiente — Loaded Context resuelve en cascada contra `origin_type`/`origin_id`; Review & Forward vuelve `null`, su contenido ya viaja inline) y `anchorContextOrigin()` (par `originType`/`originId` para `POST /api/context`, mismo criterio de exclusión para Review & Forward).
@@ -1212,6 +1214,14 @@ Knowledge Map es una de las 5 vistas de Documentation Mode (Repository, Structur
 - Integrar con datos reales desde `DocClient.tsx` props (checkpoints, projects, handoffPackages, savedSelections)
 
 **No tocar hasta tener spec visual aprobada.** La implementación actual es estructura placeholder — cualquier cambio debe partir de diseño completo, no iteración incremental.
+
+---
+
+### REPOSITORY VIEW — Evaluar Review & Forward como 4º tipo filtrable (pendiente de decisión, 2026-09-03)
+
+Agus quiere evaluar agregar Review & Forward como 4º tipo documental filtrable en Repository View (hoy solo lista Checkpoint/Handoff Package/Saved Selection — ver `Props`/`ListItem` de `RepositoryView.tsx`, sin `auditEvents` ni rama `review_forward`). **Es una decisión de producto, no un bug** — confirmado por diagnóstico (2026-09-03, ver handoff-2026-07-c.md OE 2026-09-03) que Repository View nunca tuvo esta funcionalidad implementada, a diferencia de Audit View/Investigate View que sí la tienen vía `buildAnchors()`.
+
+**No arrancar hasta cerrar el bug real de Review & Forward en Audit View e Investigate View** (Type=Review & Forward da 0 resultados en ambas pese a haber eventos reales — diagnóstico en curso al momento de anotar esto). Construir un 4º tipo en Repository View sobre una base que todavía no filtra bien en las otras 2 vistas sería replicar el mismo problema en un 3er lugar.
 
 ---
 

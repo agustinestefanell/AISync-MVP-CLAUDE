@@ -1880,3 +1880,17 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** cuando un bug de "esto se ve distinto acá que allá" aparece en un componente puntual, buscar el patrón de renderizado correcto/incorrecto (acá: `ReactMarkdown` presente vs. ausente) en TODO el codebase antes de dar el fix por completo — un componente compartido nuevo (`ExpandContentModal`, construido apenas la sesión anterior) hace que el mismo bug de origen se propague rápido a cada lugar nuevo que lo usa, pero el bug real puede preexistir en varios otros lugares que nunca pasaron por ese componente.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-08-26 (fix de Markdown), `src/lib/markdown/documentMarkdown.tsx`.
+
+---
+
+## 2026-09-03 — Bug: dos opciones de dropdown con nombres casi idénticos, filtrando campos distintos, desde el commit original
+
+**Síntoma:** en Repository View, filtrar por Project + Type="Handoff" daba Results=0 pese a que la tarjeta "HANDOFF PKGS" mostraba 19 objetos reales.
+
+**Causa:** el dropdown de Type tenía, desde su creación (`git blame` confirmó ambas opciones nacidas en el mismo commit, `2438de7b`, 2026-05-13), 2 opciones con nombres casi idénticos pero semántica distinta: `"Handoff"` (filtra `purpose` de Checkpoint) y `"Handoff Package"` (filtra el tipo de documento real). No era una regresión — la colisión existía desde el origen del filtro, simplemente nadie había combinado esas 2 condiciones específicas (Project + esa opción puntual) antes de que Agus lo reportara.
+
+**Cómo se confirmó sin asumir:** trazado línea por línea de `filtered` (`RepositoryView.tsx:555-588`) mostró que la rama `kind === 'handoff'` exige literalmente `filterType === 'Handoff Package'` — cualquier otro string (incluida la opción "Handoff" del mismo dropdown) la excluye. `git blame` sobre las líneas del `<select>` confirmó el origen conjunto de ambas opciones, descartando que fuera un cambio reciente que rompió algo que antes andaba.
+
+**Lección:** un dropdown con 2 opciones de nombres muy parecidos que filtran conceptos distintos (acá: "purpose de un tipo de documento" vs. "tipo de documento en sí") es un bug latente esperando que alguien las combine mal — no hace falta que cambie el código para que aparezca el síntoma, solo que un usuario elija la opción "equivocada por parecido" en vez de la exacta. Vale la pena revisar dropdowns de filtro por posibles colisiones de nombre cuando conviven valores de distinta naturaleza semántica en el mismo `<select>`.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-03, `src/components/documentation/RepositoryView.tsx:692`.
