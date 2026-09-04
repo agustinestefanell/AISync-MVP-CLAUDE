@@ -395,7 +395,7 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
   // Sin .limit() — Audit View (Fase 2, 2026-08-19) necesita el historial completo
   // para reconstruir Prior steps/Downstream uses, no solo los últimos N para mostrar.
   // Volumen real medido 2026-08-19: 586 filas totales, crecimiento ~200/mes — trivial.
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('audit_log')
     .select(`
       id, event_type, workspace_id, metadata, created_at,
@@ -403,6 +403,12 @@ export async function getDocAuditEvents(): Promise<DocAuditEvent[]> {
       accounts (name, email)
     `)
     .order('created_at', { ascending: false })
+
+  // Sin esto, un fallo de query (ej. RLS/recursión, SEC-002) se convertía en
+  // "[]" silencioso indistinguible de "no hay eventos" — ver handoff-2026-07-c.md
+  // OE 2026-09-04. Se loguea y se degrada al array vacío existente (no se
+  // cambia el contrato de la función ni el manejo en DocClient/AuditView).
+  if (error) console.error('[getDocAuditEvents] query failed:', error)
 
   const rows = (data ?? []) as unknown as Array<{
     id: string

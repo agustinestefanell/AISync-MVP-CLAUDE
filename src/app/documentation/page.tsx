@@ -16,7 +16,7 @@ export default async function DocumentationPage({ searchParams }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: account }, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, tags, { data: rawCustomProviders }] = await Promise.all([
+  const [{ data: account, error: accountError }, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, tags, { data: rawCustomProviders }] = await Promise.all([
     supabase.from('accounts').select('name, email').eq('id', user.id).single(),
     getDocCheckpoints(),
     getHandoffPackages(),
@@ -32,6 +32,11 @@ export default async function DocumentationPage({ searchParams }: Props) {
   ])
 
   const customProviders = (rawCustomProviders ?? []) as { name: string; model: string }[]
+
+  // Ver comentario en getDocAuditEvents() (documentation.ts) — SEC-002,
+  // handoff-2026-07-c.md OE 2026-09-04. Degrada al fallback existente
+  // (user.email) pero ya no en silencio.
+  if (accountError) console.error('[DocumentationPage] accounts query failed:', accountError)
 
   const userName  = (account as { name?: string; email?: string } | null)?.name  ?? user.email ?? '—'
   const userEmail = (account as { name?: string; email?: string } | null)?.email ?? user.email ?? '—'

@@ -23,10 +23,13 @@ export default async function TeamsPage() {
   const projectId = await getActiveProjectId()
   if (!projectId) redirect('/')
 
-  const [{ data: account }, projects] = await Promise.all([
+  const [{ data: account, error: accountError }, projects] = await Promise.all([
     supabase.from('accounts').select('name').eq('id', user.id).single(),
     getProjectsWithHierarchy(),
   ])
+  // Ver comentario en getDocAuditEvents() (documentation.ts) — SEC-002,
+  // handoff-2026-07-c.md OE 2026-09-04.
+  if (accountError) console.error('[TeamsPage] accounts query failed:', accountError)
   const userName = (account as { name?: string } | null)?.name ?? user.email ?? '—'
 
   // Fetch isolated teams where user is receiver (invitee)

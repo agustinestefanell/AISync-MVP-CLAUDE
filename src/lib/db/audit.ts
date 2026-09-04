@@ -44,11 +44,15 @@ async function getForwardedContent(
 
 export async function getAuditEvents(): Promise<AuditEventRow[]> {
   const supabase = createClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('audit_log')
     .select('id, event_type, workspace_id, metadata, created_at, workspaces(name, teams(id, name)), accounts(name, email)')
     .order('created_at', { ascending: false })
     .limit(100)
+
+  // Ver mismo comentario en getDocAuditEvents() (documentation.ts) — SEC-002,
+  // handoff-2026-07-c.md OE 2026-09-04.
+  if (error) console.error('[getAuditEvents] query failed:', error)
 
   const rows = (data ?? []) as unknown as Array<{
     id: string

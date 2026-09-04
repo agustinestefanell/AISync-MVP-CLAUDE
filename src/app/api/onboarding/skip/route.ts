@@ -20,6 +20,10 @@ export async function PATCH() {
     .eq('id', user.id)
 
   if (error) {
+    // Ver comentario en getDocAuditEvents() (documentation.ts) — SEC-002,
+    // handoff-2026-07-c.md OE 2026-09-04. Ya propagaba un 500 al cliente
+    // (esto no era silencioso) — se agrega el log server-side que faltaba.
+    console.error('[PATCH /api/onboarding/skip] accounts update failed:', error)
     return NextResponse.json(
       { error: 'Failed to skip onboarding.' },
       { status: 500 }

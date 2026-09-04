@@ -10,11 +10,17 @@ export async function getActiveProjectId(): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: account } = await supabase
+  const { data: account, error: accountError } = await supabase
     .from('accounts')
     .select('active_project_id')
     .eq('id', user.id)
     .single()
+
+  // Ver comentario en getDocAuditEvents() (documentation.ts) — SEC-002,
+  // handoff-2026-07-c.md OE 2026-09-04. Sin este chequeo, un fallo de query
+  // dejaba a Switch Project cayendo siempre al fallback de "primer proyecto
+  // por created_at" en silencio, indistinguible de "sin selección guardada".
+  if (accountError) console.error('[getActiveProjectId] accounts query failed:', accountError)
 
   if (account?.active_project_id) {
     const { data: project } = await supabase

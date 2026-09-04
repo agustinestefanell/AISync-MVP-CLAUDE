@@ -924,3 +924,74 @@ Reportado por Agus en producción, confirmado real: `Type = Review & Forward` da
 **Archivos modificados:** `src/components/documentation/RepositoryView.tsx`, `PRODUCT_STATUS.md`, `AISyncPlans.md`, `handoff-2026-07-c.md`.
 
 ---
+
+## OE 2026-09-04 — Fix causa raíz: recursión infinita en policy RLS de `accounts` (cierra SEC-002) — resuelve Review & Forward roto + Switch Project + 7 pantallas con fallback de nombre silencioso
+
+**Fecha:** 2026-09-04
+**Estado:** Código completo, lint ✅, build ✅, commiteado. **Migración 060 pendiente de aplicación en Supabase — bloqueante, ver "Pendiente antes de cerrar" abajo.** Sin verificación visual todavía.
+
+**Contexto:** continuación directa del diagnóstico de "Review & Forward no filtra en Audit View e Investigate View" (punto 4, abierto al cierre de la OE anterior). Se agotó la evidencia de código/datos/RLS-superficial y se pidió runtime real — en el camino de armar esa verificación se encontró la causa raíz real, mucho más profunda y con un alcance mucho mayor al síntoma original.
+
+### Causa raíz
+
+`012_admin_roles.sql:27-34` — la policy `"Admins read all accounts"` hace `EXISTS (SELECT 1 FROM accounts a2 WHERE a2.id = auth.uid() AND a2.role IN ('owner','admin'))` — **una policy de `accounts` que consulta `accounts` desde dentro de sí misma**. Postgres dispara `42P17` (`infinite recursion detected in policy for relation "accounts"`) al evaluarla.
+
+**Hallazgo crítico durante el diagnóstico: esto NO estaba limitado a queries con embed/JOIN (como se creía inicialmente) — CUALQUIER `SELECT` sobre `accounts` bajo sesión de usuario real falla, incluido el `.eq('id', user.id).single()` más simple posible.** Confirmado con evidencia real (magic link + anon key, `signOut({scope:'local'})`) contra 3 queries distintas — `getDocAuditEvents()` (embed), `getActiveProjectId()` (directo), `select * by id` (control) — las 3 con el mismo error exacto.
+
+**Este bug ya estaba documentado — 3 meses sin cerrar.** `AUDIT_REPORT.md` tenía `SEC-002 🟡 OPEN` desde 2026-06-11/12, con el mismo diagnóstico y el mismo fix propuesto (`is_admin()` security definer), diferido explícitamente a la tarea "RLS multi-usuario" del Bloque 1 (`PRODUCT_STATUS.md`, sigue `⏳ Pendiente`). El propio comentario de `027_active_project.sql` ya sospechaba la conexión con Switch Project sin confirmarla nunca. **Se cierra ahora, de forma independiente y adelantada, sin esperar a esa tarea más grande** — ver nota de seguimiento abajo.
+
+### Alcance real confirmado (9 de 11 lugares con silent-swallow, más grande que el síntoma original de 2 pantallas)
+
+| # | Lugar | Impacto real (antes del fix) |
+|---|---|---|
+| 1 | `getDocAuditEvents()` (`documentation.ts`) | Audit View + Investigate View de Documentation Mode: 0 eventos |
+| 2 | `getAuditEvents()` (`audit.ts`) | `/audit` global: 0 eventos |
+| 3 | `documentation/page.tsx:20,36` | `userName` cae a `user.email` |
+| 4 | `settings/page.tsx:11` | ídem |
+| 5 | `context/page.tsx:10` | ídem |
+| 6 | `audit/page.tsx:25` | ídem |
+| 7 | `teams/page.tsx:27` | ídem |
+| 8 | `(main)/start/page.tsx:17` | `onboarding_completed` nunca se lee — un usuario que ya completó onboarding podía quedar varado en `/start` en vez de redirigir a `/` |
+| 9 | `teams.ts:13-17` (`getActiveProjectId()`) | **Switch Project** — cae siempre al fallback "primer proyecto por `created_at`", nunca respeta la selección real del usuario. Feature activa, no solo cosmética. |
+
+**2 lugares de los 11 mapeados NO necesitaron cambio** — `api/onboarding/start/route.ts:95,191` ya capturaban `error` y hacían `console.error()` con comentario explícito "No bloqueante" — nunca fueron silenciosos, confirmado por lectura antes de tocarlos.
+
+**Grep exhaustivo confirmó que no hay un 12vo lugar** — todos los demás usos de `.from('accounts')` en la app (`admin/page.tsx`, `api/admin/prompts/route.ts`, `admin-metrics.ts`, `api/connections/route.ts`) usan `createAdminClient()` (service role), que bypasea RLS y nunca dispara la recursión — confirmado con evidencia de código (comentarios explícitos "bypass RLS" ya presentes en 2 de esos archivos, consistente con que ya se habían topado con este mismo problema en el pasado sin conectar los puntos con SEC-002).
+
+### Fix — Opción A (única opción implementada, evaluada junto con B y C en el turno anterior)
+
+**`supabase/migrations/060_fix_accounts_admin_policy_recursion.sql`:** función `public.is_admin(uid uuid) RETURNS boolean SECURITY DEFINER SET search_path = public` (mismo patrón ya usado en 026 — Vault RPCs — y 027 — `set_active_project`) + `DROP POLICY`/`CREATE POLICY "Admins read all accounts" ON accounts FOR SELECT USING (is_admin(auth.uid()))`. La policy `"Users read own account"` (no recursiva) queda sin tocar.
+
+**No se sacó el embed `accounts(...)` de `documentation.ts`/`audit.ts`** (Opción C, descartada) — con la policy arreglada, el embed funciona bien tal cual estaba.
+
+**9 chequeos de error agregados** (los 9 de la tabla arriba menos los 2 ya conformes) — mismo patrón en los 9: capturar `{ data, error }` en vez de solo `{ data }`, `console.error()` si hay error, degradar al mismo fallback que ya existía (sin cambiar contrato ni UI) — decisión ya tomada en el turno anterior: "degradar visible en logs" en vez de propagar excepción, para no abrir un frente nuevo de UI en 9 lugares distintos el mismo día. El error ahora queda en los logs de Vercel en vez de desaparecer sin rastro.
+
+### Verificación hecha hasta ahora
+
+lint ✅ (mismos 3 warnings preexistentes de `CanvasViewport.tsx`), build ✅. **Migración 060 sin aplicar en Supabase todavía** — no se ejecutó contra producción sin confirmación explícita (mismo criterio ya usado en todo el proyecto: las migraciones las aplica Agus manualmente vía Supabase Dashboard SQL Editor, nunca por script directo de Claude contra la base real — y este cambio toca RLS de la tabla raíz de todo el sistema, con usuarios reales activos).
+
+### Pendiente antes de cerrar
+
+1. **Aplicar migración 060 en Supabase** (Agus, vía Dashboard SQL Editor — patrón establecido).
+2. Reproducir `select * from accounts where id = ...` con sesión real — confirmar que ya NO da `42P17`.
+3. Deploy a producción (mismo método de verificación de frescura ya usado: `Last-Modified`/`Etag` de un asset estático).
+4. Verificación visual de Agus: Switch Project persiste tras recargar; nombre real (no email) en al menos 2 de las 7 pantallas; Audit View/Investigate View/`\`/audit\`` con eventos reales.
+5. Cerrar `SEC-002` en `AUDIT_REPORT.md` con referencia a esta OE — hecho en este mismo commit, ver abajo.
+
+### Nota para seguimiento futuro (no ejecutar ahora)
+
+Este fix cierra `SEC-002` de forma independiente y adelantada, sin esperar a la tarea "RLS multi-usuario" del Bloque 1 de `PRODUCT_STATUS.md` (sigue `⏳ Pendiente`). Queda para evaluar aparte: si el resto de ese bloque sigue teniendo sentido tal como está planteado, o si había más supuestos de RLS sin verificar en otras tablas — este hallazgo (un supuesto de 3 meses, nunca verificado, con impacto mucho mayor al asumido) es evidencia de que vale la pena una pasada explícita antes de dar ese bloque por bien definido.
+
+### Alternativas descartadas
+
+Ver DECISIONS.md 2026-09-03/04 para el detalle completo de Opción B (mover `role` fuera de `accounts`) y Opción C (sacar el embed sin tocar la policy) — ambas evaluadas con riesgo/alcance antes de elegir A.
+
+### Riesgos conocidos / deuda técnica
+
+- **Migración sin aplicar** — bloqueante real hasta que Agus la corra.
+- **`onboarding/start/route.ts` UPDATE de `accounts` (líneas 96, 192) no se investigó en esta OE** — son `UPDATE`, no `SELECT`; no hay ninguna policy `UPDATE`/`INSERT`/`DELETE` en `accounts` en todo el historial de migraciones (confirmado por grep exhaustivo en el turno anterior). Con RLS habilitado y sin policy de escritura, Postgres podría estar aceptando 0 filas afectadas en silencio en vez de fallar con error — **no confirmado, señalado como candidato a verificar en una sesión aparte**, fuera del alcance de este fix (que es específicamente sobre la policy SELECT recursiva).
+- **7 pantallas mostraban el email en vez del nombre real** — cosmético pero real, sin reporte previo de Agus (posiblemente porque para su cuenta email/nombre coinciden o son parecidos, enmascarando el síntoma).
+
+**Archivos modificados/nuevos:** `supabase/migrations/060_fix_accounts_admin_policy_recursion.sql` (nuevo), `src/lib/db/documentation.ts`, `src/lib/db/audit.ts`, `src/lib/db/teams.ts`, `src/app/documentation/page.tsx`, `src/app/settings/page.tsx`, `src/app/context/page.tsx`, `src/app/audit/page.tsx`, `src/app/teams/page.tsx`, `src/app/(main)/start/page.tsx`, `src/app/api/onboarding/skip/route.ts`, `AUDIT_REPORT.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `handoff-2026-07-c.md`.
+
+---

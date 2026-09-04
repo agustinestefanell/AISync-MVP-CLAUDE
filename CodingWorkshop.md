@@ -1894,3 +1894,15 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** un dropdown con 2 opciones de nombres muy parecidos que filtran conceptos distintos (acá: "purpose de un tipo de documento" vs. "tipo de documento en sí") es un bug latente esperando que alguien las combine mal — no hace falta que cambie el código para que aparezca el síntoma, solo que un usuario elija la opción "equivocada por parecido" en vez de la exacta. Vale la pena revisar dropdowns de filtro por posibles colisiones de nombre cuando conviven valores de distinta naturaleza semántica en el mismo `<select>`.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-03, `src/components/documentation/RepositoryView.tsx:692`.
+
+---
+
+## 2026-09-04 — Un supuesto propio sin testear ("las queries directas no deberían fallar") casi dejó 7 lugares fuera del diagnóstico
+
+**Qué pasó:** al confirmar que `getDocAuditEvents()`/`getAuditEvents()` fallaban con `42P17` (recursión RLS en `accounts`) por un embed `accounts(name, email)` vía JOIN, razoné — sin probarlo — que un SELECT **directo** (`.eq('id', user.id).single()`, sin JOIN) probablemente esquivaba la recursión, porque el planner de Postgres podría resolver la policy simple primero. Reporté "ningún otro lugar afectado" basado en ese razonamiento estructural, no en evidencia.
+
+**Cómo se destapó:** al preparar la migración de fix, un comentario de 3 meses atrás en `027_active_project.sql` ("si el switch nunca persiste, probablemente esté la recursión RLS sospechada en SEC-002 — verificar") llevó a revisar `AUDIT_REPORT.md`, donde `SEC-002` ya estaba documentado con la misma causa raíz — y con la misma pregunta sin responder: "¿el SELECT directo también recursiona?". Probarlo con evidencia real (mismo método de sesión real ya usado en la sesión) confirmó que SÍ — **cualquier SELECT sobre `accounts`, directo o embebido, dispara la misma recursión.** Eso elevó el conteo de lugares afectados de 2 a 9, incluida una feature activa (Switch Project) que llevaba meses silenciosamente rota.
+
+**Lección:** "no debería fallar por cómo está estructurada la query" es una hipótesis, no una conclusión — con RLS, el comportamiento real de Postgres ante subqueries recursivas dentro de policies no es intuitivo ni siempre el que el razonamiento de alto nivel predice. Cuando la herramienta para probarlo directamente ya existe y es barata (en esta sesión: sesión real vía magic link, unos segundos de ejecución), probar es más barato que asumir — sobre todo cuando la consecuencia de asumir mal es dejar fuera del mapa de un fix de seguridad/infraestructura 7 lugares reales. Además: un hallazgo de auditoría de seguridad diferido ("verificación pendiente") no caduca solo porque nadie lo retomó — vale la pena revisar `AUDIT_REPORT.md` cuando aparece una causa raíz que suena parecida a algo ya señalado, en vez de re-derivar todo desde cero.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-04, `AUDIT_REPORT.md` SEC-002, `supabase/migrations/060_fix_accounts_admin_policy_recursion.sql`.
