@@ -1554,4 +1554,6 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 
 **Decisión operativa — no ejecutar la migración directamente contra producción:** aunque había credenciales disponibles (service role key, ya usado extensamente para diagnóstico de solo lectura esta sesión), se preparó la migración como archivo versionado para que Agus la aplique manualmente vía Supabase Dashboard SQL Editor — mismo patrón que TODAS las migraciones anteriores del proyecto. Es un cambio de RLS sobre la tabla raíz del sistema (`accounts`), con usuarios reales activos, sin entorno de staging aislado disponible — ejecutar DDL sin ese paso de confirmación humana hubiera sido una desviación del proceso establecido para un cambio de este riesgo.
 
-**Referencia:** handoff-2026-07-c.md OE 2026-09-04, `AUDIT_REPORT.md` SEC-002, `supabase/migrations/060_fix_accounts_admin_policy_recursion.sql`.
+**Cierre (2026-09-04, mismo día):** decisión operativa validada — Agus aplicó la migración manualmente en Supabase Dashboard ("Success"), y la elección de Opción A quedó confirmada como suficiente: las 9 queries afectadas funcionan sin `42P17` post-fix, sin necesidad de ningún cambio adicional de código más allá de los 9 chequeos de error ya planeados. Confirmación visual positiva de Agus en Switch Project, nombre real de usuario, y eventos de Audit View/Investigate View/`/audit`.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-04, `AUDIT_REPORT.md` SEC-002, `supabase/migrations/060_fix_accounts_admin_policy_recursion.sql`, commit `c4a417e`.

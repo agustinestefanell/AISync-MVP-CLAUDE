@@ -928,7 +928,9 @@ Reportado por Agus en producción, confirmado real: `Type = Review & Forward` da
 ## OE 2026-09-04 — Fix causa raíz: recursión infinita en policy RLS de `accounts` (cierra SEC-002) — resuelve Review & Forward roto + Switch Project + 7 pantallas con fallback de nombre silencioso
 
 **Fecha:** 2026-09-04
-**Estado:** Código completo, lint ✅, build ✅, commiteado. **Migración 060 pendiente de aplicación en Supabase — bloqueante, ver "Pendiente antes de cerrar" abajo.** Sin verificación visual todavía.
+**Estado:** Closed — migración 060 aplicada por Agus en Supabase Dashboard (Success, sin errores), commit `c4a417e`. **Confirmación visual positiva de Agus en los 3 puntos**: Switch Project persiste tras cambiar de team + hard refresh (ya no cae al primero); nombre real ("Agustin Estefanell", no email) visible en Documentation Mode y Teams Map; eventos reales visibles en Audit View, Investigate View (filtro Review & Forward incluido) y `/audit` global. lint ✅, build ✅.
+
+**Nota de cierre — alcance final mayor al original:** esta OE arrancó como el diagnóstico puntual de "Review & Forward no filtra en Audit View/Investigate View" y terminó siendo el cierre de un hallazgo de seguridad documentado 3 meses atrás (`SEC-002`, `AUDIT_REPORT.md`, abierto 2026-06-11/12, nunca cerrado) con un radio de impacto real de **9 lugares de la app**, no solo las 2 pantallas de auditoría originalmente reportadas — incluida una feature activa (Switch Project) que llevaba meses cayendo siempre al fallback "primer proyecto" en silencio. Ver detalle completo abajo.
 
 **Contexto:** continuación directa del diagnóstico de "Review & Forward no filtra en Audit View e Investigate View" (punto 4, abierto al cierre de la OE anterior). Se agotó la evidencia de código/datos/RLS-superficial y se pidió runtime real — en el camino de armar esa verificación se encontró la causa raíz real, mucho más profunda y con un alcance mucho mayor al síntoma original.
 
@@ -970,13 +972,13 @@ Reportado por Agus en producción, confirmado real: `Type = Review & Forward` da
 
 lint ✅ (mismos 3 warnings preexistentes de `CanvasViewport.tsx`), build ✅. **Migración 060 sin aplicar en Supabase todavía** — no se ejecutó contra producción sin confirmación explícita (mismo criterio ya usado en todo el proyecto: las migraciones las aplica Agus manualmente vía Supabase Dashboard SQL Editor, nunca por script directo de Claude contra la base real — y este cambio toca RLS de la tabla raíz de todo el sistema, con usuarios reales activos).
 
-### Pendiente antes de cerrar
+### Cierre — los 5 puntos completados
 
-1. **Aplicar migración 060 en Supabase** (Agus, vía Dashboard SQL Editor — patrón establecido).
-2. Reproducir `select * from accounts where id = ...` con sesión real — confirmar que ya NO da `42P17`.
-3. Deploy a producción (mismo método de verificación de frescura ya usado: `Last-Modified`/`Etag` de un asset estático).
-4. Verificación visual de Agus: Switch Project persiste tras recargar; nombre real (no email) en al menos 2 de las 7 pantallas; Audit View/Investigate View/`\`/audit\`` con eventos reales.
-5. Cerrar `SEC-002` en `AUDIT_REPORT.md` con referencia a esta OE — hecho en este mismo commit, ver abajo.
+1. **Migración 060 aplicada por Agus en Supabase Dashboard** — "Success", sin errores.
+2. **Reproducido `select * from accounts where id = ...` con sesión real (magic link + anon key, no admin) — ya NO da `42P17`**: `200 OK`, fila completa devuelta (`role: "owner"`, `active_project_id` poblado). Repetido también contra la query completa de `getDocAuditEvents()` (648 filas, 140 `review_forward`) y `getActiveProjectId()` — ambas `200 OK` sin error. `is_admin()` probada vía RPC directa: devuelve `true` para la cuenta de Agus, confirma que la función quedó creada y funcionando.
+3. **Deploy a producción confirmado fresco** — mismo método de `Last-Modified`/`Etag` del asset estático (`webpack-*.js`): `Last-Modified: Fri, 04 Sep 2026 18:19:34 GMT`, ~5 minutos después del push `c4a417e` (18:14:45 UTC).
+4. **Confirmación visual positiva de Agus en los 3 puntos** (Switch Project persiste, nombre real en Documentation Mode/Teams Map, eventos reales en Audit View/Investigate View/`/audit`) — ver "Estado" arriba.
+5. **`SEC-002` cerrado en `AUDIT_REPORT.md`**, con referencia a esta OE y al commit `c4a417e`.
 
 ### Nota para seguimiento futuro (no ejecutar ahora)
 
@@ -988,9 +990,8 @@ Ver DECISIONS.md 2026-09-03/04 para el detalle completo de Opción B (mover `rol
 
 ### Riesgos conocidos / deuda técnica
 
-- **Migración sin aplicar** — bloqueante real hasta que Agus la corra.
 - **`onboarding/start/route.ts` UPDATE de `accounts` (líneas 96, 192) no se investigó en esta OE** — son `UPDATE`, no `SELECT`; no hay ninguna policy `UPDATE`/`INSERT`/`DELETE` en `accounts` en todo el historial de migraciones (confirmado por grep exhaustivo en el turno anterior). Con RLS habilitado y sin policy de escritura, Postgres podría estar aceptando 0 filas afectadas en silencio en vez de fallar con error — **no confirmado, señalado como candidato a verificar en una sesión aparte**, fuera del alcance de este fix (que es específicamente sobre la policy SELECT recursiva).
-- **7 pantallas mostraban el email en vez del nombre real** — cosmético pero real, sin reporte previo de Agus (posiblemente porque para su cuenta email/nombre coinciden o son parecidos, enmascarando el síntoma).
+- **7 pantallas mostraban el email en vez del nombre real, sin reporte previo de Agus** (posiblemente porque para su cuenta email/nombre coinciden o son parecidos, enmascarando el síntoma) — **resuelto, confirmado visualmente en 2 de las 7 (Documentation Mode, Teams Map)**, el resto comparte exactamente la misma causa y el mismo fix, no requiere verificación individual adicional.
 
 **Archivos modificados/nuevos:** `supabase/migrations/060_fix_accounts_admin_policy_recursion.sql` (nuevo), `src/lib/db/documentation.ts`, `src/lib/db/audit.ts`, `src/lib/db/teams.ts`, `src/app/documentation/page.tsx`, `src/app/settings/page.tsx`, `src/app/context/page.tsx`, `src/app/audit/page.tsx`, `src/app/teams/page.tsx`, `src/app/(main)/start/page.tsx`, `src/app/api/onboarding/skip/route.ts`, `AUDIT_REPORT.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `handoff-2026-07-c.md`.
 
