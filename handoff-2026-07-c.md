@@ -996,3 +996,53 @@ Ver DECISIONS.md 2026-09-03/04 para el detalle completo de Opción B (mover `rol
 **Archivos modificados/nuevos:** `supabase/migrations/060_fix_accounts_admin_policy_recursion.sql` (nuevo), `src/lib/db/documentation.ts`, `src/lib/db/audit.ts`, `src/lib/db/teams.ts`, `src/app/documentation/page.tsx`, `src/app/settings/page.tsx`, `src/app/context/page.tsx`, `src/app/audit/page.tsx`, `src/app/teams/page.tsx`, `src/app/(main)/start/page.tsx`, `src/app/api/onboarding/skip/route.ts`, `AUDIT_REPORT.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `handoff-2026-07-c.md`.
 
 ---
+
+## OE 2026-09-04/05 — Diagnóstico UPDATE de `accounts` en onboarding (candidato de SEC-002) + fix de datos de 10 cuentas reales
+
+**Fecha:** 2026-09-04 (diagnóstico) / 2026-09-05 (fix de datos ejecutado, con aprobación explícita de Agus en cada paso).
+**Estado:** Closed — fix de datos corrido y verificado. Sin cambios de código (solo corrección de datos vía service role).
+
+**Contexto:** al cerrar SEC-002 (OE anterior), quedó señalado sin investigar el candidato "`api/onboarding/start/route.ts` hace UPDATE sobre `accounts` sin policy de escritura confirmada — mismo patrón de riesgo". Se pidió el mismo rigor de diagnóstico (archivo/línea, reproducción con sesión real, no supuestos).
+
+### Diagnóstico — el UPDATE de hoy funciona bien, el daño es histórico
+
+- **UPDATEs localizados:** `onboarding/start/route.ts` líneas 94-97 (`active_project_id`) y 190-193 (`onboarding_completed`), ambos "No bloqueante" (error solo logueado, nunca bloquea la respuesta al cliente). `onboarding/skip/route.ts` línea 17-20 (`onboarding_completed`) — este ya propaga 500 y ya tenía el log agregado en el cierre de SEC-002.
+- **Cliente:** los 3 usan `createClient()` (user-scoped, RLS real) — no admin client.
+- **Policies versionadas:** grep exhaustivo de todas las migraciones confirma 0 policies de UPDATE/INSERT/DELETE en `accounts` (solo 2 `FOR SELECT`, ver 012/060). Esto **no coincide** con el comportamiento real reproducido — señal de que hay estado en Supabase no reflejado en los archivos de migración (mismo patrón de discrepancia código-vs-producción que ya costó 3 meses con SEC-002 — señalado como riesgo de documentación, no resuelto en esta OE).
+- **Reproducción con sesión real (magic link + anon key, valores idempotentes, `signOut` al final):** UPDATE sobre fila propia → funciona (1 row, sin error). UPDATE cruzado sobre fila de otro usuario real → bloqueado correctamente (0 rows, sin error). Conclusión: **el mecanismo de escritura funciona bien hoy**, restringido por ownership como corresponde — no es la causa activa de ningún problema actual.
+- **Hallazgo real (vía datos de producción, no supuesto):** de 11 cuentas reales no-Agus, **10 tenían `onboarding_completed=false` y `active_project_id=null` pese a tener su "Mi Primer Proyecto" ya creado** — evidencia de que el onboarding SÍ corrió pero el UPDATE de `accounts` falló en silencio. Las 2 únicas excepciones (`agustin.viaje`, `arenaglirsas`, ambas con `onboarding_completed=true`) se registraron en mayo 2026, **antes** de que existiera la migración 012 (la que habilitó RLS + la policy recursiva de SEC-002, ~11 de junio). Las 10 restantes van del 17/6 al 4/9 — coincide exactamente con la ventana en que SEC-002 estuvo activo: la recursión `42P17` disparaba en cualquier operación sobre `accounts` bajo sesión real, tragada en silencio por el "No bloqueante".
+- **Impacto ya materializado (evidencia, no hipótesis):** `agustin.viaje@gmail.com` (cuenta de QA interna, no usuario real — ver nota abajo) tiene **13 proyectos "My First Project"/prueba duplicados**, consistente con que, al volver a `/start` con `onboarding_completed` atascado en `false`, el flujo se re-ejecuta y crea todo de nuevo. Hoy no hay ningún link interno a `/start` (logo apunta a `/teams` desde 2026-08-24) — riesgo de que se repita para las 10 cuentas reales es bajo pero no nulo mientras el flag siguiera en `false`.
+
+### Fix de datos ejecutado (2026-09-05, aprobado explícitamente por Agus paso a paso)
+
+**Alcance acotado, solo `onboarding_completed`:** UPDATE con service role (corrección de datos, no flujo de usuario) sobre las 10 cuentas confirmadas — lista de IDs cerrada, no una condición dinámica — `onboarding_completed: false → true`. **`active_project_id` NO se tocó** — 4 de las 10 (`alejandro.balardini`, `paola.albe.bayo`, `lorenaestefanell`, `santiagolasa`) tienen más de 1 project real; caer al primero por `created_at` hubiera repetido el mismo patrón de fallback silencioso ya cuestionado en esta misma OE (ver `getActiveProjectId()` en Bloque 1 de `PRODUCT_STATUS.md`) — decisión de producto diferida explícitamente.
+
+**Verificación previa (SELECT mostrado y aprobado por Agus antes de correr nada):** confirmó exactamente las 10 filas esperadas, todas con `onboarding_completed=false`, script con abort automático si el conteo no daba 10 o si alguna fila ya estaba en `true`.
+
+**UPDATE corrido:** `accounts.onboarding_completed = true` para las 10 IDs, vía `.update().in('id', TARGET_IDS).select(...)` — respuesta directa confirmó las 10 filas con el valor nuevo.
+
+**Verificación posterior (lectura fresca, aparte de la respuesta del UPDATE):** las 10 cuentas con `onboarding_completed=true`, `active_project_id` idéntico al valor previo en las 10 (confirmado programáticamente, no solo visual) — sin efectos colaterales.
+
+### `agustin.viaje@gmail.com` — fuera de este fix, cuenta de QA interna
+
+No es una de las 10 (ya tenía `onboarding_completed=true` desde mayo 2026, antes de la ventana de SEC-002). Auditoría de contenido de sus 13 proyectos (teams/workspaces/agent_sessions/mensajes por proyecto): 6 de los 8 "My First Project" están `archived` y completamente vacíos (0 contenido) — parecen ya limpiados en su momento. Los nombres restantes ("Proyecto de prueba", "Prueba", "Agustin Prueba 2", "Prueba de Modal NEW PROJ") indican uso de QA manual de los flujos de creación de proyecto/team, no un usuario real afectado por el bug — 2 de ellos con mensajes reales (23 y 10). **No se tocó nada de esta cuenta.** Los 6 "My First Project" archivados y vacíos quedan como candidatos a limpieza manual futura si se quiere ordenar la cuenta — no urgente, no ejecutado.
+
+### Verificación
+
+Sin lint/build — no hubo cambio de código, solo datos. Las 2 verificaciones (SELECT previo mostrado a Agus antes de aprobar, SELECT posterior con lectura fresca confirmando las 10 en `true` y `active_project_id` sin cambios) se corrieron con evidencia real, no supuestos — mismo estándar de rigor usado en el resto de esta sesión. Scripts temporales de diagnóstico y del fix borrados al terminar cada uno (no versionados).
+
+### Alternativas descartadas
+
+- **Setear `active_project_id` al primer project por `created_at` para las 10 cuentas** — descartado en esta pasada: repetiría el mismo patrón de fallback silencioso que esta misma OE cuestionó como riesgo (`getActiveProjectId()`), y 4 de las 10 tienen múltiples projects reales (no duplicados del bug, sino creaciones deliberadas posteriores) donde "el primero" no es necesariamente el correcto. Diferido a una decisión de producto aparte.
+- **Limpiar los 13 proyectos de `agustin.viaje`** — descartado en esta OE, pedido explícito de Agus de no borrar nada sin decidir antes qué conservar; cuenta de QA interna, no bloqueante.
+- **Condición dinámica en el UPDATE (`WHERE onboarding_completed = false AND EXISTS project`) en vez de lista de IDs cerrada** — descartado a propósito: con IDs explícitos, el UPDATE de hoy toca exactamente las 10 filas ya revisadas y aprobadas, sin riesgo de arrastrar una 11va cuenta nueva que cumpliera la condición al momento de ejecutar.
+
+### Riesgos conocidos / deuda técnica
+
+- **`active_project_id=null`/desactualizado sigue pendiente para las 10 cuentas** — no bloquea nada hoy (usuarios sin `active_project_id` caen al fallback "primer proyecto activo" ya existente en `getActiveProjectId()`), pero sigue siendo un dato incorrecto en 4 cuentas con múltiples projects reales. Decisión de producto diferida, no urgente.
+- **Discrepancia entre migraciones versionadas y el estado real de RLS en `accounts` sigue sin resolver** — el diagnóstico de esta OE confirmó (de nuevo) que el UPDATE funciona con una restricción de ownership que no está en ningún archivo de migración leído. No se investigó a fondo el origen (no bloqueaba el fix de datos); señalado como el mismo tipo de brecha de documentación que ya costó 3 meses con SEC-002 — candidato a una pasada de auditoría de RLS real (`pg_policies`) contra todas las tablas, no solo `accounts`.
+- **6 proyectos "My First Project" archivados y vacíos en `agustin.viaje`** — candidatos a limpieza manual futura, no ejecutado, no urgente.
+
+**Archivos modificados:** ninguno de código — solo `accounts.onboarding_completed` en producción (10 filas, vía service role) y `handoff-2026-07-c.md`/`AISyncPlans.md` (este cierre + 3 pendientes de UX registrados el mismo día, ver AISyncPlans.md "Backlog diferido").
+
+---

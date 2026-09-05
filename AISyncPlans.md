@@ -1225,6 +1225,18 @@ Agus quiere evaluar agregar Review & Forward como 4º tipo documental filtrable 
 
 ---
 
+### Pendientes de UX registrados 2026-09-04 (sin fix propuesto, sin ejecutar)
+
+3 mejoras de UX confirmadas por Agus el 2026-09-04, registradas mientras corría el diagnóstico de onboarding — evaluar cuando se retome este frente. Ninguna tiene fix propuesto todavía.
+
+1. **Load Saved Context → falta opción de scope al volcar a Context File.** Hoy al volcar un Saved Context como Context File, se carga únicamente a nivel Session. Debería dar la opción de elegir el scope: Session / Team / Project.
+
+2. **User Library → "Load as Context" → falta opción de elegir chat destino.** Hoy "Load as Context" desde User Library no permite elegir a qué chat/sesión específica volcarlo. Agregar esa opción.
+
+3. **Modal Edit Team → "Sub-team of" muestra todos los teams de la cuenta, no solo los del Project actual.** Confirmado visualmente el 2026-09-04 (screenshot): el dropdown de "Sub-team of" lista teams de proyectos completamente distintos (ej. "BioInusmos Ramificacion", "Insumos Uruguay", "$ PROPUESTA DE NEGOCIOS" apareciendo dentro del contexto de "AISync-HITR.io"). Debería filtrar y mostrar únicamente los teams pertenecientes al mismo Project donde vive el team que se está editando.
+
+---
+
 ## Connected Teams — Shared Workspace Architecture
 **Decisión tomada:** Semana 7, sesión 2026-06-13
 **Estado:** Diseño aprobado, pendiente de implementación
