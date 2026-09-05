@@ -1046,3 +1046,47 @@ Sin lint/build — no hubo cambio de código, solo datos. Las 2 verificaciones (
 **Archivos modificados:** ninguno de código — solo `accounts.onboarding_completed` en producción (10 filas, vía service role) y `handoff-2026-07-c.md`/`AISyncPlans.md` (este cierre + 3 pendientes de UX registrados el mismo día, ver AISyncPlans.md "Backlog diferido").
 
 ---
+
+## OE 2026-09-05 — Load Saved Context: filtros (ya existían), selección múltiple con destino "As Context Files", aviso de límite en "Chat"
+
+**Fecha:** 2026-09-05.
+**Estado:** Closed (código) — lint ✅, build ✅. **Verificación visual pendiente en producción** (localhost no sirve para esto en este proyecto — login redirige externamente, ver nota de la sesión) — 3 capturas pedidas a Agus contra `hitr.io`/dominio Vercel, no localhost.
+
+**Contexto:** 3 cambios de UX sobre el flujo "Load Saved Context", tratados como una sola pieza por compartir UI. Paso 0 (diagnóstico de dónde vive el selector, confirmado con Agus antes de tocar código):
+
+### Diagnóstico previo
+
+Hay 2 componentes distintos con "Load as Context" en la app — solo uno calzaba con la consigna:
+- **`src/components/workspace/LoadContextModal.tsx`** — el modal real: lista navegable + filtros + 2 destinos (Chat / Context Files) por ítem. **Compartido entre 2 contextos:** `AgentPanel.tsx:1246` (`chatOnly` no seteado, ambos destinos) y `HumanChatPanel.tsx:756` (`chatOnly=true`, oculta scope y "Context Files" por completo, deja solo "→ Chat"). Los cambios 2 y 3 solo aplican al modo `!chatOnly` — en `chatOnly` no hay destino "Context Files" para elegir, así que no cambia nada ahí.
+- **`src/components/documentation/LoadAsContextButton.tsx`** (User Library/Repository/Audit/Investigate View) — descartado para esta consigna: es un botón por card ya individual (sin lista propia, sin búsqueda), sin destino "Chat". No se tocó.
+
+**Cambio 1 (filtros):** ya existía en `LoadContextModal.tsx` (líneas 77-150 y filtros renderizados en 458-481 antes del cambio) — Project/Team/Type/Date + búsqueda por texto (título + preview). Confirmado con Agus, **sin código nuevo para este punto.**
+
+### Implementación — Cambios 2 y 3
+
+**Rediseño de interacción (único archivo tocado: `LoadContextModal.tsx`):** los 2 botones por ítem ("→ Context Files" / "→ Chat") se reemplazan por un **toggle de destino a nivel modal** ("Load to: Chat / Context Files", solo `!chatOnly`) + checkboxes por ítem + una barra de acción inferior.
+
+- **Destino = Context Files:** checkboxes habilitados sin límite. Barra inferior "Load selected (N) → Context Files" — `handleBulkLoad()` recorre los N ítems marcados llamando a `loadItemToContextFiles()` (extraída de lo que antes era la rama `context_files` de `handleLoad`, para no duplicar el fetch entre el loop y un caso N=1), reporta éxito/fallas por nombre si alguno falla a mitad de camino (los que sí cargaron se destildan, los que fallaron quedan marcados para reintentar).
+- **Destino = Chat:** `toggleSelect()` rechaza el 2do tilde (`selectedIds.size >= 1` y `destination === 'chat'`) — el primer ítem marcado permanece, aparece el aviso inline "Chat can only load 1 item at a time — switch to Context Files to load several." **Nunca se limpia la selección en silencio ni se ejecuta con un ítem al azar** (pedido explícito de Agus). Mismo aviso se dispara también al **cambiar el toggle a Chat con 2+ ítems ya marcados** (venían de Context Files) — `handleDestinationChange()` — la selección queda intacta pero el botón de carga queda deshabilitado defensivamente (`destination === 'chat' && selectedIds.size !== 1`) hasta que el usuario destilde manualmente.
+- **`chatOnly` (Human Chat) sin cambios:** sigue con su único botón "→ Chat" por ítem, ahora usando `handleLoadToChat()` (extraída de la rama `chat` de lo que antes era `handleLoad`, misma lógica, sin comportamiento nuevo).
+- Scope selector (Session/Team/Project) pasa a mostrarse solo cuando `destination === 'context_files'` (antes se mostraba siempre que `!chatOnly`, con una aclaración de texto "solo aplica a Context Files" que ahora es innecesaria — el toggle ya lo hace explícito).
+
+### Verificación
+
+lint ✅ (1 error nuevo encontrado y corregido en el camino — `catch (e)` con `e` sin usar en el loop de `handleBulkLoad`, cambiado a `catch` sin binding), build ✅. **Sin verificación visual todavía** — localhost no sirve para probar login/flujos reales en este proyecto (ver nota de sesión, documentado hoy). Pendiente: 3 capturas contra producción post-deploy — filtro con término aplicado, multi-selección con destino Context Files (barra "Load selected (N)"), aviso al intentar un 2do tilde con destino Chat.
+
+### Alternativas descartadas
+
+- **Mantener destino por-ítem (2 botones) y agregar checkboxes aparte** — descartado: no hay forma de que "elegir destino" tenga sentido como estado compartido si cada ítem decide su propio destino independientemente: el pedido de Agus (toggle a nivel modal) requiere que el destino sea un estado único, no por fila.
+- **Limpiar la selección automáticamente al cambiar a Chat con 2+ marcados** — descartado explícitamente por Agus en la confirmación previa: el checkbox nunca se deshabilita ni se oculta, la selección permanece visible y el aviso explica por qué el botón está bloqueado, en vez de borrar silenciosamente lo que el usuario ya había elegido.
+- **Tocar `LoadAsContextButton.tsx` para unificar ambos flujos "Load as Context"** — fuera de alcance, no pedido, y ese componente no tiene destino Chat ni lista propia (ver diagnóstico).
+
+### Riesgos conocidos / deuda técnica
+
+- **Verificación visual pendiente** — bloqueante para dar la feature por cerrada en producción, no solo por código. Las 3 capturas pedidas a Agus.
+- **Default de `destination` al abrir el modal es `'context_files'`** — decisión arbitraria (no especificada en la consigna), señalada por si Agus prefiere que arranque en `'chat'` tras verlo en uso real.
+- **`handleBulkLoad()` para Context Files es secuencial (`await` en loop), no paralelo** — deliberado, evita ráfagas simultáneas contra `/api/context` si el usuario marca muchos ítems a la vez; con volúmenes reales esperados (unas pocas decenas de saved items por cuenta) no debería notarse, pero es la primera candidata a revisar si algún día se reporta lentitud con selecciones grandes.
+
+**Archivos modificados:** `src/components/workspace/LoadContextModal.tsx` (único archivo de código), `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---
