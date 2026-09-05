@@ -43,8 +43,9 @@ interface Props {
   onLoadToChat: (content: string, provenance: LoadToChatProvenance) => void
   // Human Chat (Connected Teams, 2026-08-26): no hay sesión de agente ni
   // destino "Context Files" con sentido (no hay team/session propios de un
-  // agente a los que asociar el archivo) — oculta el selector de scope y el
-  // botón "→ Context Files", deja solo "→ Chat" por ítem. Ver HumanChatPanel.tsx.
+  // agente a los que asociar el archivo) — oculta el selector de scope, el
+  // checkbox y el botón "→ Context Files", deja solo "→ Chat" por ítem, de a
+  // 1 (sin selección múltiple). Ver HumanChatPanel.tsx.
   chatOnly?:    boolean
 }
 
@@ -88,15 +89,15 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  // Destino a nivel modal (reemplaza los 2 botones por ítem que existían
-  // antes) + selección múltiple — solo tiene sentido cuando !chatOnly, ya
-  // que chatOnly nunca ofreció destino "Context Files". Chat sigue limitado
-  // a 1 ítem a la vez: toggleSelect() rechaza un 2do tilde en ese modo.
-  const [destination,  setDestination]  = useState<Destination>('context_files')
-  const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set())
-  const [chatWarning,  setChatWarning]  = useState<string | null>(null)
-  const [bulkLoading,  setBulkLoading]  = useState(false)
-  const [bulkSuccess,  setBulkSuccess]  = useState<string | null>(null)
+  // Selección múltiple (solo !chatOnly — chatOnly nunca tuvo checkbox ni
+  // destino Context Files). Sin toggle de destino a nivel modal: cada card
+  // conserva sus 2 botones ("→ Context Files"/"→ Chat"), pero ahora actúan
+  // sobre el conjunto tildado si hay alguno (ver targetsFor), no solo sobre
+  // sí misma. "→ Chat" se deshabilita con 2+ tildados (ver isChatDisabled) —
+  // sin aviso de rechazo, el botón simplemente no es clickeable.
+  const [selectedIds,     setSelectedIds]     = useState<Set<string>>(new Set())
+  const [contextLoading,  setContextLoading]  = useState(false)
+  const [successMessage,  setSuccessMessage]  = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -107,18 +108,16 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
     setSearchQuery('')
     setScope('session')
     setLoadError(null)
-    setDestination('context_files')
     setSelectedIds(new Set())
-    setChatWarning(null)
-    setBulkSuccess(null)
+    setSuccessMessage(null)
     loadItems()
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!bulkSuccess) return
-    const t = setTimeout(() => setBulkSuccess(null), 6000)
+    if (!successMessage) return
+    const t = setTimeout(() => setSuccessMessage(null), 6000)
     return () => clearTimeout(t)
-  }, [bulkSuccess])
+  }, [successMessage])
 
   async function loadItems() {
     setLoading(true)
@@ -223,9 +222,6 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
     }).catch(console.error)
   }
 
-  // Extraído de lo que antes era la rama "context_files" de handleLoad, para
-  // poder reusarlo tanto en un load individual (N=1, vía handleBulkLoad) como
-  // en el loop de la selección múltiple, sin duplicar el fetch.
   async function loadItemToContextFiles(item: BrowseItem): Promise<void> {
     const contentText = await buildContentForItem(item)
     if (!contentText.trim()) {
@@ -255,8 +251,6 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
     // /api/context ya registra su propio audit log server-side — no duplicar acá.
   }
 
-  // Chat siempre fue (y sigue siendo) de a 1 ítem — usado por el botón único
-  // de chatOnly y por handleBulkLoad cuando destination==='chat' con 1 marcado.
   async function handleLoadToChat(item: BrowseItem) {
     setLoadingId(item.id)
     setLoadError(null)
@@ -277,59 +271,40 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
     }
   }
 
-  // Selección múltiple (solo !chatOnly). Context Files acepta N ítems; Chat
-  // rechaza el 2do tilde en vez de dejar la acción fallar en silencio o
-  // ejecutarse con un ítem al azar — el primero marcado permanece.
   function toggleSelect(item: BrowseItem) {
     const key = itemKey(item)
-    const isChecked = selectedIds.has(key)
-    if (!isChecked && destination === 'chat' && selectedIds.size >= 1) {
-      setChatWarning('Chat can only load 1 item at a time — switch to Context Files to load several.')
-      return
-    }
-    setChatWarning(null)
     setSelectedIds(prev => {
       const next = new Set(prev)
-      if (isChecked) next.delete(key)
+      if (next.has(key)) next.delete(key)
       else next.add(key)
       return next
     })
   }
 
-  // Cambiar de destino con 2+ ítems ya marcados (ej. venía de Context Files)
-  // deja la selección intacta pero avisa y bloquea el botón (ver handleBulkLoad
-  // / disabled del botón inferior) — nunca se limpia la selección sin avisar.
-  function handleDestinationChange(next: Destination) {
-    setDestination(next)
-    setChatWarning(
-      next === 'chat' && selectedIds.size >= 2
-        ? 'Chat can only load 1 item at a time — switch to Context Files to load several.'
-        : null
-    )
+  // El botón que se clickeó no necesariamente es el objetivo: con selección
+  // activa, cualquier botón "→ Context Files"/"→ Chat" de cualquier card
+  // actúa sobre TODO lo tildado (pedido explícito de Agus). Sin nada
+  // tildado, cae al comportamiento original — solo esa card.
+  function targetsFor(item: BrowseItem): BrowseItem[] {
+    if (selectedIds.size === 0) return [item]
+    return filtered.filter(it => selectedIds.has(itemKey(it)))
   }
 
-  async function handleBulkLoad() {
-    const targets = filtered.filter(it => selectedIds.has(itemKey(it)))
+  async function handleContextFilesClick(item: BrowseItem) {
+    const targets = targetsFor(item)
     if (targets.length === 0) return
 
-    if (destination === 'chat') {
-      if (targets.length !== 1) return // defensivo — el botón ya debería estar deshabilitado
-      await handleLoadToChat(targets[0])
-      setSelectedIds(new Set())
-      return
-    }
-
-    setBulkLoading(true)
+    setContextLoading(true)
     setLoadError(null)
-    setBulkSuccess(null)
+    setSuccessMessage(null)
     const failedNames: string[] = []
     const succeededKeys = new Set<string>()
-    for (const item of targets) {
+    for (const target of targets) {
       try {
-        await loadItemToContextFiles(item)
-        succeededKeys.add(itemKey(item))
+        await loadItemToContextFiles(target)
+        succeededKeys.add(itemKey(target))
       } catch {
-        failedNames.push(item.name)
+        failedNames.push(target.name)
       }
     }
     setSelectedIds(prev => {
@@ -338,14 +313,25 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
       return next
     })
     if (failedNames.length === 0) {
-      setBulkSuccess(`Loaded ${targets.length} item${targets.length > 1 ? 's' : ''} to Context Files.`)
+      setSuccessMessage(`Loaded ${targets.length} item${targets.length > 1 ? 's' : ''} to Context Files.`)
     } else {
       setLoadError(
         `Failed to load: ${failedNames.join(', ')}.${succeededKeys.size ? ` (${succeededKeys.size} loaded successfully.)` : ''}`
       )
     }
-    setBulkLoading(false)
+    setContextLoading(false)
   }
+
+  async function handleChatClick(item: BrowseItem) {
+    const targets = targetsFor(item)
+    if (targets.length !== 1) return // defensivo — el botón ya está deshabilitado con 2+
+    await handleLoadToChat(targets[0])
+    setSelectedIds(new Set())
+  }
+
+  // "→ Chat" solo admite 0 o 1 tildado a la vez — con 2+, el botón queda
+  // deshabilitado en TODAS las cards (autoexplicativo, sin aviso aparte).
+  const isChatDisabled = selectedIds.size >= 2
 
   if (!open) return null
 
@@ -382,55 +368,16 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
             {loadError}
           </div>
         )}
-
-        {/* Destino (Chat vs Context Files) — a nivel modal, reemplaza los 2
-            botones por ítem que existían antes. chatOnly nunca tuvo destino
-            Context Files, así que este toggle no aplica ahí. */}
-        {!chatOnly && (
-          <div className="px-5 pt-3 shrink-0">
-            <label className="text-xs text-gray-400 mb-1.5 block">Load to</label>
-            <div className="flex gap-2">
-              {([
-                { key: 'chat' as const, label: 'Chat' },
-                { key: 'context_files' as const, label: 'Context Files' },
-              ]).map(d => (
-                <button
-                  key={d.key}
-                  onClick={() => handleDestinationChange(d.key)}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                    destination === d.key
-                      ? 'bg-indigo-600 border-indigo-500 text-white'
-                      : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-500'
-                  }`}
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-[10px] text-gray-600 mt-1">
-              {destination === 'chat'
-                ? 'Injects one item as your next message in this conversation.'
-                : 'Keeps one or more items as background context — check any that apply below.'}
-            </p>
-          </div>
-        )}
-
-        {!chatOnly && chatWarning && (
-          <div className="mx-5 mt-2 shrink-0 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            {chatWarning}
-          </div>
-        )}
-
-        {!chatOnly && bulkSuccess && (
-          <div className="mx-5 mt-2 shrink-0 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-            {bulkSuccess}
+        {!chatOnly && successMessage && (
+          <div className="mx-5 mt-3 shrink-0 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+            {successMessage}
           </div>
         )}
 
         {/* Scope selector — mismo patrón que Add Context File. Solo aplica al destino "Context Files". */}
-        {!chatOnly && destination === 'context_files' && (
+        {!chatOnly && (
           <div className="px-5 pt-3 shrink-0">
-            <label className="text-xs text-gray-400 mb-1.5 block">Context Files scope</label>
+            <label className="text-xs text-gray-400 mb-1.5 block">Context Files scope <span className="text-gray-500 normal-case">(only applies when loading to Context Files)</span></label>
             <div className="flex gap-2">
               {(['session', 'team', 'project'] as const).map(s => (
                 <button
@@ -489,8 +436,17 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
           ) : (
             <ul className="space-y-2">
               {filtered.map(it => (
-                <li key={`${it.type}-${it.id}`} className="border border-gray-200 rounded-lg px-3 py-2.5">
+                <li key={itemKey(it)} className="border border-gray-200 rounded-lg px-3 py-2.5">
                   <div className="flex items-start justify-between gap-3">
+                    {!chatOnly && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(itemKey(it))}
+                        onChange={() => toggleSelect(it)}
+                        className="w-4 h-4 mt-1 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        aria-label={`Select ${it.name}`}
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">
@@ -505,25 +461,27 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
                         <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">{it.content_preview}</p>
                       )}
                     </div>
-                    <div className="shrink-0 flex flex-col gap-1 items-end">
-                      {chatOnly ? (
+                    <div className="shrink-0 flex flex-col gap-1">
+                      {!chatOnly && (
                         <button
-                          onClick={() => handleLoadToChat(it)}
-                          disabled={loadingId === it.id}
-                          title="Inject it as a message and start working on it now"
+                          onClick={() => handleContextFilesClick(it)}
+                          disabled={contextLoading || loadingId !== null}
+                          title="Keep it as background context for this session"
                           className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
-                          {loadingId === it.id ? 'Loading…' : '→ Chat'}
+                          {contextLoading ? 'Loading…' : '→ Context Files'}
                         </button>
-                      ) : (
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(itemKey(it))}
-                          onChange={() => toggleSelect(it)}
-                          className="w-4 h-4 mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                          aria-label={`Select ${it.name}`}
-                        />
                       )}
+                      <button
+                        onClick={() => handleChatClick(it)}
+                        disabled={loadingId !== null || contextLoading || (!chatOnly && isChatDisabled)}
+                        title={!chatOnly && isChatDisabled ? 'Chat can only load 1 item at a time' : 'Inject it as a message and start working on it now'}
+                        className={chatOnly
+                          ? 'text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors'
+                          : 'text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors'}
+                      >
+                        {loadingId !== null ? 'Loading…' : '→ Chat'}
+                      </button>
                     </div>
                   </div>
                 </li>
@@ -531,35 +489,6 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
             </ul>
           )}
         </div>
-
-        {/* Barra de acción masiva — solo !chatOnly. Con destino Chat solo se
-            habilita con exactamente 1 marcado (defensivo, ver toggleSelect/
-            handleDestinationChange que ya evitan llegar a 2+ en ese modo). */}
-        {!chatOnly && (
-          <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-200 shrink-0">
-            <span className="text-xs text-gray-500">
-              {selectedIds.size === 0
-                ? 'Select one or more items above.'
-                : `${selectedIds.size} item${selectedIds.size > 1 ? 's' : ''} selected.`}
-            </span>
-            <button
-              onClick={handleBulkLoad}
-              disabled={
-                bulkLoading ||
-                loadingId !== null ||
-                selectedIds.size === 0 ||
-                (destination === 'chat' && selectedIds.size !== 1)
-              }
-              className="text-xs px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {bulkLoading || loadingId !== null
-                ? 'Loading…'
-                : destination === 'chat'
-                ? 'Load to Chat'
-                : `Load selected (${selectedIds.size}) → Context Files`}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   )

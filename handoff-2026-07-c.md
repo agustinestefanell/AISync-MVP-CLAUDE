@@ -1083,10 +1083,34 @@ lint ✅ (1 error nuevo encontrado y corregido en el camino — `catch (e)` con 
 
 ### Riesgos conocidos / deuda técnica
 
-- **Verificación visual pendiente** — bloqueante para dar la feature por cerrada en producción, no solo por código. Las 3 capturas pedidas a Agus.
-- **Default de `destination` al abrir el modal es `'context_files'`** — decisión arbitraria (no especificada en la consigna), señalada por si Agus prefiere que arranque en `'chat'` tras verlo en uso real.
-- **`handleBulkLoad()` para Context Files es secuencial (`await` en loop), no paralelo** — deliberado, evita ráfagas simultáneas contra `/api/context` si el usuario marca muchos ítems a la vez; con volúmenes reales esperados (unas pocas decenas de saved items por cuenta) no debería notarse, pero es la primera candidata a revisar si algún día se reporta lentitud con selecciones grandes.
+- **`handleContextFilesClick()` es secuencial (`await` en loop), no paralelo** — deliberado, evita ráfagas simultáneas contra `/api/context` si el usuario marca muchos ítems a la vez; con volúmenes reales esperados (unas pocas decenas de saved items por cuenta) no debería notarse, pero es la primera candidata a revisar si algún día se reporta lentitud con selecciones grandes.
 
 **Archivos modificados:** `src/components/workspace/LoadContextModal.tsx` (único archivo de código), `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+### Ajuste mismo día — revertido el toggle de destino, vuelta a 2 botones por card conectados a la selección
+
+**Pedido de Agus tras ver el diseño de arriba:** no quería el toggle global "Load to: Chat / Context Files" — prefiere volver a los 2 botones dentro de cada card ("→ Context Files"/"→ Chat", como antes de esta OE), pero ahora conscientes de la selección múltiple.
+
+**Rediseño (reemplaza el toggle, no lo complementa):**
+- Eliminados: `destination` (estado), `handleDestinationChange()`, `chatWarning`, el bloque de toggle en el render y la barra de acción inferior — el "estado elegido" a nivel modal desaparece por completo.
+- **Checkboxes se mantienen** (única pieza de la primera versión que sobrevive) — pero ahora cada card vuelve a tener sus 2 botones propios.
+- **`targetsFor(item)`:** si `selectedIds` está vacío, el botón clickeado actúa solo sobre esa card (comportamiento original, sin selección). Si hay 1+ tildados, CUALQUIER botón de CUALQUIER card actúa sobre el conjunto tildado completo, no solo sobre la card donde se clickeó — pedido explícito de Agus ("si tildaste 3 y clickeás Context Files en cualquiera de esas cards, carga las 3").
+- **`handleContextFilesClick()`:** siempre habilitado, sin importar cuántos ítems estén tildados (1 o más) — recorre `targetsFor(item)` secuencialmente vía `loadItemToContextFiles()` (sin cambios respecto a la versión anterior), reporta fallas por nombre sin perder los que sí cargaron.
+- **`handleChatClick()` + `isChatDisabled`:** con 2+ tildados, el botón "→ Chat" se deshabilita en TODAS las cards (`isChatDisabled = selectedIds.size >= 2`) — **sin aviso de rechazo** (ya no aplica, el botón deshabilitado es autoexplicativo, pedido explícito de Agus de simplificar). Con 0 o 1 tildado, ambos botones quedan habilitados en todas las cards.
+- Scope selector (Session/Team/Project) vuelve a mostrarse siempre que `!chatOnly` (ya no depende de un "destino" que dejó de existir) — texto original restaurado ("only applies when loading to Context Files").
+- `chatOnly` (HumanChatPanel) sin cambios en ningún momento de esta OE — nunca tuvo checkbox, destino Context Files, ni selección múltiple.
+
+**Interpretación de un caso no explícito en la consigna:** clickear un botón en una card SIN tildar mientras OTRAS cards sí están tildadas actúa sobre el conjunto tildado (ignora la card clickeada), no sobre la card individual — se tomó como la lectura más consistente de "los botones ya no actúan solo sobre esa card individual", dado que el estado relevante pasó a ser "cuántos y cuáles están tildados", no "qué card se clickeó". Señalado por si Agus prefiere un comportamiento distinto tras probarlo.
+
+### Verificación (ajuste)
+
+lint ✅, build ✅ (mismos 3 warnings preexistentes de `CanvasViewport.tsx`, no tocados). **Verificación visual pendiente en producción** (localhost no sirve para este flujo, ver nota de sesión) — 3 capturas reemplazan a las de la versión anterior: (1) 0-1 tildados, ambos botones habilitados; (2) 2+ tildados, "→ Chat" deshabilitado y "→ Context Files" habilitado en todas las cards; (3) click en "→ Context Files" con 2+ tildados carga todos, no solo uno.
+
+### Alternativas descartadas (ajuste)
+
+- **Mantener el toggle de destino y agregar los botones por card encima** — descartado, Agus pidió reemplazar el mecanismo, no sumar una capa más de UI.
+- **Aviso inline al deshabilitar "→ Chat" con 2+** — descartado explícitamente por Agus: un botón deshabilitado ya comunica la regla sin texto adicional.
+
+**Archivos modificados (ajuste):** `src/components/workspace/LoadContextModal.tsx` (único archivo de código), `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
