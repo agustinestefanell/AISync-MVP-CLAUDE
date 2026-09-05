@@ -436,13 +436,18 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
           ) : (
             <ul className="space-y-2">
               {filtered.map(it => (
-                <li key={itemKey(it)} className="border border-gray-200 rounded-lg px-3 py-2.5">
+                <li
+                  key={itemKey(it)}
+                  onClick={!chatOnly ? () => toggleSelect(it) : undefined}
+                  className={`border border-gray-200 rounded-lg px-3 py-2.5 ${!chatOnly ? 'cursor-pointer hover:border-indigo-300' : ''}`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     {!chatOnly && (
                       <input
                         type="checkbox"
                         checked={selectedIds.has(itemKey(it))}
                         onChange={() => toggleSelect(it)}
+                        onClick={e => e.stopPropagation()}
                         className="w-4 h-4 mt-1 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                         aria-label={`Select ${it.name}`}
                       />
@@ -464,7 +469,7 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
                     <div className="shrink-0 flex flex-col gap-1">
                       {!chatOnly && (
                         <button
-                          onClick={() => handleContextFilesClick(it)}
+                          onClick={e => { e.stopPropagation(); handleContextFilesClick(it) }}
                           disabled={contextLoading || loadingId !== null}
                           title="Keep it as background context for this session"
                           className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -473,7 +478,7 @@ export default function LoadContextModal({ open, onClose, projectId, teamId, wor
                         </button>
                       )}
                       <button
-                        onClick={() => handleChatClick(it)}
+                        onClick={e => { e.stopPropagation(); handleChatClick(it) }}
                         disabled={loadingId !== null || contextLoading || (!chatOnly && isChatDisabled)}
                         title={!chatOnly && isChatDisabled ? 'Chat can only load 1 item at a time' : 'Inject it as a message and start working on it now'}
                         className={chatOnly

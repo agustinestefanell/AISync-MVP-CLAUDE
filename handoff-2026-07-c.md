@@ -1113,4 +1113,20 @@ lint ✅, build ✅ (mismos 3 warnings preexistentes de `CanvasViewport.tsx`, no
 
 **Archivos modificados (ajuste):** `src/components/workspace/LoadContextModal.tsx` (único archivo de código), `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
+### Ajuste mismo día (2) — área de click del checkbox extendida a toda la card
+
+**Confirmado por Agus:** el diseño de selección múltiple + botones por card (ajuste anterior) quedó exactamente como lo quería. Único pendiente: el checkbox solo se tildaba clickeando el box chico — pidió poder tildar clickeando en cualquier parte de la card (título, preview, metadata), sin romper el click directo sobre el checkbox ni las acciones de los 2 botones.
+
+**Implementación:** el `<li>` de cada card gana `onClick={() => toggleSelect(it)}` (solo `!chatOnly` — en `chatOnly` no hay checkbox, no hay nada que tildar) + `cursor-pointer hover:border-indigo-300` para affordance visual. Para evitar que el click del checkbox se propague al `<li>` y dispare un doble toggle (tilda y destilda en el mismo click, efecto neto nulo), el `<input type="checkbox">` gana `onClick={e => e.stopPropagation()}` además de su `onChange` ya existente — el `onChange` sigue siendo la única vía real de cambio de estado para el checkbox en sí, `stopPropagation()` solo evita que ese click además dispare el toggle del contenedor. Los 2 botones ("→ Context Files"/"→ Chat") ganan el mismo `e.stopPropagation()` en su `onClick`, antes de ejecutar su acción — clickearlos ya no altera el checkbox de esa card.
+
+### Verificación (ajuste 2)
+
+lint ✅, build ✅. **Verificación visual pendiente en producción** — click en título/preview/metadata de una card debe tildar/destildar el checkbox; click en cualquiera de los 2 botones debe ejecutar su acción sin tocar el estado del checkbox.
+
+### Riesgos conocidos / deuda técnica (ajuste 2)
+
+Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el contenedor, sin tocar lógica de selección/carga ya verificada en el ajuste anterior.
+
+**Archivos modificados (ajuste 2):** `src/components/workspace/LoadContextModal.tsx` (único archivo de código), `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
 ---
