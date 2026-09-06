@@ -156,6 +156,13 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   // router.refresh() de handleUpdated() para restaurar el scroll en MapView
   // en vez de quedar en el Project #1 (ver diagnóstico OE 2026-09-06).
   const [scrollToProjectId, setScrollToProjectId] = useState<string | null>(null)
+
+  // DEBUG TEMPORAL (OE 2026-09-06, diagnóstico "Deselect all"/Teams Map scroll) —
+  // confirma si router.refresh() remonta TeamsClient (perdería scrollToProjectId)
+  // o solo re-renderiza con props nuevas. Sacar una vez confirmado el diagnóstico.
+  useEffect(() => {
+    console.log('[DEBUG teams-map] TeamsClient MOUNTED (fiber nuevo)')
+  }, [])
   const [showMainGuide,        setShowMainGuide]        = useState(false)
   const [showSatMatGuide,      setShowSatMatGuide]      = useState(false)
   const [showCreateTeamsGuide, setShowCreateTeamsGuide] = useState(false)
@@ -236,6 +243,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   }
 
   function handleUpdated(updated: TeamWithWorkspaces) {
+    console.log('[DEBUG teams-map] handleUpdated — scrollToProjectId antes de refresh:', scrollToProjectId)
     setTeams(prev => prev.map(t => t.id === updated.id ? updated : t))
     setEditingTeam(null)
     router.refresh()
@@ -456,7 +464,11 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           zoomOutSignal={zoomOutSignal}
           resetSignal={resetSignal}
           focusProjectId={scrollToProjectId}
-          onEdit={team => { setEditingTeam(team); setScrollToProjectId(team.project_id) }}
+          onEdit={team => {
+            console.log('[DEBUG teams-map] onEdit — capturando project_id:', team.project_id)
+            setEditingTeam(team)
+            setScrollToProjectId(team.project_id)
+          }}
           onOpen={workspaceId => window.open(`/workspace/${workspaceId}`, '_blank')}
           onConnect={(pid: string) => {
             setConnectProjectId(pid)

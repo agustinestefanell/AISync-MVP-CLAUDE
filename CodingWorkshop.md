@@ -1936,3 +1936,15 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** al elegir un color nuevo para un estado de UI, relevar el `tokens.css`/design system completo (no solo el componente que se está tocando) antes de proponerlo — una colisión de color puede estar en un componente completamente distinto que comparte el mismo sistema de diseño, y el usuario no tiene por qué saber que ese tono "ya está tomado" en otro lugar de la app.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-06 (2), `src/styles/tokens.css`.
+
+---
+
+## 2026-09-06 (4) — Un fix que "debería andar" por lógica no anduvo — instrumentar antes de proponer un segundo fix a ciegas
+
+**Qué pasó:** el fix de Teams Map (guardar `project_id` en estado de React, restaurarlo con `scrollIntoView` cuando cambian los datos tras `router.refresh()`) se implementó siguiendo un diagnóstico sólido, pasó lint/build, y en el papel debería funcionar — pero Agus confirmó tras el deploy que el síntoma seguía igual. La reacción productiva no fue proponer un segundo fix basado en una nueva hipótesis sin evidencia, sino instrumentar el código con `console.log` en los puntos exactos donde cada hipótesis (remount de componente, timing del ref, prop no llegando) predice un resultado distinto — dejando que la consola del browser (que Agus sí puede ver, a diferencia de mí) confirme cuál es real.
+
+**Hipótesis técnica que quedó planteada (no confirmada aún):** `TeamsClient.tsx` usa `const [teams, setTeams] = useState<TeamWithWorkspaces[]>(initialTeams)` — un patrón común mal-entendido: `useState(prop)` solo usa `prop` como valor inicial en el PRIMER mount; renders posteriores con un `prop` distinto (como el que trae un `router.refresh()`) no reinicializan el estado, a menos que el componente se remonte por completo (fiber nuevo). Si `router.refresh()` en este proyecto SÍ causa ese remount completo, cualquier estado nuevo agregado para "sobrevivir" al refresh (como el `scrollToProjectId` de esta misma OE) queda destruido en el mismo momento que todo lo demás, porque vive en el componente que se estaría remontando.
+
+**Lección:** cuando un fix lógicamente correcto no funciona en producción y no hay forma de reproducir/inspeccionar el DOM uno mismo, agregar instrumentación mínima y de solo lectura (console.log en los puntos de decisión clave) en vez de iterar a ciegas sobre el fix — cada hipótesis debería predecir una salida de consola distinta y verificable, para que la siguiente pasada corrija con evidencia, no con otra suposición.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (7), `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`.

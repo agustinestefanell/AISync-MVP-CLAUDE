@@ -1284,3 +1284,25 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`.
 
 ---
+
+## 2026-09-06 (7) — El fix de Teams Map (Opción B) no funcionó: instrumentado con logs temporales, no un segundo fix a ciegas
+
+**Confirmado por Agus:** tras el deploy de `64657fe`, Save Changes en Edit Team sigue volviendo al Project #1. Instrucción explícita: no asumir causa, traer evidencia antes de tocar el fix de nuevo.
+
+**Hipótesis más fuerte, sin poder confirmarla sin acceso a browser:** `TeamsClient.tsx:149` usa `useState<TeamWithWorkspaces[]>(initialTeams)` — un patrón donde el estado se inicializa UNA sola vez desde el prop del server, y los renders posteriores con un `initialTeams` distinto (como el que trae `router.refresh()`) normalmente NO reinicializan ese estado. Si en la práctica `router.refresh()` sí remonta el subárbol de Client Components de esta ruta (fiber nuevo, no solo props nuevas), **todo el estado de `TeamsClient` se pierde en ese momento — incluido el nuevo `scrollToProjectId`**, porque vive en el mismo componente que se estaría destruyendo. Esto explicaría tanto el bug original como por qué el fix de Opción B no alcanza: el estado que se supone debe "sobrevivir" al refresh vive exactamente en el componente que el refresh tira abajo.
+
+**No se puede confirmar por lectura de código sola** si `router.refresh()` realmente remonta o solo re-renderiza — depende del comportamiho real de reconciliación de React/Next en este proyecto puntual, no es determinable 100% sin observar el DOM/consola real.
+
+**Instrumentación agregada (temporal, marcada explícitamente en el código con comentarios "DEBUG TEMPORAL", a sacar en la próxima pasada):**
+- `TeamsClient.tsx`: `console.log` en un `useEffect([])` (dispara solo en mount real — si aparece una 2ª vez tras Save Changes, confirma remount), en `onEdit` (confirma que `project_id` se captura), y en `handleUpdated` (muestra el valor de `scrollToProjectId` justo antes de `router.refresh()`).
+- `MapView.tsx`: mismo patrón de `useEffect([])` para detectar remount, un log en cada render mostrando el prop `focusProjectId` recibido, y un log dentro del efecto de restauración mostrando si `projectSectionRefs.current[focusProjectId]` existe o no en ese momento (confirma o descarta la hipótesis de timing sobre la ref).
+
+**Pedido a Agus:** reproducir el flujo completo (editar un team en un Project que no sea el primero, Save Changes) con la consola del navegador abierta (F12 → Console) y mandar el output completo — con eso se puede confirmar cuál de las 4 hipótesis planteadas (remount de TeamsClient, remount de MapView, timing del ref, o prop no llegando) es la real, sin seguir adivinando.
+
+**No se tocó la lógica del fix en sí** (el código de Opción B sigue como quedó en `64657fe`) — solo se agregó instrumentación de solo-lectura (console.log).
+
+**Verificación:** lint ✅, build ✅ (`/teams` 8.49kB→8.6kB, esperable por los logs agregados). **Verificación visual/consola: pendiente de que Agus reproduzca y mande el output.**
+
+**Archivos modificados:** `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---

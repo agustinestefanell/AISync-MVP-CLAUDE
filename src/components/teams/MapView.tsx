@@ -204,6 +204,14 @@ export default function MapView({
   const [isProjectIndexOpen, setIsProjectIndexOpen] = useState(true)
   const projectSectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
+  // DEBUG TEMPORAL (OE 2026-09-06) — confirma si MapView se remonta (fiber
+  // nuevo) y qué valor de focusProjectId le llega en cada render. Sacar una
+  // vez confirmado el diagnóstico.
+  useEffect(() => {
+    console.log('[DEBUG teams-map] MapView MOUNTED (fiber nuevo)')
+  }, [])
+  console.log('[DEBUG teams-map] MapView render — focusProjectId prop:', focusProjectId)
+
   // Ajuste 1 — rename inline del Project en el sidebar (doble click)
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [editingName,      setEditingName]      = useState('')
@@ -341,6 +349,7 @@ export default function MapView({
   useEffect(() => {
     if (!focusProjectId) return
     const section = projectSectionRefs.current[focusProjectId]
+    console.log('[DEBUG teams-map] restore effect — focusProjectId:', focusProjectId, '| ref encontrada:', !!section, '| ids con ref:', Object.keys(projectSectionRefs.current))
     if (section) {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
