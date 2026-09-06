@@ -1968,3 +1968,13 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** cuando una función arma múltiples objetos similares en el mismo scope (acá: nodo de Manager, después nodos de Worker) y alguna variable "de arriba" tiene un nombre genérico (`provider`, no `managerProvider`), es fácil que un bloque posterior la reutilice por accidente en vez de calcular su propio valor — sobre todo si el bloque se escribió copiando el de arriba. Nombrar la variable del Manager de forma explícita (`managerProvider` en vez de `provider`) hubiera hecho que reutilizarla por error en el bloque de Workers se viera obviamente mal al leerlo, en vez de pasar desapercibido.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-06 (10), `src/components/teams/MapView.tsx:125,183`.
+
+---
+
+## 2026-09-06 (7) — Bug: orden de columnas inestable por confiar en el orden de fila de Supabase sin `ORDER BY`
+
+**Qué pasó:** `EditTeamModal.tsx` renderizaba las 3 columnas de agentes iterando directamente `workspace.agent_sessions` (el array tal como lo devuelve el `.select('*, workspaces(*, agent_sessions(*))')` de `route.ts`). Ninguna query de esa cadena tiene `.order()` sobre `agent_sessions` — Postgres/PostgREST no garantiza ningún orden estable de filas sin uno explícito, así que el orden podía cambiar entre una apertura del modal y la siguiente, sin ningún cambio de datos real de por medio.
+
+**Lección:** cuando un array que viene de una query sin `ORDER BY` se va a renderizar en un layout POSICIONAL (columnas, filas fijas, "el primero a la izquierda") — no alfabético ni agrupado, sino dependiente del orden exacto — hay que ordenarlo explícitamente antes de usarlo, nunca asumir que el orden de la DB es estable. Es un antipatrón fácil de no notar en desarrollo (el orden puede parecer consistente en local durante meses) y que se manifiesta como un bug intermitente en producción, difícil de reproducir a pedido.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (11), `src/components/teams/EditTeamModal.tsx`.

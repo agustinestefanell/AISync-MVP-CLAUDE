@@ -45,10 +45,16 @@ interface EditTeamModalProps {
   onTeamCreated?: (team: TeamWithWorkspaces) => void
 }
 
+// Supabase no garantiza orden sin ORDER BY explícito — sin esto, las 3
+// columnas del modal aparecían en un orden distinto cada vez que se abría.
+const AGENT_ROLE_ORDER: Record<string, number> = { manager: 0, worker1: 1, worker2: 2 }
+
 export default function EditTeamModal({ team, allTeams, projects, onClose, onUpdated, onDeleted, onTeamCreated }: EditTeamModalProps) {
   const router    = useRouter()
   const workspace = team.workspaces[0] ?? null
-  const rawAgents: AgentSession[] = workspace?.agent_sessions ?? []
+  const rawAgents: AgentSession[] = [...(workspace?.agent_sessions ?? [])].sort(
+    (a, b) => (AGENT_ROLE_ORDER[a.agent_role] ?? 99) - (AGENT_ROLE_ORDER[b.agent_role] ?? 99)
+  )
 
   function toAgentEdit(a: AgentSession): AgentEdit {
     return {
@@ -300,9 +306,18 @@ export default function EditTeamModal({ team, allTeams, projects, onClose, onUpd
                   const providerIsLegacy = cloud && !(CLOUD_PROVIDERS as readonly string[]).includes(a.provider)
                   const modelIsLegacy = cloud && a.provider in MODELS && !MODELS[a.provider as CloudProvider].includes(a.model)
 
+                  const isManager = a.role === 'manager'
+
                   return (
-                    <div key={a.id} className="bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] rounded-lg px-3 py-3 space-y-2">
-                      <p className="text-xs font-semibold text-[var(--color-text-secondary)]">{AGENT_LABEL[a.role] ?? a.role}</p>
+                    <div
+                      key={a.id}
+                      className={`border rounded-lg px-3 py-3 space-y-2 ${
+                        isManager
+                          ? 'bg-[var(--color-role-manager-soft)] border-[var(--color-role-manager-border)]'
+                          : 'bg-[var(--color-surface-subtle)] border-[var(--color-border-subtle)]'
+                      }`}
+                    >
+                      <p className={`text-xs font-semibold ${isManager ? 'text-[var(--color-role-manager-accent)]' : 'text-[var(--color-text-secondary)]'}`}>{AGENT_LABEL[a.role] ?? a.role}</p>
                       <select
                         value={a.provider}
                         onChange={e => setAgentField(i, { provider: e.target.value })}

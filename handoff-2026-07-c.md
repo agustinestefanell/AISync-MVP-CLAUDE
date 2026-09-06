@@ -1372,3 +1372,23 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## 2026-09-06 (11) — Edit Team: orden fijo de columnas de agentes + tinte distintivo en la columna Manager
+
+**Síntoma (4 capturas de Agus):** las 3 columnas de agentes en el modal Edit Team aparecían en un orden distinto cada vez que se abría — a veces Manager a la izquierda, a veces al medio, a veces a la derecha.
+
+**Diagnóstico confirmado:** `EditTeamModal.tsx:51` — `rawAgents = workspace?.agent_sessions ?? []`, sin ningún `.sort()`. El orden dependía 100% de cómo Supabase devolvía las filas de `agent_sessions` en cada query, sin `ORDER BY` explícito en ningún lado (`route.ts`, `projects.ts`) — Postgres/PostgREST no garantiza orden estable sin eso.
+
+**Fix Parte 1 — orden fijo, resuelto en el frontend:** nueva constante `AGENT_ROLE_ORDER = { manager: 0, worker1: 1, worker2: 2 }`, `rawAgents` ahora se ordena explícitamente por ese mapa antes de construir el estado `agents`. Se eligió ordenar en el frontend (no agregar `ORDER BY` en la query) porque el bug se manifestaba únicamente acá — es el único lugar que itera `agent_sessions` en orden posicional para renderizar columnas; tocar la query hubiera sido un cambio más amplio para un síntoma puntual. Confirmado por grep que `AddTeamModal.tsx` (crear team) no tiene este patrón — no aplica ahí, los agentes todavía no existen en ese flujo.
+
+**Fix Parte 2 — tinte distintivo en la columna Manager:** antes de aplicar, se mostró la propuesta a Agus en un artifact visual — aprobado reutilizar `--color-role-manager-soft` (`rgba(49,65,85,0.1)`), un token que **ya existe** en `tokens.css` y **ya identifica al Manager** en los headers de panel de `AgentPanel.tsx` (Workspace). Se descartó introducir un color nuevo — reutilizar el mismo tono mantiene una sola asociación visual "este tono = Manager" consistente entre Workspace y el modal. Implementado: la columna cuyo `a.role === 'manager'` usa `bg-[var(--color-role-manager-soft)] border-[var(--color-role-manager-border)]` y el label en `text-[var(--color-role-manager-accent)]`; Worker1/Worker2 quedan con el fondo neutro de siempre (`--color-surface-subtle`), sin cambios.
+
+**Alcance respetado:** el mismo bloque de renderizado se usa para teams `isolated` (1 columna, solo Manager) — esa única columna también recibe el tinte, correcto por definición (es el Manager), sin necesidad de lógica extra.
+
+**Riesgos conocidos / deuda técnica:** ninguno nuevo.
+
+**Verificación:** lint ✅, build ✅. **Verificación visual: pendiente** — abrir Edit Team varias veces en el mismo team y en teams distintos, confirmar orden siempre Manager/Worker1/Worker2 y el tinte visible en la columna Manager.
+
+**Archivos modificados:** `src/components/teams/EditTeamModal.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---
