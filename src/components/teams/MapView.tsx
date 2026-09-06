@@ -27,6 +27,7 @@ interface MapViewProps {
   zoomInSignal: number
   zoomOutSignal: number
   resetSignal: number
+  focusProjectId?: string | null
   onEdit: (team: TeamWithWorkspaces) => void
   onOpen: (workspaceId: string) => void
   onConnect: (projectId: string) => void
@@ -192,6 +193,7 @@ export default function MapView({
   zoomInSignal,
   zoomOutSignal,
   resetSignal,
+  focusProjectId,
   onEdit,
   onOpen,
   onConnect,
@@ -329,6 +331,20 @@ export default function MapView({
       section.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }
+
+  // Restaura el scroll al Project donde estaba el usuario cuando Save Changes
+  // (Edit Team) dispara router.refresh() en TeamsClient — sin esto, el refresh
+  // de datos deja la vista scrolleada arriba de todo (Project #1). Depende de
+  // allProjectLayouts (no solo de focusProjectId) para volver a dispararse
+  // cuando los datos frescos del refresh terminan de llegar, no solo la
+  // primera vez que se abre Edit Team.
+  useEffect(() => {
+    if (!focusProjectId) return
+    const section = projectSectionRefs.current[focusProjectId]
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [focusProjectId, allProjectLayouts])
 
   if (projectGroups.length === 0 || projectGroups.every(g => g.teams.length === 0)) {
     return (

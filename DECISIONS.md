@@ -1618,3 +1618,21 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Decisión de estilo — texto violeta (mismo token `--color-selected`) para "Deselect all", en vez de un color completamente nuevo:** Agus pidió que resalte pero sin la intensidad del violeta de selección. Usar el mismo hue pero como color de TEXTO sobre fondo neutro (no un fill sólido) logra ambas cosas: mantiene una asociación temática coherente ("este botón tiene que ver con selección") sin repetir la intensidad visual del highlight de burbuja (que sí es un fill sólido con borde). Alternativa descartada: introducir un tono nuevo sin relación con el sistema de selección ya establecido — hubiera sumado un color más al inventario sin necesidad.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-06 (5), `src/components/workspace/WorkspaceShell.tsx`, `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/HumanChatPanel.tsx`.
+
+## 2026-09-06 (5) — Teams Map: restaurar scroll post-refresh con estado de React (Opción B), no con la URL (Opción A)
+
+**Contexto:** diagnóstico confirmó que Save Changes en Edit Team dispara `router.refresh()` (`TeamsClient.tsx:237`), y que Teams Map nunca tuvo un estado que recordara en qué Project estaba parado el usuario — es solo una posición de scroll sobre un único contenedor que apila todos los Projects (`MapView.tsx:345`).
+
+**2 opciones presentadas, Agus eligió Opción B:**
+- Opción A (URL/query param): sobrevive también a un F5 manual del usuario, pero requiere tocar `page.tsx` (Server Component, hoy sin `searchParams`), manejar `router.replace()` en cada navegación a un Project para no ensuciar el historial, y sincronizar lectura/escritura en 3 archivos.
+- Opción B (estado de React + restaurar scroll): resuelve exactamente el síntoma reportado (que ocurre solo vía Save Changes), con 2 archivos tocados y sin tocar el Server Component ni el historial del navegador. Limitación aceptada explícitamente: no sobrevive a un F5 manual real.
+
+**Decisión — capturar el Project al ABRIR Edit Team, no al guardar:** `team.project_id` se captura en el mismo `onEdit` que abre el modal (`TeamsClient.tsx`), no en `handleUpdated()` al guardar — el valor es el mismo en ambos momentos (no cambia mientras el modal está abierto), y capturarlo al abrir es el punto más simple y explícito.
+
+**Decisión — el efecto de restauración en `MapView.tsx` depende de `[focusProjectId, allProjectLayouts]`, no solo de `focusProjectId`:** si dependiera solo de `focusProjectId`, el efecto se dispararía una sola vez, apenas se abre el modal — antes de que exista el `router.refresh()` cuyo efecto hay que compensar, porque las secciones de cada Project ya están en el DOM desde antes (tienen `key={project.id}` estable, no se desmontan). Atarlo también a `allProjectLayouts` (que cambia de referencia cuando los datos frescos del refresh llegan, vía su `useMemo` dependiente de `teams`) asegura que el efecto se repita en el momento correcto.
+
+**Decisión — no limpiar `scrollToProjectId` después de un scroll exitoso:** limpiarlo en el primer disparo del efecto (que ocurre casi al abrir el modal, ver punto anterior) dejaría el valor en `null` justo antes del momento que importa. Se deja "pegado" hasta que se abre Edit Team en otro Project (que lo sobreescribe). Riesgo aceptado y documentado: un cambio de datos no relacionado después de cerrar el modal podría re-disparar el scroll al último Project editado — caso borde de bajo impacto, no se agregó un timeout ni otro mecanismo de limpieza para no sumar complejidad a un fix que, por decisión explícita de Agus, debía quedar simple.
+
+**Alternativas descartadas:** Opción A completa (ver arriba); limpiar el estado con un `setTimeout` tras `router.refresh()` — descartado por agregar un número mágico/heurística frágil para un caso borde de bajo impacto.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (6), `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`.

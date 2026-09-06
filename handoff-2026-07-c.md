@@ -1260,3 +1260,27 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/components/workspace/WorkspaceShell.tsx`, `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/HumanChatPanel.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`.
 
 ---
+
+## 2026-09-06 (6) — Teams Map: restaurar scroll al Project activo tras Save Changes (Edit Team)
+
+**Diagnóstico previo (mismo día, sin tocar código):** `TeamsClient.tsx:237` (`handleUpdated`, el `onUpdated` de `EditTeamModal`) dispara `router.refresh()` tras un Save Changes exitoso. Teams Map (`MapView.tsx`) no muestra un Project a la vez — apila TODOS los Projects de la cuenta en un único contenedor con scroll (`MapView.tsx:345`), y navegar a un Project puntual es solo una posición de scroll (`handleProjectClick`, `scrollIntoView`) — nunca existió un estado que recordara "en qué Project está parado el usuario". Al refrescar datos, la vista queda con el scroll arriba de todo = Project #1. Confirmado con Agus que el punto 5 (modales que cierran con click afuera) es un tema aparte, sin relación — no se investigó más en esta entrada.
+
+**Propuesta presentada y aprobada — Opción B** (estado de React + restaurar scroll post-refresh, en vez de Opción A vía query param en la URL — esa sobrevive también a un F5 manual del usuario pero requiere tocar el Server Component `page.tsx` y manejo de historial; descartada por mayor superficie para un síntoma que hoy solo ocurre vía Save Changes).
+
+**Implementación:**
+- `TeamsClient.tsx`: nuevo estado `scrollToProjectId` (`useState<string | null>(null)`). Se captura `team.project_id` en el mismo `onEdit` que abre el modal (`onEdit={team => { setEditingTeam(team); setScrollToProjectId(team.project_id) }}`) — sobrevive intacto durante todo el ciclo abrir → guardar → `router.refresh()`, sin necesidad de volver a setearlo en `handleUpdated()`. Pasado a `MapView` como nuevo prop `focusProjectId`.
+- `MapView.tsx`: nuevo prop opcional `focusProjectId`. Nuevo `useEffect` justo después de `handleProjectClick` que reutiliza el mismo `projectSectionRefs.current[id]` + `scrollIntoView()` ya existente — **con dependencia en `[focusProjectId, allProjectLayouts]`**, no solo en `focusProjectId`. Esto es intencional: `allProjectLayouts` es lo que cambia de referencia cuando los datos frescos del `router.refresh()` terminan de llegar (vía el `useMemo` que depende de `teams`), así que el efecto se vuelve a disparar en ese momento — no solo la primera vez que se abre Edit Team (que sería demasiado temprano, antes de que exista el refresh que hay que compensar).
+
+**Decisión — no limpiar `scrollToProjectId` después de usarlo:** se evaluó y descartó un "consumir y limpiar en el primer scroll exitoso" — como la sección del Project ya existe en el DOM desde antes de abrir el modal (los `<div>` de cada Project no se desmontan entre actualizaciones de datos, tienen `key={project.id}` estable), el primer disparo del efecto ocurriría casi inmediatamente al abrir el modal (antes de Save Changes), y limpiar ahí dejaría el valor en `null` justo cuando se necesita (después del refresh real). En su lugar, el valor queda "pegado" al último Project editado hasta que se abre Edit Team en un team de otro Project (donde se sobreescribe). Limitación aceptada y documentada: si después de cerrar el modal ocurriera algún cambio de datos no relacionado (ej. otro usuario editando algo en tiempo real), el scroll podría volver a saltar al último Project editado — caso borde, no el síntoma reportado, no se intentó resolver con un timeout u otro mecanismo para no sumar complejidad a un fix que debía quedar simple (Opción B, por decisión ya tomada).
+
+**Alcance respetado:** no se tocó `page.tsx` (Server Component) ni manejo de URL/historial, tal como se acordó al elegir Opción B. El punto 5 (modales con click afuera) queda completamente fuera de esta entrada.
+
+**Riesgos conocidos / deuda técnica:**
+- No sobrevive a un F5 manual del usuario (limitación conocida y aceptada de Opción B, ver comparación de opciones de esta misma sesión).
+- Caso borde de "scroll pegado" descrito arriba — bajo impacto, no se investigó más a fondo por decisión de mantener el fix simple.
+
+**Verificación:** lint ✅ (mismos warnings preexistentes). Build ✅ (`/teams` 8.46kB→8.49kB, esperable por el código agregado). **Verificación visual: pendiente** — mismo criterio de esperar confirmación de deploy antes de pedir capturas.
+
+**Archivos modificados:** `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`.
+
+---

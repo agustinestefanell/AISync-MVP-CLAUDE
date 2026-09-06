@@ -152,6 +152,10 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   const [showConnect, setShowConnect] = useState(false)
   const [showIncoming, setShowIncoming] = useState(false)
   const [editingTeam, setEditingTeam] = useState<TeamWithWorkspaces | null>(null)
+  // Project que se estaba mirando al abrir Edit Team — sobrevive al
+  // router.refresh() de handleUpdated() para restaurar el scroll en MapView
+  // en vez de quedar en el Project #1 (ver diagnóstico OE 2026-09-06).
+  const [scrollToProjectId, setScrollToProjectId] = useState<string | null>(null)
   const [showMainGuide,        setShowMainGuide]        = useState(false)
   const [showSatMatGuide,      setShowSatMatGuide]      = useState(false)
   const [showCreateTeamsGuide, setShowCreateTeamsGuide] = useState(false)
@@ -451,7 +455,8 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           zoomInSignal={zoomInSignal}
           zoomOutSignal={zoomOutSignal}
           resetSignal={resetSignal}
-          onEdit={team => setEditingTeam(team)}
+          focusProjectId={scrollToProjectId}
+          onEdit={team => { setEditingTeam(team); setScrollToProjectId(team.project_id) }}
           onOpen={workspaceId => window.open(`/workspace/${workspaceId}`, '_blank')}
           onConnect={(pid: string) => {
             setConnectProjectId(pid)
