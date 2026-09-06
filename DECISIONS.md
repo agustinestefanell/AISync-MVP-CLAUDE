@@ -1557,3 +1557,20 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Cierre (2026-09-04, mismo día):** decisión operativa validada — Agus aplicó la migración manualmente en Supabase Dashboard ("Success"), y la elección de Opción A quedó confirmada como suficiente: las 9 queries afectadas funcionan sin `42P17` post-fix, sin necesidad de ningún cambio adicional de código más allá de los 9 chequeos de error ya planeados. Confirmación visual positiva de Agus en Switch Project, nombre real de usuario, y eventos de Audit View/Investigate View/`/audit`.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-04, `AUDIT_REPORT.md` SEC-002, `supabase/migrations/060_fix_accounts_admin_policy_recursion.sql`, commit `c4a417e`.
+
+## 2026-09-06 — Bug de layout "botones cortados hasta zoom out": fix solo del candidato de bajo riesgo, resto documentado sin tocar
+
+**Contexto:** sin Mac ni extensión de Chrome disponibles, no había forma de reproducir ni verificar visualmente el bug reportado por usuarios reales. Instrucción explícita de Agus: auditoría profunda, clasificar candidatos por riesgo/confirmación, y aplicar el fix mecánico ya validado (`h-screen`→`h-dvh` + `min-h-0`, OE 24/08) solo a los casos que encajen exactamente en ese patrón y sean de bajo riesgo — todo lo demás queda documentado sin tocar.
+
+**Decisión — clasificar por (a) confirmado activo en producción, (b) residual/no usado, (c) necesita más contexto — y actuar distinto en cada uno:**
+- **(a) + patrón exacto + bajo riesgo** (`KnowledgeMap.tsx`, `100vh`→`100dvh`, área de grafo sin botones críticos): fix aplicado directo.
+- **(c)** — candidato de mayor severidad real (`AgentPanel.tsx`/`HumanChatPanel.tsx`): NO se forzó el patrón mecánico porque el diagnóstico mostró que el `min-h-0` que "debería faltar" en realidad ya está en el lugar correcto (el área de mensajes). El corte real viene de 6 franjas `shrink-0` que no pueden ceder espacio entre sí — un problema de reparto de espacio, no de una propiedad CSS faltante. Resolverlo bien requiere decidir qué franja se comprime o se vuelve scrolleable, decisión de diseño que no se puede tomar ni validar sin ver la pantalla real afectada. Se dejó documentado en vez de adivinar un cambio en el panel más usado de la app.
+- **(b)** — código residual (`TeamsMapV3Preview.tsx`, preview sin commitear ni linkeado desde ninguna navegación real): no se tocó pese a tener el mismo patrón exacto que `KnowledgeMap`, porque no es código en producción y está en iteración visual activa (ver `design-refs/teams-map/` en el mismo working tree) — tocarlo fuera de pedido podría pisar trabajo de diseño en curso.
+
+**Alternativas descartadas:**
+- Aplicar el mismo swap `h-screen`→`h-dvh` a `TeamsMapV3Preview.tsx` ya que el patrón es idéntico — descartado, ver razón (b) arriba.
+- Forzar algún cambio estructural en `AgentPanel`/`HumanChatPanel` "por las dudas", al ser el candidato más severo — descartado explícitamente: sin verificación visual posible, el riesgo de romper el panel de chat en producción es mayor que dejar el bug reportado sin arreglar un poco más de tiempo.
+
+**Riesgo aceptado:** el bug de mayor severidad real (Workspace) sigue sin fix. Queda condicionado a un nuevo reporte con detalle de pantalla, o a que alguien del equipo tenga acceso real a Mac para reproducir antes de tocar la estructura del panel.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06, `src/components/documentation/KnowledgeMap.tsx`, `PRODUCT_STATUS.md`.

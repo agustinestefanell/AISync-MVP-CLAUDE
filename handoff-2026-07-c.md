@@ -1130,3 +1130,36 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados (ajuste 2):** `src/components/workspace/LoadContextModal.tsx` (único archivo de código), `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## 2026-09-06 — Auditoría de código: botones cortados hasta hacer zoom out (sin verificación visual, Agus sin acceso a Mac)
+
+**Contexto:** Agus reportó que usuarios reales ven botones cortados en algunas pantallas hasta hacer zoom out en el browser (Mac). No hay Mac disponible para reproducir manualmente, ni extensión de Chrome instalada para automatizar el browser desde acá. Instrucción explícita de Agus: hacer auditoría de código completa, aplicar solo fixes de bajo riesgo con el patrón ya validado (`h-screen`→`h-dvh` + `min-h-0`, OE 24/08), y documentar el resto sin tocar. Cerrar como "revisión, pendiente de confirmación real" — no como "resuelto".
+
+**Método:** grep exhaustivo de `h-screen`, `100vh`/`min-h-screen` sin `dvh`, y `overflow-hidden` con posible `flex-1` sin `min-h-0` en todo `src/`, más 2 pasadas de lectura completa (no solo grep) de ~35 componentes — Workspace (AgentPanel, HumanChatPanel, WorkspaceShell, modales), Documentation Mode (las 5 vistas + KnowledgeMap), Teams Map (incluidas las 4 variantes de `CanvasViewport`), Audit, Admin — rastreando la cadena de contenedores flex desde la raíz hasta cualquier fila de botones al final.
+
+**Candidatos encontrados, clasificados por (a) confirmado activo en producción, (b) residual/no usado, (c) necesita más contexto:**
+
+1. **`KnowledgeMap.tsx:241`** — `height: calc(100vh - 160px)`. → **(a) confirmado activo** (tab "Knowledge" de Documentation Mode, montado en `DocClient.tsx:264`). Severidad BAJA — no hay botones críticos ahí, es el área del grafo. **FIX APLICADO:** `100vh` → `100dvh`, mismo patrón exacto validado el 24/08. Cambio de una sola línea, sin tocar estructura.
+2. **`AgentPanel.tsx:790-1219` / `HumanChatPanel.tsx:575-747`** — 6 franjas `shrink-0` apiladas (Header, Tools, avisos de error/contexto, Composer, fila Review & Forward/Create Handoff Package, fila Refresh/Save Selection/Audit AI) sobre un contenedor `overflow-hidden`, con una sola zona intermedia (viewport de mensajes) con `min-h-0` que absorbe el resto. → **(c) necesita más contexto, NO tocado.** Es el candidato de mayor severidad real (MEDIA-ALTA — corta botones de uso diario), pero NO encaja en el patrón mecánico "agregar min-h-0": ese min-h-0 ya está puesto correctamente en el área de mensajes. El corte viene de que ninguna de las 6 franjas fijas puede ceder espacio si la suma supera el alto disponible (notebook chico, más "chrome" de browser en Mac, zoom >100%, o avisos de error/contexto activos sumando altura). El fix real requiere decidir qué franja se comprime o se vuelve scrolleable — decisión de diseño que no se puede tomar ni validar sin ver la pantalla real afectada.
+3. **`TeamsMapV3Preview.tsx:381`** — usa `h-screen` en vez de `h-dvh`. → **(b) código residual/no usado en producción**: ruta standalone `/teams-map-preview`, sin ningún link desde la navegación real (único lugar donde aparece el string es su propio `page.tsx`), archivo sin commitear. Nota: el build SÍ genera esa ruta como página estática (`○ /teams-map-preview`) — si se commitea y pushea tal cual, queda accesible por URL directa aunque no esté linkeada. Señalar cuando este preview se promueva a producción real.
+4. **4 variantes de `CanvasViewport`** (`teams/`, `teams/map/`, `teams/v3/`, `teams/preview/`) usan `vh` en cálculos de altura, pero tienen su propio motor de fit (`fitViewport()` + `ResizeObserver`) que recalcula el zoom interno para que el contenido siempre entre en la caja — no dependen de `overflow-hidden` fijo. Descartados como candidatos de este bug (antipatrón menor, no bug real).
+5. **`login/page.tsx`, `ChatFirstClient.tsx`, `LoadingSpinner.tsx`, `AppLayout.tsx`** (rama `min-h-screen`) — usan `min-h-screen` (la página crece y scrollea completa), no `overflow-hidden` fijo. No aplica el patrón de corte. Descartados.
+6. **Descartados sin hallazgos** (leídos completos, ambas pasadas): `WorkspaceClient`, `LoadContextModal`, `ContextFilePanel`, `PromptLibrary`, `ReviewForwardModal`, `HandoffPackageModal`, `DocClient`, `RepositoryView`, `TeamsClient`, `AuditClient`, `AdminClient`, `SetupGuide`, `ProjectList`, `AuditTimeline`, `UserLibraryView`, `AuditView`, `AuditDetailPanel`, `InvestigateView`, `InvestigationScanPanel`.
+
+**Decisión técnica:** aplicar el fix solo al candidato (a) de bajo riesgo (`KnowledgeMap`), dejar (b) y (c) documentados sin tocar. Razonamiento completo en `DECISIONS.md` (entrada 2026-09-06).
+
+**Alternativas descartadas:**
+- Aplicar el mismo swap `h-screen`→`h-dvh` también en `TeamsMapV3Preview.tsx` ya que el patrón es idéntico al de `KnowledgeMap` — descartado por ahora: el archivo no está commiteado, no es código en producción, y está en iteración visual activa (ver `design-refs/teams-map/`, mismo working tree) — tocarlo fuera de pedido podría pisar cambios que Agus está iterando en paralelo. Queda documentado para cuando este preview se promueva.
+- Forzar `min-h-0`/algún rediseño en `AgentPanel`/`HumanChatPanel` bajo el mismo patrón mecánico del 24/08 "por las dudas" — descartado explícitamente por instrucción de Agus: sin Mac ni forma de verificar visualmente, un cambio estructural en el panel de chat (la superficie más usada de la app) es más riesgoso que dejar el bug reportado un poco más de tiempo sin arreglar.
+
+**Riesgos conocidos / deuda técnica:**
+- El candidato de mayor severidad real (`AgentPanel`/`HumanChatPanel`) sigue sin fix. Queda abierto hasta que: (a) un usuario real lo vuelva a reportar con detalle de pantalla/navegador/tamaño, o (b) alguien del equipo tenga acceso a Mac para reproducir y confirmar antes de tocar la estructura del panel.
+- `TeamsMapV3Preview.tsx` hereda el bug conocido de `h-screen` si se promueve a producción sin pasar por este fix — señalar explícitamente en esa OE futura.
+
+**Verificación:** lint ✅ (mismos warnings preexistentes de `CanvasViewport`, no relacionados). Build ✅ (22 rutas generadas sin error). **Verificación visual: NO REALIZADA** — Agus no tiene acceso a Mac, sin extensión de Chrome disponible para automatizar. El único cambio de código (`KnowledgeMap.tsx`) es de una línea, mismo patrón exacto ya validado visualmente el 24/08 en 5 componentes hermanos (mismo repo, mismo antipatrón, mismo fix) — riesgo de regresión considerado bajo, pero sin confirmación visual directa de este caso puntual.
+
+**Estado de cierre:** Auditoría completa realizada. 1 candidato confirmado y corregido por patrón ya validado, sin verificación visual (Agus sin acceso a Mac). 1 candidato de alta severidad documentado sin tocar por requerir contexto/decisión de diseño que no se puede validar a ciegas. 1 candidato documentado como código residual sin uso en producción. Queda en status: **revisión / pendiente de confirmación real por el próximo usuario que lo reporte** — NO se cierra como "resuelto".
+
+**Archivos modificados:** `src/components/documentation/KnowledgeMap.tsx` (único archivo de código), `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `CodingWorkshop.md`.
+
+---

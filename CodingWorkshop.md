@@ -1906,3 +1906,13 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** "no debería fallar por cómo está estructurada la query" es una hipótesis, no una conclusión — con RLS, el comportamiento real de Postgres ante subqueries recursivas dentro de policies no es intuitivo ni siempre el que el razonamiento de alto nivel predice. Cuando la herramienta para probarlo directamente ya existe y es barata (en esta sesión: sesión real vía magic link, unos segundos de ejecución), probar es más barato que asumir — sobre todo cuando la consecuencia de asumir mal es dejar fuera del mapa de un fix de seguridad/infraestructura 7 lugares reales. Además: un hallazgo de auditoría de seguridad diferido ("verificación pendiente") no caduca solo porque nadie lo retomó — vale la pena revisar `AUDIT_REPORT.md` cuando aparece una causa raíz que suena parecida a algo ya señalado, en vez de re-derivar todo desde cero.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-04, `AUDIT_REPORT.md` SEC-002, `supabase/migrations/060_fix_accounts_admin_policy_recursion.sql`.
+
+---
+
+## 2026-09-06 — Lección: no todo bug de "contenido cortado" se arregla con el patrón min-h-0 ya conocido
+
+**Qué pasó:** al auditar un reporte de botones cortados hasta hacer zoom out (mismo síntoma que el fix de `h-screen`→`h-dvh` del 24/08), el candidato de mayor severidad (`AgentPanel.tsx`/`HumanChatPanel.tsx`) tiene el mismo síntoma pero una causa distinta: no falta ningún `min-h-0` — ya está puesto correctamente en el área que debe encogerse (el viewport de mensajes). El corte real viene de que otras 6 franjas del panel son `shrink-0` (nunca ceden espacio) y, si su suma supera el alto disponible, el excedente se recorta por el final — justo donde están los botones de Review & Forward y Refresh/Save Selection/Audit AI.
+
+**Lección:** el mismo síntoma visual ("se corta hasta hacer zoom out") puede tener 2 causas de raíz distintas en flexbox: (1) falta `min-h-0` en un contenedor que debería poder encogerse (fix mecánico de 1 línea, ya validado el 24/08), o (2) hay demasiados elementos `shrink-0` compitiendo por el mismo espacio fijo y ninguno puede ceder (esto SÍ requiere decisión de diseño: qué elemento se comprime, se vuelve scrolleable, o se reduce). Antes de aplicar el fix conocido a un caso nuevo, rastrear la cadena completa de contenedores para confirmar cuál de las 2 causas aplica realmente — aplicar el fix equivocado (agregar min-h-0 donde ya está) no arregla nada y además da falsa sensación de que el bug fue tratado.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06, `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/HumanChatPanel.tsx`.
