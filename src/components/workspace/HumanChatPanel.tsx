@@ -124,16 +124,23 @@ const HumanMessageBubble = memo(function HumanMessageBubble({
         type="checkbox"
         checked={isSelected}
         onChange={() => onToggle(index)}
-        className="mt-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+        className={`mt-1 shrink-0 transition-opacity cursor-pointer ${
+          isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        }`}
+        style={{ accentColor: 'var(--color-selected)' }}
       />
 
       {/* Message bubble */}
       <div
-        className={`flex-1 rounded-lg px-3 py-2 ${
-          isMe
-            ? 'bg-blue-50 border border-blue-200'
-            : 'bg-gray-50 border border-gray-200'
-        } ${isSelected ? 'ring-2 ring-blue-400' : ''}`}
+        className={
+          isSelected
+            ? 'flex-1 rounded-lg px-3 py-2 border ui-message-bubble-selected'
+            : `flex-1 rounded-lg px-3 py-2 ${
+                isMe
+                  ? 'bg-blue-50 border border-blue-200'
+                  : 'bg-gray-50 border border-gray-200'
+              }`
+        }
       >
         <div className="flex items-baseline justify-between gap-2 mb-1">
           <span className="text-xs font-medium text-gray-700">

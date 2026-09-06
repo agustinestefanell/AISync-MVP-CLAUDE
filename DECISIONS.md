@@ -1574,3 +1574,23 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Riesgo aceptado:** el bug de mayor severidad real (Workspace) sigue sin fix. Queda condicionado a un nuevo reporte con detalle de pantalla, o a que alguien del equipo tenga acceso real a Mac para reproducir antes de tocar la estructura del panel.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-06, `src/components/documentation/KnowledgeMap.tsx`, `PRODUCT_STATUS.md`.
+
+## 2026-09-06 (2) — Highlight de Save Selection: color exclusivo violeta, un solo tratamiento para los 4 tipos de burbuja
+
+**Contexto:** el pedido original describía un mecanismo (highlight de fragmentos de texto sueltos con tooltip flotante) que no existe en el código — Save Selection selecciona mensajes completos vía checkbox/tilde, mecanismo que ya tenía highlight y deselección funcionando. El problema real, confirmado con Agus tras señalar la discrepancia, era de **color**: el highlight de "seleccionado" en Agent Panel era casi idéntico al blanco de un mensaje de IA sin seleccionar, y encima sobrescribía el fondo celeste de un mensaje de usuario seleccionado dejándolo también blanco — un usuario seleccionado se veía igual que una IA sin seleccionar. En Human Chat, el aro azul del estado seleccionado apenas se notaba sobre el fondo celeste de "You".
+
+**Decisión — relevar todos los colores en uso y mostrar la propuesta antes de tocar código:** se armó un artifact visual con réplica exacta de los estilos actuales (reproduciendo el bug) y 2 candidatos de color nuevo aplicados sobre los 4 tipos de burbuja (IA/usuario en Agent Panel, "You"/"Otro" en Human Chat). Se descartó implementar a ciegas dado que Agus explícitamente pidió confirmar el tono antes de aplicarlo en 2 componentes.
+
+**Decisión — color elegido: violeta `#7C3AED`** (Opción B de la propuesta, sobre teal `#0D9488` como Opción A recomendada) — elección de Agus, ninguna de las 2 colisionaba con colores existentes; se registran ambos tokens de referencia en la propuesta pero solo violeta se implementó.
+
+**Decisión — un solo color/tratamiento para los 4 casos, sin variar por tipo de mensaje:** en vez de una veladura semitransparente que se mezclara con el color de fondo de cada burbuja (daría 4 tonos de violeta ligeramente distintos), se implementó un `background` flat idéntico (`--color-selected-soft`) para cualquier burbuja seleccionada — Agus pidió explícitamente "mismo tratamiento en los 4 casos", y un flat es más simple de mantener que una fórmula de blend por tipo de burbuja.
+
+**Decisión — el tilde/checkbox de selección también cambia de color:** en Agent Panel, `.ui-message-select-selected` pasa de accent (azul oscuro, reservado para botones/acciones) a los mismos tokens `--color-selected`. En Human Chat, que usa un `<input type="checkbox">` nativo (no un tilde circular custom), se usó la propiedad CSS `accent-color` para teñirlo del mismo violeta — sin reemplazar el checkbox nativo por un componente custom, cambio mínimo.
+
+**Decisión técnica — className exclusivo por estado en Human Chat, no combinación de clases:** el fondo/borde de la burbuja seleccionada usa la MISMA clase `ui-message-bubble-selected` que Agent Panel (reutilización, no duplicación de CSS), pero se aplica como único className del estado seleccionado, sin combinarla con `bg-blue-50`/`border-blue-200`. Motivo: Tailwind y `tokens.css` son 2 fuentes de CSS con orden de bundling no controlado explícitamente en el código — combinar 2 clases con la misma especificidad sobre `background`/`border-color` deja el resultado librado a qué stylesheet se concatena después, un riesgo evitable estructurando el className como mutuamente excluyente en vez de aditivo.
+
+**Efecto lateral necesario, no pedido explícitamente pero requerido para que el fix funcione:** el checkbox nativo de Human Chat estaba oculto (`opacity-0`) salvo hover, incluso estando tildado — así, un mensaje seleccionado sin el mouse encima no mostraba ningún checkbox, solo el aro azul de la burbuja. Cambiar el color del checkbox a violeta no hubiera tenido ningún efecto visible sin además hacerlo visible (`opacity-100`) cuando `isSelected`. Se aplicó ese ajuste mínimo de opacidad junto con el color, por ser condición necesaria para que el pedido de Agus (tilde visible en violeta) se cumpla.
+
+**Alternativas descartadas:** construir selección de texto libre (fuera de alcance real, ver arriba); veladura semitransparente por tipo de burbuja en vez de flat (descartada por pedido explícito de tratamiento uniforme).
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (2), `src/styles/tokens.css`, `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/HumanChatPanel.tsx`.

@@ -1916,3 +1916,23 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** el mismo síntoma visual ("se corta hasta hacer zoom out") puede tener 2 causas de raíz distintas en flexbox: (1) falta `min-h-0` en un contenedor que debería poder encogerse (fix mecánico de 1 línea, ya validado el 24/08), o (2) hay demasiados elementos `shrink-0` compitiendo por el mismo espacio fijo y ninguno puede ceder (esto SÍ requiere decisión de diseño: qué elemento se comprime, se vuelve scrolleable, o se reduce). Antes de aplicar el fix conocido a un caso nuevo, rastrear la cadena completa de contenedores para confirmar cuál de las 2 causas aplica realmente — aplicar el fix equivocado (agregar min-h-0 donde ya está) no arregla nada y además da falsa sensación de que el bug fue tratado.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-06, `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/HumanChatPanel.tsx`.
+
+---
+
+## 2026-09-06 (2) — Lección: una consigna puede describir un mecanismo que no existe; el síntoma puede seguir siendo real igual
+
+**Qué pasó:** la consigna de Save Selection pedía "highlight de texto seleccionado con tooltip flotante" — ese mecanismo no existe en el código, Save Selection selecciona mensajes completos vía checkbox. Podría haber sido tentador either (a) construir el mecanismo descrito literalmente desde cero, o (b) descartar el pedido entero asumiendo que el problema no era real porque la premisa técnica estaba mal. Ninguna de las 2 era correcta: el problema real (no se distingue qué está seleccionado, cuesta deseleccionar) SÍ existía, pero la causa no era la ausencia de un mecanismo — era que el mecanismo ya existente tenía un bug de color (el highlight de seleccionado era casi idéntico a un estado normal, y en un caso literalmente pisaba el color de otro estado normal).
+
+**Lección:** cuando una consigna describe una solución que no coincide con el código real, la respuesta correcta no es "implementar lo descrito al pie de la letra" ni "descartar el pedido" — es diagnosticar el síntoma real por separado de la solución propuesta. Acá el diagnóstico mostró que el problema y su fix eran mucho más chicos (2 valores de color mal elegidos) que lo que la consigna original hacía pensar (una feature nueva de selección de texto libre). Reportar la discrepancia ANTES de programar, en vez de adivinar una de las 2 lecturas, permitió llegar al fix correcto en el primer intento.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (2), DECISIONS.md misma fecha.
+
+---
+
+## 2026-09-06 (3) — Lección: elegir un color de "estado" nuevo requiere relevar TODOS los colores ya en uso, no solo los 2 que colisionan
+
+**Qué pasó:** el pedido de Agus fue puntual (arreglar el highlight de seleccionado), pero antes de proponer un color nuevo se relevaron 8 colores ya en uso en las mismas burbujas (fondo IA, fondo usuario, forwarded, "You", "Otro", accent, warning, danger) — no solo los 2 que colisionaban. Eso permitió detectar de paso que `--color-success`/`--color-phase-open-accent` ya usaban un tono teal (`#0f766e`) muy cercano a la Opción A propuesta originalmente (teal `#0D9488`) — una colisión que no era obvia mirando solo las burbujas de chat, pero sí lo era mirando el resto del sistema de tokens.
+
+**Lección:** al elegir un color nuevo para un estado de UI, relevar el `tokens.css`/design system completo (no solo el componente que se está tocando) antes de proponerlo — una colisión de color puede estar en un componente completamente distinto que comparte el mismo sistema de diseño, y el usuario no tiene por qué saber que ese tono "ya está tomado" en otro lugar de la app.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (2), `src/styles/tokens.css`.

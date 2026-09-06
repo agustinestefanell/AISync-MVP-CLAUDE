@@ -1163,3 +1163,34 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/components/documentation/KnowledgeMap.tsx` (único archivo de código), `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `CodingWorkshop.md`.
 
 ---
+
+## 2026-09-06 (2) — Save Selection: highlight de mensaje seleccionado con color exclusivo (violeta), Agent Panel + Human Chat
+
+**Contexto:** ítem del checklist original — con varias Save Selections hechas en la misma sesión de Workspace, no se distinguía de un vistazo qué mensajes estaban marcados, ni resultaba obvio cómo deseleccionar. Antes de programar se hizo un diagnóstico que encontró una premisa equivocada en el pedido inicial: Save Selection **no** selecciona fragmentos de texto sueltos con un tooltip flotante (eso no existe en el código) — selecciona **mensajes completos**, con un checkbox/tilde que ya aparece al hover y ya alterna selección/deselección al click. Señalado y confirmado con Agus antes de seguir.
+
+**Problema real identificado (2 bugs de color, no de mecanismo):**
+1. **Agent Panel:** `.ui-message-bubble-selected` pintaba la burbuja en un blanco casi idéntico al de una burbuja de IA sin seleccionar (`rgba(255,255,255,0.99)` vs `rgba(255,255,255,0.98)`) — el highlight era indistinguible.
+2. **Agent Panel:** esa misma clase, al tener mayor prioridad en cascada que `.ui-message-bubble-user`, le devolvía el fondo a blanco a un mensaje de usuario seleccionado — un usuario seleccionado terminaba pareciendo una IA sin seleccionar.
+3. **Human Chat:** el estado seleccionado solo agregaba un `ring-2 ring-blue-400` fino sobre el mismo fondo celeste de "You" — apenas perceptible.
+
+**Diagnóstico previo a implementar:** relevamiento completo de todos los colores de fondo/estado ya en uso en ambos componentes (fondo IA, fondo usuario, fondo forwarded, fondo "You"/"Otro" de Human Chat, accent, warning, danger, success/phase-open) — mostrado a Agus en un artifact visual con réplica exacta de los estilos actuales (incluyendo el bug reproducido) y 2 propuestas de color nuevo aplicadas sobre los 4 tipos de burbuja. **Aprobado: Opción B, violeta `#7C3AED`.**
+
+**Implementación:**
+- `tokens.css`: nuevos tokens `--color-selected` (`#7c3aed`), `--color-selected-strong` (`#6d28d9`), `--color-selected-soft` (`rgba(124,58,237,0.14)`), `--color-selected-border` (`rgba(124,58,237,0.5)`).
+- `.ui-message-bubble-selected` (Agent Panel, ambos tipos de mensaje): `background`/`border-color`/`box-shadow` reescritos en base a los tokens nuevos — mismo tratamiento sin importar si la burbuja de base es IA o usuario (fondo flat, no una veladura sobre el color de base, para que el resultado sea idéntico en los 4 casos como pidió Agus).
+- `.ui-message-select-selected` (el tilde ✓ circular de Agent Panel): mismo swap accent→selected.
+- `HumanChatPanel.tsx`: el `<div>` de burbuja ya no combina `ring-2 ring-blue-400` con las clases de fondo normal — cuando `isSelected`, el className pasa a ser exclusivamente `border ui-message-bubble-selected` (reutiliza la misma clase de Agent Panel, sin duplicar CSS); cuando no, mantiene `bg-blue-50`/`bg-gray-50` como antes. El `<input type="checkbox">` nativo gana `style={{ accentColor: 'var(--color-selected)' }}` y pasa a quedar visible (`opacity-100`) cuando está seleccionado — antes se ocultaba al sacar el mouse incluso estando tildado, lo que hubiera hecho invisible el nuevo color.
+
+**Decisión técnica — className exclusivo en vez de combinar clases en Human Chat:** no se armó el className concatenando `bg-blue-50 border-blue-200 ui-message-bubble-selected` porque Tailwind y `tokens.css` compilan en archivos CSS distintos con orden de cascada no garantizado en el código fuente — combinar 2 reglas con la misma especificidad e igual borde/fondo podía dejar cuál gana librado al orden real del bundle. Se optó por un `className` condicional que aplica un solo set de clases por estado (seleccionado usa solo `border` + `ui-message-bubble-selected`; no seleccionado usa solo las clases Tailwind de siempre) — sin ambigüedad de cascada posible.
+
+**Alternativas descartadas:**
+- Construir el mecanismo de highlight de fragmentos de texto sueltos (lo que pedía la consigna original literalmente) — descartado tras el diagnóstico: no existe la funcionalidad de selección de texto libre hoy, sería una feature nueva de mucho mayor alcance (qué significa "guardar" un fragmento suelto cuando hoy se guardan mensajes completos), y no era el problema real (el problema real era de color, no de mecanismo).
+- Veladura semitransparente sobre el color de base de cada burbuja (mostrada en el artifact de propuesta) en vez de un fondo flat — descartada en la implementación final a favor de un fondo flat idéntico en los 4 casos, más simple y más alineado con el pedido explícito de "mismo tratamiento en los 4 casos".
+
+**Riesgos conocidos / deuda técnica:** ninguno nuevo — cambio acotado a color/CSS, sin tocar lógica de selección, click, ni persistencia.
+
+**Verificación:** lint ✅ (mismos warnings preexistentes de `CanvasViewport`). Build ✅. **Verificación visual: pendiente** — esperar confirmación explícita de deploy fresco antes de pedir capturas a Agus (lección de la OE anterior, mismo día).
+
+**Archivos modificados:** `src/styles/tokens.css`, `src/components/workspace/HumanChatPanel.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `CodingWorkshop.md`.
+
+---

@@ -69,6 +69,14 @@
   --color-accent-soft: rgba(31, 78, 121, 0.12);
   --color-accent-soft-strong: rgba(31, 78, 121, 0.2);
 
+  /* Mensaje seleccionado para guardar (Save Selection) — color exclusivo,
+     no reutiliza accent/warning/danger ni los fondos normales de burbuja.
+     Aprobado por Agus 2026-09-06 (Opción B, violeta). */
+  --color-selected: #7c3aed;
+  --color-selected-strong: #6d28d9;
+  --color-selected-soft: rgba(124, 58, 237, 0.14);
+  --color-selected-border: rgba(124, 58, 237, 0.5);
+
   --color-role-manager-accent: #314155;
   --color-role-manager-soft: rgba(49, 65, 85, 0.1);
   --color-role-manager-border: rgba(49, 65, 85, 0.22);
@@ -1225,11 +1233,11 @@ input[type="file"].ui-input {
 }
 
 .ui-message-bubble-selected {
-  border-color: rgba(31, 78, 121, 0.26);
-  background: rgba(255, 255, 255, 0.99);
+  border-color: var(--color-selected-border);
+  background: var(--color-selected-soft);
   box-shadow:
     0 6px 14px rgba(15, 23, 42, 0.06),
-    inset 0 0 0 1px rgba(31, 78, 121, 0.12);
+    inset 0 0 0 1px var(--color-selected-border);
 }
 
 .ui-message-select {
@@ -1262,12 +1270,12 @@ input[type="file"].ui-input {
 }
 
 .ui-message-select-selected {
-  border-color: var(--color-accent);
-  background: linear-gradient(180deg, var(--color-accent) 0%, var(--color-accent-strong) 100%);
+  border-color: var(--color-selected);
+  background: linear-gradient(180deg, var(--color-selected) 0%, var(--color-selected-strong) 100%);
   color: #ffffff;
   box-shadow:
-    0 2px 6px rgba(31, 78, 121, 0.2),
-    0 0 0 3px rgba(31, 78, 121, 0.1);
+    0 2px 6px rgba(124, 58, 237, 0.2),
+    0 0 0 3px rgba(124, 58, 237, 0.1);
 }
 
 .ui-message-select-tick {
