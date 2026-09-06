@@ -1306,3 +1306,24 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## 2026-09-06 (8) — Teams Map: reformulado a sessionStorage — el estado de React no sobrevive al remount de router.refresh()
+
+**Confirmado con evidencia de consola (aportada por Agus):** `router.refresh()` remonta `TeamsClient`/`MapView` por completo (fiber nuevo), no solo les pasa props nuevas. La Opción B tal como se implementó en `64657fe` guardaba `scrollToProjectId` en un `useState` de `TeamsClient` — que se destruye en el mismo instante del remount, exactamente cuando se necesitaría. No era un problema de timing del `useEffect` ni de que la ref no existiera (ambas hipótesis descartadas por la instrumentación de la pasada anterior).
+
+**Fix reformulado — mismo espíritu de Opción B (sin URL/historial), pero con el valor viviendo fuera de React:**
+- `TeamsClient.tsx`: se saca el `useState scrollToProjectId` (código muerto — no sobrevive al remount, no cumple ninguna función). En su lugar, el `onEdit` que abre el modal escribe directo a `sessionStorage.setItem('teamsMap:focusProjectId', team.project_id)` (con `try/catch` — `sessionStorage` puede tirar en navegación privada o config restrictiva del browser; si falla, simplemente no se restaura el scroll, mismo comportamiento que antes de este fix, sin romper nada más).
+- `MapView.tsx`: se saca el prop `focusProjectId` de `MapViewProps` (ya no tiene sentido pasarlo por props — el valor debe seguir vivo cuando el propio componente se remonta, así que tiene que leerse DESDE ADENTRO, no recibirse). El `useEffect(() => {...}, [])` de mount (el mismo que antes solo tenía el log de debug) ahora lee `sessionStorage`, lo limpia inmediatamente (`removeItem`, para que sea de un solo uso), y si encuentra la sección del Project en `projectSectionRefs.current`, hace `scrollIntoView({ behavior: 'auto', block: 'start' })`.
+- **`'auto'` en vez de `'smooth'`, a propósito:** este scroll pasa en el instante en que la pantalla "reaparece" tras el remount — no es una navegación explícita del usuario (que sigue siendo `'smooth'`, sin cambios, en el click de la sidebar / `handleProjectClick`). Debe sentirse instantáneo, como si nunca se hubiera perdido la posición, no como una animación nueva.
+
+**Limpieza:** se sacaron los 4 `console.log` de debug agregados en la pasada de instrumentación anterior (2 en `TeamsClient.tsx`, 2 en `MapView.tsx`), confirmado por grep que no quedó ninguno.
+
+**Riesgos conocidos / deuda técnica:**
+- Sigue sin sobrevivir a un F5 manual del usuario — mismo trade-off ya aceptado de Opción B, ahora también válido para `sessionStorage` (se limpia al cerrar la pestaña/sesión del browser, y de todos modos un F5 manual no pasa por el flujo de `onEdit` que lo escribe).
+- Si `sessionStorage` está bloqueado (navegación privada agresiva, política de browser corporativa) el fix simplemente no actúa — no rompe nada, vuelve al comportamiento de antes de esta OE (scroll a Project #1 tras Save Changes).
+
+**Verificación:** lint ✅ (mismos warnings preexistentes). Build ✅ (`/teams` 8.6kB→8.5kB, esperable por la baja de los logs de debug). **Verificación visual: pendiente** — esperar confirmación de deploy antes de pedir capturas, como pidió Agus.
+
+**Archivos modificados:** `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`.
+
+---

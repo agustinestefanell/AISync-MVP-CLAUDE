@@ -19,6 +19,12 @@ import { TreeWorkspaceCard } from './v3/TreeWorkspaceCard'
 import type { TeamsGraphNode, TreeLayoutPlacement } from '@/lib/teams/teamsMapLayoutTypes'
 import { MAP_CANVAS_PADDING_X, MAP_CANVAS_PADDING_Y, MAP_ROOT_WIDTH } from '@/lib/teams/teamsMapLayoutTypes'
 
+// Debe coincidir con la misma clave usada en TeamsClient.tsx (quien la
+// escribe al abrir Edit Team). sessionStorage, no un prop/estado de React:
+// router.refresh() remonta este componente por completo tras Save Changes,
+// así que solo algo que viva fuera de React sobrevive a ese momento.
+const TEAMS_MAP_FOCUS_PROJECT_KEY = 'teamsMap:focusProjectId'
+
 interface MapViewProps {
   teams: TeamWithWorkspaces[]
   projectName?: string
@@ -27,7 +33,6 @@ interface MapViewProps {
   zoomInSignal: number
   zoomOutSignal: number
   resetSignal: number
-  focusProjectId?: string | null
   onEdit: (team: TeamWithWorkspaces) => void
   onOpen: (workspaceId: string) => void
   onConnect: (projectId: string) => void
@@ -193,7 +198,6 @@ export default function MapView({
   zoomInSignal,
   zoomOutSignal,
   resetSignal,
-  focusProjectId,
   onEdit,
   onOpen,
   onConnect,
@@ -203,14 +207,6 @@ export default function MapView({
   const [connections, setConnections] = useState<Connection[]>([])
   const [isProjectIndexOpen, setIsProjectIndexOpen] = useState(true)
   const projectSectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
-
-  // DEBUG TEMPORAL (OE 2026-09-06) — confirma si MapView se remonta (fiber
-  // nuevo) y qué valor de focusProjectId le llega en cada render. Sacar una
-  // vez confirmado el diagnóstico.
-  useEffect(() => {
-    console.log('[DEBUG teams-map] MapView MOUNTED (fiber nuevo)')
-  }, [])
-  console.log('[DEBUG teams-map] MapView render — focusProjectId prop:', focusProjectId)
 
   // Ajuste 1 — rename inline del Project en el sidebar (doble click)
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
@@ -341,19 +337,24 @@ export default function MapView({
   }
 
   // Restaura el scroll al Project donde estaba el usuario cuando Save Changes
-  // (Edit Team) dispara router.refresh() en TeamsClient — sin esto, el refresh
-  // de datos deja la vista scrolleada arriba de todo (Project #1). Depende de
-  // allProjectLayouts (no solo de focusProjectId) para volver a dispararse
-  // cuando los datos frescos del refresh terminan de llegar, no solo la
-  // primera vez que se abre Edit Team.
+  // (Edit Team) dispara router.refresh() en TeamsClient. Confirmado con
+  // evidencia (OE 2026-09-06) que ese refresh remonta este componente por
+  // completo — por eso el valor viene de sessionStorage (sobrevive al
+  // remount) y no de un prop/estado de React (no sobrevive). Este efecto
+  // corre en cada mount real, que es exactamente cuándo hay que leerlo.
+  // 'auto' (no 'smooth'): esto no es una navegación explícita del usuario
+  // como el click de la sidebar, es la pantalla "reapareciendo" tras el
+  // refresh — debe sentirse instantáneo, no una animación de scroll nueva.
   useEffect(() => {
+    let focusProjectId: string | null = null
+    try { focusProjectId = sessionStorage.getItem(TEAMS_MAP_FOCUS_PROJECT_KEY) } catch {}
     if (!focusProjectId) return
+    try { sessionStorage.removeItem(TEAMS_MAP_FOCUS_PROJECT_KEY) } catch {}
     const section = projectSectionRefs.current[focusProjectId]
-    console.log('[DEBUG teams-map] restore effect — focusProjectId:', focusProjectId, '| ref encontrada:', !!section, '| ids con ref:', Object.keys(projectSectionRefs.current))
     if (section) {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      section.scrollIntoView({ behavior: 'auto', block: 'start' })
     }
-  }, [focusProjectId, allProjectLayouts])
+  }, [])
 
   if (projectGroups.length === 0 || projectGroups.every(g => g.teams.length === 0)) {
     return (

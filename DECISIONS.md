@@ -1636,3 +1636,17 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Alternativas descartadas:** Opción A completa (ver arriba); limpiar el estado con un `setTimeout` tras `router.refresh()` — descartado por agregar un número mágico/heurística frágil para un caso borde de bajo impacto.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-06 (6), `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`.
+
+## 2026-09-06 (6) — Teams Map, corrección: sessionStorage en vez de estado de React para sobrevivir al remount de `router.refresh()`
+
+**Contexto:** el fix anterior (entrada de arriba) se implementó con un `useState` en `TeamsClient.tsx`, asumiendo — sin evidencia todavía — que `router.refresh()` solo re-renderiza con props nuevas sin destruir el componente. Agus confirmó tras el deploy que el bug seguía igual. En vez de proponer un segundo fix sobre otra suposición, se instrumentó el código con `console.log` en los puntos de decisión clave (ver handoff OE 2026-09-06 (7)) y Agus reprodujo con la consola abierta — **confirmado: `router.refresh()` remonta `TeamsClient`/`MapView` por completo (fiber nuevo)**, no los re-renderiza in-place. Cualquier `useState` en esos componentes se destruye en ese momento, sin importar cómo esté cableado el efecto que lo consume.
+
+**Decisión — reformular a `sessionStorage`, sin cambiar de opción (seguir evitando URL/historial):** se evaluó si existía alguna forma soportada de Next.js para evitar que `router.refresh()` remonte — no se encontró ninguna, y de existir hubiera afectado también a los otros 2 usos de `router.refresh()` en el mismo archivo (`handleCreated` de sub-team, `handleAccepted` de conexiones), fuera del alcance de este fix puntual. `sessionStorage` resuelve el problema de raíz (vive fuera de React, no se destruye con el remount) sin ampliar la superficie tocada.
+
+**Decisión — leer y limpiar en el `useEffect(() => {...}, [])` de mount de `MapView`, no en un efecto dependiente de un prop:** como el valor ya no llega por prop (no tendría sentido — el mismo remount que borra el `useState` de `TeamsClient` también invalidaría cualquier prop derivado de él), el único lugar correcto para leerlo es el propio mount de `MapView` — que es exactamente el momento que se repite en cada remount, sin necesidad de ninguna dependencia adicional.
+
+**Decisión — `scrollIntoView({ behavior: 'auto' })` en la restauración, `'smooth'` sin cambios en la navegación manual de la sidebar:** la restauración post-remount debe sentirse instantánea (como si la posición nunca se hubiera perdido), no como una animación de scroll nueva — que sí tiene sentido cuando el usuario clickea un Project en la sidebar a propósito.
+
+**Riesgo aceptado (ya lo tenía la Opción B original, se mantiene igual):** no sobrevive a un F5 manual real del usuario — mismo trade-off frente a la Opción A (URL) que Agus ya había aceptado explícitamente al elegir Opción B.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (7) y (8), `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`.

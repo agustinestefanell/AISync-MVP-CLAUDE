@@ -16,6 +16,12 @@ import TopRibbon from '@/components/layout/TopRibbon'
 import BottomRibbon from '@/components/layout/BottomRibbon'
 import type { TeamWithWorkspaces } from '@/lib/db/types'
 
+// sessionStorage, no estado de React: router.refresh() (Save Changes de Edit
+// Team) remonta este componente por completo, así que cualquier useState acá
+// se pierde en el mismo momento que se necesitaría. Debe coincidir con la
+// misma clave usada en MapView.tsx (quien la lee y limpia al montar).
+const TEAMS_MAP_FOCUS_PROJECT_KEY = 'teamsMap:focusProjectId'
+
 const TEAMS_GUIDE = `Imagine you have been working for a while and now the structure has grown. There are several teams, managers, workers, and branches, and you want to understand where everything is without getting lost. In that case, you usually start with Tree. Tree gives you a simpler and lighter view of the structure, so you can locate the part you are looking for more quickly. Once you already know where you are and want to inspect that area more clearly, you move to Map. Map shows the same structure in a richer and more detailed way.
 
 Teams Map is the page that helps you understand the internal structure of the system. It shows how the General Manager, the Workers, and additional teams are organized. You do not always need this page as the very first step, but it becomes useful when you want to understand the structure more clearly and work with it more deliberately.
@@ -152,17 +158,6 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   const [showConnect, setShowConnect] = useState(false)
   const [showIncoming, setShowIncoming] = useState(false)
   const [editingTeam, setEditingTeam] = useState<TeamWithWorkspaces | null>(null)
-  // Project que se estaba mirando al abrir Edit Team — sobrevive al
-  // router.refresh() de handleUpdated() para restaurar el scroll en MapView
-  // en vez de quedar en el Project #1 (ver diagnóstico OE 2026-09-06).
-  const [scrollToProjectId, setScrollToProjectId] = useState<string | null>(null)
-
-  // DEBUG TEMPORAL (OE 2026-09-06, diagnóstico "Deselect all"/Teams Map scroll) —
-  // confirma si router.refresh() remonta TeamsClient (perdería scrollToProjectId)
-  // o solo re-renderiza con props nuevas. Sacar una vez confirmado el diagnóstico.
-  useEffect(() => {
-    console.log('[DEBUG teams-map] TeamsClient MOUNTED (fiber nuevo)')
-  }, [])
   const [showMainGuide,        setShowMainGuide]        = useState(false)
   const [showSatMatGuide,      setShowSatMatGuide]      = useState(false)
   const [showCreateTeamsGuide, setShowCreateTeamsGuide] = useState(false)
@@ -243,7 +238,6 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   }
 
   function handleUpdated(updated: TeamWithWorkspaces) {
-    console.log('[DEBUG teams-map] handleUpdated — scrollToProjectId antes de refresh:', scrollToProjectId)
     setTeams(prev => prev.map(t => t.id === updated.id ? updated : t))
     setEditingTeam(null)
     router.refresh()
@@ -463,11 +457,12 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           zoomInSignal={zoomInSignal}
           zoomOutSignal={zoomOutSignal}
           resetSignal={resetSignal}
-          focusProjectId={scrollToProjectId}
           onEdit={team => {
-            console.log('[DEBUG teams-map] onEdit — capturando project_id:', team.project_id)
+            // Sobrevive al remount que router.refresh() dispara tras Save
+            // Changes (confirmado con evidencia — un useState acá no alcanza,
+            // ver DECISIONS.md 2026-09-06). MapView lo lee y limpia al montar.
+            try { sessionStorage.setItem(TEAMS_MAP_FOCUS_PROJECT_KEY, team.project_id) } catch {}
             setEditingTeam(team)
-            setScrollToProjectId(team.project_id)
           }}
           onOpen={workspaceId => window.open(`/workspace/${workspaceId}`, '_blank')}
           onConnect={(pid: string) => {
