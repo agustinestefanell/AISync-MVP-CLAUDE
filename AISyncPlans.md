@@ -1237,6 +1237,19 @@ Agus quiere evaluar agregar Review & Forward como 4º tipo documental filtrable 
 
 ---
 
+### Pendientes de UX registrados 2026-09-06 (sin fix propuesto, sin ejecutar)
+
+**Badge de proveedor en Teams Map — señal de "proveedores mixtos" poco explícita.** El badge de la card de un team muestra únicamente el proveedor del Manager (`MapView.tsx:97`, `agent_role === 'manager'`) — por diseño, no un bug; nunca representó a los 3 agentes (Manager/Worker1/Worker2) juntos. Cuando los 3 agentes tienen proveedores distintos, ya existe una señal de "mixto": el tag `MAT` (calculado automáticamente por `computeType()` en `src/app/api/teams/[id]/route.ts`, ya presente en la misma card junto al badge del Manager — `MapView.tsx:609-613`). El problema real es que ese tag es texto chico y pasa desapercibido — un usuario no relaciona fácilmente "MAT" con "esta card tiene proveedores distintos por agente" (confirmado: esto generó un reporte de bug el 2026-09-06 que en realidad era este malentendido de diseño, no un dato desactualizado).
+
+Mejora futura evaluada y NO ejecutada — opciones consideradas, ninguna implementada:
+- (a) Badge "Mixed" con color distintivo en vez de solo el tag `MAT`.
+- (b) Tooltip al pasar el mouse listando los 3 providers por rol (Manager/Worker1/Worker2).
+- (c) Mostrar 3 badges chicos individuales en la card colapsada, sin necesidad de expandir el árbol para verlos.
+
+No urgente, no bloquea nada — retomar cuando haya espacio. Ver handoff-2026-07-c.md OE 2026-09-06 para el diagnóstico completo (incluye el bug real de `router.refresh()` que sí se corrigió el mismo día, distinto de este punto de diseño).
+
+---
+
 ## Connected Teams — Shared Workspace Architecture
 **Decisión tomada:** Semana 7, sesión 2026-06-13
 **Estado:** Diseño aprobado, pendiente de implementación
