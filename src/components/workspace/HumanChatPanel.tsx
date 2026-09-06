@@ -112,10 +112,11 @@ interface HumanBubbleProps {
   isSelected:     boolean
   otherUserEmail: string
   onToggle:       (index: number) => void
+  onBubbleClick:  (index: number) => void
 }
 
 const HumanMessageBubble = memo(function HumanMessageBubble({
-  message, index, isMe, isSelected, otherUserEmail, onToggle,
+  message, index, isMe, isSelected, otherUserEmail, onToggle, onBubbleClick,
 }: HumanBubbleProps) {
   return (
     <div className="flex items-start gap-2 group">
@@ -130,17 +131,19 @@ const HumanMessageBubble = memo(function HumanMessageBubble({
         style={{ accentColor: 'var(--color-selected)' }}
       />
 
-      {/* Message bubble */}
+      {/* Message bubble — clickable to select, mismo criterio que Agent Panel:
+          texto sigue siendo seleccionable (copiar) sin disparar el toggle. */}
       <div
         className={
           isSelected
-            ? 'flex-1 rounded-lg px-3 py-2 border ui-message-bubble-selected'
-            : `flex-1 rounded-lg px-3 py-2 ${
+            ? 'flex-1 rounded-lg px-3 py-2 border cursor-pointer ui-message-bubble-selected'
+            : `flex-1 rounded-lg px-3 py-2 cursor-pointer ${
                 isMe
                   ? 'bg-blue-50 border border-blue-200'
                   : 'bg-gray-50 border border-gray-200'
               }`
         }
+        onClick={() => onBubbleClick(index)}
       >
         <div className="flex items-baseline justify-between gap-2 mb-1">
           <span className="text-xs font-medium text-gray-700">
@@ -538,6 +541,18 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
     setSelectedIndices(new Set())
   }
 
+  // Click en cualquier parte de la burbuja togglea la selección — mismo
+  // mecanismo que Agent Panel (AgentPanel.tsx handleMessageClick). Se
+  // preserva la selección nativa de texto: si el usuario arrastró para
+  // copiar, el click no debe además marcar/desmarcar el mensaje.
+  const handleBubbleClick = useCallback((index: number) => {
+    const selection = window.getSelection()
+    if (selection && selection.toString().length > 0) {
+      return
+    }
+    toggleSelection(index)
+  }, [toggleSelection])
+
   function handleForward() {
     if (!onForward || !hasSelection) return
     setShowForwardModal(true)
@@ -640,6 +655,7 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
                   isSelected={selectedIndices.has(index)}
                   otherUserEmail={otherUserEmail}
                   onToggle={toggleSelection}
+                  onBubbleClick={handleBubbleClick}
                 />
               ))}
             </div>

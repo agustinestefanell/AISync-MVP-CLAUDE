@@ -1216,3 +1216,24 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/components/workspace/WorkspaceShell.tsx`, `src/components/workspace/HumanChatPanel.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## 2026-09-06 (4) — Ajuste 2: unificar mecanismo de click de selección en Human Chat con Agent Panel
+
+**Pedido:** en Shared Team, Human Chat se comporta distinto al resto en la selección — unificar. Pedido explícito de diagnosticar primero (¿mecanismo de click, visual, o estructural?) antes de tocar nada.
+
+**Diagnóstico:**
+- Premisa a corregir: no existe un "Human Chat fuera de contexto de Shared Team" para comparar — `HumanChatPanel` se renderiza en `WorkspaceShell.tsx` únicamente bajo `isConnectedWorkspace && connectionContext` (línea ~748). Es un solo componente, una sola condición de render — no hay una variante distinta de código para Shared Team.
+- Descartado que sea visual: el highlight violeta (Ajuste de esta misma sesión) y el botón "Deselect all" (Ajuste 1) ya se aplican ahí — no es un problema de highlight sin llegar.
+- Causa real encontrada, de mecanismo: en Agent Panel, click en **cualquier parte de la burbuja** togglea selección (con guarda de `window.getSelection()` para no interferir con copiar texto). En Human Chat, la burbuja **no tenía `onClick`** — solo el `<input type="checkbox">` (que además queda invisible salvo hover) respondía al click. Mismo mecanismo de fondo (un `Set<number>` de índices, mismo highlight), pero el área clickeable real era mucho más chica y menos descubrible en Human Chat.
+
+**Fix:** `HumanMessageBubble` gana un prop `onBubbleClick` + `onClick` en el `<div>` de la burbuja (antes solo tenía `cursor-pointer` visual sin handler); nuevo `handleBubbleClick()` en el componente padre, con la misma guarda de `window.getSelection()` que ya usa `AgentPanel.tsx` (`handleMessageClick`), togglea vía la `toggleSelection` ya existente. El checkbox se mantiene sin cambios (sigue funcionando como atajo directo, ahora redundante con el click en la burbuja pero no en conflicto — son elementos hermanos, no anidados, mismo patrón estructural que Agent Panel).
+
+**Alcance respetado:** no se tocó el estado de selección (`selectedIndices`, `toggleSelection`), ni el highlight, ni "Deselect all" — solo se agregó el área de click que faltaba para igualar el mecanismo.
+
+**Riesgos conocidos / deuda técnica:** ninguno nuevo.
+
+**Verificación:** lint ✅, build ✅. **Verificación visual: pendiente** — mismo criterio de esperar confirmación de deploy.
+
+**Archivos modificados:** `src/components/workspace/HumanChatPanel.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---
