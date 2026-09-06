@@ -1235,6 +1235,8 @@ Agus quiere evaluar agregar Review & Forward como 4º tipo documental filtrable 
 
 3. **Modal Edit Team → "Sub-team of" muestra todos los teams de la cuenta, no solo los del Project actual.** Confirmado visualmente el 2026-09-04 (screenshot): el dropdown de "Sub-team of" lista teams de proyectos completamente distintos (ej. "BioInusmos Ramificacion", "Insumos Uruguay", "$ PROPUESTA DE NEGOCIOS" apareciendo dentro del contexto de "AISync-HITR.io"). Debería filtrar y mostrar únicamente los teams pertenecientes al mismo Project donde vive el team que se está editando.
 
+**Estado verificado 2026-09-06 (cierre de sesión) — los 3 siguen pendientes, ninguno se resolvió de colateral:** se tocó `EditTeamModal.tsx` en esta sesión (orden fijo de columnas de agentes, tinte de la columna Manager — ver OE 2026-09-06 (11) en handoff-2026-07-c.md) pero NO la línea de `validParents` (ítem 3, confirmado con lectura de código: `EditTeamModal.tsx:105` sigue siendo `allTeams.filter(t => t.id !== team.id)`, sin filtro por `project_id`). Los ítems 1 y 2 viven en archivos no tocados esta sesión (`LoadContextModal.tsx`, `UserLibraryView.tsx`/`LoadAsContextButton.tsx`).
+
 ---
 
 ### Pendientes de UX registrados 2026-09-06 (sin fix propuesto, sin ejecutar)

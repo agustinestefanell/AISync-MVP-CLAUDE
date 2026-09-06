@@ -1392,3 +1392,27 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/components/teams/EditTeamModal.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## 2026-09-06 (12) — Cierre de sesión: confirmación visual de todo el lote del día
+
+**Confirmación positiva de Agus en producción, cubriendo todas las entradas de esta fecha:**
+- **KnowledgeMap** (`100vh`→`100dvh`) — confirmado. El candidato de mayor severidad del mismo diagnóstico (`AgentPanel`/`HumanChatPanel`) sigue **abierto, sin tocar** — no forma parte de esta confirmación.
+- **Save Selection** — highlight violeta, "Deselect all" (v1 barra global → v2 por panel + barra eliminada), click unificado en Human Chat — confirmado en los 3 paneles (Manager/Worker1/Worker2, Human Chat).
+- **Load Saved Context** (selección múltiple + card completa clickeable, feature de la sesión anterior 2026-09-05 que había quedado con verificación pendiente) — confirmado, se cierra retroactivamente.
+- **Teams Map** — scroll post-Save Changes (`sessionStorage`), badge de provider del Manager (sacar `router.refresh()`), badges de Worker 1/Worker 2 (copy-paste bug), orden fijo de columnas + tinte de la columna Manager en Edit Team — confirmados todos.
+
+**Estado de los 3 pendientes de UX anotados el 2026-09-04 (`AISyncPlans.md`), verificados con lectura de código antes de reportar — ninguno se resolvió de colateral hoy:**
+1. Load Saved Context → falta opción de scope al volcar a Context File — **sigue pendiente**, sin tocar (vive en `LoadContextModal.tsx`, no tocado hoy salvo por la selección múltiple de la sesión anterior).
+2. User Library → "Load as Context" → falta opción de elegir chat destino — **sigue pendiente**, sin tocar (`UserLibraryView.tsx`/`LoadAsContextButton.tsx`, no tocados hoy).
+3. Modal Edit Team → "Sub-team of" muestra todos los teams de la cuenta, no solo los del Project actual — **sigue pendiente**, confirmado con lectura directa: `EditTeamModal.tsx:105` sigue siendo `const validParents = allTeams.filter(t => t.id !== team.id)`, sin filtro por `project_id`. Se tocó `EditTeamModal.tsx` hoy (orden de agentes, tinte del Manager) pero no esa línea.
+
+**Resumen de los 12 commits de la sesión, agrupados por tema:**
+- **Auditoría "React cortado" (1 commit, `de0fedd`):** mapeo completo de candidatos `h-screen`/`vh` sin `dvh`, 1 fix aplicado (KnowledgeMap), 2 documentados sin tocar (AgentPanel/HumanChatPanel de mayor severidad, TeamsMapV3Preview residual).
+- **Save Selection (4 commits, `8efa983`→`32a63f9`):** color violeta exclusivo para "seleccionado" (relevamiento de paleta + propuesta visual aprobada), botón "Deselect all" (2 iteraciones: barra global → por panel + barra eliminada), y click unificado para seleccionar en Human Chat (antes solo el checkbox chico respondía).
+- **Teams Map (7 commits, `64657fe`→`448c173`):** scroll que volvía al Project #1 tras Save Changes (2 iteraciones: `useState` descartado al confirmar que `router.refresh()` remonta el componente → `sessionStorage`), badge de provider del Manager desactualizado (causa real: `router.refresh()` innecesario, ya sacado — con nota aparte de diseño sobre el tag MAT para providers mixtos, sin ejecutar), badges de Worker 1/Worker 2 mostrando el provider del Manager (copy-paste bug), y orden inestable de columnas + tinte de la columna Manager en Edit Team.
+
+*(Nota: el trabajo de "onboarding"/SEC-002 mencionado en el pedido de cierre corresponde a OEs de sesiones anteriores, ya cerradas — no generó commits en esta sesión puntual.)*
+
+**Hash final de esta OE:** el último commit de código es `448c173` (fix de Edit Team). Este cierre es documentación pura — se commitea junto con la actualización de `PRODUCT_STATUS.md`/`AISyncPlans.md` de este mismo cierre.
+
+---
