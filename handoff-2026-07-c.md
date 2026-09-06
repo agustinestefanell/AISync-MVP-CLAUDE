@@ -1352,3 +1352,23 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/components/teams/TeamsClient.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`.
 
 ---
+
+## 2026-09-06 (10) — Bug real encontrado: cards de Worker 1/Worker 2 en Teams Map mostraban el proveedor del Manager
+
+**Corrección de Agus sobre el diagnóstico de diseño de la entrada anterior:** no era (solo) el badge del team viendo únicamente al Manager por diseño — las cards INDIVIDUALES de Worker 1 y Worker 2 en el árbol expandido de Teams Map (las burbujas "Execution" separadas, debajo del Team Manager) mostraban las 3 el mismo proveedor (el del Manager), en vez del proveedor propio de cada Worker. Ejemplo confirmado: Manager=Anthropic/Worker1=OpenAI/Worker2=Gemini en Workspace y en Edit Team, pero Teams Map mostraba Anthropic en las 3 cards.
+
+**Causa exacta, confirmada con evidencia — copy-paste bug:** `MapView.tsx:125` (dentro de `buildGraphNodesForProject`, workers de teams raíz) y `MapView.tsx:183` (dentro de `addSubteamsRecursive`, workers de subteams) — en ambos casos, al armar el `workerNode` de cada Worker, el campo `provider` reutilizaba la variable `provider` calculada más arriba en la misma función (línea 87/149) — que es explícitamente el provider del **Manager** (`agent_sessions.find(s => s.agent_role === 'manager')`). El código nunca leía `worker.provider` (el provider real de CADA sesión de Worker, ya presente en el objeto `worker` sobre el que se estaba iterando en `workers.slice(0, 2).forEach(worker => ...)`) — quedó la variable del Manager "pegada" en el bloque de construcción de Workers, un error de copy-paste entre las 2 secciones de la función.
+
+**Confirmado que llega hasta el render:** `MapView.tsx:581`, la card de Worker (`<TreeWorkspaceCard tags={['Execution', getProviderDisplayName(node.provider)]} .../>`) usa exactamente `node.provider` — el mismo campo que se arma en `buildGraphNodesForProject`/`addSubteamsRecursive`. No hay una tercera fuente de datos ni otro lugar que necesitara arreglo — un solo bug, en 2 copias (root teams y subteams), con un único punto de render consumiéndolo.
+
+**Fix:** en los 2 lugares, se calcula `workerProvider = (worker.provider ?? 'Anthropic') as 'OpenAI' | 'Anthropic' | 'Google'` (mismo patrón de fallback que ya usaba el cálculo del Manager) y se usa `provider: workerProvider` en el `workerNode`, en vez de la variable compartida del Manager.
+
+**Alcance respetado:** no se tocó el modal Edit Team ni el orden de columnas (hipótesis ya descartada por Agus) — el badge de la card PRINCIPAL del team (el que muestra el Manager a propósito, ver entrada anterior) queda exactamente igual, sin cambios.
+
+**Riesgos conocidos / deuda técnica:** ninguno nuevo — fix acotado a 2 líneas, mismo patrón de fallback ya usado en el resto del archivo.
+
+**Verificación:** lint ✅ (sin warnings nuevos en `MapView.tsx`). Build ✅ (TypeScript no marcó error al usar `worker.provider`, confirma que el campo existe con el tipo esperado en `agent_sessions`). **Verificación visual: pendiente** — team con 3 providers distintos entre Manager/Worker1/Worker2, confirmar que cada card de Worker muestra el suyo y la card del Manager no cambió.
+
+**Archivos modificados:** `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---

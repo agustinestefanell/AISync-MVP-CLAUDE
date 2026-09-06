@@ -84,7 +84,10 @@ function buildGraphNodesForProject(
 
   rootTeams.forEach(team => {
     const managerSession = team.workspaces?.[0]?.agent_sessions?.find(s => s.agent_role === 'manager')
-    const provider = (managerSession?.provider ?? 'Anthropic') as 'OpenAI' | 'Anthropic' | 'Google'
+    // Nombre explícito a propósito — un simple "provider" acá fue lo que
+    // causó que el bloque de Workers más abajo lo reutilizara por error en
+    // vez de leer el provider de cada worker (ver CodingWorkshop.md 2026-09-06).
+    const managerProvider = (managerSession?.provider ?? 'Anthropic') as 'OpenAI' | 'Anthropic' | 'Google'
 
     // Check if this is a connected/shared team
     const isConnected = team.type === 'isolated'
@@ -94,7 +97,7 @@ function buildGraphNodesForProject(
       id: team.id,
       type: 'senior_manager',
       label: team.name,
-      provider,
+      provider: managerProvider,
       parentId: rootNode.id,
       teamId: team.id,
       teamType: team.type === 'MAT' ? 'MAT' : 'SAT',
@@ -118,11 +121,12 @@ function buildGraphNodesForProject(
       ? []
       : team.workspaces?.[0]?.agent_sessions?.filter(s => s.agent_role !== 'manager') ?? []
     workers.slice(0, 2).forEach(worker => {
+      const workerProvider = (worker.provider ?? 'Anthropic') as 'OpenAI' | 'Anthropic' | 'Google'
       const workerNode: TeamsGraphNode = {
         id: `${worker.id}_worker`,
         type: 'worker',
         label: worker.agent_role === 'worker1' ? 'Worker 1' : 'Worker 2',
-        provider,
+        provider: workerProvider,
         parentId: team.id,
         teamId: team.id,
         teamType: team.type === 'MAT' ? 'MAT' : 'SAT',
@@ -146,7 +150,7 @@ function addSubteamsRecursive(
 
   subteams.forEach(subteam => {
     const managerSession = subteam.workspaces?.[0]?.agent_sessions?.find(s => s.agent_role === 'manager')
-    const provider = (managerSession?.provider ?? 'Anthropic') as 'OpenAI' | 'Anthropic' | 'Google'
+    const managerProvider = (managerSession?.provider ?? 'Anthropic') as 'OpenAI' | 'Anthropic' | 'Google'
 
     const isConnected = subteam.type === 'isolated'
     const connMeta = connectionMetadata[subteam.id]
@@ -155,7 +159,7 @@ function addSubteamsRecursive(
       id: subteam.id,
       type: 'senior_manager',
       label: subteam.name,
-      provider,
+      provider: managerProvider,
       parentId,
       teamId: subteam.id,
       teamType: subteam.type === 'MAT' ? 'MAT' : 'SAT',
@@ -176,11 +180,12 @@ function addSubteamsRecursive(
       ? []
       : subteam.workspaces?.[0]?.agent_sessions?.filter(s => s.agent_role !== 'manager') ?? []
     workers.slice(0, 2).forEach(worker => {
+      const workerProvider = (worker.provider ?? 'Anthropic') as 'OpenAI' | 'Anthropic' | 'Google'
       const workerNode: TeamsGraphNode = {
         id: `${worker.id}_worker`,
         type: 'worker',
         label: worker.agent_role === 'worker1' ? 'Worker 1' : 'Worker 2',
-        provider,
+        provider: workerProvider,
         parentId: subteam.id,
         teamId: subteam.id,
         teamType: subteam.type === 'MAT' ? 'MAT' : 'SAT',

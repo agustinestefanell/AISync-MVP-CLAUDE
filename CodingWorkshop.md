@@ -1958,3 +1958,13 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** cuando dudás si una llamada a refetch/refresh es necesaria, buscar funciones hermanas en el mismo archivo que hagan una mutación de datos comparable — si ya funcionan sin ese refetch, es la evidencia más directa (más que inferir desde cero qué depende de qué) de que se puede sacar con seguridad.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-06 (9), `src/components/teams/TeamsClient.tsx`.
+
+---
+
+## 2026-09-06 (6) — Bug: variable del Manager reutilizada por copy-paste dentro del bloque de Workers
+
+**Qué pasó:** `MapView.tsx` arma, en la misma función, primero el nodo del Manager (`const provider = managerSession?.provider`) y después, más abajo, itera sobre los Workers para armar sus propios nodos (`workers.forEach(worker => {...})`). Al armar el nodo de cada Worker, el campo `provider` quedó apuntando a la variable `provider` de más arriba (la del Manager) en vez de a `worker.provider` — la variable correcta estaba literalmente disponible en el mismo scope (el parámetro `worker` del `.forEach`), pero nunca se usó. Se repitió idéntico en 2 lugares del archivo (teams raíz y subteams), señal de que el segundo bloque se escribió copiando el patrón del primero sin actualizar esa referencia puntual.
+
+**Lección:** cuando una función arma múltiples objetos similares en el mismo scope (acá: nodo de Manager, después nodos de Worker) y alguna variable "de arriba" tiene un nombre genérico (`provider`, no `managerProvider`), es fácil que un bloque posterior la reutilice por accidente en vez de calcular su propio valor — sobre todo si el bloque se escribió copiando el de arriba. Nombrar la variable del Manager de forma explícita (`managerProvider` en vez de `provider`) hubiera hecho que reutilizarla por error en el bloque de Workers se viera obviamente mal al leerlo, en vez de pasar desapercibido.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (10), `src/components/teams/MapView.tsx:125,183`.
