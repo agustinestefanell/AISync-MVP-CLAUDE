@@ -1237,3 +1237,26 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/components/workspace/HumanChatPanel.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## 2026-09-06 (5) — "Deselect all" por panel (Agent Panel) + eliminación de la barra global
+
+**Contexto — diagnóstico de "Deselect all no aparece en Agent Panel":** confirmado con capturas de Agus que "N messages selected" y "Save Selection" sí aparecían, pero "Deselect all" no. Los 3 elementos viven en el mismo `{_totalSelected > 0 && (...)}` de `WorkspaceShell.tsx` — imposible que React muestre 2 de 3 elementos hermanos del mismo bloque condicional. Diagnóstico: no era un bug de código, era **cache del browser sirviendo un chunk JS viejo** (confirmado indirectamente: el ajuste de Human Chat, en un archivo distinto, sí se veía). Sin necesidad de tocar código para esto — solo hard refresh del lado de Agus.
+
+**Pedido 1 — "Deselect all" también en la fila de acciones de cada Agent Panel (Manager/Worker1/Worker2), scoped a ese panel:** implementado en `AgentPanel.tsx`. Nuevo `handleDeselectAll()` local (`setSelectedIndices(new Set()); onSelectionChange(0)`, mismo patrón que ya usaba `handleForwardConfirm`) + botón condicional (`{hasSelection && (...)}`) agregado al `grid-cols-4` existente (Refresh Session | Save Selection | Audit AI), ocupando el slot que antes ocupaba el "Save Version" permanentemente oculto (`{false && ...}`) — mismo truco de layout que ya se había usado en Human Chat. Cada panel es una instancia independiente de `AgentPanel` con su propio `selectedIndices` — "scoped a ese panel" es automático, no requirió ningún ajuste adicional (no hay estado compartido entre instancias).
+
+**Pedido 2 — eliminar la barra global de "N messages selected" al pie de página:** antes de borrar, se verificó si esa barra tenía alguna función exclusiva no replicada por panel — específicamente, si el "Save Selection" de la barra global permitía combinar selección de varios paneles en un solo guardado. **Confirmado que SÍ existe esa capacidad, y que NO se pierde al borrar la barra:** `openSaveSelectionModal()` (la función detrás del botón, sin cambios) recorre TODOS los `panelRefs.current` sin importar cuál llamó — el botón "Save Selection" de CUALQUIER panel individual ya dispara la misma función que agrega mensajes seleccionados de Manager + Worker1 + Worker2 juntos. La barra global nunca fue la única vía para esa función, era una UI redundante sobre la misma lógica. Reportado a Agus antes de borrar, como pidió explícitamente.
+
+**Limpieza de estado huérfano (sin dejar código sin referencias):**
+- Eliminados de `WorkspaceShell.tsx`: `_totalSelected`/`setTotalSelected` (estado), `selectionCounts` (ref), `handleSelectionChange`, `handleHumanSelectionChange`, `handleDeselectAll` (global) — los 5 existían únicamente para alimentar la barra eliminada, sin otro consumidor (confirmado por grep antes de borrar).
+- `AgentPanel.onSelectionChange` es un prop **requerido** (no opcional) — no se le podía dejar de pasar nada sin tocar el contrato del componente (fuera de alcance de este ajuste). En vez de eso, `panelBindings` ahora le pasa una constante módulo-level `NOOP_SELECTION_CHANGE = () => {}` — cumple el contrato sin recrear una función nueva por render (mismo patrón que `EMPTY_MESSAGES`/`EMPTY_HUMAN_MESSAGES` ya usado en el archivo).
+- `HumanChatPanel.onSelectionChange` sí es opcional — se sacó el prop directamente del call site, sin reemplazo.
+
+**Ajuste de estilo — "Deselect all" distinto y más chico (aplicado en Agent Panel y Human Chat):** texto en `var(--color-selected)` (el mismo violeta del highlight de selección, pero como color de texto sobre fondo neutro — no un fill sólido, así se mantiene "con relación temática a selección" sin repetir la intensidad visual del highlight de burbuja) + `px-1.5 text-[10px]` (más chico que los demás botones de la fila, que usan `px-2 text-[11px]`).
+
+**Riesgos conocidos / deuda técnica:** ninguno nuevo — la limpieza de estado fue puramente de código muerto sin consumidores, verificado por grep antes y después.
+
+**Verificación:** lint ✅ (mismos warnings preexistentes). Build ✅ (bundle de `/workspace/[id]` bajó de 48.1kB a 47.9kB, consistente con la baja de código muerto). **Verificación visual: pendiente.**
+
+**Archivos modificados:** `src/components/workspace/WorkspaceShell.tsx`, `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/HumanChatPanel.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`.
+
+---

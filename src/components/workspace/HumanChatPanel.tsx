@@ -761,8 +761,8 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
           )}
           {hasSelection && (
             <button
-              className="ui-button px-2 text-[11px]"
-              style={{ color: 'var(--color-text-secondary)' }}
+              className="ui-button px-1.5 text-[10px]"
+              style={{ color: 'var(--color-selected)' }}
               onClick={handleDeselectAll}
               title="Deselect all messages"
             >

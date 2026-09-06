@@ -441,6 +441,11 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
       }).catch(() => {})
     }
 
+    function handleDeselectAll() {
+      setSelectedIndices(new Set())
+      onSelectionChange(0)
+    }
+
     function handleForward() {
       if (!onForward || !hasSelection) return
       setShowForwardModal(true)
@@ -1183,6 +1188,16 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
               >
                 Refresh Session
               </button>
+              {hasSelection && (
+                <button
+                  className="ui-button px-1.5 text-[10px]"
+                  style={{ color: 'var(--color-selected)' }}
+                  onClick={handleDeselectAll}
+                  title="Deselect all messages in this panel"
+                >
+                  Deselect all
+                </button>
+              )}
               {/* Save Version hidden — redundant with checkpoint system (logic preserved for potential future use) */}
               {false && (
                 <button

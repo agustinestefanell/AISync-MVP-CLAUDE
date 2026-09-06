@@ -30,6 +30,10 @@ const PURPOSES = [
 const EMPTY_MESSAGES: Message[] = []
 const EMPTY_HUMAN_MESSAGES: HumanMessage[] = []
 const HUMAN_FORWARD_TARGETS = [{ role: 'manager', label: 'Manager' }]
+// AgentPanel.onSelectionChange es un prop requerido, pero desde que "Deselect
+// all"/Save Selection pasaron a ser por-panel (ver AgentPanel.tsx/HumanChatPanel.tsx),
+// WorkspaceShell ya no necesita agregar el conteo de selección de cada panel.
+const NOOP_SELECTION_CHANGE = () => {}
 
 interface ConnectionContext {
   connectionId:   string
@@ -74,7 +78,6 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
   const [_checkpoints, setCheckpoints]  = useState<Checkpoint[]>([])
   const [saveStatus, setSaveStatus]     = useState<SaveStatus>('idle')
   const [_resumingId, setResumingId]    = useState<string | null>(null)
-  const [_totalSelected, setTotalSelected]        = useState(0)
   const [showHandoffModal, setShowHandoffModal]   = useState(false)
 
   // Modal de Save Version
@@ -105,7 +108,6 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
 
   const panelRefs       = useRef<Record<string, AgentPanelHandle | null>>({})
   const humanChatRef    = useRef<HumanChatPanelHandle | null>(null)
-  const selectionCounts = useRef<Record<string, number>>({})
 
   // Identify Manager by explicit agent_role (not by position)
   const managerSession = useMemo(() => {
@@ -168,29 +170,6 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     })
     setLockState(newState)
     setLockLoading(false)
-  }
-
-  // ── Contador reactivo de selección ──────────────────────────────────────
-  const handleSelectionChange = useCallback((sessionId: string, count: number) => {
-    selectionCounts.current[sessionId] = count
-    // Exclude 'human-chat' from total for global bar (human chat has its own controls)
-    const total = Object.entries(selectionCounts.current)
-      .filter(([id]) => id !== 'human-chat')
-      .reduce((sum, [, count]) => sum + count, 0)
-    setTotalSelected(total)
-  }, [])
-
-  const handleHumanSelectionChange = useCallback(
-    (count: number) => handleSelectionChange('human-chat', count),
-    [handleSelectionChange]
-  )
-
-  // Deselect all — atajo de la barra de selección global (solo agent panels;
-  // human chat tiene su propio botón/control de selección, ver HumanChatPanel).
-  function handleDeselectAll() {
-    for (const session of workspace.agent_sessions) {
-      panelRefs.current[session.id]?.clearSelection()
-    }
   }
 
   // ── Panel-level Review & Forward ─────────────────────────────────────────
@@ -722,7 +701,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
 
       map[session.id] = {
         setRef:                 el => { panelRefs.current[session.id] = el },
-        onSelectionChange:      count => handleSelectionChange(session.id, count),
+        onSelectionChange:      NOOP_SELECTION_CHANGE,
         onForward:              (messages, targetRole, instructions) => handlePanelForward(session, messages, targetRole, instructions),
         onCreateHandoff:        () => setShowHandoffModal(true),
         getOtherPanelsSnapshot: () => buildOtherPanelsSnapshot(session.id),
@@ -730,7 +709,7 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
       }
     }
     return map
-  }, [workspace.agent_sessions, workspace.teams?.type, isConnectedWorkspace, connectionContext, handleSelectionChange, handlePanelForward, buildOtherPanelsSnapshot])
+  }, [workspace.agent_sessions, workspace.teams?.type, isConnectedWorkspace, connectionContext, handlePanelForward, buildOtherPanelsSnapshot])
 
   const locked = lockState === 'locked'
 
@@ -755,7 +734,6 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
               otherUserEmail={connectionContext.otherUserEmail}
               otherUserName={connectionContext.otherUserName}
               initialMessages={initialHumanMessages}
-              onSelectionChange={handleHumanSelectionChange}
               onSaveVersion={openSaveModal}
               onOpenSaveSelection={openSaveSelectionModal}
               forwardTargets={HUMAN_FORWARD_TARGETS}
@@ -812,29 +790,6 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           ))
         )}
       </div>
-
-      {/* ── Save Selection bar ── */}
-      {_totalSelected > 0 && (
-        <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 rounded-xl border border-[var(--color-border-subtle)] bg-white">
-          <span className="text-xs text-[var(--color-text-secondary)]">
-            {_totalSelected} message{_totalSelected !== 1 ? 's' : ''} selected
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleDeselectAll}
-              className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-subtle)] hover:border-[var(--color-border-default)] transition-colors"
-            >
-              Deselect all
-            </button>
-            <button
-              onClick={openSaveSelectionModal}
-              className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-            >
-              {_totalSelected === 1 ? 'Save Selection (1)' : `Save Selections (${_totalSelected})`}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── Modal de Save Selection ── */}
       {showSaveSelectionModal && (
