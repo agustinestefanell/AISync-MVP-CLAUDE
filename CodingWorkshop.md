@@ -1948,3 +1948,13 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** cuando un fix lógicamente correcto no funciona en producción y no hay forma de reproducir/inspeccionar el DOM uno mismo, agregar instrumentación mínima y de solo lectura (console.log en los puntos de decisión clave) en vez de iterar a ciegas sobre el fix — cada hipótesis debería predecir una salida de consola distinta y verificable, para que la siguiente pasada corrija con evidencia, no con otra suposición.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-06 (7), `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`.
+
+---
+
+## 2026-09-06 (5) — Lección: antes de asumir que un `router.refresh()` hace falta, revisar si funciones hermanas en el mismo archivo ya viven sin él
+
+**Qué pasó:** `handleUpdated` (editar un team) llamaba `router.refresh()` — y resultó ser la causa de 2 bugs (scroll y badge de provider). Antes de sacarlo hubiera sido fácil asumir que "debe hacer falta para algo, mejor no tocarlo". La confirmación real vino de mirar el resto del mismo archivo: `handleCreated` y `handleDeleted` (crear/borrar un team) hacen exactamente el mismo tipo de mutación de datos y **nunca tuvieron `router.refresh()`** — solo `setTeams` local. Ese precedente, ya viviendo en producción sin problemas, fue la evidencia más fuerte de que el refresh de `handleUpdated` era prescindible, más que cualquier análisis abstracto de "qué necesita la UI".
+
+**Lección:** cuando dudás si una llamada a refetch/refresh es necesaria, buscar funciones hermanas en el mismo archivo que hagan una mutación de datos comparable — si ya funcionan sin ese refetch, es la evidencia más directa (más que inferir desde cero qué depende de qué) de que se puede sacar con seguridad.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (9), `src/components/teams/TeamsClient.tsx`.

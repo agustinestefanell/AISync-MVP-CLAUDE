@@ -238,9 +238,14 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
   }
 
   function handleUpdated(updated: TeamWithWorkspaces) {
+    // Sin router.refresh(): `updated` (la respuesta del PATCH) ya trae todo lo
+    // que la UI de Teams Map necesita (agent_sessions con provider/model
+    // frescos incluidos) — confirmado con evidencia 2026-09-06 que no hay
+    // ningún dato mostrado acá que dependa de un refetch completo de la ruta.
+    // router.refresh() era además la causa de 2 bugs (scroll y badge de
+    // provider quedando viejo) porque remonta este componente por completo.
     setTeams(prev => prev.map(t => t.id === updated.id ? updated : t))
     setEditingTeam(null)
-    router.refresh()
   }
 
   function handleDeleted(teamId: string) {
@@ -458,9 +463,13 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
           zoomOutSignal={zoomOutSignal}
           resetSignal={resetSignal}
           onEdit={team => {
-            // Sobrevive al remount que router.refresh() dispara tras Save
-            // Changes (confirmado con evidencia — un useState acá no alcanza,
-            // ver DECISIONS.md 2026-09-06). MapView lo lee y limpia al montar.
+            // Save Changes en sí ya NO llama router.refresh() (ver
+            // handleUpdated), pero crear un sub-team desde este mismo modal
+            // sí lo sigue haciendo (AddTeamModal.onCreated en
+            // EditTeamModal.tsx) — se deja como red de seguridad para ese
+            // caso y cualquier otro refresh futuro. Un useState acá no
+            // alcanza si el remount ocurre (confirmado con evidencia, ver
+            // DECISIONS.md 2026-09-06). MapView lo lee y limpia al montar.
             try { sessionStorage.setItem(TEAMS_MAP_FOCUS_PROJECT_KEY, team.project_id) } catch {}
             setEditingTeam(team)
           }}

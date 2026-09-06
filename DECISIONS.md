@@ -1650,3 +1650,17 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Riesgo aceptado (ya lo tenía la Opción B original, se mantiene igual):** no sobrevive a un F5 manual real del usuario — mismo trade-off frente a la Opción A (URL) que Agus ya había aceptado explícitamente al elegir Opción B.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-06 (7) y (8), `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`.
+
+## 2026-09-06 (7) — Sacar `router.refresh()` de `handleUpdated`: atacar la causa raíz en vez de parchear cada síntoma
+
+**Contexto:** el badge de provider desactualizado resultó ser el mismo mecanismo de fondo que el bug de scroll (remount de `router.refresh()`), pero con una diferencia clave: el dato SÍ llegaba correcto en la respuesta del PATCH (confirmado con evidencia de Network aportada por Agus), a diferencia del scroll (que nunca tuvo un dato de servidor que restaurar, era puramente posición de browser). Esto abrió una pregunta distinta: ¿hace falta `router.refresh()` acá siquiera?
+
+**Decisión — confirmar antes de sacarlo, no asumir:** se revisó explícitamente qué UI de Teams Map depende de datos que NO viajan en `updated` (la respuesta del PATCH) y que solo se actualizarían vía un refetch completo del Server Component — conteo "Teams N / Workers N" del header, conteos por Project y jerarquía del árbol en `MapView.tsx`: todos se derivan del estado `teams` del cliente, ninguno depende de un refetch. Precedente decisivo: `handleCreated`/`handleDeleted` (crear/borrar team, mismo archivo) **ya funcionaban sin `router.refresh()`** desde antes de esta OE — solo `handleUpdated` lo tenía, sin razón aparente distinta.
+
+**Decisión — sacar `router.refresh()` de `handleUpdated`, no perseguir el mecanismo exacto de por qué el remount traía datos viejos:** una vez confirmado que no hace falta ningún refetch para esta acción, el camino más simple y de menor riesgo no es diagnosticar en detalle POR QUÉ el remount de `router.refresh()` a veces trae datos stale (probablemente algo del Router Cache de Next.js, sin forma de confirmarlo sin más instrumentación) — es sacar la llamada que ni siquiera hacía falta. Resuelve el síntoma de raíz sin depender de entender el comportamiento exacto de una caché de terceros.
+
+**Decisión — mantener el mecanismo de `sessionStorage` del fix de scroll, no sacarlo pese a que ya no lo necesita `handleUpdated`:** quedan 2 llamadas más a `router.refresh()` en el mismo archivo/flujo (`handleAccepted` — aceptar conexión — y el `onCreated` de crear un sub-team desde `EditTeamModal.tsx`) que todavía pueden remontar y perder el scroll. Mantener la red de seguridad cuesta poco (ya está escrita, no molesta si nunca se dispara) y sigue cubriendo esos 2 casos reales, más cualquier `router.refresh()` que se agregue después. Sacarlo hubiera sido una limpieza cosmética con riesgo real de reabrir el bug de scroll en esos otros 2 flujos.
+
+**Nota aparte, deliberadamente NO resuelta en esta misma pasada (pedido explícito de Agus de no mezclar):** `route.ts:146-155`, el `.update()` de `agent_sessions` sin chequeo de `{ error }` — mismo patrón que los 9 lugares de SEC-002. Confirmado que no es la causa de este bug, así que queda como deuda técnica separada, no como parte de este fix.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (9), `src/components/teams/TeamsClient.tsx`, `src/app/api/teams/[id]/route.ts`.

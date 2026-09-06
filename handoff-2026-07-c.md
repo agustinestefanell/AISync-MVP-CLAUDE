@@ -1327,3 +1327,28 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/components/teams/TeamsClient.tsx`, `src/components/teams/MapView.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`.
 
 ---
+
+## 2026-09-06 (9) — Badge de provider (Google/Anthropic/OpenAI) desactualizado tras editar: causa real y fix
+
+**Síntoma:** al cambiar el proveedor de un agente en Edit Team y hacer Save Changes, el badge de Teams Map seguía mostrando el proveedor viejo hasta un F5 manual del usuario.
+
+**Diagnóstico, descartando hipótesis con evidencia real (no supuestos):**
+1. **¿El badge sale del mismo `team` que actualiza `handleUpdated`?** Sí — `MapView.tsx:86-97` lee el provider de `team.workspaces[0].agent_sessions.find(s => s.agent_role === 'manager')`, el mismo objeto que `setTeams` reemplaza.
+2. **¿El PATCH actualiza `agent_sessions` en la misma llamada?** Sí — `EditTeamModal.tsx` manda `agents` en el mismo body que `name`/`description`; `route.ts:146-177` actualiza `agent_sessions` en el mismo request (no una llamada separada) y `route.ts:179-183` re-lee el team completo con el `agent_sessions` fresco antes de responder.
+3. **¿Condición de carrera entre los `.update()` del loop y el `.select()` final?** Descartada con evidencia — es un `for...of` con `await` en cada iteración (no un `.forEach` async sin esperar), el `.select()` corre estrictamente después de que el loop completo termine.
+4. **¿El backend devuelve el dato viejo en la respuesta del PATCH?** Descartado con evidencia directa: Agus capturó la respuesta real en Network — el `provider` del manager ya venía actualizado (`"Anthropic"`, el valor recién elegido) en el payload del PATCH.
+5. **Conclusión: 100% frontend.** El mismo mecanismo de remount de `router.refresh()` ya confirmado en el bug del scroll (ver entradas anteriores de esta misma fecha) — pero acá el dato en sí YA llegaba bien en `updated`; el problema era que el remount posterior, en vez de simplemente preservar ese dato ya correcto, dependía de una relectura fresca del Server Component (`initialTeams`) cuya fiabilidad no estaba garantizada de la misma forma que un F5 real (sin caché de ningún tipo de por medio).
+
+**Decisión final — sacar `router.refresh()` de `handleUpdated` en vez de perseguir el mecanismo exacto de staleness:** antes de sacarlo, se confirmó explícitamente que nada en la UI de Teams Map depende de un dato que no viaje en `updated` y que solo se actualice vía un refetch completo — el conteo "Teams N / Workers N" del header (`TeamsClient.tsx`) y los conteos por Project + jerarquía del árbol en `MapView.tsx` se derivan todos del estado `teams` del cliente, no de un refetch. Precedente ya existente en el mismo archivo: `handleCreated`/`handleDeleted` (crear/borrar team) **ya funcionaban sin `router.refresh()`**, solo con `setTeams` local — editar un team no tenía por qué ser distinto.
+
+**Implementación:** `TeamsClient.tsx:handleUpdated` — se saca la línea `router.refresh()`. `setTeams(prev => prev.map(...))` + `setEditingTeam(null)` quedan solos; ya traían todo lo necesario.
+
+**Decisión — el mecanismo de `sessionStorage` para el scroll (OE anterior) se deja como está, no se saca:** aunque `handleUpdated` ya no dispara ningún remount, **quedan 2 llamadas más a `router.refresh()` en el mismo flujo de Teams Map** — `handleAccepted` (aceptar una conexión entrante, `TeamsClient.tsx:264`) y el `onCreated` de `AddTeamModal` al crear un sub-team desde dentro de Edit Team (`EditTeamModal.tsx:485`) — ambas siguen pudiendo disparar el mismo remount y perder el scroll. El costo de mantener el mecanismo de `sessionStorage` es mínimo (ya escrito, no molesta si nunca se dispara) y sigue siendo una red de seguridad real para esos 2 casos + cualquier `router.refresh()` que se agregue en el futuro. Comentario actualizado en el código para reflejar que ya no es Save Changes quien lo necesita, sino esos otros 2 flujos.
+
+**Nota aparte, NO mezclada con este fix (pendiente separado, señalado explícitamente durante el diagnóstico):** `route.ts:146-155` — el `.update()` de `agent_sessions` sigue sin chequear `{ error }`, mismo patrón de los 9 lugares ya corregidos en SEC-002. No es la causa de este bug (confirmado: si la escritura fallara, ni el F5 lo arreglaría, y sí lo arregla) — pero es una deuda real sin cubrir. Anotado en `PRODUCT_STATUS.md` como pendiente de una futura OE.
+
+**Verificación:** lint ✅ (sin warnings nuevos en `TeamsClient.tsx`). Build ✅. **Verificación visual: pendiente** — confirmar que el badge se actualiza sin F5 manual, y repetir la verificación del scroll (que no se haya roto al sacar el refresh de Save Changes).
+
+**Archivos modificados:** `src/components/teams/TeamsClient.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`.
+
+---
