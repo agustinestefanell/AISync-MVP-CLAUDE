@@ -534,6 +534,10 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
     })
   }, [])
 
+  function handleDeselectAll() {
+    setSelectedIndices(new Set())
+  }
+
   function handleForward() {
     if (!onForward || !hasSelection) return
     setShowForwardModal(true)
@@ -737,6 +741,16 @@ const HumanChatPanel = forwardRef<HumanChatPanelHandle, Props>(function HumanCha
               title="Save a checkpoint of this human chat"
             >
               Save Version
+            </button>
+          )}
+          {hasSelection && (
+            <button
+              className="ui-button px-2 text-[11px]"
+              style={{ color: 'var(--color-text-secondary)' }}
+              onClick={handleDeselectAll}
+              title="Deselect all messages"
+            >
+              Deselect all
             </button>
           )}
           <button

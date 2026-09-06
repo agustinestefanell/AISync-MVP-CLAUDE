@@ -185,11 +185,12 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
     [handleSelectionChange]
   )
 
-  function _clearAllSelections() {
+  // Deselect all — atajo de la barra de selección global (solo agent panels;
+  // human chat tiene su propio botón/control de selección, ver HumanChatPanel).
+  function handleDeselectAll() {
     for (const session of workspace.agent_sessions) {
       panelRefs.current[session.id]?.clearSelection()
     }
-    // Note: human chat has its own clear selection, not included here
   }
 
   // ── Panel-level Review & Forward ─────────────────────────────────────────
@@ -818,12 +819,20 @@ export default function WorkspaceShell({ workspace, initialMessages, initialChec
           <span className="text-xs text-[var(--color-text-secondary)]">
             {_totalSelected} message{_totalSelected !== 1 ? 's' : ''} selected
           </span>
-          <button
-            onClick={openSaveSelectionModal}
-            className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-          >
-            {_totalSelected === 1 ? 'Save Selection (1)' : `Save Selections (${_totalSelected})`}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDeselectAll}
+              className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-subtle)] hover:border-[var(--color-border-default)] transition-colors"
+            >
+              Deselect all
+            </button>
+            <button
+              onClick={openSaveSelectionModal}
+              className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-strong)] text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+            >
+              {_totalSelected === 1 ? 'Save Selection (1)' : `Save Selections (${_totalSelected})`}
+            </button>
+          </div>
         </div>
       )}
 

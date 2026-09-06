@@ -1594,3 +1594,15 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Alternativas descartadas:** construir selección de texto libre (fuera de alcance real, ver arriba); veladura semitransparente por tipo de burbuja en vez de flat (descartada por pedido explícito de tratamiento uniforme).
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-06 (2), `src/styles/tokens.css`, `src/components/workspace/AgentPanel.tsx`, `src/components/workspace/HumanChatPanel.tsx`.
+
+## 2026-09-06 (3) — "Deselect all": 2 botones independientes, no uno global, para respetar la separación ya existente entre Agent Panel y Human Chat
+
+**Contexto:** el pedido era un botón "Deselect all" contextual, funcionando en Agent Panel y en Human Chat. El código ya tenía una separación intencional entre ambos: `_totalSelected` (la barra global de selección en `WorkspaceShell.tsx`) excluye explícitamente `'human-chat'` de su conteo — comentario ya existente: "human chat has its own controls" — porque Human Chat tiene su propio flujo de Save Selection, con su propio botón, en su propia sección de acciones.
+
+**Decisión — 2 botones "Deselect all" independientes, uno por ámbito, no un botón único que limpie todo:** agregar el botón a la barra global (Agent Panel) y otro separado dentro de la sección de acciones de Human Chat, cada uno limpiando solo su propio ámbito — en vez de, por ejemplo, hacer que el botón de la barra global también limpie Human Chat "ya que total sería más simple". Mantener la separación evita romper la razón original de por qué esa separación existe (Human Chat vive fuera del modal global de Save Selection porque guarda a un destino distinto — `human_messages`, no `checkpoint_messages` — con su propio flujo).
+
+**Decisión — reusar `_clearAllSelections()`, ya escrita pero sin usar, en vez de escribir una función nueva:** existía una función con ese nombre y prefijo `_` (convención de "no usada todavía") que ya hacía exactamente la limpieza necesaria para Agent Panel. Se le sacó el prefijo y se conectó al nuevo botón en vez de duplicar lógica.
+
+**Alternativas descartadas:** un solo botón "Deselect all" en la barra global que limpie Agent Panel + Human Chat juntos — descartado porque hubiera requerido mezclar 2 flujos de guardado que el código mantiene deliberadamente separados, solo para ahorrar un botón.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-06 (3), `src/components/workspace/WorkspaceShell.tsx`, `src/components/workspace/HumanChatPanel.tsx`.

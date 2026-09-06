@@ -1194,3 +1194,25 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Archivos modificados:** `src/styles/tokens.css`, `src/components/workspace/HumanChatPanel.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `CodingWorkshop.md`.
 
 ---
+
+## 2026-09-06 (3) — Ajuste 1: botón "Deselect all" contextual (Agent Panel + Human Chat)
+
+**Pedido:** con 1+ mensajes seleccionados debe aparecer un botón "Deselect all" que limpie toda la selección de un click; con 0 seleccionados, no debe existir el botón. Debe funcionar en Agent Panel y en Human Chat.
+
+**Diagnóstico previo:** ambos ya tenían la lógica de limpieza construida pero sin exponer un botón de "todo de una vez":
+- Agent Panel ya se agrega a una barra GLOBAL en `WorkspaceShell.tsx` (línea ~816, `{_totalSelected > 0 && ...}`, "N messages selected" + botón Save Selection) que suma la selección de todas las sesiones de agente — ubicación exacta que Agus pedía como "cerca de donde ya está la información de N seleccionados". Existía incluso una función `_clearAllSelections()` ya escrita (con `_` de "no usada todavía") que hacía exactamente lo necesario.
+- Human Chat **no** participa de esa barra global a propósito (`_totalSelected` excluye explícitamente `'human-chat'` del total — comentario ya en el código: "human chat has its own controls") — tiene su propia sección de acciones (`SECTION 6: Actions grid`) con su propio botón "Save Selection". Por eso "Deselect all" para Human Chat no podía ir en la barra global sin romper esa separación intencional ya existente; debía ser un botón propio en su misma sección de acciones.
+
+**Implementación:**
+- `WorkspaceShell.tsx`: renombrada `_clearAllSelections()` → `handleDeselectAll()` (pasó de no usada a usada, se le sacó el prefijo `_`), conectada a un nuevo botón "Deselect all" dentro de la barra global existente, junto al botón de Save Selection — visible solo cuando `_totalSelected > 0` (mismo condicional que ya regía toda la barra).
+- `HumanChatPanel.tsx`: nuevo handler `handleDeselectAll()` (`setSelectedIndices(new Set())`, dispara el `useEffect` ya existente que notifica el cambio de conteo al padre) + botón "Deselect all" agregado a la grilla de 3 columnas de `SECTION 6`, renderizado condicionalmente con `{hasSelection && (...)}` — ocupa el 3er slot de la grilla que hoy queda vacío cuando no hay selección (el 2do botón, "Save Version", está permanentemente oculto tras un `{false && ...}`).
+
+**Alcance respetado:** no se tocó la lógica de selección/deselección individual (`toggleSelection`, `handleMessageClick`, checkboxes) — el nuevo botón solo invoca los mismos setters que ya limpiaban la selección en otros flujos (post-save, post-forward).
+
+**Riesgos conocidos / deuda técnica:** ninguno nuevo.
+
+**Verificación:** lint ✅, build ✅. **Verificación visual: pendiente** — mismo criterio que el ajuste de color de la OE anterior (esperar confirmación de deploy).
+
+**Archivos modificados:** `src/components/workspace/WorkspaceShell.tsx`, `src/components/workspace/HumanChatPanel.tsx`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---
