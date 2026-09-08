@@ -1416,3 +1416,80 @@ Ninguno nuevo — cambio acotado a `stopPropagation()` + un `onClick` en el cont
 **Hash final de esta OE:** el último commit de código es `448c173` (fix de Edit Team). Este cierre es documentación pura — se commitea junto con la actualización de `PRODUCT_STATUS.md`/`AISyncPlans.md` de este mismo cierre.
 
 ---
+
+## 2026-09-08 — Diagnóstico: hitr.io redirige a la URL de Vercel durante el login (En curso, fix pendiente en Supabase Dashboard) + Favicon con el logo de Hitr.io (Closed)
+
+**Fecha:** 2026-09-08.
+
+### Tarea 1 — hitr.io redirige a la URL de Vercel durante el login
+
+**Estado: Closed — causa raíz confirmada con evidencia real, fix aplicado por Agus en el Dashboard de Supabase y confirmado funcionando ("perfecto, quedó!").**
+
+**Contexto:** Agus reportó que al entrar directamente a `hitr.io` (no vía bookmark — ya se había descartado esa causa en sesión previa del 2026-09-03, donde se confirmó que ambos dominios sirven el mismo deployment), la URL final del navegador cambia a la de Vercel. Diagnóstico hecho en 3 pasadas, cada una descartando o confirmando una hipótesis con evidencia real, no supuestos.
+
+**Pasada 1 — descartado a nivel de código de la app:** `curl` directo a `hitr.io` (con `--ssl-no-revoke` por un problema de schannel de Windows, no relacionado al bug) confirmó que el dominio en sí NO redirige a Vercel — solo hace el redirect estándar `hitr.io` → `www.hitr.io` (308, comportamiento normal de Vercel para apex domains) → `/login` (307, sin sesión). `next.config.mjs` sin redirects configurados, sin `vercel.json`, y `src/middleware.ts` solo clona la URL de la request (`request.nextUrl.clone()`) para redirects de auth — nunca toca el hostname. Esto acotó el problema al flujo de login, no a la navegación normal.
+
+**Pasada 2 — hipótesis del botón GitHub, descartada:** `src/app/login/page.tsx` tiene 2 botones de login — `signInWithGoogle()` (línea 14-22) pasa `redirectTo: ${location.origin}/auth/callback` explícito; `signInWithGitHub()` (línea 25-29) no pasaba ningún `redirectTo`. Se planteó como hipótesis que el botón de GitHub caía al "Site URL" default de Supabase (probablemente la URL vieja de Vercel) por no fijar el dominio de retorno. **Agus confirmó que usó el botón de Google**, no GitHub — descarta esta hipótesis específica tal como estaba planteada.
+
+**Pasada 3 — causa raíz confirmada, reproducción real con evidencia irrefutable:** se le pidió a Agus reproducir el flujo completo prestando atención a la URL en cada paso (cerrar sesión → escribir `hitr.io` a mano, sin bookmark → confirmar la URL ANTES de tocar el botón → click en Google → ver la URL final). Resultado: la URL antes del click sí era `hitr.io/login` (descarta definitivamente cualquier causa de "acceso indebido"/bookmark); tras el click, la página vuelve a `ai-sync-mvp-claude.vercel.app/login?code=01948e5a-...`. El `?code=...` es el authorization code que el proveedor OAuth (Google) le devuelve a Supabase — que Supabase reenvía de vuelta a la URL de retorno. Que pase igual con GitHub (confirmado por Agus, no es específico de un botón) descarta que sea el código de un botón puntual — apunta a una configuración compartida entre ambos proveedores.
+
+**Diagnóstico final:** Supabase valida el `redirectTo` que manda el código contra una lista blanca ("Redirect URLs", Authentication → URL Configuration en el Dashboard de Supabase). Si `https://hitr.io/**`/`https://www.hitr.io/**` no están en esa lista, Supabase descarta el `redirectTo` explícito que sí manda `signInWithGoogle()` y cae al valor default ("Site URL") — que quedó apuntando a la URL vieja de Vercel desde antes del rebrand a Hitr.io, nunca actualizado. El patrón exacto observado (aterriza en `/login?code=...` del dominio de Vercel, no en `/auth/callback`) es consistente con que el "Site URL" guardado es la URL raíz de Vercel sin path: el código llega a esa raíz, `src/middleware.ts` no encuentra sesión todavía (el `code` no se canjeó — cayó en la home, no en `/auth/callback`, que es la única ruta que hace `exchangeCodeForSession`), y redirige a `/login` preservando el querystring (`request.nextUrl.clone()` preserva `?code=...`).
+
+**Grep exhaustivo confirmó que no hay ninguna URL de Vercel hardcodeada en `src/`** (`signInWithOAuth`/`vercel.app`) — los únicos 2 call sites son los 2 botones de `login/page.tsx`, ninguno con una URL fija. Confirma que el problema es 100% de configuración de Supabase, no de código.
+
+**Instrucciones dadas a Agus (pendiente de que las aplique y confirme):**
+1. Supabase Dashboard → Authentication → URL Configuration.
+2. Cambiar "Site URL" a `https://hitr.io`.
+3. Agregar a "Redirect URLs" (sin borrar lo que ya está): `https://hitr.io/**` y `https://www.hitr.io/**`.
+4. Guardar y repetir el flujo de login para confirmar que ya no termina en Vercel.
+
+**Aplicado y confirmado por Agus:** cambió "Site URL" a `https://hitr.io`, agregó `https://hitr.io/**` y `https://www.hitr.io/**` a "Redirect URLs" (sin borrar las entradas previas), guardó, y reprodujo el login de nuevo — confirmó que ya no termina en Vercel.
+
+**Sin cambios de código en esta pasada** — el fix vivió enteramente en configuración de Supabase, fuera del repositorio.
+
+### Alternativas descartadas (Tarea 1)
+
+- **Asumir que era el botón de GitHub sin `redirectTo`** — descartado con evidencia directa de Agus (usó Google), aunque el gap de código sigue existiendo (ver Riesgos).
+- **Asumir de nuevo un bookmark/acceso indebido** (mismo patrón ya resuelto el 2026-09-03) — descartado con evidencia: Agus confirmó la URL en la barra de direcciones ANTES de tocar el botón, y ya decía `hitr.io`.
+
+### Riesgos conocidos / deuda técnica (Tarea 1)
+
+- **`signInWithGitHub()` (`login/page.tsx:25-29`) sigue sin `redirectTo` explícito** — no es la causa de este bug (confirmado), pero es la misma clase de gap: si el "Site URL" de Supabase se corrige apuntando a `hitr.io`, el botón de GitHub va a funcionar bien por el mismo fallback que hoy causa el bug con Google — pero sigue siendo menos explícito/robusto que el botón de Google. No se tocó en esta pasada (no era la causa, no se quería mezclar un cambio de código con un diagnóstico en curso) — candidato a alinear en una futura mini-OE, agregando el mismo `redirectTo: ${location.origin}/auth/callback` por consistencia.
+Ninguno — fix aplicado y confirmado funcionando por Agus el mismo día.
+
+### Tarea 2 — Favicon con el logo de Hitr.io
+
+**Estado: Closed (código) — lint ✅, build ✅, verificado por HTTP que los 3 archivos se sirven correctamente en todas las rutas. Verificación visual (screenshot de la pestaña del navegador) pendiente — sin Claude in Chrome disponible esta sesión, pedida a Agus.**
+
+**Contexto:** la app usaba el favicon default de Next.js. Se pidió reemplazarlo por el logo de Hitr.io (el ícono cuadrado turquesa con la "H", sin el wordmark de texto).
+
+**Hallazgo — no hizo falta recortar nada a mano:** `public/logo/hitr-icon.svg` ya existía, creado en la OE de rebranding del 2026-09-01 específicamente como "el cuadrado teal + H, reutilizable en cualquier fondo" — exactamente el recorte pedido, ya en SVG (vectorial, sin pérdida de calidad al escalar). El PNG de alta resolución (`design-refs/logo/Hitr_io_logo_INTER_dark_highres.png`) tiene fondo negro sólido alrededor (no transparente — es la variante "dark", pensada para fondos oscuros), así que recortarlo directamente hubiera dejado un cuadrado de fondo negro pegado al ícono; se usó el SVG en su lugar, que no tiene ningún fondo detrás del cuadrado redondeado (transparente por diseño). El PNG de referencia ya estaba guardado en `design-refs/logo/` desde antes — nada que duplicar ahí.
+
+**Generación — rasterizado directo con `@napi-rs/canvas` (ya instalado en el proyecto para extracción de PDF), en vez de un conversor SVG→PNG:** se replicó a mano el dibujo del SVG (rect redondeado `rx = size × 90/420`, fill `#2DD7D4`; texto "H" bold centrado, fill `#000000`, `font-size = size × 280/420`) a cada resolución necesaria, en vez de parsear el SVG con una librería nueva — el diseño es lo bastante simple (2 primitivas: rect + texto) como para no justificar agregar una dependencia de parseo SVG solo para esto. Script en el scratchpad de la sesión, no versionado (uso puntual).
+
+**Archivos generados en `src/app/` (convención de Next.js App Router — detección automática, sin tocar `layout.tsx`):**
+- `favicon.ico` (reemplaza el default de Next.js) — multi-resolución real 16×16/32×32/48×48, empaquetado como ICO con PNG embebido por entrada (formato válido desde Windows Vista, soportado por todos los navegadores modernos).
+- `icon.png` (nuevo) — 512×512.
+- `apple-icon.png` (nuevo) — 180×180 (nombre de archivo correcto de la convención de Next.js App Router — no `apple-touch-icon.png`, que es el nombre HTML del `<link>`, no el nombre de archivo que Next.js espera).
+
+**Bug encontrado y corregido en el camino (empaquetado del `.ico`):** la primera versión del script reservaba espacio para la tabla de entradas ICONDIRENTRY DENTRO del buffer de header (`headerSize = 6 + 16*count`) pero después concatenaba las entradas como buffers separados de nuevo — duplicando el espacio reservado y corrompiendo todos los offsets (todas las entradas leían tamaño 0 y offset 0 al validar). Se detectó **antes de entregar** parseando el `.ico` generado con un script de validación (leer cada `ICONDIRENTRY`, confirmar que el offset apunta a una firma PNG válida) — no se asumió que "el script corrió sin error" significaba "el archivo es válido". Fix: header de 6 bytes fijos (solo el `ICONDIR`), tabla de entradas y datos de imagen concatenados en el orden correcto, con el offset inicial calculado como `6 + 16×count` (después del header y la tabla completa, antes de la primera imagen).
+
+**Verificación:**
+- `npm run lint` ✅, `npm run build` ✅ (mismos warnings preexistentes de `CanvasViewport.tsx`, no nuevos) — Next.js generó correctamente las rutas estáticas `/icon.png` y `/apple-icon.png` en el build.
+- **Validación binaria del `.ico`:** script de parseo confirmó 3 entradas (16/32/48), cada una con firma PNG válida (`89504e470d0a1a0a`) en el offset correcto, tamaño total del archivo consistente con la suma de todas las partes.
+- **Validación HTTP real (servidor de producción local, `next start`):** los 3 archivos se sirven en `/favicon.ico` (`content-type: image/x-icon`), `/icon.png` y `/apple-icon.png` (`content-type: image/png`), body byte-idéntico a los archivos generados (`cmp` sin diferencias). El HTML de `/login` (ruta sin autenticación) confirma los 3 `<link rel="icon"|"apple-touch-icon">` correctos, apuntando a los archivos nuevos — como `layout.tsx` es el layout raíz, esto aplica a **todas** las rutas de la app, no solo `/login`.
+- **Verificación visual real (screenshot de la pestaña del navegador): pendiente.** Sin Claude in Chrome disponible esta sesión (skill invocado, usuario declinó instalar la extensión) — pedida a Agus directamente.
+
+### Alternativas descartadas (Tarea 2)
+
+- **Recortar el PNG de alta resolución a mano** (lo que pedía la consigna original) — descartado al confirmar que ya existía el recorte correcto en SVG (`hitr-icon.svg`) y que el PNG tiene fondo negro sólido no transparente, que hubiera requerido un paso extra de limpieza de fondo sin ninguna ventaja sobre reusar el SVG ya aprobado.
+- **Agregar una librería de conversión SVG→PNG** (`sharp`, `resvg`, etc.) — descartado, el ícono es 2 primitivas simples (rect + texto), redibujarlas directamente con `@napi-rs/canvas` (ya instalado) evita una dependencia nueva solo para este uso puntual.
+
+### Riesgos conocidos / deuda técnica (Tarea 2)
+
+- **Verificación visual real pendiente** — confirmar con Agus que el ícono se ve correctamente en la pestaña del navegador (turquesa + "H", no el ícono default), en 2+ rutas.
+- **Fuente usada para la "H" es `Arial, sans-serif` (fallback del sistema), no `Inter`** — a diferencia del wordmark de texto ("Hitr.io") que sí usa Inter vía `next/font/google`, este ícono no necesitó registrar la fuente Inter en `@napi-rs/canvas` (que requeriría cargar el archivo de fuente manualmente, `next/font` no expone el `.woff`/`.ttf` como archivo estático fácil de referenciar) porque a esta escala (16-512px) una sola letra "H" en cualquier sans-serif bold es visualmente indistinguible — mismo criterio que ya usaba el propio `hitr-icon.svg` original (`font-family="Inter, Arial, Helvetica, sans-serif"`, con el mismo fallback). No se considera deuda real, solo se documenta la elección.
+
+**Archivos modificados/nuevos:** `src/app/favicon.ico` (reemplazado), `src/app/icon.png` (nuevo), `src/app/apple-icon.png` (nuevo), `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---
