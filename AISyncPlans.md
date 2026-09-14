@@ -1252,6 +1252,14 @@ No urgente, no bloquea nada — retomar cuando haya espacio. Ver handoff-2026-07
 
 ---
 
+### Pendiente de UX registrado 2026-09-14 (sin fix propuesto, sin ejecutar)
+
+**Sin indicador de "Context File reemplazado" ni aviso de Refresh Session.** Surgió del diagnóstico del sesgo de anclaje del Manager a su propia respuesta previa sobre un Context File ya reemplazado (ver OE 2026-09-14 en handoff-2026-07-c.md — resuelto con una regla nueva en el Runtime Grounding Layer de `chat/route.ts`). El fix de prompt reduce el problema, pero hoy la interfaz no avisa en ningún lado que un Context File fue reemplazado, ni sugiere usar "Refresh Session" cuando eso pasa dentro de una conversación ya larga. Evaluar a futuro: indicador visual en `ContextFilePanel.tsx` (ej. timestamp de última actualización) y/o un aviso puntual cuando se sube un archivo con el mismo nombre que uno ya activo en el mismo scope.
+
+No urgente, no bloquea nada — separado del fix de prompt, que ya está aplicado.
+
+---
+
 ## Connected Teams — Shared Workspace Architecture
 **Decisión tomada:** Semana 7, sesión 2026-06-13
 **Estado:** Diseño aprobado, pendiente de implementación

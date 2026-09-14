@@ -1525,3 +1525,30 @@ Ninguno — fix aplicado y confirmado funcionando por Agus el mismo día.
 **Archivos modificados:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md` (documentación únicamente).
 
 ---
+
+## 2026-09-14 — Fix: Manager de Anthropic se anclaba a su propia respuesta previa sobre un Context File ya reemplazado
+
+**Síntoma reportado por Agus:** mismo Context File (scope Project), borrado y resubido con contenido distinto (v2→v3) en medio de una conversación ya en curso con el Manager (Anthropic). Pidió opinión sobre v2 (la dio correctamente), reemplazó el archivo, volvió a pedir opinión en la MISMA sesión sin usar "Refresh Session" — el Manager insistió en describir v2, sin verificar, pese a que el contenido de v3 sí llegaba correctamente en el mensaje. "Refresh Session" (que vacía el historial que se le manda al modelo, sin borrar el chat visible) resolvió el problema de inmediato. Con Agente OpenAI, en una prueba separada, el contenido nuevo se leyó bien sin necesitar ninguna acción extra — pero esa prueba resultó ser en un chat sin historial previo sobre el archivo, no comparable directamente.
+
+**Diagnóstico (varias rondas, cerrado con evidencia — ver detalle completo en el hilo de esta sesión, resumen acá):**
+1. Descartado: el archivo mal guardado en la base — `getContextSourcesForRuntime()` (`src/lib/db/context.ts:150-189`) se llama fresco en cada mensaje de `/api/chat` (`src/app/api/chat/route.ts:164`), igual para los 2 providers, sin caché de la app.
+2. Descartado: prompt caching de Anthropic — grep exhaustivo confirmó cero uso de `cache_control` en `src/lib/providers/anthropic.ts` ni en `openai.ts`. La explicación que el propio modelo dio sobre "una foto fija al iniciar la conversación" fue una descripción plausible pero no verificada del modelo sobre su propio funcionamiento — no corresponde a ningún mecanismo real del código.
+3. Descartado: filas duplicadas activas del mismo Context File (vieja + nueva al mismo tiempo) — confirmado por Agus que el panel de Context Files solo mostraba una fila activa (la v3).
+4. **Causa real, confirmada con la secuencia exacta de Agus:** sesgo de "anclaje a respuesta propia" — el modelo prioriza lo que él mismo dijo antes en la conversación (en `historyMessages`, al final del array de `messages`) por sobre el contenido fresco del Context File (en `contextFilesParts`, más arriba en el mismo array, línea 240 vs 184 de `chat/route.ts`) aunque ese contenido nuevo sí esté presente en el mismo mensaje. Mismo patrón de sesgo ya identificado y resuelto antes para Web Search (Runtime Grounding Layer, regla 1: "puede haber cambiado desde turnos anteriores — nunca asumas que sigue igual").
+
+**Fix aplicado — regla 8 nueva en el Runtime Grounding Layer (`src/app/api/chat/route.ts:86-106`):** mismo mecanismo/lugar donde ya vive la regla de Web Search, sin sistema paralelo. Instruye al modelo a tratar el contenido de Context Files del mensaje actual como la versión vigente, por sobre cualquier análisis propio anterior en la misma conversación sobre un archivo con el mismo nombre/título, y a re-derivar la respuesta desde el contenido actual cuando el usuario indique que un archivo cambió. Aplica a los 2 providers por igual — no hay evidencia de que OpenAI esté libre de este sesgo, solo no se disparó en la prueba puntual de Agus (probablemente porque esa prueba no tenía historial previo sobre el archivo).
+
+**Verificación:** lint ✅, build ✅. Grep exhaustivo de `Context files available to this agent`/`web_search_available_right_now` confirmó un único lugar de definición en todo `src/` — sin código paralelo que necesitara el mismo fix (ej. `sm-doc-chat/route.ts` no tiene su propio Runtime Grounding Layer ni inyecta Context Files). **Verificación funcional real (repetir el caso exacto sin Refresh Session y confirmar que el Manager ahora sí detecta el cambio) queda pendiente de que Agus la repita él mismo** — requiere una sesión real con su propia API key de Anthropic, no reproducible desde acá.
+
+### Alternativas descartadas
+- **Deduplicar o mostrar solo el Context File más reciente en el código** — no aplicaba, no había duplicados (ver diagnóstico punto 3).
+- **Tocar el mecanismo de prompt caching de Anthropic** — no aplicaba, nunca estuvo implementado en este código.
+- **Sistema de instrucciones nuevo y separado para Context Files** — descartado a pedido explícito de Agus: debía vivir en el mismo mecanismo que ya resuelve Web Search, no un sistema paralelo.
+
+### Riesgos conocidos / deuda técnica
+- **Nota de UX registrada, no bloqueante** (ver `AISyncPlans.md`, "Pendiente de UX registrado 2026-09-14"): no hay ningún indicador en la interfaz de que un Context File fue reemplazado, ni aviso de que puede hacer falta "Refresh Session" en una conversación larga. El fix de prompt reduce el problema pero no lo hace imposible — sigue dependiendo de que el modelo respete la instrucción.
+- **Sin verificación funcional real todavía** — pendiente de que Agus repita el caso exacto (ver arriba).
+
+**Archivos modificados:** `src/app/api/chat/route.ts`, `AISyncPlans.md`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
+
+---
