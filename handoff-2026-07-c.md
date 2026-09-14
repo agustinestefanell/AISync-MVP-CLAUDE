@@ -1493,3 +1493,33 @@ Ninguno — fix aplicado y confirmado funcionando por Agus el mismo día.
 **Archivos modificados/nuevos:** `src/app/favicon.ico` (reemplazado), `src/app/icon.png` (nuevo), `src/app/apple-icon.png` (nuevo), `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## 2026-09-14 — Diagnóstico: conexión Agustín↔Alejandro "caída" del lado de Alejandro — sin bug confirmado
+
+**Síntoma reportado:** del lado de Alejandro apareció el cartel "This connection is no longer available" en la Connected Team/Shared Workspace con Agustín. No confirmado inicialmente si del lado de Agustín se veía activa o también caída. Regla de negocio a confirmar: las conexiones no deben caer por inactividad, solo por acción manual de alguna de las dos puntas.
+
+**Diagnóstico, no fix — solo lectura de código + 1 query de solo lectura contra Supabase con service role key local (`.env.local`), sin tocar ninguna fila.**
+
+**Modelo de datos:** `team_connections` (`supabase/migrations/008_team_connections.sql:4-30`) es una única fila compartida por conexión (no una fila por usuario) — descarta de entrada que "cada usuario tenga su propio registro" como causa. `status` limitado por check constraint a `pending/active/rejected/cancelled`.
+
+**Expiración automática por inactividad: no existe.** Grep exhaustivo de `cron|pg_cron|expire|expires_at|inactivity|TTL|scheduled` en `src/` y `supabase/` sin resultados relevantes (los hits fueron comentarios de otro contexto, ej. validación de "stale/deleted projects"). Sin `supabase/functions/` (sin Edge Functions), sin `vercel.json` con crons. Los 3 únicos puntos donde `status` cambia (`src/app/api/connections/[id]/route.ts` — `accept` línea 116, `reject` línea 362, `disconnect` línea 379) son, los 3, acción explícita de un usuario autenticado sobre su propia conexión. **Confirma que la regla de negocio de Agus ya se cumple en el código actual — nada cae por inactividad.**
+
+**Cómo se determina "activa/caída" en pantalla:** `src/app/workspace/[id]/page.tsx:128-134` — al abrir un workspace `isolated`, busca la conexión más reciente (`order by updated_at desc, limit 1`) que tenga `host_isolated_team_id` o `invitee_isolated_team_id` igual al `team.id` de ESE workspace puntual, y pasa `status` tal cual a `HumanChatPanel` (`WorkspaceShell.tsx:742` → `HumanChatPanel.tsx:181`). Si `status` es `'cancelled'`, `HumanChatPanel.tsx:202-208` muestra el banner y deshabilita el composer.
+
+**Estado real en la base de datos, verificado con evidencia (2026-09-14):** conexión vigente `270a0a61-4afc-4722-b0d1-c4d2a82633f7` (Alejandro requester/host ↔ Agustín receiver/invitee), `status: 'active'`, sin ningún cambio desde `updated_at: 2026-08-26T20:02:32`. `host_isolated_team_id`/`invitee_isolated_team_id` aparecen cada uno en una sola fila de `team_connections` — sin duplicado que pudiera hacer resolver la fila equivocada. Confirmado con `audit_log` (eventos `connection_accepted`/`connection_disconnected` espejados en ambas cuentas): el 2026-08-23 se aceptó una conexión anterior ("Reuniones", `476e56aa-...`), el 2026-08-26T20:01:07 Agustín la desconectó manualmente, y a los 85 segundos (20:02:32) se creó y aceptó la conexión nueva y actual ("Workspace de hitr", `270a0a61-...`) — coincide con la investigación ya cerrada el 2026-08-27 ("sin bug real, nombre de Project mal recordado"). Cero movimiento en la fila desde entonces.
+
+**Confirmado por Agus:** desde su lado, la conexión se ve activa en Dashboard/Connected Teams — coincide exactamente con el estado real de la DB. **No se pudo confirmar con Alejandro** qué URL/pantalla exacta mostraba el cartel — no disponible en el momento del diagnóstico.
+
+**RLS descartado como causa:** las policies de `team_connections` (`connections_requester_select`/`connections_receiver_select`, `008_team_connections.sql:36-45`) leen directo de `auth.uid()`/`auth.jwt()`, sin depender de la tabla `accounts` — no es un remanente de la recursión de SEC-002.
+
+**Hipótesis de causa del síntoma, no confirmada, consistente con toda la evidencia disponible:** la conexión anterior (`476e56aa`, cancelada el 26/8) generó su propio workspace aislado para Alejandro (`invitee_isolated_team_id: bc225f8c-...`), que sigue existiendo físicamente en la DB — desconectar solo cambia `status`, nunca borra el team/workspace. Si Alejandro tiene guardada/abierta la URL de ESE workspace viejo (de antes del 26/8), esa página muestra correctamente "no longer available" porque esa conexión puntual sí está cancelada — mientras la conexión nueva y activa vive en otra URL de workspace distinta. No sería un bug: dos personas mirando dos objetos distintos.
+
+**Cierre parcial — sin bug confirmado, sin cambio de código:** conexión activa y sana en base de datos, confirmada visible por Agus. Hipótesis de causa del síntoma: URL vieja de una conexión anterior ya cancelada. **Pendiente de confirmar con Alejandro cuando esté disponible** — si el síntoma persiste después de que entre por el camino correcto (Dashboard → Connected Teams, no un link guardado), retomar investigación con ese dato nuevo.
+
+**Riesgos conocidos / deuda técnica:** ninguno nuevo identificado — no se tocó código. Nota aparte (no bloqueante): `HumanChatPanel.tsx:204` sigue comparando contra el valor `'disconnected'`, que nunca existe en el check constraint real de `status` (`pending/active/rejected/cancelled`) — código muerto inofensivo, no se tocó por estar fuera de alcance de este diagnóstico.
+
+**Verificación:** N/A — sin cambios de código, sin build/lint (nada en `src/` fue modificado).
+
+**Archivos modificados:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md` (documentación únicamente).
+
+---
