@@ -1516,6 +1516,8 @@ Ninguno — fix aplicado y confirmado funcionando por Agus el mismo día.
 
 **Cierre parcial — sin bug confirmado, sin cambio de código:** conexión activa y sana en base de datos, confirmada visible por Agus. Hipótesis de causa del síntoma: URL vieja de una conexión anterior ya cancelada. **Pendiente de confirmar con Alejandro cuando esté disponible** — si el síntoma persiste después de que entre por el camino correcto (Dashboard → Connected Teams, no un link guardado), retomar investigación con ese dato nuevo.
 
+**Cierre final (mismo día) — confirmado por Alejandro:** entrando por el camino correcto (Dashboard → Connected Teams, no el link guardado que tenía), la conexión se ve bien. Confirma la hipótesis: no había ningún bug del sistema — Alejandro estaba entrando por una URL vieja, del workspace de la conexión anterior ya cancelada el 26/8 (`476e56aa-...`), no por la conexión activa actual (`270a0a61-...`). **Diagnóstico cerrado — sin bug, sin cambio de código en ninguna de las 2 pasadas.** Única causa: link obsoleto guardado por el usuario, no un problema del sistema.
+
 **Riesgos conocidos / deuda técnica:** ninguno nuevo identificado — no se tocó código. Nota aparte (no bloqueante): `HumanChatPanel.tsx:204` sigue comparando contra el valor `'disconnected'`, que nunca existe en el check constraint real de `status` (`pending/active/rejected/cancelled`) — código muerto inofensivo, no se tocó por estar fuera de alcance de este diagnóstico.
 
 **Verificación:** N/A — sin cambios de código, sin build/lint (nada en `src/` fue modificado).
