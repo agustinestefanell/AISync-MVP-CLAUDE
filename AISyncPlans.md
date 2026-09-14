@@ -1404,6 +1404,28 @@ Google OAuth ya configurado en Supabase Auth. Drive API requiere agregar scope `
 
 **Revisar cuando Connected Teams y Documentation Mode estén más maduros.**
 
+---
+
+### Editor de texto - Text Editor
+
+**Registrado:** 2026-09-14
+**Estado:** En evaluación conceptual, sin código escrito, sin commit. Retomar cuando Agus lo valide conceptualmente y decida avanzar.
+
+#### Contexto / motivación
+Objetivo: un editor de texto enriquecido dentro de Hitr.io (negrita, cursiva, títulos, subtítulos, listas) para que Manager/Workers del mismo team puedan leer un documento y opinar sobre él.
+
+- **Sistema de tags asociado:** tags manuales (ya existe el mecanismo — `tags`/`saved_selection_tags`, migraciones 058/059 — reutilizable) + tags automáticos a partir de encabezados/títulos. Decisión: NO convertir negrita/cursiva en tags automáticos, sería ruido — solo estructura tipo encabezados genera tag automático.
+- **Save Selection por fragmento de texto** (no mensaje completo) — factible y más natural en este contexto que en chat, a diferencia de lo que se descartó para Save Selection de mensajes.
+- **Lectura/opinión de agentes:** reutilizaría el mecanismo ya existente de Context Files (`LoadAsContextButton.tsx` / `POST /api/context`), no requiere uno nuevo.
+
+#### Diagnóstico técnico ya realizado (2026-09-14)
+- Factible construirlo 100% aislado en una ruta nueva (`/editor-test`), sin tocar nada de producción.
+- **Hallazgo:** `src/middleware.ts` protege todas las rutas por defecto (matcher excluye solo `/login` y `/auth/*`) — hace falta agregar una excepción puntual (mismo patrón que `/login`) antes de poder probar la ruta aislada sin sesión. Esto es distinto de la limitación ya conocida de login OAuth en localhost (dominio de retorno no incluye `localhost`) — esta prueba puntual no depende de esa limitación, porque el editor aislado no necesita sesión ni base de datos.
+- **Librería recomendada:** TipTap (sobre ProseMirror, headless, `StarterKit` con lo básico, buena documentación para tags custom). Evaluadas también Lexical (más código, mejor para escalar mucho después) y ProseMirror puro (descartado, mucho trabajo de bajo nivel para tener lo mismo que TipTap ya da armado).
+- **Precedente ya existente** en el proyecto para páginas aisladas: `src/app/teams-map-preview/` (componente con datos mock, sin tocar Supabase/Workspace).
+- **Mapa conceptual de integración futura** (sin implementar): probablemente una tabla nueva en Content Plane (no Control Plane, ver sección 5), posible 6ta ancla en Documentation Mode junto a Checkpoint/Handoff Package/Saved Selection/Loaded Context/Review & Forward (`anchors.ts`) — eso históricamente implicó tocar 3-4 vistas de Documentation Mode a la vez.
+- **Decisión de arquitectura ya tomada para cuando se retome:** documento estático versionado, no edición colaborativa en vivo (evita necesitar infraestructura extra tipo Yjs) — coherente con cómo funciona todo lo demás en el proyecto hoy.
+
 ## Connected Teams connection context — 2026-06-23
 
 WorkspaceClient recibe estado de conexión para workspaces compartidos asociados a Connected Teams.
