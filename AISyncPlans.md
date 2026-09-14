@@ -1426,6 +1426,28 @@ Objetivo: un editor de texto enriquecido dentro de Hitr.io (negrita, cursiva, t�
 - **Mapa conceptual de integración futura** (sin implementar): probablemente una tabla nueva en Content Plane (no Control Plane, ver sección 5), posible 6ta ancla en Documentation Mode junto a Checkpoint/Handoff Package/Saved Selection/Loaded Context/Review & Forward (`anchors.ts`) — eso históricamente implicó tocar 3-4 vistas de Documentation Mode a la vez.
 - **Decisión de arquitectura ya tomada para cuando se retome:** documento estático versionado, no edición colaborativa en vivo (evita necesitar infraestructura extra tipo Yjs) — coherente con cómo funciona todo lo demás en el proyecto hoy.
 
+---
+
+### Soporte nativo Pages/Numbers/Keynote — evaluado, no implementado
+
+**Registrado:** 2026-09-14
+**Estado:** Evaluado y descartado por ahora (decisión de Agus) — ninguno de los 4 caminos investigados tiene relación costo/beneficio que justifique la inversión hoy. Se mantiene el flujo actual: exportar desde Pages/Numbers/Keynote a Word/Excel/PowerPoint antes de subir a Context Files (ya 100% soportado). Revisar si crece la proporción de usuarios Mac que lo pidan específicamente.
+
+#### Contexto
+Surgió a partir de un diagnóstico de Context Files rechazando (aparentemente) un .docx — investigación posterior confirmó que Office (docx/doc/xlsx/xls/pptx/ppt) ya está soportado de punta a punta en el código; el caso puntual reportado por Agus fue un glitch pasajero del Explorador de Windows, no un bug. En el mismo hilo, Agus confirmó que sí le importa a futuro poder leer archivos nativos de Apple (.pages/.numbers/.key) sin pedirle al usuario que exporte antes — hay usuarios reales de Mac.
+
+#### Los 4 caminos investigados (búsqueda real, no asumido)
+
+1. **Librería dedicada `pnk`** (github.com/peterheb/pnk, MIT/Apache-2.0) — la más completa: parsea Pages/Numbers/Keynote y extrae texto plano real. Pero no está en npm (hay que compilarla desde Rust + wasm-bindgen, requiere agregar ese toolchain al build de Vercel), versión 0.2, un solo mantenedor, sin historial de mantenimiento verificable. Mejor calidad, mayor esfuerzo de infraestructura.
+2. **Truco QuickLook (`Preview.pdf` dentro del ZIP)** — Pages/Numbers/Keynote modernos son ZIP por dentro (como .docx) y suelen incluir un `Preview.pdf` generado por Apple. Se podría extraer con `jszip` + `pdf-parse` (ambos YA instalados, cero librerías nuevas). Pero es soporte parcial y no garantizado: bien para Keynote, puede truncarse en Pages largos, débil en Numbers (solo la hoja activa al guardar). Comportamiento observado, no una API soportada por Apple.
+3. **`numbers-parser` (Python, PyPI, activamente mantenido)** — confirma que Numbers específicamente es el más viable de los 3 de resolver bien, pero es Python — el proyecto es 100% Node/Vercel, mezclar runtimes no es trivial. No hay equivalente de esta calidad para Pages/Keynote.
+4. **Servicio externo pago (ej. CloudConvert)** — API real, confirmada, que convierte los 3 formatos a PDF/DOCX/XLSX/PPTX con buena fidelidad, reutilizando el pipeline de extracción ya existente después. Descartado por Agus explícitamente: expondría archivos de Context Files (potencialmente con información sensible de negocio del cliente) a un servicio externo, además de costo recurrente y dependencia de un tercero.
+
+#### Por qué se descartó por ahora
+Ningún camino es a la vez barato y confiable. El único de esfuerzo bajo (#2) da soporte frágil/parcial; los de mejor calidad (#1, #4) piden inversión real de infraestructura o costo+dependencia externa con riesgo de exposición de datos. Sin presión de usuarios reales que lo justifique hoy, no vale la pena.
+
+**Si se retoma en el futuro:** empezar releyendo esta nota antes de re-investigar desde cero.
+
 ## Connected Teams connection context — 2026-06-23
 
 WorkspaceClient recibe estado de conexión para workspaces compartidos asociados a Connected Teams.
