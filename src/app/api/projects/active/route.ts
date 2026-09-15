@@ -19,7 +19,7 @@ export async function GET() {
     .select('id, name')
     .eq('account_id', user.id)
     .eq('status', 'active')
-    .order('created_at', { ascending: true })
+    .order('sort_order', { ascending: true })
 
   return NextResponse.json({ projectId, projects: projects ?? [] })
 }

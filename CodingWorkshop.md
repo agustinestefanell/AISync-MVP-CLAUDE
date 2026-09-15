@@ -1988,3 +1988,13 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** al armar un formato binario con una tabla de tamaño fijo seguida de datos de tamaño variable, no reservar el espacio de la tabla dos veces — una vez en el cálculo de un "buffer contenedor" y otra vez al construir las entradas reales por separado. Más en general: cuando se genera un archivo binario (no HTML/JSON, algo sin ningún renderer que "avise" si está mal armado), verificar SIEMPRE parseando el archivo resultante con una segunda pieza de código independiente de la que lo generó — un script que solo corre sin excepciones no es evidencia de que el output sea correcto.
 
 **Referencia:** handoff-2026-07-c.md 2026-09-08, script de generación de favicons (scratchpad de sesión, no versionado).
+
+---
+
+## 2026-09-15 — Lección: un diagnóstico previo puede no cubrir todos los call sites de un mismo campo
+
+**Qué pasó:** el diagnóstico del día anterior (2026-09-14, `AISyncPlans.md`) sobre reordenar Projects ya había identificado 2 lugares que ordenan `projects` por `created_at` (`getProjectsWithHierarchy()` y la lista de `api/projects/active`). El grep exhaustivo de rigor (regla de CLAUDE.md, correr antes de cerrar) encontró un 3ro no mencionado: `getActiveProjectId()` en `teams.ts`, que usa el mismo `created_at ASC` como fallback para elegir "el primer proyecto" cuando no hay selección activa guardada. De no corregirlo junto con los otros 2, el "proyecto activo por defecto" hubiera quedado leyendo un criterio de orden distinto al que el usuario ve en pantalla después de reordenar manualmente — un bug silencioso, sin error ni crash, solo una inconsistencia entre lo que se ve y lo que el sistema elige por default.
+
+**Lección:** un diagnóstico de una sesión anterior es un buen punto de partida, no un listado cerrado — antes de dar por completo un fix sobre un campo/patrón ya identificado, correr igual el grep exhaustivo sobre el nombre del campo/criterio real (acá: `created_at` combinado con `from('projects')`) en vez de confiar en que el diagnóstico de ayer ya encontró todos los lugares. Los call sites de "fallback"/casos borde (como elegir un default cuando no hay selección) son los que más fácil quedan afuera de un diagnóstico centrado en el flujo principal.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-15, `src/lib/db/teams.ts:36-43`.

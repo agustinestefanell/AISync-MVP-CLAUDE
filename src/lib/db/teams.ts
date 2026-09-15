@@ -19,7 +19,7 @@ export async function getActiveProjectId(): Promise<string | null> {
   // Ver comentario en getDocAuditEvents() (documentation.ts) — SEC-002,
   // handoff-2026-07-c.md OE 2026-09-04. Sin este chequeo, un fallo de query
   // dejaba a Switch Project cayendo siempre al fallback de "primer proyecto
-  // por created_at" en silencio, indistinguible de "sin selección guardada".
+  // por sort_order" en silencio, indistinguible de "sin selección guardada".
   if (accountError) console.error('[getActiveProjectId] accounts query failed:', accountError)
 
   if (account?.active_project_id) {
@@ -38,7 +38,7 @@ export async function getActiveProjectId(): Promise<string | null> {
     .select('id')
     .eq('account_id', user.id)
     .eq('status', 'active')
-    .order('created_at', { ascending: true })
+    .order('sort_order', { ascending: true })
     .limit(1)
     .maybeSingle()
 

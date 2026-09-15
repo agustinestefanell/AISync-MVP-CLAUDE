@@ -16,7 +16,7 @@ export async function getProjectsWithHierarchy(): Promise<ProjectWithTeams[]> {
       )
     `)
     .eq('status', 'active')
-    .order('created_at', { ascending: true })
+    .order('sort_order', { ascending: true })
     .order('created_at', { foreignTable: 'teams', ascending: true })
 
   return (data as ProjectWithTeams[]) ?? []

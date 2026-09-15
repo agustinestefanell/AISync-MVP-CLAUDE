@@ -1456,6 +1456,29 @@ Ningún camino es a la vez barato y confiable. El único de esfuerzo bajo (#2) d
 
 **Si se retoma en el futuro:** empezar releyendo esta nota antes de re-investigar desde cero.
 
+---
+
+### Reordenar Projects con drag & drop — Teams Map
+
+**Registrado:** 2026-09-14
+**Estado:** ✅ Implementado 2026-09-15. Migración 061 aplicada y confirmada en Supabase (backfill validado: 41 proyectos, sin NULL, sin duplicados dentro de la misma cuenta). Código commiteado y pusheado a `main`. **Verificación visual real en producción (hitr.io) pendiente de Agus.**
+
+#### Pedido
+Poder arrastrar y soltar Projects en la sidebar de Teams Map para reordenarlos manualmente, en vez del orden fijo actual.
+
+#### Estado anterior (antes de esta OE)
+Ordenados por `created_at ASC` (el más viejo primero) — `getProjectsWithHierarchy()` (`src/lib/db/projects.ts:19`), consumido sin re-ordenar por `MapView.tsx:298-313` (`projectGroups`, agrupa vía `Map` de JS que preserva ese mismo orden). Sin ningún campo de orden manual existente — el schema de `projects` (`001_hierarchy.sql:6-12`) solo tenía `id, account_id, name, status, created_at`.
+
+#### Lo que se hizo
+1. **Migración `061_projects_sort_order.sql`** — agrega `projects.sort_order` (integer, `NOT NULL`), backfill con `ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY created_at ASC)` (orden visual sin cambios al aplicarla), índice `(account_id, sort_order)`, y un trigger `BEFORE INSERT` que asigna `MAX(sort_order) + 1` por cuenta cuando el insert no trae el valor explícito — evita tener que tocar los 4 lugares del código que insertan en `projects` (ver detalle en `DECISIONS.md` 2026-09-15).
+2. **`@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`** instalados.
+3. **3 queries movidas de `created_at` a `sort_order`** (búsqueda exhaustiva encontró un 3er call site no previsto en el diagnóstico original): `src/lib/db/projects.ts` (`getProjectsWithHierarchy`), `src/app/api/projects/active/route.ts` (lista del dropdown/sidebar), y `src/lib/db/teams.ts` (`getActiveProjectId`, el fallback que elige "el primer proyecto" cuando no hay selección guardada — también debía respetar el nuevo orden manual).
+4. **Endpoint nuevo `PATCH /api/projects/reorder`** — recibe la lista completa de IDs en el orden deseado, reescribe `sort_order = posición` para cada uno (filtrado por `account_id`, más la RLS `projects_update` como última barrera).
+5. **`MapView.tsx`** — sidebar envuelto en `DndContext`/`SortableContext` de dnd-kit, fila con handle de arrastre dedicado (ícono grip, no interfiere con click-to-scroll ni doble-click-to-rename), estado local `orderedProjectIds` para reflejo optimista inmediato + persistencia async al soltar.
+
+#### Alcance confirmado (sin cambios respecto al diagnóstico original)
+`sort_order` va directo en la tabla `projects` — no hace falta una tabla de preferencias separada, porque un Project **nunca es visible para otra cuenta** (RLS ya lo garantiza, `account_id = auth.uid()`), a diferencia de Teams, que sí se comparten vía Connected Teams. Esto ya es "por usuario" de por sí.
+
 ## Connected Teams connection context — 2026-06-23
 
 WorkspaceClient recibe estado de conexión para workspaces compartidos asociados a Connected Teams.

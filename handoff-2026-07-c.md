@@ -1552,3 +1552,42 @@ Ninguno — fix aplicado y confirmado funcionando por Agus el mismo día.
 **Archivos modificados:** `src/app/api/chat/route.ts`, `AISyncPlans.md`, `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`.
 
 ---
+
+## 2026-09-15 — Drag & drop para reordenar Projects en Teams Map
+
+**Pedido:** poder arrastrar y soltar Projects en el sidebar de Teams Map para reordenarlos manualmente, en vez del orden fijo por `created_at ASC` de hoy. Diagnóstico ya hecho el día anterior (2026-09-14, ver `AISyncPlans.md`): `sort_order` directo en `projects` (sin tabla de preferencias separada, RLS ya aísla por cuenta), con backfill obligatorio al aplicar la migración.
+
+**Plan de trabajo, ejecutado en orden, sin cortes por falta de tiempo (los 2 cortes reales fueron por decisiones que requerían mi confirmación explícita — ver abajo):**
+
+1. **Migración `061_projects_sort_order.sql`** — `ADD COLUMN sort_order integer`, backfill con `ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY created_at ASC)`, `ALTER COLUMN ... SET NOT NULL`, índice `(account_id, sort_order)`, y un trigger `BEFORE INSERT` (`set_project_sort_order()`) que asigna `MAX(sort_order) de la cuenta) + 1` cuando el insert no trae el valor — ver `DECISIONS.md` 2026-09-15 para el detalle completo de esta decisión (evita tocar los 4 call sites que insertan en `projects`).
+2. **`@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`** instalados (`package.json`).
+3. **Backend:**
+   - `src/app/api/projects/reorder/route.ts` (nuevo) — `PATCH`, recibe `{ projectIds: string[] }` en el orden deseado, reescribe `sort_order = posición (1-based)` por cada id, filtrado por `account_id` + RLS `projects_update` como última barrera.
+   - 3 queries movidas de `.order('created_at', {ascending: true})` a `.order('sort_order', {ascending: true})`: `src/lib/db/projects.ts` (`getProjectsWithHierarchy`), `src/app/api/projects/active/route.ts` (lista del dropdown/sidebar), `src/lib/db/teams.ts` (`getActiveProjectId`, fallback de "proyecto activo" — 3er call site encontrado por el grep exhaustivo de cierre, no estaba en el diagnóstico original; ver `CodingWorkshop.md` 2026-09-15).
+4. **Frontend (`src/components/teams/MapView.tsx`):**
+   - Sidebar envuelto en `DndContext`/`SortableContext` de dnd-kit.
+   - Componente nuevo `SortableProjectRow` — cada fila tiene un handle de arrastre dedicado (ícono `GripVertical` de `lucide-react`, ya usado en otras partes del proyecto) para que el drag no interfiera con el click-to-scroll ni el doble-click-to-rename existentes.
+   - Estado local `orderedProjectIds` (se resiembra cuando cambia el conjunto de proyectos — nuevo/archivado — preservando el orden ya elegido para los que persisten) y `orderedProjectGroups` derivado, usado tanto en el sidebar como en el orden de las secciones del canvas principal (`allProjectLayouts`).
+   - `handleProjectDragEnd` actualiza el estado local al instante (optimista) y llama en paralelo a `PATCH /api/projects/reorder`; si falla, aparece un aviso rojo (mismo patrón visual que el error de renombrar).
+
+**Puntos donde se frenó a pedir confirmación explícita (no por falta de tiempo):**
+- **Antes de aplicar la migración:** mostré el SQL completo, expliqué el trigger en detalle (no estaba en el diagnóstico del día anterior) y confirmé aditividad/reversibilidad/ausencia de NULL-duplicados antes de que Agus la corriera él mismo en el Supabase Dashboard SQL Editor — confirmado que no tengo forma de ejecutar DDL directamente (sin Supabase CLI, sin `psql`, sin RPC de `exec_sql`; `supabase-js` con service role key solo hace CRUD sobre tablas vía REST, no DDL).
+- **Antes del commit:** código sin commitear hasta tener verificación de que funciona — resuelto con: build/lint limpios, server local bootea sin errores, y un script de verificación read-only (`_tmp_verify_sort_order.mjs`, descartable, borrado después de correr) confirmando contra Supabase real: 41 proyectos, 0 con `sort_order` NULL, 0 duplicados dentro de la misma cuenta.
+
+**Verificación:**
+- `npm run lint` ✅, `npm run build` ✅ (mismos warnings preexistentes de `CanvasViewport.tsx`, no nuevos). Ruta nueva `/api/projects/reorder` confirmada en el output del build.
+- Server local (`next dev`) bootea limpio, sin errores de consola/servidor. `/teams`, `/api/projects/active`, `/api/projects/reorder` responden 307 (redirect a login) sin sesión — comportamiento esperado, no un crash.
+- Query read-only directa contra Supabase (service role key, script descartable ya borrado) confirmó el backfill de la migración: 41 filas, sin NULL, sin duplicados de `sort_order` dentro de la misma cuenta, numeración secuencial correcta.
+- **Verificación visual real del drag & drop en producción (hitr.io): pendiente de Agus.** Sin Claude in Chrome disponible esta sesión (declinado por el usuario) y sin credenciales para autenticarme como su cuenta — no se pudo probar la interacción de arrastrar/soltar en un browser real desde acá.
+
+### Alternativas descartadas
+Ver `DECISIONS.md` 2026-09-15 — trigger SQL vs. calcular `sort_order` en cada uno de los 4 call sites de insert; tabla de preferencias separada (ya descartada en el diagnóstico previo).
+
+### Riesgos conocidos / deuda técnica
+- **Sin rollback automático si falla la persistencia del reorder:** el estado local optimista no revierte solo si `PATCH /api/projects/reorder` falla — solo muestra un aviso. El usuario puede reintentar arrastrando de nuevo. Aceptado por ser una acción de bajo riesgo y fácilmente repetible (ver `DECISIONS.md`).
+- **Verificación visual real pendiente** — falta que Agus confirme en producción que arrastrar/soltar funciona y que el orden persiste tras un F5.
+- **No probado el trigger con un insert real** (crear un Project nuevo y confirmar que aparece al final) — la lógica fue revisada pero no ejercitada con una fila real todavía; se puede confirmar la próxima vez que Agus cree un Project nuevo.
+
+**Archivos modificados/nuevos:** `supabase/migrations/061_projects_sort_order.sql`, `src/app/api/projects/reorder/route.ts` (nuevo), `src/app/api/projects/active/route.ts`, `src/lib/db/projects.ts`, `src/lib/db/teams.ts`, `src/components/teams/MapView.tsx`, `package.json`, `package-lock.json`, `AISyncPlans.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `CodingWorkshop.md`, `handoff-2026-07-c.md`.
+
+---
