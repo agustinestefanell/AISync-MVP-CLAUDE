@@ -1591,3 +1591,50 @@ Ver `DECISIONS.md` 2026-09-15 — trigger SQL vs. calcular `sort_order` en cada 
 **Archivos modificados/nuevos:** `supabase/migrations/061_projects_sort_order.sql`, `src/app/api/projects/reorder/route.ts` (nuevo), `src/app/api/projects/active/route.ts`, `src/lib/db/projects.ts`, `src/lib/db/teams.ts`, `src/components/teams/MapView.tsx`, `package.json`, `package-lock.json`, `AISyncPlans.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `CodingWorkshop.md`, `handoff-2026-07-c.md`.
 
 ---
+
+## 2026-09-15 (2) — Continuación: 3 ajustes post-verificación visual, y diagnóstico de un reporte de "el orden no persiste" que terminó siendo falsa alarma
+
+**Contexto:** tras el push de la OE anterior (commit `39f9e99`), Agus probó en producción y pidió 3 ajustes: (1) el scroll del sidebar de Projects no dejaba margen suficiente respecto al `BottomRibbon` fijo — el último item quedaba tapado; (2) mover el grip de arrastre de la izquierda a la derecha del nombre; (3) **crítico** — reordenó Projects, hizo F5, y el orden volvió al anterior.
+
+### Ajuste 1 — Margen de scroll vs. ribbon inferior
+
+**Causa confirmada:** el sidebar de Projects es `fixed ... h-full` (`MapView.tsx`) — al ser `fixed`, ocupa el 100% del viewport ignorando el flujo normal del documento, mientras que `BottomRibbon` (`src/components/layout/BottomRibbon.tsx:61`) es `sticky bottom-0 h-10 z-50` (40px, z-index 50, por ENCIMA del sidebar que tiene `z-30`). Sin padding, el ribbon pinta literalmente encima de los últimos 40px de la lista.
+
+**Fix:** `pb-10` (40px, igual a la altura real del ribbon) en el contenedor `overflow-y-auto` de la lista de Projects.
+
+### Ajuste 2 — Grip a la derecha
+
+Cambio cosmético directo en `SortableProjectRow` (`MapView.tsx`) — se invirtió el orden de los 2 hijos del `div` (contenido primero, botón del grip después), sin tocar la lógica de `useSortable`/listeners.
+
+### Ajuste 3 — Diagnóstico del reporte "el orden no persiste tras F5" (el más largo de la sesión)
+
+**Regla seguida en todo el diagnóstico:** no asumir la causa (explícitamente pedido por Agus, "no asumir que es un problema de caché o remount como los bugs anteriores de hoy"), confirmar cada paso con evidencia real antes de avanzar al siguiente.
+
+**Paso 1 — ¿se dispara el request?** Confirmado por Agus vía Network tab: sí, `PATCH /api/projects/reorder` se dispara en cada arrastre y devuelve 200 siempre.
+
+**Paso 2 — ¿el backend persiste de verdad, o responde 200 sin escribir?** Revisado el código línea por línea: el endpoint sí chequea `{ error }` de cada `.update()` (no tiene el patrón de "escritura sin verificación" que se vio hoy en otro contexto). Confirmado con 2 lecturas read-only directas contra Supabase, separadas por ~2 minutos, que `sort_order` **cambiaba solo entre una lectura y la otra** — evidencia directa de que el `UPDATE` sí escribe. Se descartó la hipótesis en este paso.
+
+**Paso 3 — primera hipótesis, descartada con evidencia:** ¿condición de carrera entre PATCHes concurrentes (`handleProjectDragEnd` dispara `persistProjectOrder` de forma "fire and forget", sin cancelar el anterior)? Se le pidió a Agus comparar el orden en pantalla contra una lectura directa de la base en simultáneo — no coincidían, lo cual en realidad **descartaba** la teoría de la carrera (que hubiera requerido que la pantalla coincidiera con ALGÚN estado real guardado, y no coincidía con ninguno).
+
+**Paso 4 — ¿la query de lectura usa `sort_order` correctamente?** Se replicó la query exacta de `getProjectsWithHierarchy()` (con el `select` anidado de `teams`) contra la cuenta de Agus vía script read-only — el `ORDER BY sort_order` funcionaba perfecto. Se descartó un bug de lectura en la query aislada.
+
+**Paso 5 — pista falsa, aclarada por Agus:** se comparó el orden de Teams Map contra el de Dashboard ("/"), que coincidía exacto con la base en un momento dado. Se llegó a sospechar que Teams Map leía de una fuente distinta a Dashboard. Agus aclaró: Dashboard es una pantalla sin relación con el trabajo de hoy (no tiene UI de drag & drop), la coincidencia con la base era simplemente porque comparte `getProjectsWithHierarchy()` con Teams Map — no una pista real sobre dónde estaba el bug.
+
+**Paso 6 — prueba controlada, la que reveló la causa real:** se le pidió a Agus hacer UN solo arrastre, aislado, seguido de un hard refresh (`Ctrl+Shift+R`) — confirmó que tampoco persistía. Se simuló la cadena COMPLETA de código (`getProjectsWithHierarchy()` → `allTeams = projects.flatMap(...)` en `teams/page.tsx` → agrupamiento de `projectGroups` en `MapView.tsx`) con un script read-only contra el estado real de la base — el resultado de la simulación **coincidía exactamente** con lo que la base y Dashboard mostraban. Conclusión: el código, dado el estado real de la base en ESE momento, ya producía el resultado correcto.
+
+**Causa real, confirmada por Agus:** las capturas que parecían no coincidir habían sido tomadas en **momentos distintos de una misma sesión de pruebas** en la que Agus seguía arrastrando Projects mientras se diagnosticaba en paralelo — cada comparación estaba, sin saberlo ninguno de los dos en el momento, comparando 2 snapshots de un dataset que seguía cambiando. Una prueba final — hard refresh de Teams Map y de Dashboard, ambos DESPUÉS de terminar toda actividad de arrastre — confirmó que coinciden perfecto. **No había ningún bug de guardado, lectura, caché ni condición de carrera real.**
+
+**Verificación:** `npm run lint` ✅, `npm run build` ✅ (mismos warnings preexistentes, sin cambios). Evidencia del diagnóstico: 3 scripts read-only distintos contra Supabase (service role key, todos descartables, borrados después de cada corrida) — ninguno reveló un problema real, todos confirmaron que guardado y lectura funcionan correctamente.
+
+### Alternativas descartadas
+Ver el propio recorrido del diagnóstico arriba — cada paso fue una hipótesis descartada con evidencia antes de pasar a la siguiente (condición de carrera, bug de lectura en la query aislada, fuente de datos distinta entre Teams Map y Dashboard).
+
+### Riesgos conocidos / deuda técnica
+- Ninguno nuevo. El diagnóstico no encontró ningún problema real que arreglar — el sistema funciona como se diseñó.
+- Queda pendiente (no bloqueante, ver `AISyncPlans.md`): decisión de producto sobre si extender el drag & drop a Dashboard.
+
+**Lección para `CodingWorkshop.md`:** ver entrada aparte — comparar 2 estados de un sistema que un usuario sigue modificando activamente en paralelo al diagnóstico produce falsos positivos indistinguibles de un bug real, a menos que se congele la actividad antes de cada comparación.
+
+**Archivos modificados:** `src/components/teams/MapView.tsx` (Ajustes 1 y 2), `AISyncPlans.md`, `handoff-2026-07-c.md`.
+
+---

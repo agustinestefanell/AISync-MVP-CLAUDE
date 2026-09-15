@@ -1998,3 +1998,13 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** un diagnóstico de una sesión anterior es un buen punto de partida, no un listado cerrado — antes de dar por completo un fix sobre un campo/patrón ya identificado, correr igual el grep exhaustivo sobre el nombre del campo/criterio real (acá: `created_at` combinado con `from('projects')`) en vez de confiar en que el diagnóstico de ayer ya encontró todos los lugares. Los call sites de "fallback"/casos borde (como elegir un default cuando no hay selección) son los que más fácil quedan afuera de un diagnóstico centrado en el flujo principal.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-15, `src/lib/db/teams.ts:36-43`.
+
+---
+
+## 2026-09-15 (2) — Lección: comparar 2 estados de un sistema que el usuario sigue modificando en paralelo produce falsos positivos indistinguibles de un bug real
+
+**Qué pasó:** al investigar "el orden de Projects no persiste tras F5", se compararon varias veces una captura de pantalla del usuario contra una lectura directa de la base de datos — y no coincidían, lo cual parecía evidencia de un bug real (guardado silencioso, condición de carrera, lectura de una fuente equivocada). Cada hipótesis se descartó con evidencia real, una por una, hasta llegar a la causa: el usuario seguía arrastrando y probando en su browser **mientras** se armaban las comparaciones — cada lectura de la base y cada captura de pantalla eran, sin que nadie lo supiera en el momento, snapshots de 2 instantes distintos de un dataset activamente cambiante. Confirmado al final: con toda actividad de arrastre detenida, una prueba puntual (un solo cambio + hard refresh) mostró que el sistema funcionaba perfecto de punta a punta.
+
+**Lección:** cuando se diagnostica "¿esto persiste bien?" comparando 2 fuentes de verdad (pantalla vs. base, por ejemplo), verificar primero que ninguna de las 2 vaya a cambiar en el medio — si el usuario puede seguir interactuando con el sistema mientras se arma el diagnóstico, cualquier discrepancia observada es ambigua por diseño: puede ser el bug real, o puede ser 2 fotos de momentos distintos de algo que sigue en movimiento. Pedir explícitamente "frená de tocar nada" antes de una comparación puntual — o, si no es posible, incluir un timestamp/checksum en cada lectura para poder distinguir después "cambió el dato" de "hay un bug" — ahorra rondas enteras de diagnóstico sobre hipótesis que nunca fueron el problema real.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-15 (2), `src/components/teams/MapView.tsx`.

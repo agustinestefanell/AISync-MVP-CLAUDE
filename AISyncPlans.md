@@ -1461,7 +1461,9 @@ Ningún camino es a la vez barato y confiable. El único de esfuerzo bajo (#2) d
 ### Reordenar Projects con drag & drop — Teams Map
 
 **Registrado:** 2026-09-14
-**Estado:** ✅ Implementado 2026-09-15. Migración 061 aplicada y confirmada en Supabase (backfill validado: 41 proyectos, sin NULL, sin duplicados dentro de la misma cuenta). Código commiteado y pusheado a `main`. **Verificación visual real en producción (hitr.io) pendiente de Agus.**
+**Estado:** ✅ Implementado y verificado en producción 2026-09-15. Migración 061 aplicada y confirmada en Supabase (backfill validado: 41 proyectos, sin NULL, sin duplicados dentro de la misma cuenta). Código commiteado y pusheado a `main`, incluyendo Ajustes 1 y 2 (margen de scroll vs. ribbon inferior, grip a la derecha). Reporte inicial de Agus de "el orden no persiste tras F5" investigado a fondo (ver `handoff-2026-07-c.md` OE 2026-09-15) — **fue una falsa alarma por timing de pruebas**, no un bug real: guardado y lectura funcionan correctamente de punta a punta, confirmado con evidencia directa contra Supabase.
+
+**Pendiente de decisión de producto, no bloqueante:** ¿aplicar el mismo drag & drop también en Dashboard ("/", `ProjectList.tsx`)? Hoy Dashboard usa la misma `getProjectsWithHierarchy()` (así que ya refleja `sort_order` automáticamente cuando se reordena desde Teams Map), pero no tiene su propia UI de arrastre — quedó fuera de alcance de esta OE a propósito. Retomar si Agus lo pide.
 
 #### Pedido
 Poder arrastrar y soltar Projects en la sidebar de Teams Map para reordenarlos manualmente, en vez del orden fijo actual.

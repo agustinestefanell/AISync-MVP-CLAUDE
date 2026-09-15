@@ -212,7 +212,7 @@ function addSubteamsRecursive(
   })
 }
 
-// Fila del sidebar envuelta con dnd-kit. Solo el grip (izquierda) escucha los
+// Fila del sidebar envuelta con dnd-kit. Solo el grip (derecha) escucha los
 // drag listeners — el resto de la fila conserva su click-to-scroll y
 // doble-click-to-rename sin que el drag los interfiera.
 function SortableProjectRow({ id, children }: { id: string; children: ReactNode }) {
@@ -226,6 +226,7 @@ function SortableProjectRow({ id, children }: { id: string; children: ReactNode 
 
   return (
     <div ref={setNodeRef} style={style} className="flex items-stretch border-b border-[#E2E8F0]">
+      <div className="flex-1 min-w-0">{children}</div>
       <button
         type="button"
         {...attributes}
@@ -236,7 +237,6 @@ function SortableProjectRow({ id, children }: { id: string; children: ReactNode 
       >
         <GripVertical size={14} />
       </button>
-      <div className="flex-1 min-w-0">{children}</div>
     </div>
   )
 }
@@ -518,8 +518,12 @@ export default function MapView({
             </div>
           )}
 
-          {/* Projects list — drag the grip to reorder */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Projects list — drag the grip to reorder. pb-10 (40px) porque
+              este sidebar es `fixed h-full` (ocupa el viewport completo,
+              ignora el flujo normal) mientras que BottomRibbon es `h-10
+              z-50` — sin este padding, el ribbon pinta encima de los
+              últimos 40px de la lista y el último item queda inaccesible. */}
+          <div className="flex-1 overflow-y-auto pb-10">
             <DndContext
               sensors={dndSensors}
               collisionDetection={closestCenter}
