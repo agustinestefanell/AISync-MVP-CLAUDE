@@ -511,6 +511,34 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
       }
     }
 
+    function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+      const imageItems = Array.from(e.clipboardData?.items ?? [])
+        .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+      if (imageItems.length === 0) return // paste de texto normal — no interferir
+
+      e.preventDefault()
+      const files = imageItems
+        .map((item, i) => {
+          const blob = item.getAsFile()
+          if (!blob) return null
+          const ext = blob.type.split('/')[1] || 'png'
+          const name = `screenshot-${Date.now()}${imageItems.length > 1 ? `-${i}` : ''}.${ext}`
+          return new File([blob], name, { type: blob.type })
+        })
+        .filter((f): f is File => f !== null)
+      if (!files.length) return
+
+      // Reusa el mismo camino que drag & drop: arma un DataTransfer, lo asigna
+      // al input oculto y dispara 'change' — así handleFileSelect hace la
+      // validación de tamaño/formato y la conversión a ChatAttachment una sola vez.
+      const dt = new DataTransfer()
+      files.forEach(f => dt.items.add(f))
+      if (fileInputRef.current) {
+        fileInputRef.current.files = dt.files
+        fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+    }
+
     async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
       const allFiles = Array.from(e.target.files ?? [])
       // Attachments travel base64-encoded inside the JSON body (~33% larger
@@ -1094,6 +1122,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
               }}
+              onPaste={handlePaste}
             />
             <button
               type="button"
