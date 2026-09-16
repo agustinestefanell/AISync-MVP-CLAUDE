@@ -1638,3 +1638,38 @@ Ver el propio recorrido del diagnóstico arriba — cada paso fue una hipótesis
 **Archivos modificados:** `src/components/teams/MapView.tsx` (Ajustes 1 y 2), `AISyncPlans.md`, `handoff-2026-07-c.md`.
 
 ---
+
+## 2026-09-16 — El bug real del Ajuste 3: `TeamsClient.tsx` le pasaba a `MapView` un array pre-ordenado por código de team, no el que llega ordenado por `sort_order`
+
+**Contexto:** el diagnóstico de la entrada anterior (2026-09-15 (2)) había cerrado el Ajuste 3 como "falsa alarma por timing de pruebas" — conclusión incorrecta. Agus siguió viendo el mismo síntoma al día siguiente, esta vez con evidencia mucho más ajustada en el tiempo (snapshot de la base justo antes/después de un hard refresh, sin ninguna actividad de por medio) que **descartó por completo** la teoría de timing: el orden en pantalla no coincidía con la base ni un segundo después de un hard refresh limpio, en incógnito, en una pestaña nueva.
+
+**Descarte sistemático de candidatos de infraestructura (todos con evidencia directa, ninguno fue la causa):**
+- Caché de Vercel: `x-vercel-cache: MISS` en ambas rutas — confirmado por Agus en Network tab.
+- Caché de browser / extensiones: mismo resultado en pestaña nueva y en ventana de incógnito.
+- JS desactualizado: el grip del Ajuste 2 (movido a la derecha, commit `e3b04ae`) aparecía correctamente — la última versión del bundle sí estaba corriendo.
+- `www.hitr.io` vs `hitr.io`: mismo deploy de Vercel (redirect normal, no son 2 despliegues distintos).
+- Trigger `set_project_sort_order()`: confirmado con `pg_get_triggerdef` en Supabase — 1 sola trigger, `BEFORE INSERT` únicamente, tal como se diseñó.
+- Otra escritura oculta sobre `projects`: grep exhaustivo de cada `.from('projects')` en todo `src/` — ninguna escritura fuera de los endpoints ya conocidos, todos disparados por acción explícita del usuario.
+- El propio payload del servidor: se le pidió a Agus copiar el "Ver código fuente" (Ctrl+U) de una carga fresca en incógnito — el `initialTeams` embebido en el HTML, parseado a mano, tenía el orden de projects **exactamente igual** al `sort_order` real de la base en ese mismo instante. Esto aisló el problema 100% al lado del cliente, después de recibir el dato correcto.
+
+**Causa real, encontrada con grep de `.sort(` en `MapView.tsx` y `TeamsClient.tsx` (pedido explícito de Agus de enfocar ahí antes de pedir más evidencia):**
+- `src/lib/teams/computeTeamCodes.ts:44-46` — ordena una COPIA de `teams` por `created_at` ascendente para asignar códigos estables (`A-00`, `B-00`...). Esto es correcto y deliberado (comentario propio del archivo: *"Order is always by created_at ascending — never alphabetical"*) — los códigos no deberían cambiar solo porque el usuario reordena Projects.
+- `src/components/teams/TeamsClient.tsx:275-282` (antes del fix) — tomaba esos códigos y armaba `sortedTeams`, ordenando `teams` alfabéticamente por código (`codeA.localeCompare(codeB)`). Como los códigos ya reflejan `created_at`, esto reproduce el orden de creación original.
+- `src/components/teams/TeamsClient.tsx:458` (antes del fix) — `<MapView teams={sortedTeams} ...>` — **`MapView` nunca recibió el array `teams` real** (el que llega ordenado por `sort_order` desde `getProjectsWithHierarchy()`), sino esta versión pre-ordenada por código/`created_at`, escrita antes de que `sort_order` existiera.
+
+Este código NO se tocó durante la implementación original del drag & drop (2026-09-15) porque el grep de `.sort(` de esa sesión se hizo sobre `MapView.tsx` y las queries de `src/lib/db/`, pero nunca sobre `TeamsClient.tsx` — el archivo que arma el prop que `MapView` efectivamente consume.
+
+**Fix aplicado — 1 línea, sin efectos secundarios:** `TeamsClient.tsx:458`, `teams={sortedTeams}` → `teams={teams}`. `sortedTeams` y el `teamCodes` que lo alimentaba quedaron sin ningún otro uso en el archivo — se eliminaron junto con el import ahora huérfano de `computeTeamCodes` y `useMemo` (ya no usado en este archivo). Los códigos `A-00`/`B-00` que se muestran en cada tarjeta no se ven afectados: `computeTeamCodes()` vuelve a ordenar por `created_at` internamente apenas recibe el array (`computeTeamCodes.ts:44`), sin importar en qué orden le llegue — garantía del propio código, no depende de qué prop reciba `MapView`.
+
+**Verificación:** `npm run lint` ✅ (sin warnings nuevos), `npm run build` ✅. Verificación visual real (reordenar + hard refresh en Teams Map, confirmar que los códigos A-00/B-00 se ven bien) — pendiente de Agus, post-deploy.
+
+### Alternativas descartadas
+Ninguna — una vez identificada la causa real, el fix es directo (usar el array correcto en vez del pre-ordenado) sin alternativas de diseño en juego.
+
+### Riesgos conocidos / deuda técnica
+- **Lección de proceso, no de código:** un grep de `.sort(`/orden hecho solo sobre el componente "principal" (`MapView.tsx`) sin incluir el componente padre que le arma los props (`TeamsClient.tsx`) dejó pasar este bug durante 2 sesiones completas de diagnóstico. Ver entrada nueva en `CodingWorkshop.md`.
+- Sin deuda nueva más allá de eso — el fix elimina código muerto en vez de dejarlo.
+
+**Archivos modificados:** `src/components/teams/TeamsClient.tsx`, `handoff-2026-07-c.md`.
+
+---

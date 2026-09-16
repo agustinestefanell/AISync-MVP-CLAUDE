@@ -2008,3 +2008,17 @@ Un import estático de una librería pesada/con dependencias nativas o de browse
 **Lección:** cuando se diagnostica "¿esto persiste bien?" comparando 2 fuentes de verdad (pantalla vs. base, por ejemplo), verificar primero que ninguna de las 2 vaya a cambiar en el medio — si el usuario puede seguir interactuando con el sistema mientras se arma el diagnóstico, cualquier discrepancia observada es ambigua por diseño: puede ser el bug real, o puede ser 2 fotos de momentos distintos de algo que sigue en movimiento. Pedir explícitamente "frená de tocar nada" antes de una comparación puntual — o, si no es posible, incluir un timestamp/checksum en cada lectura para poder distinguir después "cambió el dato" de "hay un bug" — ahorra rondas enteras de diagnóstico sobre hipótesis que nunca fueron el problema real.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-15 (2), `src/components/teams/MapView.tsx`.
+
+---
+
+## 2026-09-16 — Lección doble: (1) un diagnóstico anterior puede estar mal cerrado, no solo incompleto; (2) el grep de "cómo se ordena esto" tiene que cubrir al componente padre, no solo al que renderiza
+
+**Qué pasó:** la sesión anterior (2026-09-15) había diagnosticado el mismo síntoma ("el orden de Projects no persiste") y lo cerró como "falsa alarma, comparábamos momentos distintos mientras el usuario seguía probando". Esa conclusión se aceptó y documentó como cierre. Al día siguiente, el mismo síntoma volvió a aparecer — pero esta vez con una prueba mucho más controlada (snapshot de la base justo antes/después de un hard refresh, sin ninguna actividad en el medio) que demostró que la conclusión anterior estaba **equivocada**, no solo apurada: sí había un bug real, la "falsa alarma" del día anterior probablemente tapó el síntoma real detrás de ruido de timing genuino que SÍ existía en paralelo.
+
+Una vez descartada la teoría de timing con esa evidencia más dura, la búsqueda de la causa real encontró: `TeamsClient.tsx` calculaba un array `sortedTeams` (ordenado por el código de team, que a su vez refleja `created_at`) y se lo pasaba a `MapView` en vez del array `teams` crudo — ya correctamente ordenado por `sort_order` desde el servidor. El grep de `.sort()` durante la implementación original del feature (el día anterior) se había hecho sobre `MapView.tsx` — el componente que arma la vista — pero nunca sobre `TeamsClient.tsx`, el componente PADRE que le arma el prop `teams` que `MapView` efectivamente recibe y renderiza.
+
+**Lección 1:** un diagnóstico "cerrado" en una sesión anterior no es evidencia definitiva de que el problema no existe — es evidencia de que, con la información y las pruebas disponibles EN ESE MOMENTO, no se encontró nada. Si el mismo síntoma vuelve a aparecer, vale la pena re-abrir la investigación desde cero con pruebas más controladas, en vez de asumir que "ya se descartó" y buscar una explicación distinta para el síntoma nuevo.
+
+**Lección 2:** cuando se busca "qué ordena esto mal" en un árbol de componentes React, el grep de `.sort()`/lógica de orden tiene que cubrir TODA la cadena de datos — no solo el componente que finalmente renderiza la lista, sino también cada componente padre que le arma los props. Un componente hijo puede tener una lógica de agrupamiento/orden perfectamente correcta y aun así mostrar algo mal ordenado, si el array que recibe como prop ya viene reordenado por algo escrito antes, en un archivo distinto, por una razón distinta.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-16, `src/components/teams/TeamsClient.tsx:458`, `DECISIONS.md` 2026-09-16.

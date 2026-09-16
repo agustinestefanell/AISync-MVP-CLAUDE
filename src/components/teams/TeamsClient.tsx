@@ -1,10 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { computeTeamCodes } from '@/lib/teams/computeTeamCodes'
 // TreeView deprecated — preserved for potential future reactivation.
 // See handoff entry for Teams Map grid reconstruction.
 // import TreeView from './TreeView'
@@ -270,17 +269,6 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
     ))
   }
 
-  const teamCodes = useMemo(() => computeTeamCodes(teams), [teams])
-
-  const sortedTeams = useMemo(
-    () => [...teams].sort((a, b) => {
-      const codeA = teamCodes[a.id] ?? ''
-      const codeB = teamCodes[b.id] ?? ''
-      return codeA.localeCompare(codeB)
-    }),
-    [teams, teamCodes],
-  )
-
   // My local teams that have at least one active connection (used by realtime)
   const _connectedTeamIds = new Set(
     connections
@@ -455,7 +443,7 @@ export default function TeamsClient({ pageName, projectName, projectId, initialT
       {/* Main view */}
       <div className="flex-1 min-h-0 relative">
         <MapView
-          teams={sortedTeams}
+          teams={teams}
           projectName={projectName}
           projectOptions={projectOptions}
           showArchivedTeams={showArchivedTeams}

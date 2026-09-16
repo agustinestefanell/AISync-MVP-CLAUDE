@@ -1692,3 +1692,19 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Alternativas descartadas:** tabla de preferencias separada para el orden (ya descartada en el diagnóstico previo del 2026-09-14, ver `AISyncPlans.md`); calcular `sort_order` en la aplicación en vez de un trigger SQL (ver arriba).
 
 **Referencia:** `supabase/migrations/061_projects_sort_order.sql`, `src/app/api/projects/reorder/route.ts`, `src/components/teams/MapView.tsx`, `src/lib/db/teams.ts`, handoff-2026-07-c.md OE 2026-09-15, `AISyncPlans.md`.
+
+## 2026-09-16 — Bug real del reorder de Projects: `TeamsClient.tsx` pasarle a `MapView` el array `teams` crudo, no una copia pre-ordenada por código
+
+**Contexto:** el diagnóstico del 2026-09-15 había cerrado el reporte "el orden no persiste" como falsa alarma por timing. Al día siguiente, con evidencia mucho más ajustada (snapshot de la base inmediatamente antes/después de un hard refresh limpio en incógnito, sin actividad de por medio), esa conclusión resultó incorrecta — sí había un bug real, solo que no era de guardado ni de lectura del servidor.
+
+**Causa:** `TeamsClient.tsx` calculaba `sortedTeams` (ordenado alfabéticamente por el código de team `A-00`/`B-00`, que a su vez refleja `created_at`) y se lo pasaba a `<MapView teams={sortedTeams}>` — código escrito antes de que existiera `sort_order`, para darle al sidebar un orden estable ligado a los códigos que se muestran en cada tarjeta. La implementación del drag & drop (2026-09-15) corrigió la query del servidor y el agrupamiento dentro de `MapView.tsx`, pero nunca tocó este pre-ordenamiento en el componente padre — porque no formaba parte de lo que se revisó en ese momento.
+
+**Decisión — pasar `teams` (el array crudo, ya ordenado por `sort_order` desde el servidor) en vez de `sortedTeams`, y borrar `sortedTeams`/`teamCodes` de `TeamsClient.tsx` en vez de dejarlos sin uso:** `sortedTeams` no se usaba en ningún otro lugar del archivo — no había otro código dependiendo de ese orden alfabético por código. Dejar la función `useMemo` muerta ahí hubiera sido ruido para el próximo que lea el archivo, sugiriendo que todavía cumple algún propósito.
+
+**Por qué los códigos A-00/B-00 en pantalla no se ven afectados por este cambio:** `computeTeamCodes()` (`src/lib/teams/computeTeamCodes.ts:44-46`) ordena su PROPIA copia interna de `teams` por `created_at` apenas la recibe, sin importar en qué orden le llegue el array — es una garantía del propio código, no una coincidencia. El pre-ordenamiento que se borró en `TeamsClient.tsx` era completamente redundante para ese propósito; solo tenía el efecto colateral (no buscado por nadie hasta ahora) de determinar el orden de agrupamiento de Projects en `MapView`.
+
+**Alternativas descartadas:** ninguna — una vez identificada la causa, la única corrección con sentido es usar el array ya correctamente ordenado por el servidor, en vez de reconstruir un orden alternativo del lado del cliente.
+
+**Lección de proceso (ver también `CodingWorkshop.md` 2026-09-16):** el grep de `.sort()`/orden durante la implementación original se hizo sobre `MapView.tsx` (el componente que renderiza) pero no sobre `TeamsClient.tsx` (el componente padre que le arma los props). Un componente puede tener lógica de ordenamiento perfectamente correcta y aun así mostrar datos mal ordenados si algo aguas arriba ya reordenó su input.
+
+**Referencia:** `src/components/teams/TeamsClient.tsx:458`, `src/lib/teams/computeTeamCodes.ts`, handoff-2026-07-c.md OE 2026-09-16.
