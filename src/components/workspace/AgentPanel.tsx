@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Copy, Check, FileText, Image as ImageIcon } from 'lucide-react'
+import { Copy, Check, FileText, Image as ImageIcon, Plus } from 'lucide-react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
@@ -1132,7 +1132,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
               style={{ color: 'var(--color-text-secondary)' }}
               title="Attach file"
             >
-              📎
+              <Plus size={16} />
             </button>
             <button
               className="ui-button ui-button-primary ui-chat-send text-xs text-white disabled:opacity-40 disabled:cursor-not-allowed"
