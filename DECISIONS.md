@@ -1708,3 +1708,19 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Lección de proceso (ver también `CodingWorkshop.md` 2026-09-16):** el grep de `.sort()`/orden durante la implementación original se hizo sobre `MapView.tsx` (el componente que renderiza) pero no sobre `TeamsClient.tsx` (el componente padre que le arma los props). Un componente puede tener lógica de ordenamiento perfectamente correcta y aun así mostrar datos mal ordenados si algo aguas arriba ya reordenó su input.
 
 **Referencia:** `src/components/teams/TeamsClient.tsx:458`, `src/lib/teams/computeTeamCodes.ts`, handoff-2026-07-c.md OE 2026-09-16.
+
+---
+
+## 2026-09-16 — Paste de imágenes en AgentPanel: reusar el camino de `handleDrop` en vez de duplicar la conversión a `ChatAttachment`
+
+**Contexto:** Agus reportó no poder pegar un screenshot (Ctrl+V) en el chat con la IA. El pipeline de attachments (conversión a base64 + envío con visión a Anthropic/OpenAI/Google) ya existía y funcionaba vía el botón 📎 y drag & drop — solo faltaba el evento de entrada por paste.
+
+**Decisión — `handlePaste` arma un `File` sintético desde `clipboardData` y lo empuja por el mismo camino `DataTransfer` + `dispatchEvent('change')` que ya usaba `handleDrop`, en vez de llamar `FileReader`/armar el `ChatAttachment` de nuevo:** con esto, paste, drop y selección por botón terminan siempre en la misma función (`handleFileSelect`) para la validación de tamaño/formato y la conversión a base64 — una sola fuente de verdad. Si en el futuro cambia el límite de tamaño o el set de formatos soportados, alcanza con tocar `handleFileSelect` una vez; las 3 rutas de entrada lo heredan automáticamente.
+
+**Nombre de archivo para el screenshot pegado:** un ítem de portapapeles no trae nombre real — se genera `screenshot-{Date.now()}[-i].{ext}` (extensión derivada del `media_type` del blob, típicamente `png`).
+
+**Alcance explícitamente excluido — `HumanChatPanel.tsx`:** confirmado por grep que este componente (chat humano-humano entre cuentas conectadas) no tiene ningún soporte de attachments hoy — ni botón, ni drag & drop, ni modelo de datos para adjuntos (`HumanMessage` es solo texto). Agregar paste ahí sería una feature nueva (definir storage, UI, esquema), no un fix acotado como este. Agus confirmó explícitamente dejarlo fuera de esta OE.
+
+**Alternativas descartadas:** duplicar la lógica de `handleFileSelect` dentro de `handlePaste` — descartada por el riesgo de que las dos rutas diverjan si se edita una y no la otra.
+
+**Referencia:** `src/components/workspace/AgentPanel.tsx` (commits `f1c02d1`, `836f50f`), handoff-2026-07-c.md OE 2026-09-16 (2).

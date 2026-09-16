@@ -1673,3 +1673,25 @@ Ninguna — una vez identificada la causa real, el fix es directo (usar el array
 **Archivos modificados:** `src/components/teams/TeamsClient.tsx`, `handoff-2026-07-c.md`.
 
 ---
+
+## 2026-09-16 (2) — Paste de imágenes (Ctrl+V) en el composer de AgentPanel + cambio de ícono de adjuntar
+
+**Contexto:** Agus reportó que al sacar un screenshot con la herramienta del sistema operativo (queda en el portapapeles) no podía pegarlo con Ctrl+V en el chat del Workspace. Diagnóstico previo (mismo día, entrada anterior a esta) confirmó por grep exhaustivo de `onPaste`/`clipboardData` en todo `src/` que **no existía ningún manejador de paste** en ningún componente de chat — ni en `AgentPanel.tsx` (chat con la IA) ni en `HumanChatPanel.tsx` (chat humano-humano). También se confirmó que `AgentPanel.tsx` ya tenía adjuntar por botón 📎 + drag & drop, y que el pipeline de attachments ya soporta imágenes con visión de punta a punta hacia los 3 providers (`anthropic.ts:25`, `openai.ts:39,99`, `google.ts:49`). `HumanChatPanel.tsx` no tiene ningún soporte de attachments — quedó fuera de alcance, confirmado explícitamente por Agus.
+
+**Decisión técnica — reusar el mismo camino que ya usa `handleDrop` en vez de duplicar la conversión a `ChatAttachment`:** el nuevo `handlePaste` (`AgentPanel.tsx`, antes de `handleFileSelect`) detecta si `clipboardData.items` trae algún ítem `kind === 'file'` con `type.startsWith('image/')`. Si no hay imagen, no hace `preventDefault()` y el paste de texto sigue su curso normal sin ninguna interferencia. Si hay imagen(es), les arma un nombre genérico (`screenshot-{Date.now()}[-i].{ext}`, ya que un screenshot pegado no trae nombre real), las empaqueta en un `DataTransfer`, se lo asigna a `fileInputRef.current.files` y dispara un evento `change` sintético — exactamente el mismo patrón que ya usaba `handleDrop` (`AgentPanel.tsx:501-512`) para reusar `handleFileSelect` sin duplicar su lógica. Esto significa que el paste hereda gratis la validación de tamaño (`MAX_ATTACHMENT_FILE_BYTES`) y de formato que ya tenía el flujo de adjuntar por botón — sin escribir esa lógica una segunda vez.
+
+**Cambio de ícono (mismo OE, pedido aparte de Agus):** el botón de adjuntar usaba el emoji 📎 directo como contenido del botón. Se reemplazó por `<Plus size={16} />` de `lucide-react` (ya importado en el archivo para otros íconos — `Copy`, `Check`, `FileText`, `Image as ImageIcon`). Cambio puramente visual: mismo botón, mismo `onClick={() => fileInputRef.current?.click()}`, mismo tamaño/posición (`className="shrink-0 px-1.5"` sin tocar). Grep de `📎` en todo `src/` confirmó que no quedaba ninguna otra ocurrencia tras el cambio.
+
+**Verificación:** `npm run lint` ✅ (mismos warnings pre-existentes de `CanvasViewport.tsx`, sin relación), `npm run build` ✅ en ambos commits. Verificación visual end-to-end (pegar screenshot real en producción, confirmar que aparece como attachment, que el texto normal sigue pegándose bien, y que la IA efectivamente describe el contenido de la imagen) — pendiente de Agus en `hitr.io` post-deploy, no se puede probar en localhost según indicó Agus.
+
+### Alternativas descartadas
+- **Escribir la conversión a `ChatAttachment` de nuevo dentro de `handlePaste`** (duplicando `FileReader.readAsDataURL` + validación de tamaño/formato de `handleFileSelect`): descartada — el patrón `DataTransfer` + `dispatchEvent('change')` que ya usaba `handleDrop` resuelve lo mismo sin duplicar código ni arriesgar que las dos rutas (drop vs paste) validen distinto en el futuro si una se edita y la otra no.
+- **Tocar `HumanChatPanel.tsx` en la misma OE:** descartado explícitamente por Agus — ese chat no tiene ningún soporte de attachments hoy (confirmado por grep, cero resultados), agregarlo sería un proyecto nuevo (definir storage, UI, modelo de datos), no un fix acotado como este.
+
+### Riesgos conocidos / deuda técnica
+- Ninguno nuevo. El paste reusa validación ya existente (tamaño/formato), no abre ningún camino sin chequear.
+- Pendiente no bloqueante: verificación visual real de Agus en producción (paste + envío end-to-end con la IA describiendo la imagen).
+
+**Archivos modificados:** `src/components/workspace/AgentPanel.tsx` (2 commits: `f1c02d1` paste, `836f50f` ícono), `handoff-2026-07-c.md`.
+
+---
