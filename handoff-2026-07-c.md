@@ -1695,3 +1695,54 @@ Ninguna — una vez identificada la causa real, el fix es directo (usar el array
 **Archivos modificados:** `src/components/workspace/AgentPanel.tsx` (2 commits: `f1c02d1` paste, `836f50f` ícono), `handoff-2026-07-c.md`.
 
 ---
+
+## 2026-09-18 — Protocolo de infraestructura documental pasa a V2
+
+**Fecha:** 2026-09-18
+**Estado:** Closed — sin cambios de código de producto, solo documentación operativa. `npm run lint`/`npm run build` no aplican (ningún archivo de `src/` tocado).
+
+**Contexto:** Agus y el Director Técnico revisaron el protocolo de infraestructura documental del proyecto (desarrollado originalmente en AISync MVP, mayo 2026) y aprobaron una V2 con 4 cambios reales sobre la práctica ya vigente. Documento fuente completo: `ProjectStartProtocol_V2.md` (ya en el repo, leído completo antes de tocar nada).
+
+### 1. `AUDIT_REPORT.md` — confirmado como ya existente, sin recrear
+
+Antes de crear nada se verificó si ya existía contenido equivalente de sesiones anteriores: **sí existe**, creado el 2026-09-04, 31.6KB, con 20 hallazgos (SEC-001 a SEC-010, ARC-001 a ARC-004, ERR-001 a ERR-003, DEP-001/002) en un formato compatible con el pedido por V2 (severidad, estado OPEN/CLOSED, descripción, evidencia/superficie afectada, fecha, commit de cierre). No se sobrescribió ni se duplicó — queda como está, ahora formalizado por el protocolo V2 como uno de los 7 archivos obligatorios.
+
+### 2. `UncommittedWork.md` (nuevo)
+
+Creado con el `git status` real del momento — 11 filas: los 2 archivos tracked modificados (`.claude/settings.local.json`, `supabase/migrations/045_add_extraction_error_field.sql`) + 9 rutas/carpetas sin trackear (`AUDIT_LOCAL_DEPLOYMENT.md`, `ProjectStartProtocol_V2.md`, 4 entradas de `design-refs/`, y el preview de Teams Map V3 en 2 ubicaciones — `src/app/teams-map-preview/` + `src/components/teams/preview/`, ya señalado como deuda en la entrada de este mismo handoff del 2026-08-24).
+
+**Hallazgo no buscado, señalado aparte porque no es WIP normal:** `supabase/migrations/045_add_extraction_error_field.sql` tiene su contenido real (`ALTER TABLE context_sources ADD COLUMN extraction_error`) reemplazado por el string literal `2` sin salto de línea — parece una sobreescritura accidental de alguna sesión anterior (posiblemente una prueba de terminal que redirigió salida al archivo por error). La migración ya está aplicada en Supabase (no hay impacto en producción), pero el archivo versionado ya no documenta el SQL real. Marcado en `UncommittedWork.md` como punto que requiere decisión de Agus (revertir con `git checkout` vs. confirmar que fue intencional) — no se tocó el archivo en esta OE, es de solo lectura hasta que Agus decida.
+
+### 3. Regla "Mostrar antes de ejecutar" agregada a `CLAUDE.md`
+
+Copiada tal cual de la sección "Reglas No Negociables de Ejecución" de `ProjectStartProtocol_V2.md`, como nueva sección `## REGLA CRÍTICA — Mostrar antes de ejecutar (Protocolo V2)`, ubicada después de "Demo first" y antes de "## Proyecto" — mismo nivel de prioridad que las otras reglas críticas del archivo. Sin resumir ni parafrasear.
+
+### 4. Regla de rotación de `handoff.md` agregada a `CLAUDE.md`
+
+Copiada tal cual de la sección "[V2 — NUEVO] Rotación del handoff" de `ProjectStartProtocol_V2.md`, agregada dentro de la sección existente "RUTINA DURA — Actualización de handoff" (donde ya vivía una versión informal de la misma idea) — no reemplaza el texto existente, se agrega como subsección formal `### [V2 — NUEVO] Rotación del handoff` inmediatamente después.
+
+### No aplicado (descartado explícitamente por consigna de Agus)
+
+- Regla de branching ("rama separada, nunca sobre main") — evaluada y descartada en el propio `ProjectStartProtocol_V2.md` (Registro de cambios V1→V2), no se incorpora.
+- Limitación de verificación visual sin acceso a browser — ídem, descartada, es una limitación temporal del entorno, no una regla estructural.
+
+### Verificación
+
+`npm run lint` ✅ — mismos warnings preexistentes de `CanvasViewport.tsx` (×3 archivos: `teams/`, `teams/preview/`, `teams/v3/`), ninguno nuevo. `npm run build` no se corrió — ningún archivo de `src/` fue modificado en esta OE (la corrupción de la migración 045 fue encontrada, no causada, y no se tocó), así que no hay nada nuevo que compilar. Verificación adicional: lectura completa de `ProjectStartProtocol_V2.md`, `CLAUDE.md`, `AUDIT_REPORT.md` antes de escribir, y confirmación del `git status` real antes de poblar `UncommittedWork.md`.
+
+### Alternativas descartadas
+
+- **Recrear `AUDIT_REPORT.md` desde cero con el formato exacto del protocolo** — descartado: el archivo ya existente cumple la misma función con más detalle (20 hallazgos reales vs. una plantilla vacía); reescribirlo hubiera sido puro rework sin valor, contra la propia regla "Demo first"/"no recrear lo que ya funciona" del proyecto.
+- **Ignorar la corrupción de la migración 045 por estar fuera del alcance pedido** — descartado: es justamente el tipo de hallazgo que `UncommittedWork.md` existe para no dejar pasar; se documentó sin tocar el archivo, dejando la decisión a Agus.
+
+### Riesgos conocidos / deuda técnica
+
+- **`supabase/migrations/045_add_extraction_error_field.sql` corrompido** (ver punto 2 arriba) — sin resolver, pendiente de decisión de Agus, registrado en `UncommittedWork.md`.
+- **`AISyncPlans.md`: sin cambios** — esta OE no tocó arquitectura, DB, routing, providers ni patrones técnicos, solo documentación operativa (`CLAUDE.md` + archivos de protocolo nuevos).
+- **`PRODUCT_STATUS.md`: sin cambios** — esta OE no afecta ninguna feature, estado ni comportamiento de producto (regla explícita de `ProjectStartProtocol_V2.md`: actualizar solo "siempre que la OE afecte una feature, estado o comportamiento de producto").
+- **`DECISIONS.md`: sin cambios** — no hubo una decisión de producto/arquitectura nueva en esta OE, solo adopción de un protocolo operativo ya evaluado y aprobado por Agus y el Director Técnico fuera de esta sesión.
+- **9 items de `UncommittedWork.md` sin resolver todavía** — quedan documentados, no se commitearon ni se descartaron en esta OE (fuera del alcance pedido: crear la infraestructura documental, no limpiar el WIP acumulado).
+
+**Archivos modificados/nuevos:** `CLAUDE.md` (2 reglas nuevas agregadas), `UncommittedWork.md` (nuevo), `handoff-2026-07-c.md`. **Sin cambios:** `AUDIT_REPORT.md` (confirmado ya existente, no tocado), `ProjectStartProtocol_V2.md` (ya existía en el repo, se commitea sin modificar su contenido).
+
+---

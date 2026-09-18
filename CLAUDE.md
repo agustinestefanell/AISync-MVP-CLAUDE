@@ -41,6 +41,16 @@ Sin esta actualización, la OE NO está cerrada.
 Esta regla tiene prioridad sobre cualquier otra instrucción
 de cierre. No hay excepciones.
 
+### [V2 — NUEVO] Rotación del handoff
+
+*(Copiado tal cual de `ProjectStartProtocol_V2.md`, sección "handoff.md — Historial operativo de OEs".)*
+
+El handoff no es un archivo único que crece indefinidamente. Se rota **proactivamente**, antes de llegar a un límite duro de tamaño (referencia usada en Hitr.io: 400KB), para que siga siendo legible y rápido de leer completo al inicio de cada sesión.
+
+- Al rotar: el archivo activo se cierra con una nota de cierre breve, se renombra con un sufijo identificable (fecha y/o letra secuencial — ej. `handoff-2026-07-c.md`), y se abre un archivo nuevo.
+- El archivo nuevo debe indicar en su primera línea cuál es el handoff anterior, para que quien lo lea pueda ir hacia atrás si necesita contexto de más largo plazo.
+- Nunca hay dos handoffs "activos" a la vez — el protocolo asume uno solo vigente, siempre.
+
 ---
 
 ## REGLA CRÍTICA — Demo first
@@ -53,6 +63,24 @@ Si una funcionalidad existe en C:\proyectos\AISync\MVP (la demo):
 
 Ignorar esta regla genera rework, errores ya resueltos y
 costo innecesario de tokens. Esta regla no tiene excepciones.
+
+## REGLA CRÍTICA — Mostrar antes de ejecutar (Protocolo V2)
+
+*(Copiado tal cual de `ProjectStartProtocol_V2.md`, sección "Reglas No Negociables de Ejecución".)*
+
+### Mostrar antes de ejecutar
+
+**Ninguna migración de base de datos, ni ninguna escritura masiva sobre datos reales (UPDATE/DELETE que afecte más de una fila, o cualquier cambio sobre cuentas de usuarios reales), se ejecuta sin que Claude Code muestre primero el SQL/query exacto y reciba confirmación explícita del Director Técnico o el Product Owner — incluso si la OE que la origina ya fue aprobada.**
+
+Esto aplica sin excepción, aunque:
+
+- El diagnóstico que llevó a la solución esté completo y validado con evidencia.
+- La OE original ya haya sido aprobada en su forma general.
+- El cambio parezca de bajo riesgo.
+
+La aprobación de una OE aprueba el **plan**. No aprueba, por sí sola, la ejecución de una escritura irreversible sobre datos de producción — eso requiere su propia confirmación, en el momento.
+
+---
 
 ## Proyecto
 AISync es una control layer para trabajo asistido por IA.
