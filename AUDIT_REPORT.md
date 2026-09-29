@@ -210,3 +210,16 @@ Cada hallazgo registra: descripción, evidencia (archivo/línea o migración), i
 - **Sobre el conteo post-fix (16 > 10):** npm audit reporta ahora 16 high, pero solo 4 son raíces con advisory propio (brace-expansion, glob, next, postcss) — las otras 12 son inflación de cadena (npm marca vulnerable a cada dependiente de la cadena ESLint/Next: eslint, minimatch, rimraf, flat-cache, etc.). Superficie real de Grupo B: la misma de antes, nada nuevo.
 - **Validación:** lint ✅ y build ✅ completos post-fix con output idéntico. package.json intacto — solo package-lock.json (versiones transitivas). Next.js NO tocado.
 - **Estado:** PARTIAL — Grupo A CLOSED; Grupo B pendiente de la evaluación de upgrade a Next 16 (OE aparte con más cuidado — incluye los 21 advisories de next).
+
+### SEC-011 🔴 OPEN — Sin separación de entornos: `.env.local` usa la base de datos de producción
+
+- **Severidad:** 🔴 Crítico (toda prueba en local opera sobre datos reales de usuarios)
+- **Fecha:** 2026-09-29
+- **Área:** Seguridad / Entornos
+- **Detectado en:** Diagnóstico solo-lectura de trazabilidad de búsquedas web y adjuntos (`handoff-2026-07-c.md` 2026-09-29).
+- **Descripción:** El entorno local (`.env.local`) apunta a la misma base Supabase que producción (`bhbwgloavqlwtusqqhou`). No existe una base local propia ni un proyecto de staging.
+- **Evidencia:** La base de `.env.local` contiene 60 filas de búsquedas web exitosas en `session_tool_calls` (última 2026-09-25 13:33 UTC, hecha desde la app de producción). Desde local no pueden haberse generado: la `TAVILY_API_KEY` de `.env.local` es un placeholder (`your_...`, archivo sin cambios desde 2026-07-01). Por lo tanto, producción (Vercel) escribe en la misma base que local. No hay carpeta `.vercel` vinculada: la conclusión se basa en los datos, no en la configuración de Vercel.
+- **Impacto:** Cualquier prueba corrida en local lee y escribe sobre datos reales. Además, `.env.local` contiene la `SUPABASE_SERVICE_ROLE_KEY` de producción, que saltea RLS: un script local mal escrito puede modificar datos de cualquier cuenta.
+- **Medida provisoria:** No correr pruebas en local contra esta base hasta nueva indicación de Agus.
+- **Resolución pendiente:** Decisión de Agus entre base local propia o proyecto de Supabase de staging.
+- **Estado:** OPEN.

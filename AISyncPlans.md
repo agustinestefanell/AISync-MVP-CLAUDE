@@ -1260,6 +1260,25 @@ No urgente, no bloquea nada — separado del fix de prompt, que ya está aplicad
 
 ---
 
+### OE futura — Trazabilidad de búsquedas web y adjuntos (alcance confirmado 2026-09-29, sin diseñar, sin ejecutar)
+
+**Origen:** diagnóstico solo-lectura del 2026-09-29 (ver handoff-2026-07-c.md 2026-09-29 y `PRODUCT_STATUS.md` → Ephemeral Traceability). **Toca `chat/route.ts` (pipeline crítico, ver sección 9): no se abre sin autorización explícita de Agus.** Nomenclatura propia del proyecto; los nombres "Fase 5", "H11", "OE 8.3", "P4" y "migración 072" no corresponden a este proyecto y no se usan.
+
+**Alcance ya relevado:**
+- Fuentes guardadas que no respaldan la respuesta (caso Bahamas/Arizona del 2026-09-25) — el más importante; hoy `result_summary` guarda solo 500 caracteres y no se puede auditar el origen de un dato.
+- Adjuntos duplicados (el historial reenvía adjuntos viejos en cada mensaje).
+- Búsqueda fallida sin rastro.
+- `message_id` faltante en `session_tool_calls` (y vacío en todas las filas de `session_attachments`).
+
+**Alcance agregado — Opción B, confirmada por Agus:** búsquedas web y adjuntos visibles dentro de Documentation Mode, no solo en el Audit Log crudo.
+- **(a) Audit View:** "Information used" debe contar también las búsquedas web y los adjuntos del mensaje, no solo Context Files y Prompts como hoy (`api/documentation/audit-detail/route.ts`).
+- **(b) Repository View e Investigate View:** búsquedas y adjuntos aparecen como filas propias (mismo patrón que Handoff Package / Saved Selection), buscables y filtrables.
+- Se apoya en el mismo `message_id` y las mismas columnas nuevas que se crean para esta OE — **no es un frente aparte**, se suma al alcance de esta misma tarea.
+
+**Pendiente para cuando se abra la OE:** diseño de la solución (no diseñar antes), migración nueva, medición real del costo en tokens de los campos del agente (tema/contexto/pregunta) en los 3 providers, y clave real de Tavily en `.env.local` (paso de Agus) — sujeto a SEC-011 (local hoy usa la base de producción; no probar en local hasta separar entornos).
+
+---
+
 ## Connected Teams — Shared Workspace Architecture
 **Decisión tomada:** Semana 7, sesión 2026-06-13
 **Estado:** Diseño aprobado, pendiente de implementación

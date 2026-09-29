@@ -1746,3 +1746,56 @@ Copiada tal cual de la sección "[V2 — NUEVO] Rotación del handoff" de `Proje
 **Archivos modificados/nuevos:** `CLAUDE.md` (2 reglas nuevas agregadas), `UncommittedWork.md` (nuevo), `handoff-2026-07-c.md`. **Sin cambios:** `AUDIT_REPORT.md` (confirmado ya existente, no tocado), `ProjectStartProtocol_V2.md` (ya existía en el repo, se commitea sin modificar su contenido).
 
 ---
+
+## 2026-09-29 — Diagnóstico: huella trazable de búsquedas web y adjuntos (solo lectura)
+
+**Fecha:** 2026-09-29
+**Estado:** Closed — diagnóstico de solo lectura. Sin cambios de código, datos ni migraciones. Contra producción se corrieron únicamente SELECT (service role, scripts temporales borrados). `npm run lint`/`npm run build` no aplican (ningún archivo de `src/` tocado).
+
+**Contexto:** Agus trajo una lista de 11 afirmaciones sobre la trazabilidad de búsquedas web y adjuntos para verificarlas, más una tensión de producción (respuesta con clima en vivo el 25/09 mientras Audit View mostraba "Information used: 0 sources").
+
+### ⚠️ Hallazgo de entorno urgente — `.env.local` apunta a la base de producción
+
+`.env.local` usa la base `bhbwgloavqlwtusqqhou.supabase.co`. Esa base contiene 60 búsquedas web **exitosas** (última 2026-09-25, hecha desde la app de producción). Desde local no pueden salir, porque la `TAVILY_API_KEY` de `.env.local` es un placeholder (`your_...`, 24 caracteres, archivo sin cambios desde 2026-07-01). Conclusión: producción (Vercel) y local escriben en la misma base, y toda prueba en local toca datos reales. **Regla operativa desde hoy: no correr pruebas en local hasta que Agus decida cómo separar los entornos.** No hay carpeta `.vercel` vinculada; la conclusión se basa en los datos, no en la configuración de Vercel.
+
+### Los 4 hallazgos confirmados
+
+1. **(El más importante) Fuentes guardadas no respaldan la respuesta.** Caso 2026-09-25 13:33 UTC, Overloading / Prueba de lejos (workspace "Workspace borrar", sesión manager `1c37d792`, Anthropic Sonnet 4.6, Web search ON). La búsqueda **sí funcionó**: consulta `"weather forecast today 2026-09-25"`, 1 fila en `session_tool_calls`, evento `tool_call_executed`, 2 filas de `token_usage` (`response_usage` + `stream_final`). Pero las 5 fuentes son de Yuma/San Luis (Arizona), Los Ángeles y `weatherapi.com — "Weather in current location"`, y la respuesta dice Harbour Island, Bahamas, con 27.7 °C. Hipótesis **no verificable**: el dato vino de weatherapi.com, geolocalizada al servidor de Tavily. No se puede comprobar porque `result_summary` guarda solo 500 caracteres. Compromete la trazabilidad en sí.
+2. **Adjuntos duplicados.** `AgentPanel.tsx:591-592, 637` conserva el base64 en `apiMessages` y reenvía todo el historial; `chat/route.ts:247-279` registra los adjuntos de **todos** los mensajes del historial. 1 adjunto + 5 mensajes = 5 filas + 5 eventos + archivo enviado 5 veces a Anthropic (OpenAI solo si es imagen; Google solo el último mensaje). Al recargar la página el historial se limpia (`AgentPanel.tsx:357`). En producción: mismo archivo con 3 y 5 filas en una sesión; `message_id` y `size_bytes` vacíos en las 33 filas.
+3. **Búsqueda fallida sin rastro.** `chat/route.ts:387-392`: el catch solo le pasa el mensaje de error al modelo; nada se escribe en la base.
+4. **Audit View ciego a búsquedas web.** `api/documentation/audit-detail/route.ts:31-97` consulta solo `context_sources` + `prompt_assignments`; el contador "N sources" (`AuditDetailPanel.tsx:229`) nunca incluye búsquedas y refleja el estado actual, no el histórico.
+
+### Otros datos verificados (referencia para la futura OE)
+
+- `session_tool_calls` **no tiene** `message_id` (`021_session_attachments_and_tool_calls.sql`). `audit_log` **no tiene** `project_id`.
+- Borrado de Project: es físico (`api/projects/[id]/route.ts:114`) y arrastra las dos tablas; `audit_log.workspace_id` queda NULL (`003_checkpoints.sql:28`). Evidencia en producción: 27 `tool_call_executed` y 32 `attachment_uploaded` huérfanos (87 vs 60, 65 vs 33).
+- `google.ts` `complete()` envía solo el último mensaje (sin historial ni contexto) en el modo con herramientas.
+- Anthropic usa solo la herramienta Tavily propia (no la búsqueda nativa de Anthropic).
+
+### Nomenclatura ajena — no usar
+
+"Fase 5", "H11", "OE 8.3", "P4" y "migración 072" **no corresponden a este proyecto**. Búsqueda en todos los .md, código, migraciones, ramas y en el repo hermano `TheWriterProject`: sin resultados. La última migración es la 061. El único "8.3" es la sección `useMemo` de `AISyncPlans.md`, sin relación. El "chat nuevo" tampoco existe: el único chat con IA es `AgentPanel` → `/api/chat`, en producción desde junio. **No crear OEs con esos nombres**; todo trabajo futuro usa nomenclatura propia.
+
+### Decisión técnica tomada y por qué
+
+Ninguna implementación. Se decidió (Agus): (a) no abrir la OE de `route.ts` todavía, porque es pipeline crítico y requiere autorización explícita de Agus al arrancarla; (b) no medir el costo en tokens de los campos del agente (tema/contexto/pregunta) hasta que se apruebe esa OE; (c) registrar los hallazgos y corregir `PRODUCT_STATUS.md` ("Runtime Tavily con API key real" pasa de Pending a Live en producción).
+
+### Alternativas descartadas
+
+- **Medir tokens ahora con llamadas reales a las APIs** — descartado por Agus: queda para la OE.
+- **Aceptar las 11 afirmaciones como estaban** — descartado: varias estaban contradichas (072 inexistente, "chat nuevo" inexistente, `project_id` en `audit_log` inexistente, clave de Tavily ya funcionando en producción).
+- **Para registrar URLs citadas, "exige" copiar el stream en `route.ts`** — no es la única vía: el cliente ya manda el texto completo de la respuesta a `/api/messages` (`AgentPanel.tsx:691`). Se registra como opción para evaluar en la OE, no como decisión.
+
+### Riesgos conocidos / deuda técnica
+
+- **Local = producción** (ver arriba). Pendiente de decisión de Agus.
+- Los 4 hallazgos quedan abiertos hasta la OE de trazabilidad (toca `route.ts`, `AgentPanel.tsx` y requiere una migración nueva: `message_id` en búsquedas, URL limpia, fecha de publicación, posición).
+- Cuando una búsqueda falla, el texto crudo del error llega al modelo, que podría repetírselo al usuario.
+- Acumular adjuntos en el historial puede chocar con el límite de ~4.5 MB por request de Vercel.
+- **`AISyncPlans.md`: actualizado** — nueva entrada en "Backlog diferido": "OE futura — Trazabilidad de búsquedas web y adjuntos", con el alcance relevado + **Opción B confirmada por Agus** (búsquedas y adjuntos visibles en Documentation Mode: "Information used" de Audit View las cuenta; filas propias buscables/filtrables en Repository View e Investigate View, mismo patrón que Handoff Package / Saved Selection). Sin diseño ni implementación.
+- **`DECISIONS.md`: sin cambios** — no hubo decisión técnica nueva, solo diagnóstico y postergación.
+- **`AUDIT_REPORT.md`: actualizado** — hallazgo de entorno registrado como **SEC-011 🔴 OPEN** (confirmado por Agus el 2026-09-29).
+
+**Archivos modificados:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `AUDIT_REPORT.md`, `AISyncPlans.md`.
+
+---
