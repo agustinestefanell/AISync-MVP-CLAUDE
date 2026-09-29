@@ -1,5 +1,6 @@
 import { tavily } from '@tavily/core'
 import type { ToolExecutor } from './types'
+import { cleanUrl } from './urls'
 
 export const webSearchTool: ToolExecutor = {
   definition: {
@@ -33,10 +34,18 @@ export const webSearchTool: ToolExecutor = {
       .map(r => `${r.title}\n${r.url}\n${r.content}`)
       .join('\n\n---\n\n')
 
+    // position = orden original del buscador, calculado antes de filtrar
     const seen = new Set<string>()
     const sources = result.results
-      .filter(r => r.url && r.url.startsWith('http') && !seen.has(r.url) && seen.add(r.url))
-      .map(r => ({ title: r.title || r.url, url: r.url }))
+      .map((r, i) => ({ r, position: i + 1 }))
+      .filter(({ r }) => r.url && r.url.startsWith('http') && !seen.has(r.url) && seen.add(r.url))
+      .map(({ r, position }) => ({
+        title:          r.title || r.url,
+        url:            r.url,
+        clean_url:      cleanUrl(r.url),
+        published_date: r.publishedDate || null,
+        position,
+      }))
 
     return { content, sources }
   },

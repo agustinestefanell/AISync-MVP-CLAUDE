@@ -1799,3 +1799,36 @@ Ninguna implementación. Se decidió (Agus): (a) no abrir la OE de `route.ts` to
 **Archivos modificados:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `AUDIT_REPORT.md`, `AISyncPlans.md`.
 
 ---
+
+## 2026-09-29 — OE Trazabilidad de búsquedas web y adjuntos — Parte 1 (en curso)
+
+**Fecha:** 2026-09-29
+**Estado:** En curso — código listo y verificado con lint/build + reproducción aislada. Migración `062_tool_calls_traceability.sql` escrita, **no aplicada**, esperando confirmación explícita de Agus. Sin commit todavía (el código escribe columnas nuevas: subirlo antes de aplicar la 062 haría que búsquedas y adjuntos dejen de registrarse en silencio).
+**Autorización:** Agus autorizó explícitamente tocar `chat/route.ts` (pipeline crítico) para esta OE. SEC-011 sigue OPEN: nada se corre en local contra la base; solo SELECT de lectura.
+
+### Decisiones confirmadas por Agus durante la revisión del SQL
+
+1. **Sin policy de UPDATE en `session_tool_calls`.** La primera versión del SQL traía `session_tool_calls_update`. Agus preguntó si limitaba el UPDATE a `cited_urls`: **no** — RLS en Postgres filtra filas, no columnas; esa policy hubiera permitido al dueño reescribir consulta, fuentes, status y error de sus búsquedas, incluso llamando a Supabase directo. Descartadas también: `GRANT UPDATE (cited_urls)` a nivel columna (deja escribir citas falsas y es frágil con los permisos por defecto de Supabase) y una función `SECURITY DEFINER` que reciba las URLs (el usuario puede llamarla directo). **Elegido:** `cited_urls` la escribe solo `/api/messages` con `createAdminClient()` (patrón SEC-001), sobre ids verificados antes con el cliente del usuario (RLS), y una sola vez (`.is('cited_urls', null)` en el SELECT y en el UPDATE).
+2. **Regla de huérfanas para la Parte 2.** `message_id` no tiene FK porque la búsqueda se guarda antes que la respuesta (una FK rechazaría la fila y se perdería la búsqueda). Puede quedar apuntando a un mensaje nunca guardado (pestaña cerrada, corte de red, fallo del provider después de la búsqueda, fallo del guardado fail-open). Regla: la búsqueda es el objeto principal y siempre se muestra; el vínculo al mensaje es opcional (nunca INNER JOIN); si el mensaje no existe → "Response not saved (interrupted)"; `cited_urls` NULL + sin mensaje = señal de "respuesta interrumpida" en Investigate View. Registrada en `AISyncPlans.md` (entrada de esta OE).
+
+### Qué cambia (resumen — el detalle completo va en el cierre de la Parte 1)
+
+- `supabase/migrations/062_tool_calls_traceability.sql` (nuevo): `message_id`, `status`, `error`, `cited_urls` en `session_tool_calls` + índices por `message_id` en ambas tablas. Sin permisos nuevos.
+- `src/lib/chat/traceability.ts` (nuevo): `isUuid`, `attachmentsToTrace` (solo adjuntos del mensaje nuevo), `base64Bytes`, `sanitizeToolError` (categorías fijas, nunca el texto crudo).
+- `src/lib/tools/urls.ts` (nuevo): `cleanUrl`, `urlKey`, `extractUrls`, `findCitedSources`.
+- `src/lib/tools/types.ts` / `web-search.ts`: fuentes con `url`, `clean_url`, `title`, `published_date`, `position` (sin fragmento ni puntaje; `title`/`url` sin renombrar por compatibilidad con `AuditTimeline.tsx`).
+- `src/app/api/chat/route.ts`: recibe `user_message_id` / `assistant_message_id`; registra solo adjuntos del mensaje nuevo (con `message_id` y `size_bytes`); búsqueda fallida → fila `status='error'` + evento `tool_call_failed` con error saneado (y el modelo recibe el error saneado, no el crudo).
+- `src/app/api/messages/route.ts`: acepta `id` opcional (validado como UUID); al guardar una respuesta calcula `cited_urls` (ver decisión 1).
+- `src/components/workspace/AgentPanel.tsx`: genera los dos ids con `crypto.randomUUID()` antes de enviar y los usa al guardar el mensaje del usuario, la respuesta y la respuesta interrumpida.
+
+### Evidencia hasta ahora
+
+Reproducción aislada (Node, sin base): 1 adjunto + 5 mensajes → 5 filas antes, **1 fila ahora**; `size_bytes` 300000 = real; caso Bahamas real → `cited_urls = []`; cita Markdown con variantes http/www/barra final detectada; error con clave falsa `tvly-ABC123SECRET` → "Search provider authentication failed". Lint ✅ (solo los warnings preexistentes de `CanvasViewport.tsx`), build ✅. Pendiente: verificación de punta a punta en producción tras aplicar la 062 y deployar (Agus usa la app, yo verifico con SELECT).
+
+### Riesgos conocidos
+
+- Una mención por nombre ("según AccuWeather") no cuenta como cita — solo URLs escritas.
+- El archivo adjunto sigue viajando completo al proveedor en cada mensaje (el modelo lo necesita para recordarlo); fuera de alcance.
+- `cited_urls` refleja el texto de la respuesta tal como se guarda; si un usuario fabricara su propio mensaje, las citas reflejarían ese texto (igual que cualquier mensaje hoy).
+
+---

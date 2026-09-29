@@ -1275,6 +1275,15 @@ No urgente, no bloquea nada — separado del fix de prompt, que ya está aplicad
 - **(b) Repository View e Investigate View:** búsquedas y adjuntos aparecen como filas propias (mismo patrón que Handoff Package / Saved Selection), buscables y filtrables.
 - Se apoya en el mismo `message_id` y las mismas columnas nuevas que se crean para esta OE — **no es un frente aparte**, se suma al alcance de esta misma tarea.
 
+**Estado (2026-09-29):** OE abierta con autorización explícita de Agus. Parte 1 (base de datos confiable) en curso — migración `062_tool_calls_traceability.sql`; Parte 2 (Opción B) recién después de cerrar la Parte 1.
+
+**Regla de diseño obligatoria para la Parte 2 — búsquedas huérfanas (confirmada por Agus 2026-09-29):** `session_tool_calls.message_id` no tiene FK (la búsqueda se guarda antes que la respuesta), así que una búsqueda puede apuntar a un mensaje que nunca se guardó (pestaña cerrada, corte de red, fallo del provider después de la búsqueda, fallo del guardado fail-open).
+- La búsqueda es el **objeto principal** y **siempre se muestra**: tiene sesión, workspace, fecha, consulta y fuentes propias; no depende del mensaje.
+- El vínculo al mensaje es **opcional**. Nunca usar INNER JOIN búsqueda→mensaje (las huérfanas desaparecerían en silencio). Si el mensaje no existe, mostrar **"Response not saved (interrupted)"**.
+- Una búsqueda con `cited_urls` en NULL **y** sin mensaje existente es señal propia de **"respuesta interrumpida"** en Investigate View.
+
+**Regla de escritura de `session_tool_calls` (confirmada por Agus 2026-09-29):** sin policy de UPDATE para usuarios — RLS no puede limitar un UPDATE a una columna y una búsqueda registrada no debe poder reescribirse. La única escritura posterior es `cited_urls`, desde `/api/messages` con `createAdminClient()`, una sola vez (solo si sigue en NULL), sobre ids ya verificados con el cliente del usuario.
+
 **Pendiente para cuando se abra la OE:** diseño de la solución (no diseñar antes), migración nueva, medición real del costo en tokens de los campos del agente (tema/contexto/pregunta) en los 3 providers, y clave real de Tavily en `.env.local` (paso de Agus) — sujeto a SEC-011 (local hoy usa la base de producción; no probar en local hasta separar entornos).
 
 ---

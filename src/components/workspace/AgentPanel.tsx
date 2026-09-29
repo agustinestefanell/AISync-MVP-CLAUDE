@@ -600,6 +600,12 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
 
       let fullContent = ''
 
+      // Ids generados de antemano: /api/chat los usa para vincular adjuntos
+      // (userMessageId) y búsquedas web (assistantMessageId) con el mensaje
+      // exacto que se guarda después en /api/messages.
+      const userMessageId      = crypto.randomUUID()
+      const assistantMessageId = crypto.randomUUID()
+
       try {
         // ERR-003: persistir userMsg antes del stream — un corte de red no debe
         // borrar la acción del usuario. Fail-open: si falla, el chat continúa.
@@ -609,7 +615,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               sessionId: session.id,
-              messages: [userMsg],
+              messages: [{ ...userMsg, id: userMessageId }],
               ...(provenance ? { provenance } : {}),
             }),
           })
@@ -648,6 +654,8 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
             session_id:           session.id,
             otherPanelsSnapshot,
             excludedContextFileIds,
+            user_message_id:      userMessageId,
+            assistant_message_id: assistantMessageId,
           }),
         })
 
@@ -688,7 +696,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
         const assistantPersistRes = await fetch('/api/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: session.id, messages: [assistantMsg] }),
+          body: JSON.stringify({ sessionId: session.id, messages: [{ ...assistantMsg, id: assistantMessageId }] }),
         })
         if (!assistantPersistRes.ok) {
           const errorText = await assistantPersistRes.text().catch(() => '')
@@ -712,7 +720,7 @@ const AgentPanel = memo(forwardRef<AgentPanelHandle, Props>(
             const interruptedPersistRes = await fetch('/api/messages', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sessionId: session.id, messages: [interruptedMsg] }),
+              body: JSON.stringify({ sessionId: session.id, messages: [{ ...interruptedMsg, id: assistantMessageId }] }),
             })
             if (!interruptedPersistRes.ok) {
               const errorText = await interruptedPersistRes.text().catch(() => '')

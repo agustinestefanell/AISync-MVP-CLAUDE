@@ -15,9 +15,14 @@ export interface ToolResult {
   content: string
 }
 
+// title/url se mantienen con el mismo nombre: los lee AuditTimeline.tsx y
+// las filas históricas de session_tool_calls / audit_log solo tienen esos dos.
 export type ToolSource = {
-  title: string
-  url:   string
+  title:           string
+  url:             string         // URL exacta devuelta por el buscador
+  clean_url?:      string         // sin #fragmento ni parámetros de tracking (ver urls.ts)
+  published_date?: string | null  // si el buscador la informa; suele faltar fuera de noticias
+  position?:       number         // orden en los resultados del buscador (1 = primero)
 }
 
 export type ToolExecutionResult = {

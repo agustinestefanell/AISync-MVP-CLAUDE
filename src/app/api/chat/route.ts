@@ -8,6 +8,7 @@ import { listActivePromptsForContext } from '@/lib/db/prompts'
 import { getContextSourcesForRuntime } from '@/lib/db/context'
 import { getTool, webSearchTool } from '@/lib/tools'
 import { inlineOfficeAttachments } from '@/lib/chat/inlineAttachments'
+import { isUuid, attachmentsToTrace, base64Bytes, sanitizeToolError } from '@/lib/chat/traceability'
 import type { ChatMessage } from '@/lib/providers/types'
 import type { ToolResult } from '@/lib/tools'
 import { AnthropicProvider } from '@/lib/providers/anthropic'
@@ -52,6 +53,8 @@ export async function POST(req: Request) {
     otherPanelsSnapshot,
     webSearchEnabled,
     excludedContextFileIds,
+    user_message_id,
+    assistant_message_id,
   } = await req.json() as {
     messages:              ChatMessage[]
     provider:              string
@@ -69,7 +72,15 @@ export async function POST(req: Request) {
     // Context files que el usuario decidió dejar fuera de ESTE mensaje
     // (aviso de archivo grande — Confirmar/Cancelar en el panel)
     excludedContextFileIds?: string[]
+    // Ids que el cliente genera de antemano para el mensaje del usuario y la
+    // respuesta (ver AgentPanel.tsx sendPrompt) — vinculan adjuntos y
+    // búsquedas con el mensaje exacto en messages.id.
+    user_message_id?:      string
+    assistant_message_id?: string
   }
+
+  const userMessageId      = isUuid(user_message_id)      ? user_message_id      : null
+  const assistantMessageId = isUuid(assistant_message_id) ? assistant_message_id : null
 
   // ── Capa 1: Role system prompt ──────────────────────────────────────────────
   const rolePromptParts: ChatMessage[] = []
@@ -244,34 +255,36 @@ export async function POST(req: Request) {
   ]
 
   // ── Trazar adjuntos — awaited via Promise.allSettled (serverless-safe) ────────
-  const attachmentMessages = rawMessages.filter((m: ChatMessage) => m.attachments?.length)
-  if (attachmentMessages.length && session_id && workspace_id && user) {
-    const attachmentRows = attachmentMessages.flatMap((m: ChatMessage) =>
-      (m.attachments ?? []).map(att => ({
-        session_id,
-        workspace_id,
-        account_id:      user.id,
-        filename:        att.name ?? 'unknown',
-        mime_type:       att.media_type,
-        attachment_type: att.type,
-        provider,
-        status: 'processed',
-      }))
-    )
-    const auditAttachmentInserts = attachmentMessages.flatMap((m: ChatMessage) =>
-      (m.attachments ?? []).map(att =>
-        supabase.from('audit_log').insert({
-          account_id:   user.id,
-          workspace_id: workspace_id ?? null,
-          event_type:   'attachment_uploaded',
-          metadata: {
-            filename:        att.name ?? 'unknown',
-            mime_type:       att.media_type,
-            attachment_type: att.type,
-            provider,
-          },
-        })
-      )
+  // Solo los adjuntos del mensaje NUEVO: el historial que reenvía el cliente
+  // trae los adjuntos anteriores, que ya se registraron cuando se enviaron.
+  const newAttachments = attachmentsToTrace(rawMessages)
+  if (newAttachments.length && session_id && workspace_id && user) {
+    const attachmentRows = newAttachments.map(att => ({
+      message_id:      userMessageId,
+      session_id,
+      workspace_id,
+      account_id:      user.id,
+      filename:        att.name ?? 'unknown',
+      mime_type:       att.media_type,
+      size_bytes:      base64Bytes(att.data),
+      attachment_type: att.type,
+      provider,
+      status: 'processed',
+    }))
+    const auditAttachmentInserts = newAttachments.map(att =>
+      supabase.from('audit_log').insert({
+        account_id:   user.id,
+        workspace_id: workspace_id ?? null,
+        event_type:   'attachment_uploaded',
+        metadata: {
+          filename:        att.name ?? 'unknown',
+          mime_type:       att.media_type,
+          attachment_type: att.type,
+          provider,
+          session_id,
+          message_id:      userMessageId,
+        },
+      })
     )
     await Promise.allSettled([
       supabase.from('session_attachments').insert(attachmentRows),
@@ -351,6 +364,7 @@ export async function POST(req: Request) {
             toolResults.push({ tool_call_id: call.id, content: `Tool not found: ${call.name}` })
             continue
           }
+          const query = (call.input.query as string) ?? null
           try {
             const toolResult = await tool.execute(call.input)
             const content    = toolResult.content
@@ -363,10 +377,12 @@ export async function POST(req: Request) {
                   session_id,
                   workspace_id,
                   account_id:     user.id,
+                  message_id:     assistantMessageId,
                   tool_name:      call.name,
-                  query:          (call.input.query as string) ?? null,
+                  query,
                   provider,
                   model,
+                  status:         'success',
                   result_summary: content.slice(0, 500),
                   sources:        toolSources,
                 }),
@@ -375,20 +391,54 @@ export async function POST(req: Request) {
                   workspace_id: workspace_id ?? null,
                   event_type:   'tool_call_executed',
                   metadata: {
-                    tool_name: call.name,
-                    query:     (call.input.query as string) ?? null,
+                    tool_name:  call.name,
+                    query,
                     provider,
                     model,
-                    sources:   toolSources,
+                    sources:    toolSources,
+                    session_id,
+                    message_id: assistantMessageId,
                   },
                 }),
               ])
             }
           } catch (error) {
-            toolResults.push({
-              tool_call_id: call.id,
-              content: error instanceof Error ? error.message : 'Tool execution failed',
-            })
+            // Nunca el mensaje crudo: ni al modelo ni a la base (puede traer
+            // claves o detalles internos del proveedor de búsqueda).
+            const safeError = sanitizeToolError(error)
+            console.error('[chat] tool execution failed:', call.name, error)
+            toolResults.push({ tool_call_id: call.id, content: `Tool execution failed: ${safeError}` })
+            if (session_id && workspace_id && user) {
+              await Promise.allSettled([
+                supabase.from('session_tool_calls').insert({
+                  session_id,
+                  workspace_id,
+                  account_id: user.id,
+                  message_id: assistantMessageId,
+                  tool_name:  call.name,
+                  query,
+                  provider,
+                  model,
+                  status:     'error',
+                  error:      safeError,
+                  sources:    [],
+                }),
+                supabase.from('audit_log').insert({
+                  account_id:   user.id,
+                  workspace_id: workspace_id ?? null,
+                  event_type:   'tool_call_failed',
+                  metadata: {
+                    tool_name:  call.name,
+                    query,
+                    provider,
+                    model,
+                    error:      safeError,
+                    session_id,
+                    message_id: assistantMessageId,
+                  },
+                }),
+              ])
+            }
           }
         }
 

@@ -1,7 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { extractTextFromBuffer } from '@/lib/context/extractText'
 import { getProvider } from '@/lib/providers'
 import { resolveProviderApiKey } from '@/lib/providers/resolveApiKey'
+import { isUuid } from '@/lib/chat/traceability'
+import { findCitedSources } from '@/lib/tools/urls'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +16,10 @@ export async function POST(req: Request) {
   const { sessionId, messages, provenance } = await req.json() as {
     sessionId: string
     messages: {
+      // Opcional: id generado por el cliente (AgentPanel) para vincular
+      // adjuntos/búsquedas de /api/chat con este mensaje. Si no es un UUID
+      // válido se ignora y la base genera uno.
+      id?:         string
       role:        'user' | 'assistant'
       content:     string
       attachments?: { name?: string; media_type: string; type: 'image' | 'document'; data?: string }[]
@@ -40,6 +47,7 @@ export async function POST(req: Request) {
     .from('messages')
     .insert(
       messages.map(m => ({
+        ...(isUuid(m.id) ? { id: m.id } : {}),
         session_id:          sessionId,
         role:                m.role,
         content:             m.content,
@@ -66,6 +74,42 @@ export async function POST(req: Request) {
       )
     } catch (provenanceError) {
       console.error('[messages] Failed to insert message_provenance:', provenanceError)
+    }
+  }
+
+  // URLs citadas — compara la respuesta final con las fuentes de las
+  // búsquedas que /api/chat registró con este mismo message_id. Se hace acá
+  // (con el texto completo que el cliente ya manda) para no tocar el
+  // streaming de /api/chat. Fail-open: nunca bloquea la respuesta.
+  // session_tool_calls NO tiene policy de UPDATE (una búsqueda registrada no
+  // debe poder reescribirse — migración 062): el SELECT va con el cliente del
+  // usuario (RLS verifica ownership) y la única escritura, solo cited_urls,
+  // con el cliente admin y una sola vez (solo si sigue en NULL).
+  const assistantWithId = (insertedMessages ?? []).filter(m => m.role === 'assistant')
+  for (const inserted of assistantWithId) {
+    try {
+      const original = messages[insertedMessages!.indexOf(inserted)]
+      const { data: toolCalls } = await supabase
+        .from('session_tool_calls')
+        .select('id, sources')
+        .eq('message_id', inserted.id)
+        .eq('status', 'success')
+        .is('cited_urls', null)
+      if (!toolCalls?.length) continue
+      const admin = createAdminClient()
+      for (const tc of toolCalls) {
+        const sourceUrls = ((tc.sources ?? []) as { url?: string }[])
+          .map(s => s.url)
+          .filter((u): u is string => typeof u === 'string')
+        const { error: citedError } = await admin
+          .from('session_tool_calls')
+          .update({ cited_urls: findCitedSources(original?.content ?? '', sourceUrls) })
+          .eq('id', tc.id)
+          .is('cited_urls', null)
+        if (citedError) console.error('[messages] Failed to update cited_urls:', citedError)
+      }
+    } catch (citedErr) {
+      console.error('[messages] cited_urls evaluation failed (non-blocking):', citedErr)
     }
   }
 
