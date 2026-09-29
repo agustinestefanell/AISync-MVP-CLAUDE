@@ -10,6 +10,8 @@ export const dynamic = 'force-dynamic'
 // - Context Files activos con scope Team/Session (NO Project — fuera del
 //   alcance pedido para "Information used")
 // - Prompts activos con scope Team/Worker (misma consulta que PromptLibrary.tsx)
+// - Búsquedas web y adjuntos de esas sesiones en la ventana (históricos del
+//   momento — OE Trazabilidad Parte 2, 2026-09-29; ver getTraceInWindow abajo)
 // Explícitamente fuera: Model/Agent y Related object (decisión de producto,
 // ver handoff-2026-07-b.md Fase 2 Paso 0).
 export async function GET(req: Request) {
@@ -94,5 +96,84 @@ export async function GET(req: Request) {
     }))
   }
 
-  return Response.json({ messages, contextFiles, prompts })
+  // Búsquedas web y adjuntos de esas sesiones en la misma ventana [start, end]
+  // (OE Trazabilidad, Parte 2). A diferencia de Context Files/Prompts, son
+  // HISTÓRICOS del momento. Ventana por tiempo (no solo message_id) para que
+  // entren también las búsquedas interrumpidas — la búsqueda es el objeto
+  // principal (regla de huérfanas, AISyncPlans.md).
+  const { webSearches, attachments } = await getTraceInWindow(supabase, sessionIds, start, end)
+
+  return Response.json({ messages, contextFiles, prompts, webSearches, attachments })
+}
+
+type TraceClient = ReturnType<typeof createClient>
+
+async function getTraceInWindow(supabase: TraceClient, sessionIds: string[], start: string, end: string) {
+  if (!sessionIds.length) return { webSearches: [], attachments: [] }
+
+  const [toolCallsRes, attachmentsRes] = await Promise.all([
+    supabase
+      .from('session_tool_calls')
+      .select('id, query, status, message_id, cited_urls, sources, created_at')
+      .in('session_id', sessionIds)
+      .gte('created_at', start)
+      .lte('created_at', end)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('session_attachments')
+      .select('id, session_id, message_id, filename, attachment_type, size_bytes, created_at')
+      .in('session_id', sessionIds)
+      .gte('created_at', start)
+      .lte('created_at', end)
+      .order('created_at', { ascending: true }),
+  ])
+
+  const toolCalls = (toolCallsRes.data ?? []) as Array<{
+    id: string; query: string | null; status: 'success' | 'error' | null; message_id: string | null
+    cited_urls: string[] | null; sources: unknown[] | null; created_at: string
+  }>
+
+  // Qué respuestas existen — distingue "linked" de "interrupted".
+  const messageIds = Array.from(new Set(toolCalls.map(t => t.message_id).filter((id): id is string => Boolean(id))))
+  const { data: existing } = messageIds.length
+    ? await supabase.from('messages').select('id').in('id', messageIds)
+    : { data: [] as { id: string }[] }
+  const existingIds = new Set(((existing ?? []) as { id: string }[]).map(m => m.id))
+
+  const webSearches = toolCalls.map(t => ({
+    id:           t.id,
+    query:        t.query ?? '',
+    created_at:   t.created_at,
+    link_state:   t.status === 'error' ? 'failed'
+                : !t.message_id ? 'legacy'
+                : existingIds.has(t.message_id) || t.cited_urls !== null ? 'linked'
+                : 'interrupted',
+    cited_count:  t.cited_urls?.length ?? null,
+    source_count: t.sources?.length ?? 0,
+  }))
+
+  // Duplicados legacy (pre-Parte 1, sin message_id): una fila por sesión +
+  // archivo, igual que la pestaña Attached Files (decisión B de Agus).
+  const seenLegacy = new Set<string>()
+  const attachments = ((attachmentsRes.data ?? []) as Array<{
+    id: string; session_id: string; message_id: string | null; filename: string
+    attachment_type: 'image' | 'document'; size_bytes: number | null; created_at: string
+  }>)
+    .filter(a => {
+      if (a.message_id) return true
+      const key = `${a.session_id}|${a.filename}`
+      if (seenLegacy.has(key)) return false
+      seenLegacy.add(key)
+      return true
+    })
+    .map(a => ({
+      id:              a.id,
+      filename:        a.filename,
+      attachment_type: a.attachment_type,
+      size_bytes:      a.size_bytes,
+      created_at:      a.created_at,
+      is_legacy:       !a.message_id,
+    }))
+
+  return { webSearches, attachments }
 }

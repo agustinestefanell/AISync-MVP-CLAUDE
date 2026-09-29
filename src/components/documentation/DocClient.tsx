@@ -11,6 +11,8 @@ import RepositoryView from './RepositoryView'
 import UserLibraryView, { USER_LIBRARY_GUIDE } from './UserLibraryView'
 import AuditView from './AuditView'
 import InvestigateView from './InvestigateView'
+import WebSearchesView from './WebSearchesView'
+import AttachedFilesView from './AttachedFilesView'
 import SMPanel from '@/components/sm/SMPanel'
 import type { CustomProvider } from '@/components/sm/SMPanel'
 import TopRibbon from '@/components/layout/TopRibbon'
@@ -19,7 +21,7 @@ import TraceabilityGuideButton from '@/components/layout/TraceabilityGuideButton
 
 const KnowledgeMap = dynamic(() => import('./KnowledgeMap'), { ssr: false })
 
-type Tab = 'repository' | 'library' | 'audit' | 'investigate' | 'knowledge'
+type Tab = 'repository' | 'library' | 'audit' | 'investigate' | 'web_searches' | 'attached_files' | 'knowledge'
 
 const TABS: { id: Tab; label: string; guide: string }[] = [
   {
@@ -74,6 +76,40 @@ What is the full story around this topic?
 In practical terms, Investigate View is like opening an investigation table around one issue. You use it when you need to connect documents, follow a line of work across time, and understand how different pieces belong to the same matter even if they were produced in different contexts.
 
 This is not the main daily-use view for quick retrieval. It is the view you open when you need depth, context, and a broader reconstruction of meaning.
+
+If needed, you can always ask the Documentation Mode Sub-Manager to help you find documents using keywords.`,
+  },
+  {
+    id: 'web_searches',
+    label: 'Web Searches',
+    guide: `Imagine you are reviewing an answer an agent gave you weeks ago and you need to know where its information came from. Did the agent actually search the web? What did it search for? Which sources came back, and which of them did the answer really cite? In that case, you go to Web Searches.
+
+Web Searches is the view for checking the sources behind agent answers. Every time an agent runs a web search, it is recorded here as its own entry: the exact query, when it happened, which agent and model ran it, every source that came back (in the order the search engine returned them), and which of those sources the saved answer actually cites.
+
+Each entry also shows a fragment of the agent response that used the search, so the search is never seen in isolation. If a search ran but the response was never saved — for example, the connection was lost — the entry says so clearly: those results were not used in any saved answer. If a search failed, you see that too.
+
+Use this view when your question is:
+Where did this information come from, and did the answer really rely on it?
+
+In practical terms, Web Searches is like the bibliography of your agents' work. You can search by topic, query, or source domain, and filter by project, team, status, provider, agent, or date. When you need the full conversation, Open in Workspace takes you to the original chat — use the exact time shown to find the moment.
+
+If needed, you can always ask the Documentation Mode Sub-Manager to help you find documents using keywords.`,
+  },
+  {
+    id: 'attached_files',
+    label: 'Attached Files',
+    guide: `Imagine you remember sending a contract, a spreadsheet, or a screenshot to an agent some time ago, and now you need to know which conversation it was in and what the agent said about it. In that case, you go to Attached Files.
+
+Attached Files is the view for tracing the files you shared with your agents. Every file attached in a Workspace chat is recorded here: its name, extension, type, size, when it was sent, which agent and provider received it, and where it belongs (project, team, and workspace).
+
+Each entry also shows a fragment of the agent response to the message the file was sent with, so you can recognize the right one without opening every conversation. The file content itself is not stored — only its metadata — so this view tells you what was shared and when, not the file.
+
+Use this view when your question is:
+Which file did I share, where, and what did the agent do with it?
+
+In practical terms, Attached Files is like the register of documents handed over during your work. You can search by file name or extension, and filter by project, team, file type, extension, or date. When you need the full conversation, Open in Workspace takes you to the original chat — use the exact time shown to find the moment.
+
+Older entries recorded before files were linked to messages appear once, marked as Legacy record.
 
 If needed, you can always ask the Documentation Mode Sub-Manager to help you find documents using keywords.`,
   },
@@ -133,7 +169,7 @@ interface DocClientProps {
   initialFilterTeam?:       string
 }
 
-const VALID_TABS: Tab[] = ['repository', 'library', 'audit', 'investigate', 'knowledge']
+const VALID_TABS: Tab[] = ['repository', 'library', 'audit', 'investigate', 'web_searches', 'attached_files', 'knowledge']
 
 export default function DocClient({ pageName, checkpoints, handoffPackages, auditEvents, projects, savedSelections, contextSourcesWithOrigin, messageProvenance, contextSourcesScopeStats, workspaceSessions, tags, userName, userEmail, customProviders, initialTab, initialFilterTeam }: DocClientProps) {
   const [tab,                     setTab]                     = useState<Tab>(
@@ -232,7 +268,7 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
           {/* Right: tab bar + view */}
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             {/* Tab bar */}
-            <div className="shrink-0 border-b border-[var(--color-border-default)] px-6 py-2.5 flex items-center justify-center gap-5">
+            <div className="shrink-0 border-b border-[var(--color-border-default)] px-6 py-2.5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
               {TABS.map(t => (
                 <div key={t.id} className="grid min-w-max justify-items-center gap-1">
                   <button
@@ -261,6 +297,8 @@ export default function DocClient({ pageName, checkpoints, handoffPackages, audi
               {tab === 'library'     && <UserLibraryView savedSelections={savedSelections} tags={tags} projects={projects} teamCodes={teamCodes} />}
               {tab === 'audit'       && <AuditView        checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} contextSourcesScopeStats={contextSourcesScopeStats} workspaceSessions={workspaceSessions} projects={projects} teamCodes={teamCodes} externalSelectedKey={selectedAuditKey} initialFilterTeam={initialFilterTeam} />}
               {tab === 'investigate' && <InvestigateView  checkpoints={checkpoints} handoffPackages={handoffPackages} savedSelections={savedSelections} auditEvents={auditEvents} contextSourcesWithOrigin={contextSourcesWithOrigin} messageProvenance={messageProvenance} workspaceSessions={workspaceSessions} projects={projects} userEmail={userEmail} teamCodes={teamCodes} initialFilterTeam={initialFilterTeam} onAuditThis={handleAuditThis} />}
+              {tab === 'web_searches'   && <WebSearchesView   projects={projects} teamCodes={teamCodes} />}
+              {tab === 'attached_files' && <AttachedFilesView projects={projects} teamCodes={teamCodes} />}
               {tab === 'knowledge'   && <KnowledgeMap     checkpoints={checkpoints} projects={projects} />}
             </div>
           </div>

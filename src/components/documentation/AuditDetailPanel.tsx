@@ -8,6 +8,7 @@ import type { AnchorMeta } from './AuditView'
 import { DOCUMENT_MARKDOWN_REMARK_PLUGINS, DOCUMENT_MARKDOWN_COMPONENTS } from '@/lib/markdown/documentMarkdown'
 import { stripMarkdown } from '@/lib/text/stripMarkdown'
 import LoadAsContextButton from './LoadAsContextButton'
+import { TraceInformationRows, type AuditWebSearch, type AuditAttachment } from './TraceShared'
 
 // ── Panel derecho de Audit View (Fase 2, Paso 3) — reconstrucción de
 // auditoría de una ancla seleccionada. Model/Agent y Related object quedan
@@ -139,16 +140,21 @@ export default function AuditDetailPanel({
   const [messages,     setMessages]     = useState<AuditMessage[]>([])
   const [contextFiles, setContextFiles] = useState<AuditContextFile[]>([])
   const [prompts,      setPrompts]      = useState<AuditPrompt[]>([])
+  const [webSearches,  setWebSearches]  = useState<AuditWebSearch[]>([])
+  const [attachments,  setAttachments]  = useState<AuditAttachment[]>([])
   const [loading,      setLoading]      = useState(true)
   const [showTable,    setShowTable]    = useState(false)
 
   const sessionIdsKey = sessionIds.join(',')
+  // Context Files + Prompts (estado actual) + búsquedas web + adjuntos
+  // (históricos del momento — OE Trazabilidad, Parte 2).
+  const infoUsedCount = contextFiles.length + prompts.length + webSearches.length + attachments.length
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
-      setMessages([]); setContextFiles([]); setPrompts([])
+      setMessages([]); setContextFiles([]); setPrompts([]); setWebSearches([]); setAttachments([])
       try {
         const params = new URLSearchParams({
           workspaceId: meta.wsId,
@@ -160,11 +166,16 @@ export default function AuditDetailPanel({
 
         const res = await fetch(`/api/documentation/audit-detail?${params.toString()}`)
         if (!res.ok) return
-        const data = await res.json() as { messages: AuditMessage[]; contextFiles: AuditContextFile[]; prompts: AuditPrompt[] }
+        const data = await res.json() as {
+          messages: AuditMessage[]; contextFiles: AuditContextFile[]; prompts: AuditPrompt[]
+          webSearches?: AuditWebSearch[]; attachments?: AuditAttachment[]
+        }
         if (cancelled) return
         setMessages(data.messages ?? [])
         setContextFiles(data.contextFiles ?? [])
         setPrompts(data.prompts ?? [])
+        setWebSearches(data.webSearches ?? [])
+        setAttachments(data.attachments ?? [])
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -226,7 +237,7 @@ export default function AuditDetailPanel({
           <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Information used</p>
             <p className="text-sm font-semibold text-[var(--color-text-primary)] mt-0.5">
-              {loading ? '…' : `${contextFiles.length + prompts.length} source${contextFiles.length + prompts.length !== 1 ? 's' : ''}`}
+              {loading ? '…' : `${infoUsedCount} source${infoUsedCount !== 1 ? 's' : ''}`}
             </p>
           </div>
           <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 py-2.5">
@@ -308,13 +319,13 @@ export default function AuditDetailPanel({
           </p>
           {loading ? (
             <p className="text-xs text-[var(--color-text-muted)]">Loading…</p>
-          ) : (contextFiles.length === 0 && prompts.length === 0) ? (
+          ) : infoUsedCount === 0 ? (
             <p className="text-xs text-[var(--color-text-muted)]">
-              No active Context Files or Prompts found for this Team/Session right now.
-              Reflects current state, not necessarily what was active when this anchor was produced.
+              No web searches or attached files in this period, and no active Context Files or Prompts found for this Team/Session right now.
             </p>
           ) : (
             <div className="bg-[var(--color-surface-subtle)] border border-[var(--color-border-default)] rounded-xl px-4 py-3 space-y-2.5">
+              <TraceInformationRows webSearches={webSearches} attachments={attachments} />
               {contextFiles.map(cf => (
                 <div key={cf.id} className="flex items-center justify-between gap-2">
                   <span className="text-xs text-[var(--color-text-primary)] truncate">{cf.title}</span>
@@ -332,6 +343,12 @@ export default function AuditDetailPanel({
                 </div>
               ))}
             </div>
+          )}
+          {!loading && (
+            <p className="mt-2 text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+              Web searches and attached files are historical — exactly what happened in this period.
+              Context Files and Prompts reflect the current state, not necessarily what was active when this anchor was produced.
+            </p>
           )}
         </div>
 

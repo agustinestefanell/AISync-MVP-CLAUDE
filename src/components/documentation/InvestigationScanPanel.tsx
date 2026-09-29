@@ -148,9 +148,13 @@ export default function InvestigationScanPanel({
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (cancelled || !data) return
+        // Mismo conteo que AuditDetailPanel.tsx: Context Files + Prompts +
+        // búsquedas web + adjuntos (OE Trazabilidad, Parte 2).
         const cf = (data.contextFiles ?? []).length
         const pr = (data.prompts ?? []).length
-        setInfoUsedCount(cf + pr)
+        const ws = (data.webSearches ?? []).length
+        const at = (data.attachments ?? []).length
+        setInfoUsedCount(cf + pr + ws + at)
       })
       .catch(() => {})
     return () => { cancelled = true }

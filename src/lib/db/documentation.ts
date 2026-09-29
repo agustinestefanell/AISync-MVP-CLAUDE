@@ -459,7 +459,7 @@ interface HierarchyMaps {
 
 // context_sources.team_id/project_id son TEXT libres (migración 017, sin FK real) —
 // se resuelven contra estas 3 tablas chicas en vez de un join SQL directo.
-async function getHierarchyMaps(supabase: ReturnType<typeof createClient>): Promise<HierarchyMaps> {
+export async function getHierarchyMaps(supabase: ReturnType<typeof createClient>): Promise<HierarchyMaps> {
   const [{ data: workspaces }, { data: teams }, { data: projects }] = await Promise.all([
     supabase.from('workspaces').select('id, name, team_id'),
     supabase.from('teams').select('id, name, status, project_id'),
