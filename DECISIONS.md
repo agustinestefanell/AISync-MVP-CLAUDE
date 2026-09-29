@@ -1745,3 +1745,23 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Decisión asociada — `message_id` sin FK:** la búsqueda se guarda antes que la respuesta, así que una FK rechazaría la fila y se perdería la búsqueda. Consecuencia aceptada: búsquedas huérfanas (respuesta nunca guardada). Regla obligatoria para la Parte 2 registrada en `AISyncPlans.md`: la búsqueda es el objeto principal y siempre se muestra, el vínculo al mensaje es opcional (nunca INNER JOIN), "Response not saved (interrupted)" si no existe. Confirmado en producción el mismo día con un caso real (búsqueda con Google, 2026-09-29 18:32 UTC).
 
 **Referencia:** `supabase/migrations/062_tool_calls_traceability.sql`, `src/app/api/messages/route.ts`, `src/lib/supabase/admin.ts`, handoff-2026-07-c.md OE 2026-09-29 (Parte 1).
+
+---
+
+## 2026-09-29 — Trazabilidad en Documentation Mode: 2 pestañas propias, carga al abrir, sin salto al mensaje
+
+**Contexto:** OE Trazabilidad de búsquedas web y adjuntos, Parte 2 (Opción B): hacer visibles en Documentation Mode las búsquedas web y los adjuntos registrados desde la Parte 1.
+
+**Decisión 1 — pestañas propias "Web Searches" y "Attached Files" (Agus):** el primer plan los sumaba como un tipo más dentro de Repository View e Investigate View (vía `buildAnchors()`). Agus lo cambió después de verlo: la naturaleza de Documentation Mode es dar accesos distintos a la misma información — cada pestaña es un ángulo — y una búsqueda o un adjunto merecen su propio ángulo. Consecuencia técnica: `buildAnchors()`, la lista de Audit View y el índice del SM no cambian; las pestañas nuevas tienen loaders propios (`src/lib/db/documentation-trace.ts`).
+
+**Decisión 2 — carga al abrir la pestaña, no en la carga inicial de `/documentation`:** `documentation/page.tsx` ya trae todo lo de las 5 pestañas existentes; sumar búsquedas, adjuntos y la resolución de fragmentos de respuesta la haría más lenta para todos, aunque no abran estas pestañas. Endpoints propios `GET /api/documentation/web-searches` y `/attached-files`.
+
+**Decisión 3 — "Open in Workspace" abre al final + fecha/hora exactas, sin salto al mensaje (Agus):** saltar al mensaje exacto exige tocar `WorkspaceShell` y `AgentPanel` (zonas sensibles §9.1/§9.2 de AISyncPlans, incluido el auto-scroll al último mensaje). Descartado para esta OE; se evalúa en una tarea dedicada si hace falta.
+
+**Decisión 4 — sin escaneo con IA sobre búsquedas/adjuntos (Agus):** habilitarlo requiere migrar la restricción de 5 tipos de `investigation_snapshot.anchor_object_type`. Las pestañas son de solo lectura.
+
+**Decisión 5 — adjuntos legacy agrupados al mostrar (Agus):** los duplicados pre-Parte 1 se muestran como una sola fila por sesión + archivo (la más temprana, "Legacy record"). La base no se toca.
+
+**Reglas de datos adoptadas:** una búsqueda sin `message_id` es **legacy** (anterior a la migración 062), no huérfana — si no se distingue, la regla de huérfanas marcaría como "interrumpidas" las 59 búsquedas históricas. El fragmento de respuesta para adjuntos y búsquedas legacy es "el siguiente mensaje del agente en la misma sesión", **solo si** no hay un mensaje del usuario en el medio (si lo hay, la respuesta de ese turno nunca se guardó y emparejar con un turno posterior sería un dato falso).
+
+**Referencia:** `src/lib/db/documentation-trace.ts`, `src/components/documentation/WebSearchesView.tsx`, `AttachedFilesView.tsx`, `TraceShared.tsx`, `src/app/api/documentation/web-searches/route.ts`, `attached-files/route.ts`, `audit-detail/route.ts`, handoff-2026-07-c.md OE 2026-09-29 Parte 2.

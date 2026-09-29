@@ -165,7 +165,10 @@ components/
     AuditClient.tsx              ← Cliente del Audit Log (dynamic import, ssr:false)
     AuditTimeline.tsx            ← Calendario Month/Week/Day nativo (sin librerías)
   documentation/
-    DocClient.tsx                ← Orquestador: SM Panel + 5 tabs
+    DocClient.tsx                ← Orquestador: SM Panel + 7 tabs
+    WebSearchesView.tsx          ← Pestaña "Web Searches" (2026-09-29, solo lectura)
+    AttachedFilesView.tsx        ← Pestaña "Attached Files" (2026-09-29, solo lectura)
+    TraceShared.tsx              ← Piezas compartidas de las 2 pestañas + filas de "Information used"
     RepositoryView.tsx           ← Vista principal: lista + filtros + panel detalle
     StructureView.tsx            ← DocumentationMirrorTree (pan/zoom/drag)
     AuditView.tsx                ← Trazabilidad documental
@@ -398,7 +401,7 @@ AgentPanel (memo(forwardRef) → AgentPanelHandle)
 DocClient (Client)
   ├── SMPanel                   ← sidebar izquierdo (20rem | 52px collapsed)
   └── div.flex-1
-      ├── Tab bar               ← Repository | User Library | Audit | Investigate | Knowledge
+      ├── Tab bar               ← User Library | Repository | Audit | Investigate | Web Searches | Attached Files | Knowledge (flex-wrap)
       └── Vista activa
             repository  → RepositoryView
                             └── CheckpointDetailPanel / HandoffDetailPanel / SavedSelectionDetailPanel
@@ -412,8 +415,14 @@ DocClient (Client)
                             └── InvestigationScanPanel (panel derecho, Fase A)
                                   ├── ExpandContentModal (2026-08-26, "Open Evidence")
                                   └── LoadAsContextButton (2026-08-26)
+            web_searches   → WebSearchesView (2026-09-29) — fetch propio al abrir (/api/documentation/web-searches)
+                               └── WebSearchDetail (fuentes + fragmento de respuesta + Open in Workspace)
+            attached_files → AttachedFilesView (2026-09-29) — fetch propio al abrir (/api/documentation/attached-files)
+                               └── AttachedFileDetail (metadata + fragmento de respuesta + Open in Workspace)
             knowledge   → KnowledgeMap (dynamic, ssr:false)
 ```
+
+**Pestañas "Web Searches" y "Attached Files" (OE Trazabilidad Parte 2, 2026-09-29):** pestañas propias (no un tipo dentro de Repository/Investigate — decisión de Agus: cada pestaña es un ángulo sobre la misma información). **No usan `buildAnchors()`** ni entran al índice del SM ni a la lista de Audit View. Datos cargados al abrir la pestaña (no en `documentation/page.tsx`) desde `src/lib/db/documentation-trace.ts` (`getDocWebSearches()` / `getDocAttachments()`, reutiliza `getHierarchyMaps()` exportado de `documentation.ts`). Solo lectura, sin escaneo con IA (`investigation_snapshot` no se tocó). Reglas: (1) estado de búsqueda `linked`/`interrupted`/`failed`/`legacy` — legacy (sin `message_id`, pre-062) **no** es huérfana; (2) fragmento de respuesta: exacta por `message_id`, o "siguiente mensaje del agente en la misma sesión" para adjuntos y búsquedas legacy — si el primer mensaje posterior es del usuario, no se empareja (`none`); (3) adjuntos legacy agrupados por sesión + archivo al mostrar, sin tocar la base; (4) "Open in Workspace" abre el workspace al final (sin salto al mensaje — no se tocó `WorkspaceShell`/`AgentPanel`) y muestra fecha/hora exactas con segundos para ubicar el evento. Fragmentos recortados server-side con `stripMarkdown` (600 chars), nunca el texto completo al navegador.
 
 `ExpandContentModal` y `LoadAsContextButton` viven en `src/components/documentation/` como componentes compartidos entre vistas (no exclusivos de Investigate View) — ver detalle de comportamiento más abajo.
 
@@ -423,7 +432,7 @@ DocClient (Client)
 
 **Investigate View rediseñada — Fase A (2026-08-20):** master-detail sobre las mismas 5 anclas de `anchors.ts` — Investigation Brief (campo de foco libre + filtros Project/Team/Type/Date range) + Top Stats (`Anchors in scope`, `Events in selected range`) + lista con badge "Used downstream"/"Not used yet" y botón `Inspect`. Panel derecho `InvestigationScanPanel`: 2 botones reales (NO tabs) `Session Scan`/`Deep Search` con ícono "i" (tooltip propio por botón) + aviso de costo antes de ejecutar Deep Search (estimación liviana de mensajes, `GET /api/investigation-scan?workspaceId=`), resultado con Verdict (yes/partial/no/inconclusive), Justification Summary, Evidence Used, y Scope transparency (Scanned/Not scanned) — siempre la fuente de verdad real de esa corrida (`sourcesScanned`/`sourcesNotScanned` devueltos por el endpoint), nunca un texto estático. Explícitamente fuera de esta fase: Evidence Funnel con scoring automático, Evidence Board categorizado, "Investigation Cases" persistentes navegables, y cualquier extensión del panel SM lateral.
 
-**How to use guides por vista:** Repository = recuperación rápida y acceso diario. User Library = organización por tags manuales sobre Save Selections. Audit = trazabilidad documental interna (distinta del Audit Log global). Investigate = reconstrucción profunda de temas. Knowledge Map = relaciones visuales entre objetos del repositorio. Los guides viven en el array `TABS` de `DocClient.tsx` como campos `guide` en template literals — el de User Library es el único bilingüe (inglés/español, mismo texto exacto que el estado vacío de la vista, exportado como `USER_LIBRARY_GUIDE` desde `UserLibraryView.tsx` para que ambos usos nunca diverjan).
+**How to use guides por vista:** Repository = recuperación rápida y acceso diario. User Library = organización por tags manuales sobre Save Selections. Audit = trazabilidad documental interna (distinta del Audit Log global). Investigate = reconstrucción profunda de temas. Web Searches = de dónde salió la información de una respuesta (fuentes y citas). Attached Files = qué archivos se compartieron, dónde y qué respondió el agente. Knowledge Map = relaciones visuales entre objetos del repositorio. Los guides viven en el array `TABS` de `DocClient.tsx` como campos `guide` en template literals — el de User Library es el único bilingüe (inglés/español, mismo texto exacto que el estado vacío de la vista, exportado como `USER_LIBRARY_GUIDE` desde `UserLibraryView.tsx` para que ambos usos nunca diverjan).
 
 **Flujo de contexto SM**: `DocClient.pageContext` se construye con `filteredCheckpoints` (post-filtros de RepositoryView). `onFilterChange` notifica al padre cuando cambian los filtros. SM busca solo dentro del contexto activo.
 
@@ -699,14 +708,14 @@ Ver sección 10.
 |---|---|---|---|
 | GET | `/api/active-workspace` | workspaces, agent_sessions | Session |
 | GET/POST | `/api/audit` | audit_log | Session — POST devuelve `{ ok, id }` desde migración 055 (2026-08-19), antes solo `{ ok }` |
-| POST | `/api/chat` | audit_log (context_file_injected, solo si hay Context Files incluidos) — resto streaming, no escribe en DB | Session |
+| POST | `/api/chat` | audit_log (context_file_injected, solo si hay Context Files incluidos; attachment_uploaded; tool_call_executed; tool_call_failed), session_attachments (solo adjuntos del mensaje nuevo, con `message_id` + `size_bytes`), session_tool_calls (`message_id`, `status`, `error` saneado, fuentes ampliadas), token_usage — la respuesta es streaming | Session — recibe `user_message_id`/`assistant_message_id` generados por `AgentPanel` (OE Trazabilidad Parte 1, 2026-09-29, migración 062) |
 | GET/POST | `/api/checkpoint` | checkpoints, checkpoint_messages | Session |
 | GET | `/api/checkpoint/[id]` | checkpoint_messages | Session |
 | GET/POST/DELETE | `/api/connections` | team_connections | Session |
 | PATCH/DELETE | `/api/connections/[id]` | team_connections, teams, workspaces, agent_sessions, audit_log (connection_accepted), user_api_keys (lectura) | Session — PATCH `action: 'accept'` crea los isolated teams de Host e Invitee. El provider/model default del Host se hereda de su propio team original; el del Invitee se calcula con `pickDefaultProvider()` sobre sus propias `user_api_keys` (Ajuste 4, 2026-08-24 — antes heredaba ciegamente el del Host) |
 | GET/POST | `/api/context` | context_sources, audit_log (context_file_uploaded) | Session |
 | POST | `/api/handoff-package` | handoff_packages | Session |
-| POST | `/api/messages` | messages (+ provider/model poblados vía lookup a agent_sessions), message_provenance (opcional, si el body trae `provenance`: `checkpoint`\|`handoff_package`\|`saved_selection`\|`review_forward` desde migración 055), audit_log (attachment_summary_generated) | Session — fire-and-forget AI summary generation for attachments |
+| POST | `/api/messages` | messages (+ provider/model poblados vía lookup a agent_sessions), message_provenance (opcional, si el body trae `provenance`: `checkpoint`\|`handoff_package`\|`saved_selection`\|`review_forward` desde migración 055), audit_log (attachment_summary_generated), session_tool_calls (solo `cited_urls`, con `createAdminClient()`, una sola escritura — sin policy de UPDATE, ver DECISIONS.md 2026-09-29) | Session — fire-and-forget AI summary generation for attachments. Acepta `id` opcional por mensaje (UUID validado) para vincular adjuntos/búsquedas (2026-09-29) |
 | POST | `/api/save-selection` | saved_selections, saved_selection_tags (opcional, si el body trae `tagIds`, migración 058), audit_log | Session |
 | GET/POST | `/api/tags` | tags | Session — User Library (2026-08-21). POST hace upsert-like: si el nombre ya existe para la cuenta (`UNIQUE account_id,name`), devuelve el tag existente en vez de error |
 | PATCH | `/api/tags/[id]` | tags | Session — "Edit Tag" (2026-08-22, migración 059). Rename y/o color (paleta fija en la UI, no color picker libre). 409 si el nombre ya existe para la cuenta |
@@ -720,7 +729,9 @@ Ver sección 10.
 | PATCH/DELETE | `/api/teams/[id]` | teams, agent_sessions, entity_name_history, audit_log (agent_model_changed) | Session |
 | PATCH/DELETE | `/api/projects/[id]` | projects, entity_name_history | Session |
 | GET | `/api/documentation/handoff/[id]` | handoff_packages (status → 'received', primera apertura), audit_log (handoff_received) | Session — único GET con side-effect deliberado en el proyecto, ver route.ts |
-| GET | `/api/documentation/audit-detail` | messages (lectura), context_sources (lectura), prompt_assignments + prompt_library (lectura) | Session — on-demand para el panel derecho de Audit View (Fase 2 Paso 3), no escribe nada |
+| GET | `/api/documentation/audit-detail` | messages (lectura), context_sources (lectura), prompt_assignments + prompt_library (lectura), session_tool_calls + session_attachments (lectura, misma ventana de tiempo del ancla — desde 2026-09-29) | Session — on-demand para el panel derecho de Audit View (Fase 2 Paso 3) y el conteo "Information used" de Investigate View, no escribe nada. Devuelve también `webSearches` (con estado linked/interrupted/failed/legacy) y `attachments` (legacy agrupado) |
+| GET | `/api/documentation/web-searches` | session_tool_calls, agent_sessions, workspaces/teams/projects, messages (lectura) | Session — pestaña "Web Searches" (OE Trazabilidad Parte 2, 2026-09-29). Se llama al abrir la pestaña, no en la carga inicial de `/documentation`. Solo lectura, RLS. Loader: `getDocWebSearches()` |
+| GET | `/api/documentation/attached-files` | session_attachments, agent_sessions, workspaces/teams/projects, messages (lectura) | Session — pestaña "Attached Files" (OE Trazabilidad Parte 2, 2026-09-29). Se llama al abrir la pestaña. Solo lectura, RLS. Loader: `getDocAttachments()` |
 | GET/POST | `/api/investigation-scan` | messages (lectura), agent_sessions (lectura), saved_selections/handoff_packages/message_provenance (lectura, solo para resolver sesión de origen), investigation_snapshot (insert, fail-open) | Session — endpoint dedicado de Investigate View (Fase A, 2026-08-20), NO comparte código con `/api/sm-doc-chat`. GET devuelve estimación liviana de mensajes para el aviso de costo de Deep Search. POST ejecuta Session Scan/Deep Search con system prompt propio (role `investigation_scan`, migración 056) |
 | POST | `/api/workspace/[id]/lock` | workspaces | Session |
 | GET/POST | `/api/admin/prompts` | prompt_library | Admin role |
@@ -1275,7 +1286,7 @@ No urgente, no bloquea nada — separado del fix de prompt, que ya está aplicad
 - **(b) Repository View e Investigate View:** búsquedas y adjuntos aparecen como filas propias (mismo patrón que Handoff Package / Saved Selection), buscables y filtrables.
 - Se apoya en el mismo `message_id` y las mismas columnas nuevas que se crean para esta OE — **no es un frente aparte**, se suma al alcance de esta misma tarea.
 
-**Estado (2026-09-29):** OE abierta con autorización explícita de Agus. **Parte 1 (base de datos confiable) CERRADA 2026-09-29** — migración `062_tool_calls_traceability.sql` aplicada, commit `a92bec5`, verificada en producción con SELECT (ver handoff-2026-07-c.md OE 2026-09-29 Parte 1). **Parte 2 (Opción B) pendiente de autorización separada de Agus** — todavía no arrancada.
+**Estado (2026-09-29):** OE abierta con autorización explícita de Agus. **Parte 1 (base de datos confiable) CERRADA 2026-09-29** — migración `062_tool_calls_traceability.sql` aplicada, commit `a92bec5`, verificada en producción con SELECT (ver handoff-2026-07-c.md OE 2026-09-29 Parte 1). **Parte 2 CERRADA 2026-09-29** — autorizada por Agus con diseño revisado (2 pestañas propias "Web Searches" / "Attached Files" en vez de un tipo dentro de Repository/Investigate), commit `8ed5ba6`, sin migración, verificación visual de Agus en producción OK en los 4 puntos. Ver sección 3.5 y handoff-2026-07-c.md OE 2026-09-29 Parte 2. **OE completa cerrada.** Pendiente aparte, no bloqueante: medir el costo en tokens de pedirle al agente tema/contexto/pregunta en cada búsqueda (con llamadas reales a los 3 providers); salto automático al mensaje exacto desde "Open in Workspace" (requiere tocar `WorkspaceShell`/`AgentPanel`, evaluar en tarea dedicada); escaneo con IA sobre búsquedas/adjuntos (requiere migración de `investigation_snapshot`).
 
 **Schema resultante (migración 062):** `session_tool_calls` + `message_id uuid` (sin FK, → `messages.id` de la respuesta), `status text NOT NULL DEFAULT 'success'` (`success`/`error`), `error text` (categoría saneada), `cited_urls jsonb` (NULL = no evaluado, [] = ninguna citada). Índices por `message_id` en `session_tool_calls` y `session_attachments`. `sources` (jsonb, sin cambio de schema) ahora guarda por fuente `url`, `clean_url`, `title`, `published_date`, `position`. Evento nuevo en `audit_log`: `tool_call_failed`. `session_attachments.message_id` (ya existía, text) ahora se completa con `messages.id` del mensaje del usuario. **Patrón de ids:** `AgentPanel.tsx` genera `userMessageId`/`assistantMessageId` con `crypto.randomUUID()` antes de enviar; `/api/chat` los recibe como `user_message_id`/`assistant_message_id` y `/api/messages` acepta `id` opcional (validado como UUID).
 

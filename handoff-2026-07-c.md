@@ -1878,3 +1878,49 @@ Google en modo búsqueda: la búsqueda se ejecuta con éxito pero la respuesta f
 **Archivos modificados en el cierre:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `CodingWorkshop.md`, `AISyncPlans.md`.
 
 ---
+
+## 2026-09-29 — OE Trazabilidad — Parte 2: visibilidad en Documentation Mode (CERRADA)
+
+**Fecha:** 2026-09-29
+**Estado:** Closed. Código: commit `8ed5ba6` (deploy de Vercel confirmado "Deployment has completed", 21:36 UTC). Sin migración. **Con esto la OE de trazabilidad queda completa (Parte 1 + Parte 2).**
+**Autorización:** Agus autorizó la Parte 2 por separado. Diseño revisado por Agus antes de programar: 2 pestañas propias en vez de un tipo dentro de Repository/Investigate.
+
+### Qué se hizo
+
+- **2 pestañas nuevas en Documentation Mode**, orden confirmado: User Library · Repository View · Audit View · Investigate View · **Web Searches** · **Attached Files** · Knowledge Map. Cada una con su guía "How to use" (inglés). Barra de pestañas con `flex-wrap` para pantallas angostas.
+- **Carga al abrir la pestaña** vía `GET /api/documentation/web-searches` y `/attached-files` (no en la carga inicial de la página). Solo lectura, cliente del usuario (RLS).
+- **Loaders** en `src/lib/db/documentation-trace.ts`: `getDocWebSearches()` / `getDocAttachments()`. Reutilizan `getHierarchyMaps()` (ahora exportado de `documentation.ts`). Paginación de a 1000 filas, `.in()` en tandas de 100 ids, concurrencia acotada (8) para las respuestas por tiempo.
+- **Web Searches:** estado por búsqueda (linked → Cited N of M / No sources cited / Citations not evaluated; interrupted; failed; legacy → Recorded before linking), fuentes con posición/título/dominio/fecha de publicación/✓ citada, fragmento de la respuesta (exacta por `message_id`; legacy por tiempo, rotulada "Matched by time"; interrumpida → aviso explícito de que los resultados no se usaron). Filtros: texto (consulta, título de fuente, dominio), Project, Team, estado, provider, agente, fecha, orden.
+- **Attached Files:** nombre, extensión, tipo, tamaño, fecha, agente, provider, Project/Team/Workspace; aviso "File content is not stored — metadata only"; legacy agrupado por sesión + archivo ("Legacy record", con cantidad de duplicados agrupados); fragmento de la siguiente respuesta del agente. Filtros: nombre/extensión, Project, Team, tipo, extensión, fecha, orden.
+- **Open in Workspace:** abre el workspace al final (como el resto de Documentation Mode) y muestra en qué chat fue y la fecha/hora exactas con segundos. **No se tocaron `WorkspaceShell` ni `AgentPanel`.**
+- **Audit View:** `audit-detail` suma búsquedas y adjuntos de las mismas sesiones y ventana de tiempo del ancla; "Information used" cuenta Context Files + Prompts + búsquedas + adjuntos, con nota de que búsquedas/adjuntos son históricos. `InvestigationScanPanel` cuenta lo mismo.
+
+### Evidencia de verificación
+
+- Lint ✅ (solo warnings preexistentes de `CanvasViewport.tsx`), build ✅ con chequeo de tipos; rutas nuevas compiladas.
+- Conteo esperado calculado antes del deploy con SELECT de solo lectura sobre la cuenta de Agus: Web Searches 64 (59 legacy, 3 no citadas, 1 interrumpida — la de Google del 29/09 —, 1 con citas — la del dólar); Attached Files 16 filas (1 vinculada + 15 legacy agrupadas desde 30 filas con duplicados).
+- **Verificación visual de Agus en producción: completa y correcta en los 4 puntos** — (1) Web Searches con contadores y estados; (2) Attached Files con fragmento de respuesta y Legacy record; (3) Audit View mostrando la búsqueda del 25/09 en "Information used" (antes "0 sources"); (4) Open in Workspace y filtros funcionando.
+
+### Decisiones y alternativas descartadas
+
+Ver `DECISIONS.md` 2026-09-29 ("Trazabilidad en Documentation Mode"). Resumen: tipo dentro de Repository/Investigate → descartado por Agus a favor de pestañas propias; carga en `page.tsx` → descartada por costo para todas las pestañas; salto al mensaje exacto → descartado para esta OE (zonas sensibles); escaneo con IA → descartado (requiere migración de `investigation_snapshot`).
+
+### Riesgos conocidos / deuda técnica
+
+- La pestaña carga todas las búsquedas/adjuntos del usuario de una vez; las respuestas por tiempo hacen 1 consulta por ítem (acotada a 8 en paralelo). Hoy son ~64 + ~16 ítems; con mucho volumen convendrá paginar o precalcular.
+- El fragmento "por tiempo" (legacy y adjuntos) es una aproximación, rotulada como tal; solo el vínculo por `message_id` es exacto.
+- Pendientes aparte, no bloqueantes: medición de tokens de tema/contexto/pregunta (con llamadas reales a los 3 providers); salto automático al mensaje exacto; escaneo con IA sobre búsquedas/adjuntos; hallazgo separado de Google en modo búsqueda (ver `AISyncPlans.md`).
+- SEC-011 sigue OPEN: nada de esta OE se probó en local.
+
+### Documentación actualizada en el cierre
+
+- `PRODUCT_STATUS.md`: Hallazgo 1 (fuentes que no respaldan la respuesta) → ✅ Closed; Hallazgo 4 (Audit View ciego a búsquedas) → ✅ Closed; fila de la OE → Closed (Parte 1 + Parte 2).
+- `AISyncPlans.md`: endpoints nuevos en 6.1 (`/api/documentation/web-searches`, `/attached-files`) y `audit-detail` ampliado; filas de `/api/chat` y `/api/messages` corregidas (estaban desactualizadas desde la Parte 1: `/api/chat` decía "no escribe en DB"); árbol de componentes (2.2 y 3.5) con las 2 pestañas y `TraceShared.tsx`; párrafo de reglas de las pestañas; estado de la OE → cerrada.
+- `DECISIONS.md`: entrada 2026-09-29 con las 5 decisiones de la Parte 2.
+- `CodingWorkshop.md`: sin cambios — no hubo bug ni lección técnica nueva en la Parte 2 (la distinción legacy vs. huérfana quedó como regla de datos en DECISIONS).
+- `AUDIT_REPORT.md`: sin cambios — solo lectura, sin permisos nuevos; SEC-011 sigue OPEN.
+
+**Archivos de código (commit `8ed5ba6`):** `src/lib/db/documentation-trace.ts` (nuevo), `src/lib/db/documentation.ts` (export de `getHierarchyMaps`), `src/app/api/documentation/web-searches/route.ts` (nuevo), `src/app/api/documentation/attached-files/route.ts` (nuevo), `src/app/api/documentation/audit-detail/route.ts`, `src/components/documentation/TraceShared.tsx` (nuevo), `WebSearchesView.tsx` (nuevo), `AttachedFilesView.tsx` (nuevo), `DocClient.tsx`, `AuditDetailPanel.tsx`, `InvestigationScanPanel.tsx`.
+**Archivos del cierre:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `AISyncPlans.md`, `DECISIONS.md`.
+
+---
