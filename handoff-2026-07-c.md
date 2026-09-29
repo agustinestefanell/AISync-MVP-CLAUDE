@@ -1800,10 +1800,10 @@ Ninguna implementación. Se decidió (Agus): (a) no abrir la OE de `route.ts` to
 
 ---
 
-## 2026-09-29 — OE Trazabilidad de búsquedas web y adjuntos — Parte 1 (en curso)
+## 2026-09-29 — OE Trazabilidad de búsquedas web y adjuntos — Parte 1 (CERRADA)
 
 **Fecha:** 2026-09-29
-**Estado:** En curso — código listo y verificado con lint/build + reproducción aislada. Migración `062_tool_calls_traceability.sql` escrita, **no aplicada**, esperando confirmación explícita de Agus. Sin commit todavía (el código escribe columnas nuevas: subirlo antes de aplicar la 062 haría que búsquedas y adjuntos dejen de registrarse en silencio).
+**Estado:** **Closed** — ver "Cierre de la Parte 1" al final de esta entrada. Historial: código listo y verificado con lint/build + reproducción aislada. Migración `062_tool_calls_traceability.sql` (versión final, sin policy de UPDATE) **confirmada y aplicada por Agus en Supabase SQL Editor el 2026-09-29**, verificada por Agus con SELECT directo sobre `information_schema.columns`: `message_id` uuid null, `cited_urls` jsonb null, `status` text NOT NULL default 'success', `error` text null. Código commiteado y pusheado recién después de esa verificación (commit `a92bec5`; subirlo antes habría hecho que búsquedas y adjuntos dejaran de registrarse en silencio). Después: prueba real de punta a punta en producción y cierre completo (abajo).
 **Autorización:** Agus autorizó explícitamente tocar `chat/route.ts` (pipeline crítico) para esta OE. SEC-011 sigue OPEN: nada se corre en local contra la base; solo SELECT de lectura.
 
 ### Decisiones confirmadas por Agus durante la revisión del SQL
@@ -1830,5 +1830,51 @@ Reproducción aislada (Node, sin base): 1 adjunto + 5 mensajes → 5 filas antes
 - Una mención por nombre ("según AccuWeather") no cuenta como cita — solo URLs escritas.
 - El archivo adjunto sigue viajando completo al proveedor en cada mensaje (el modelo lo necesita para recordarlo); fuera de alcance.
 - `cited_urls` refleja el texto de la respuesta tal como se guarda; si un usuario fabricara su propio mensaje, las citas reflejarían ese texto (igual que cualquier mensaje hoy).
+
+---
+
+## 2026-09-29 — OE Trazabilidad — Cierre de la Parte 1 (continuación de la entrada anterior)
+
+**Fecha:** 2026-09-29
+**Estado:** Closed. Código en producción: commit `a92bec5` (deploy de Vercel confirmado "Deployment has completed", 18:25 UTC). Cierre documental en el commit siguiente.
+
+### Constancia explícita — sin cambios visibles en pantalla
+
+La Parte 1 **no tiene ningún cambio visible en la interfaz**. Toda la verificación de producción es **evidencia de datos** (los SELECT de abajo), no una captura de UI. Es lo esperado: Documentation Mode todavía no muestra nada de esto porque hacerlo visible es exactamente el alcance de la Parte 2.
+
+### Evidencia de producción (solo SELECT, desde 18:25 UTC)
+
+Agus hizo 2 pruebas separadas (no la secuencia única de 5 mensajes planeada), verificadas por separado:
+
+**Prueba 1 — adjunto PDF** (BARRIO HIPICO / $ PROPUESTA DE NEGOCIOS, manager Anthropic Sonnet 4.6, sesión `0cc89944`; según la base fue a las 18:29 UTC = 3:29 pm, no 3:39 pm):
+- Mensajes: `d69d854f` user [adjunto] 18:29:03 → respuesta → `9858ac5d` user 18:31:05 → respuesta → `0c4e74c5` user 18:31:57 → respuesta.
+- `session_attachments`: **1 fila** — `Estimacion rapida v2.pdf`, `size_bytes` 163778, `message_id` `d69d854f-3dab-468d-a642-87c221795615` → existe en `messages` como mensaje del usuario. Duplicados: 0. Con la lógica anterior habrían sido 3 filas.
+- `audit_log`: `attachment_uploaded` = 1.
+
+**Prueba 2 — búsqueda del dólar** (Project A / ARQUITECTURA, sesión manager `8005fb0a`):
+- Intento 1, 18:32:45, **Google Gemini 3.5 Flash**: búsqueda `status='success'` ("cotizacion dolar uruguay hoy"), `message_id` `fb20e141-...` → **sin mensaje (huérfana)**, `cited_urls` NULL. `token_usage`: solo `response_usage` de Google (101 tokens de entrada), sin `stream_final`. 18:33:04 `agent_model_changed` Google → Anthropic. Caso real exacto de la regla de huérfanas: antes de esta OE no hubiera dejado ninguna señal.
+- Intento 2, 18:33:32, **Anthropic Sonnet 4.6**: búsqueda `status='success'` ("cotización dólar Uruguay hoy 2026"), `message_id` `bde3231e-142f-4bbb-af6c-10f547878b68` → respuesta guardada. `cited_urls`: `uy.cotizacion-dolar.com/`, `datosuruguay.com/dolar`, `westernunion.com/.../usd-to-uyu-rate.html`, `brou.com.uy/en/cotizaciones`. Fuente 1: `{"url":"https://uy.cotizacion-dolar.com","title":"Cotización Dólar Uruguay - Precio del Dólar hoy en Uruguay","position":1,"clean_url":"https://uy.cotizacion-dolar.com/","published_date":null}`.
+
+**Datos extra del mismo rango:** 2 búsquedas en Barrio Hípico (18:29, Guyer & Regules / Estudio Durand) vinculadas a la misma respuesta `33927b57` (varias búsquedas por respuesta funcionan) con `cited_urls: []` — la respuesta nombra los estudios sin links (límite conocido). Búsqueda de la UR con OpenAI GPT-5.5 (worker1, 18:34) vinculada a su respuesta `d1afb885`, `cited_urls: []` (nombra a la DGI sin link). `published_date` vacía en todas: Tavily solo la informa en búsquedas de noticias.
+
+**No cubierto por la prueba real:** búsqueda fallida (no forzable en producción sin romper la clave de Tavily) — cubierta por la prueba aislada.
+
+### Hallazgo nuevo, separado de esta OE
+
+Google en modo búsqueda: la búsqueda se ejecuta con éxito pero la respuesta final puede no llegar a guardarse (intento 1 de la prueba 2). Coincide con el diagnóstico previo (`google.ts` `complete()` envía solo el último mensaje). Registrado en `AISyncPlans.md` como pendiente de investigar aparte, sin alcance ni prioridad, y en `PRODUCT_STATUS.md`. No se mezcla con esta OE.
+
+### Documentación actualizada en el cierre
+
+- `PRODUCT_STATUS.md`: Hallazgo 2 y 3 → Closed; Hallazgo 1 → Parcial (datos ✅, visibilidad Parte 2); Hallazgo 4 → Open (Parte 2); fila nueva del hallazgo de Google; fila de la OE (Parte 1 ✅ / Parte 2 pendiente).
+- `DECISIONS.md` 2026-09-29: sin policy de UPDATE, `cited_urls` solo desde el servidor con cliente admin y escritura única; alternativas descartadas; `message_id` sin FK.
+- `CodingWorkshop.md` 2026-09-29: RLS limita filas, no columnas; orden de deploy cuando el código escribe columnas nuevas; valor de la prueba real frente a la aislada.
+- `AISyncPlans.md`: estado de la OE (Parte 1 cerrada), schema resultante de la 062 y patrón de ids; pendiente aparte de Google.
+- `AUDIT_REPORT.md`: sin cambios — la decisión de no abrir UPDATE evita un hallazgo nuevo; SEC-011 sigue OPEN.
+
+### Próximo paso
+
+**Parte 2 (Opción B) no arrancada** — requiere autorización separada de Agus. La medición de tokens (tema/contexto/pregunta) sigue pendiente para después de las Partes 1 y 2.
+
+**Archivos modificados en el cierre:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `DECISIONS.md`, `CodingWorkshop.md`, `AISyncPlans.md`.
 
 ---

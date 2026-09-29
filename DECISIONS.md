@@ -1724,3 +1724,24 @@ El texto le pide al modelo gestionar la extensión según lo que el contenido re
 **Alternativas descartadas:** duplicar la lógica de `handleFileSelect` dentro de `handlePaste` — descartada por el riesgo de que las dos rutas diverjan si se edita una y no la otra.
 
 **Referencia:** `src/components/workspace/AgentPanel.tsx` (commits `f1c02d1`, `836f50f`), handoff-2026-07-c.md OE 2026-09-16 (2).
+
+---
+
+## 2026-09-29 — `session_tool_calls` sin policy de UPDATE: `cited_urls` se escribe solo desde el servidor con cliente admin, una sola vez
+
+**Contexto:** OE Trazabilidad de búsquedas web y adjuntos, Parte 1 (migración 062). Para registrar qué fuentes cita realmente la respuesta (`cited_urls`) hace falta escribir en una fila de `session_tool_calls` DESPUÉS de crearla (la respuesta completa recién se conoce cuando el cliente la guarda en `/api/messages`). La primera versión del SQL agregaba una policy `session_tool_calls_update`.
+
+**Problema detectado en la revisión (pregunta de Agus, mismo nivel de cuidado que SEC-002):** una policy de RLS en Postgres decide **qué filas** se pueden modificar, no **qué columnas**. Esa policy habría permitido al dueño de la sesión reescribir consulta, fuentes, status, error y `message_id` de sus propias búsquedas — incluso llamando a Supabase directo, sin pasar por la app. Contradice el objetivo de la OE: una búsqueda registrada no debe poder reescribirse.
+
+**Decisión:** la migración 062 **no crea ninguna policy de UPDATE** (como en el diseño original de la tabla — ningún usuario puede modificar filas por ningún camino). `cited_urls` la escribe únicamente `/api/messages`, en el servidor, con `createAdminClient()` (mismo patrón aceptado en SEC-001): primero se buscan las búsquedas de esa respuesta con el cliente del usuario (RLS verifica ownership), y el cliente admin solo actualiza esos ids, solo la columna `cited_urls`, y solo si sigue en NULL (`.is('cited_urls', null)` en el SELECT y en el UPDATE) → una sola escritura posible.
+
+**Alternativas descartadas:**
+- **Policy de UPDATE por fila** — abre todas las columnas (ver arriba).
+- **`GRANT UPDATE (cited_urls)` a nivel columna** — protege las otras columnas, pero deja que el usuario escriba citas falsas en `cited_urls`, y es frágil frente a los permisos por defecto que Supabase otorga sobre las tablas.
+- **Función `SECURITY DEFINER` que reciba las URLs citadas** — mejor que la policy, pero el usuario puede invocarla directo y cargar citas inventadas.
+
+**Límite aceptado:** `cited_urls` se calcula sobre el texto de la respuesta tal como se guarda; si un usuario fabricara el texto de su propio mensaje, las citas reflejarían ese texto — posibilidad que ya existe hoy con cualquier mensaje, esta decisión no la empeora.
+
+**Decisión asociada — `message_id` sin FK:** la búsqueda se guarda antes que la respuesta, así que una FK rechazaría la fila y se perdería la búsqueda. Consecuencia aceptada: búsquedas huérfanas (respuesta nunca guardada). Regla obligatoria para la Parte 2 registrada en `AISyncPlans.md`: la búsqueda es el objeto principal y siempre se muestra, el vínculo al mensaje es opcional (nunca INNER JOIN), "Response not saved (interrupted)" si no existe. Confirmado en producción el mismo día con un caso real (búsqueda con Google, 2026-09-29 18:32 UTC).
+
+**Referencia:** `supabase/migrations/062_tool_calls_traceability.sql`, `src/app/api/messages/route.ts`, `src/lib/supabase/admin.ts`, handoff-2026-07-c.md OE 2026-09-29 (Parte 1).

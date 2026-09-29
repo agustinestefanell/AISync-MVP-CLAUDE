@@ -1275,7 +1275,9 @@ No urgente, no bloquea nada — separado del fix de prompt, que ya está aplicad
 - **(b) Repository View e Investigate View:** búsquedas y adjuntos aparecen como filas propias (mismo patrón que Handoff Package / Saved Selection), buscables y filtrables.
 - Se apoya en el mismo `message_id` y las mismas columnas nuevas que se crean para esta OE — **no es un frente aparte**, se suma al alcance de esta misma tarea.
 
-**Estado (2026-09-29):** OE abierta con autorización explícita de Agus. Parte 1 (base de datos confiable) en curso — migración `062_tool_calls_traceability.sql`; Parte 2 (Opción B) recién después de cerrar la Parte 1.
+**Estado (2026-09-29):** OE abierta con autorización explícita de Agus. **Parte 1 (base de datos confiable) CERRADA 2026-09-29** — migración `062_tool_calls_traceability.sql` aplicada, commit `a92bec5`, verificada en producción con SELECT (ver handoff-2026-07-c.md OE 2026-09-29 Parte 1). **Parte 2 (Opción B) pendiente de autorización separada de Agus** — todavía no arrancada.
+
+**Schema resultante (migración 062):** `session_tool_calls` + `message_id uuid` (sin FK, → `messages.id` de la respuesta), `status text NOT NULL DEFAULT 'success'` (`success`/`error`), `error text` (categoría saneada), `cited_urls jsonb` (NULL = no evaluado, [] = ninguna citada). Índices por `message_id` en `session_tool_calls` y `session_attachments`. `sources` (jsonb, sin cambio de schema) ahora guarda por fuente `url`, `clean_url`, `title`, `published_date`, `position`. Evento nuevo en `audit_log`: `tool_call_failed`. `session_attachments.message_id` (ya existía, text) ahora se completa con `messages.id` del mensaje del usuario. **Patrón de ids:** `AgentPanel.tsx` genera `userMessageId`/`assistantMessageId` con `crypto.randomUUID()` antes de enviar; `/api/chat` los recibe como `user_message_id`/`assistant_message_id` y `/api/messages` acepta `id` opcional (validado como UUID).
 
 **Regla de diseño obligatoria para la Parte 2 — búsquedas huérfanas (confirmada por Agus 2026-09-29):** `session_tool_calls.message_id` no tiene FK (la búsqueda se guarda antes que la respuesta), así que una búsqueda puede apuntar a un mensaje que nunca se guardó (pestaña cerrada, corte de red, fallo del provider después de la búsqueda, fallo del guardado fail-open).
 - La búsqueda es el **objeto principal** y **siempre se muestra**: tiene sesión, workspace, fecha, consulta y fuentes propias; no depende del mensaje.
@@ -1285,6 +1287,14 @@ No urgente, no bloquea nada — separado del fix de prompt, que ya está aplicad
 **Regla de escritura de `session_tool_calls` (confirmada por Agus 2026-09-29):** sin policy de UPDATE para usuarios — RLS no puede limitar un UPDATE a una columna y una búsqueda registrada no debe poder reescribirse. La única escritura posterior es `cited_urls`, desde `/api/messages` con `createAdminClient()`, una sola vez (solo si sigue en NULL), sobre ids ya verificados con el cliente del usuario.
 
 **Pendiente para cuando se abra la OE:** diseño de la solución (no diseñar antes), migración nueva, medición real del costo en tokens de los campos del agente (tema/contexto/pregunta) en los 3 providers, y clave real de Tavily en `.env.local` (paso de Agus) — sujeto a SEC-011 (local hoy usa la base de producción; no probar en local hasta separar entornos).
+
+---
+
+### Pendiente de investigar aparte — Google en modo búsqueda: la búsqueda funciona pero la respuesta final puede no guardarse (registrado 2026-09-29, sin alcance ni prioridad definidos)
+
+**Hallazgo separado — no forma parte de la OE de trazabilidad.** En la prueba real de producción del 2026-09-29 (Project A / Arquitectura, manager con Google Gemini 3.5 Flash, Web search ON, 18:32 UTC): la búsqueda se ejecutó con éxito (fila `status='success'` en `session_tool_calls`, evento `tool_call_executed`, `token_usage` `response_usage` con solo 101 tokens de entrada), pero **no hubo `stream_final` ni respuesta guardada** — la búsqueda quedó huérfana (`message_id` sin mensaje). A las 18:33 el agente se cambió a Anthropic y el mismo pedido funcionó completo.
+
+Coincide con lo visto en el diagnóstico del 2026-09-29: en `src/lib/providers/google.ts`, `complete()` (el paso con herramientas) envía **solo el último mensaje**, sin historial ni contexto. No se investigó la causa de que falle el paso final (`stream()` con el resultado de la búsqueda). Pendiente de investigar aparte; sin alcance ni prioridad definidos todavía.
 
 ---
 

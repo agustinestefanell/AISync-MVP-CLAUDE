@@ -2022,3 +2022,17 @@ Una vez descartada la teoría de timing con esa evidencia más dura, la búsqued
 **Lección 2:** cuando se busca "qué ordena esto mal" en un árbol de componentes React, el grep de `.sort()`/lógica de orden tiene que cubrir TODA la cadena de datos — no solo el componente que finalmente renderiza la lista, sino también cada componente padre que le arma los props. Un componente hijo puede tener una lógica de agrupamiento/orden perfectamente correcta y aun así mostrar algo mal ordenado, si el array que recibe como prop ya viene reordenado por algo escrito antes, en un archivo distinto, por una razón distinta.
 
 **Referencia:** handoff-2026-07-c.md OE 2026-09-16, `src/components/teams/TeamsClient.tsx:458`, `DECISIONS.md` 2026-09-16.
+
+---
+
+## 2026-09-29 — Lección: una policy de RLS limita filas, no columnas — y el orden de deploy importa cuando el código escribe columnas nuevas
+
+**Qué pasó:** en la OE de trazabilidad (Parte 1), la primera versión de la migración 062 agregaba una policy `FOR UPDATE` sobre `session_tool_calls` para poder completar una sola columna (`cited_urls`) después de crear la fila. En la revisión, Agus preguntó si esa policy permitía modificar solo esa columna. No: RLS decide sobre filas enteras; la policy habría dejado al usuario reescribir cualquier columna de sus búsquedas llamando a Supabase directo.
+
+**Lección 1:** antes de agregar una policy de UPDATE, preguntarse "¿qué columnas quedan abiertas?" — la respuesta con RLS siempre es "todas". Si la necesidad real es escribir una sola columna, controlada por el servidor, el camino más seguro es no abrir el UPDATE a usuarios y hacer esa única escritura en el servidor con el cliente admin, sobre ids ya verificados con el cliente del usuario, y con una condición de "escritura única" (`.is(col, null)`). Ver DECISIONS.md 2026-09-29.
+
+**Lección 2:** cuando el código nuevo inserta en columnas que agrega una migración, el código NO puede llegar a producción antes que la migración. Los inserts de trazabilidad van dentro de `Promise.allSettled` (fail-open): si la columna no existe, el insert falla **sin error visible** y la trazabilidad se pierde en silencio. Orden aplicado: SQL confirmado → aplicado por Agus → verificado con SELECT sobre `information_schema.columns` → recién ahí commit y push.
+
+**Lección 3 (evidencia):** una prueba aislada de lógica (Node sobre funciones puras, sin base) sirve para demostrar el fix de duplicados antes del deploy sin tocar producción (SEC-011), pero no reemplaza la prueba real: fue la prueba en producción la que mostró un caso que nadie había planeado (búsqueda con Google cuya respuesta nunca se guardó) y confirmó que la regla de huérfanas era necesaria.
+
+**Referencia:** handoff-2026-07-c.md OE 2026-09-29 (Parte 1), `supabase/migrations/062_tool_calls_traceability.sql`, `src/app/api/messages/route.ts`.
