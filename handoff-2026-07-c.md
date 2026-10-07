@@ -1928,7 +1928,7 @@ Ver `DECISIONS.md` 2026-09-29 ("Trazabilidad en Documentation Mode"). Resumen: t
 ## 2026-10-07 — Diagnóstico: filtros de Documentation Mode (solo lectura, hallazgo sin código)
 
 **Fecha:** 2026-10-07
-**Estado:** Hallazgo registrado. Caso A cerrado como diagnóstico; **caso B abierto** (falta captura de Agus con "Results", fecha y buscador visibles). Sin código, sin OE de corrección. Las decisiones de diseño (qué muestra el desplegable de Teams y si se unifica entre pestañas) quedan pendientes de Agus.
+**Estado:** Hallazgo registrado. Caso A cerrado como diagnóstico; **caso B explicado por evidencia circunstancial, pendiente de confirmación de Agus** (ver actualización dentro del caso B). Sin código, sin OE de corrección. Las decisiones de diseño (qué muestra el desplegable de Teams y si se unifica entre pestañas) quedan pendientes de Agus.
 **Restricciones:** SEC-011 sigue OPEN — nada se corrió en local; contra producción solo SELECT (scripts descartables en el scratchpad de la sesión, fuera del repo, solo `.select()`).
 
 ### Caso reproducido por Agus (07/10, 12:53 UY, producción)
@@ -1941,7 +1941,17 @@ Repository View, Project = BARRIO HIPICO. Teams Map muestra 6 Teams (G-00, H-00,
 - SELECT del proyecto `234c31e6…` (cuenta de Agus): los 6 teams están `active`, sin `parent_id`, sin archivar; los 2 compartidos son `type='isolated'`. Documentos hoy: 0 Checkpoints, 5 Handoff Packages (todos en G-00) y 9 Saved Selections (7 en G-00, 2 en T-00). H-00, J-00 y los 2 compartidos tienen 0 documentos → no aparecen. Sí tienen actividad en audit_log (adjuntos, Review & Forward, contexto cargado), que Repository View no usa.
 - Ningún filtro trata de forma especial a los compartidos ni a los archivados: entran o no según tengan documentos.
 
-### Caso B — lista vacía (ABIERTO, sin causa)
+### Caso B — lista vacía (EXPLICADO POR EVIDENCIA CIRCUNSTANCIAL, pendiente de confirmación de Agus)
+
+**Actualización 2026-10-07 (posterior al análisis de abajo):**
+- Los 3 ítems que faltaban se crearon a las 12:57:45, 12:58:59 y 13:07:50 UY, todos después de la captura de las 12:53.
+- Agus confirmó que en ese momento estaba buscando justamente esos ítems, y que también le había pedido al agente de IA (SM) de Documentation Mode que los buscara antes de crearlos. El agente no los encontró porque todavía no existían.
+- Esto encaja con la única vía de código que produce "Results 11 + lista vacía": texto en el buscador que no coincide con ninguno de los 11 ítems existentes (el buscador se aplica después de la tarjeta Results, `RepositoryView.tsx:604-633` vs `650`).
+- **No confirmado directamente:** que hubiera texto en el buscador. En la captura, el campo quedaba tapado por el desplegable abierto.
+- **No se cierra como causa confirmada.** Si se confirma, el caso B no sería un bug de filtrado, sino un buscador con texto de ítems que todavía no existían.
+- Se descartó por consigna la verificación del refresco de datos y del origen de datos del SM: ya no hace falta para explicar el caso B.
+
+Análisis original (antes de la confirmación de Agus):
 
 - Cadena de filtrado: `RepositoryView.tsx:555-588` (fecha; después Type/Project/Team/Team status por tipo, y State solo en Checkpoint) → `filtered`; buscador `604-633` → `displayItems`; la lista vacía sale de `displayItems.length === 0` (733-745).
 - La tarjeta "Results" es `filtered.length` (`RepositoryView.tsx:650`): se calcula **después** de Project/Team/Type/State/Team status/Fecha y **antes** del buscador. Es del proyecto filtrado, no de la cuenta. Las tarjetas Checkpoints/Handoff Pkgs/Controlled sí son totales de cuenta, sin filtrar.
