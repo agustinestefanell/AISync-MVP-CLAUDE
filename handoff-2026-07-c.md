@@ -1924,3 +1924,60 @@ Ver `DECISIONS.md` 2026-09-29 ("Trazabilidad en Documentation Mode"). Resumen: t
 **Archivos del cierre:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`, `AISyncPlans.md`, `DECISIONS.md`.
 
 ---
+
+## 2026-10-07 — Diagnóstico: filtros de Documentation Mode (solo lectura, hallazgo sin código)
+
+**Fecha:** 2026-10-07
+**Estado:** Hallazgo registrado. Caso A cerrado como diagnóstico; **caso B abierto** (falta captura de Agus con "Results", fecha y buscador visibles). Sin código, sin OE de corrección. Las decisiones de diseño (qué muestra el desplegable de Teams y si se unifica entre pestañas) quedan pendientes de Agus.
+**Restricciones:** SEC-011 sigue OPEN — nada se corrió en local; contra producción solo SELECT (scripts descartables en el scratchpad de la sesión, fuera del repo, solo `.select()`).
+
+### Caso reproducido por Agus (07/10, 12:53 UY, producción)
+
+Repository View, Project = BARRIO HIPICO. Teams Map muestra 6 Teams (G-00, H-00, J-00, T-00 + 2 compartidos AE-00/U-00); el desplegable "Teams" lista solo G-00 y T-00; con All teams / All types / All states / All team statuses la lista dice "No results found". En la captura: "Results" = 11, "Handoff Pkgs" = 20.
+
+### Caso A — desplegable de Teams (CONFIRMADO)
+
+- `RepositoryView.tsx:528-538` arma la lista desde los **documentos cargados** (Checkpoints, Handoff Packages, Saved Selections), no desde la tabla `teams`. Un team aparece solo si tiene ≥1 documento de esos 3 tipos.
+- SELECT del proyecto `234c31e6…` (cuenta de Agus): los 6 teams están `active`, sin `parent_id`, sin archivar; los 2 compartidos son `type='isolated'`. Documentos hoy: 0 Checkpoints, 5 Handoff Packages (todos en G-00) y 9 Saved Selections (7 en G-00, 2 en T-00). H-00, J-00 y los 2 compartidos tienen 0 documentos → no aparecen. Sí tienen actividad en audit_log (adjuntos, Review & Forward, contexto cargado), que Repository View no usa.
+- Ningún filtro trata de forma especial a los compartidos ni a los archivados: entran o no según tengan documentos.
+
+### Caso B — lista vacía (ABIERTO, sin causa)
+
+- Cadena de filtrado: `RepositoryView.tsx:555-588` (fecha; después Type/Project/Team/Team status por tipo, y State solo en Checkpoint) → `filtered`; buscador `604-633` → `displayItems`; la lista vacía sale de `displayItems.length === 0` (733-745).
+- La tarjeta "Results" es `filtered.length` (`RepositoryView.tsx:650`): se calcula **después** de Project/Team/Type/State/Team status/Fecha y **antes** del buscador. Es del proyecto filtrado, no de la cuenta. Las tarjetas Checkpoints/Handoff Pkgs/Controlled sí son totales de cuenta, sin filtrar.
+- **"Results = 11" CONFIRMADO con SELECT de `created_at`:** de los 14 ítems actuales del proyecto, 11 existían a las 12:53 UY. Los otros 3 se crearon después: HP "Guyer & Regules - Durand" (12:57:45 UY), HP "Guyer & Regules - Durand 2" (12:58:59 UY), SS "Reunion GR" (13:07:50 UY). Cruce independiente: la cuenta tiene 22 Handoff Packages, 20 anteriores a las 12:53, y la captura decía "Handoff Pkgs" = 20. El 11 es el conteo correcto del filtro Project en ese momento.
+- **Consecuencia:** con buscador vacío, `displayItems === filtered` (línea 633), así que Results 11 debería mostrar 11 tarjetas. **Con los 5 desplegables en "All", fecha vacía y buscador vacío, "Results 11 + lista vacía" no se puede reproducir desde el código.** La única vía de código que produce esa combinación es texto en el buscador. No se da como causa probable. Si la captura nueva muestra el buscador vacío, se abre otra ronda de diagnóstico fuera de la lógica de filtros.
+- Descartado con evidencia: comparación nombre vs id (es id contra id); proyecto duplicado (existen otros 2 "Barrio Hipico" pero de otras cuentas, y la RLS `projects_select` de `001_hierarchy.sql:48` solo devuelve los propios); tope de 1000 filas (la cuenta de Agus tiene como máximo 532 en audit_log); patrón "Handoff" vs "Handoff Package" (Type estaba en All).
+
+### Hallazgos registrados sin corregir
+
+1. **Bug menor:** el botón "Clear filters" del estado vacío (`RepositoryView.tsx:750-756`) no resetea "Team status" (`filterArchiveStatus`) ni el orden; el botón "Reset" (`resetFilters`, 656-659) sí los resetea.
+2. **Inconsistencia del filtro Team entre pestañas** (misma pregunta, distinta respuesta):
+
+| Filtro | Pestaña | Origen de opciones | Criterio | ¿Correcto? | Evidencia |
+|---|---|---|---|---|---|
+| Project | todas | proyectos `status='active'` de la cuenta | `project_id` (id) | ✅ consistente | `projects.ts:18`, `RepositoryView.tsx:524` |
+| Team | Repository | Checkpoints + Handoff Packages + Saved Selections | `team_id` (id) | ⚠️ difiere de Teams Map | `RepositoryView.tsx:528-538` + SELECT |
+| Team | User Library | todos los Saved Selections, incluso los que no están en la library | `team_id` | ⚠️ puede ofrecer un team que da "No Save Selections match" | `UserLibraryView.tsx:236-238` vs `258` |
+| Team | Audit / Investigate | las 5 anclas (suma Loaded Context y Review & Forward) | `team_id` | ⚠️ lista distinta a Repository para el mismo proyecto | `AuditView.tsx:236-248`, `InvestigateView.tsx:122-134` |
+| Team | Web Searches / Attached Files | búsquedas/adjuntos cargados en la pestaña | `team_id` | ⚠️ otra lista distinta | `TraceShared.tsx:50-60` |
+| Team | Knowledge Map | solo Checkpoints, sin depender del Project elegido | `team_id` | ❌ sin cascada | `KnowledgeMap.tsx:164` |
+| Team status | Repository, Knowledge Map | fijo (active/archived) | status del team del ítem | ✅ (salvo hallazgo 1) | `RepositoryView.tsx:586` |
+| Type / Anchor type | Repository / Audit / Investigate | listas fijas | `purpose` o tipo / `item.kind` | ✅ | `RepositoryView.tsx:561-587`, `AuditView.tsx:263` |
+| Buscador | Repository | texto | Checkpoint busca también por proyecto; Handoff y Saved Selection no | ⚠️ inconsistente | `RepositoryView.tsx:608-631` |
+
+3. **Hipótesis NO confirmada — zona horaria en el filtro de fecha:** se compara `created_at` (UTC) con `startsWith(fecha)` (`RepositoryView.tsx:558`; mismo patrón en Audit, Web Searches y Attached Files). Un ítem creado después de las 21:00 en Uruguay quedaría asignado al día siguiente. No se reprodujo.
+
+### Alternativas descartadas
+
+- Dar "fecha" o "buscador" como causa de B sin la captura: descartado. La primera deducción ("14 → buscador / 0 → fecha") asumía 14 ítems; el SELECT de `created_at` mostró que a esa hora eran 11.
+- Proponer fix o abrir OE: fuera de alcance por consigna.
+
+### Riesgos conocidos / deuda técnica
+
+- B sigue sin causa. Si la captura muestra buscador y fecha vacíos con Results > 0 y lista vacía, el problema está fuera de la lógica de filtrado leída (por ejemplo, render o estado viejo) y hace falta otra ronda de diagnóstico.
+- Pendiente de decisión de Agus: fuente del desplegable de Teams (tabla `teams` vs documentos) y unificación entre pestañas.
+
+**Archivos modificados:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`. Sin código. `AISyncPlans.md`: sin cambios (sin cambios de schema, API, patrones ni componentes). `DECISIONS.md`/`CodingWorkshop.md`/`AUDIT_REPORT.md`: sin cambios (sin decisión, sin fix, sin hallazgo de seguridad).
+
+---
