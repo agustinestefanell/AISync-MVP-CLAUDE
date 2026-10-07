@@ -1991,3 +1991,51 @@ Análisis original (antes de la confirmación de Agus):
 **Archivos modificados:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`. Sin código. `AISyncPlans.md`: sin cambios (sin cambios de schema, API, patrones ni componentes). `DECISIONS.md`/`CodingWorkshop.md`/`AUDIT_REPORT.md`: sin cambios (sin decisión, sin fix, sin hallazgo de seguridad).
 
 ---
+
+## 2026-10-07 — Diagnóstico: límite de tamaño de archivos adjuntos (solo lectura, sin código)
+
+**Fecha:** 2026-10-07
+**Estado:** ⚠️ Open — pendiente de decisión, no iniciado. Sin OE abierta, sin código.
+**Contexto:** Agus pidió subir el límite a 10 MB y creía que ya se había hecho. Números sin conciliar: un PDF de 4,8 MB dio "The current limit is 3 MB"; el modal Add Context File dice "Maximum file size: 4 MB"; Agus reporta que los adjuntos del chat están topeados en 4 MB.
+
+### Hallazgos confirmados (código + git)
+
+- **El cambio a 10 MB nunca se hizo.** `src/lib/upload/limits.ts` tiene un solo commit (`0458070`, 2026-07-31, el que creó los límites). No hay ninguna mención de "10 MB" en handoffs, PRODUCT_STATUS, DECISIONS ni AISyncPlans.
+- **Límites actuales, ambos validados SOLO en el navegador** (ningún endpoint revisa el tamaño; `api/context/route.ts:163` solo rechaza archivos vacíos):
+
+| Camino | Límite | Validación | Texto en la UI |
+|---|---|---|---|
+| Ícono "+" del chat | 3 MB (`limits.ts:14`, `MAX_ATTACHMENT_FILE_BYTES`) | navegador, `AgentPanel.tsx:547-552` | "The current limit is 3 MB" |
+| Ctrl+V (pegar imagen) | 3 MB (mismo camino: `handlePaste` → `handleFileSelect`, `AgentPanel.tsx:514-539`) | navegador | igual |
+| Add Context File | 4 MB (`limits.ts:9`, `MAX_CONTEXT_FILE_BYTES`) | navegador, `ContextFilePanel.tsx:93-95, 105-106` | texto fijo "Maximum file size: 4 MB" (`ContextFilePanel.tsx:290`) |
+
+  Respaldo ante HTTP 413: `AgentPanel.tsx:665-666`, `ContextFilePanel.tsx:125-128`.
+- **Tope real: 4,5 MB por pedido en Vercel** (HTTP 413, antes de que corra la función, no configurable). `next.config.mjs` no tiene `bodySizeLimit`. En el chat el archivo viaja en base64 (~33% más), por eso el tope útil es ~3 MB.
+- **Multiplicadores de tamaño:**
+  - Reenvío del historial: el array que se manda a `/api/chat` (`AgentPanel.tsx:592` y `643`) conserva el base64 completo de los adjuntos anteriores de la sesión, así que cada mensaje nuevo los vuelve a mandar. Al recargar la página el historial se rearma sin archivos (`AgentPanel.tsx:357`): la acumulación pasa solo dentro de una sesión abierta.
+  - Doble pedido: cada envío con adjunto manda el archivo completo 2 veces, primero a `/api/messages` (`AgentPanel.tsx:613-618`, que solo guarda nombre y tipo) y después a `/api/chat`.
+  - Ejemplo con 10 MB: ~13,3 MB en cada uno de los 2 pedidos y en cada mensaje posterior sin recargar → todos superan 4,5 MB. Con el tope actual de 3 MB (~4 MB en base64), un segundo adjunto o un historial largo en la misma sesión ya puede dar 413 (riesgo ya anotado en la línea "Acumular adjuntos en el historial…" de la OE de trazabilidad del 2026-09-29).
+- **Llegar a 10 MB exige un diseño distinto, no cambiar una constante:** subida directa del navegador a un almacenamiento, solo una referencia en el chat, y dejar de reenviar el archivo completo en el historial. **Toca `chat/route.ts` (pipeline crítico): necesita una OE propia con autorización explícita de Agus.** No se propuso ni se abrió nada.
+
+### Sin verificar
+
+- El tope de Supabase Storage para Context Files (hoy el archivo pasa por Vercel antes, así que ese tope no se llega a tocar).
+- Los topes de imagen y PDF por proveedor de IA (Anthropic ~5 MB por imagen, dato de memoria, no verificado en esta sesión). Hay que confirmarlos antes de cualquier diseño.
+
+### Pendiente
+
+- Confirmar con Agus de dónde sale su "4 MB" del chat: el código del chat dice 3 MB; el 4 MB es el de Context Files. **Pendiente de captura del mensaje de error.**
+- Decisión de Agus sobre si se encara el diseño para 10 MB (OE propia).
+
+### Alternativas descartadas
+
+- Subir las constantes a 10 MB: descartado como solución. Solo cambiaría el mensaje claro por el 413 genérico de Vercel.
+
+### Riesgos conocidos / deuda técnica
+
+- Sin validación de tamaño en el servidor (solo en el navegador).
+- El 413 por acumulación de historial puede aparecer incluso por debajo del límite actual.
+
+**Archivos modificados:** `handoff-2026-07-c.md`, `PRODUCT_STATUS.md`. Sin código. `AISyncPlans.md`: sin cambios (sin cambios de schema, API, patrones ni componentes). `DECISIONS.md`/`CodingWorkshop.md`/`AUDIT_REPORT.md`: sin cambios (sin decisión, sin fix, sin hallazgo de seguridad).
+
+---

@@ -424,6 +424,7 @@ Orden recomendado: Bloque 1 → Bloque 2 → Bloque 3. Total estimado: 5-6 sesio
 
 | Feature | Status | Notes |
 |---|---|---|
+| **Límite de tamaño de adjuntos — diagnóstico (2026-10-07)** | ⚠️ Open — pendiente de decisión, no iniciado. Sin OE abierta | **El cambio a 10 MB nunca se hizo.** Límites actuales: 3 MB en chat y Ctrl+V (`limits.ts:14`) y 4 MB en Context Files (`limits.ts:9`), ambos validados solo en el navegador. Tope real: 4,5 MB por pedido en Vercel (HTTP 413, no configurable). El reenvío del historial con adjuntos (`AgentPanel.tsx:592, 643`) y el doble pedido por envío (`/api/messages` + `/api/chat`) multiplican el tamaño. Llegar a 10 MB exige otro diseño (subida directa a almacenamiento, solo una referencia en el chat, no reenviar el archivo en el historial): toca `chat/route.ts`, requiere OE propia con autorización explícita de Agus. Sin verificar: tope de Supabase Storage y topes por proveedor de IA (Anthropic ~5 MB por imagen, de memoria). Pendiente: captura del mensaje de error para confirmar de dónde sale el "4 MB" del chat que reporta Agus. Ver handoff-2026-07-c.md 2026-10-07. |
 | `ChatAttachment` type + `ChatMessage.attachments?` | ✅ Closed | `types.ts` — campo opcional, retrocompatible |
 | Anthropic — image + document blocks | ✅ Closed | `anthropic.ts` — `sdkMessages` con content blocks |
 | OpenAI — image attachments via `image_url` | ✅ Closed | `openai.ts` — solo imágenes; PDF fallback con mensaje informativo |
