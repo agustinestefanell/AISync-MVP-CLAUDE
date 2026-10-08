@@ -1,0 +1,839 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2500" viewBox="0 0 1600 2500">
+<rect width="1600" height="2500" fill="#EEF3F8"/>
+<g id="Top Ribbon">
+<rect x="0" y="0" width="1600" height="54" rx="0" fill="#071A35" stroke="none" stroke-width="1"/>
+<rect x="24" y="12" width="30" height="30" rx="6" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<text x="39" y="32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">AI</text>
+<text x="66" y="34" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="700" fill="#FFFFFF" text-anchor="start">AISync</text>
+<text x="800" y="34" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">TEAMS MAP</text>
+<text x="1570" y="33" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="400" fill="#D7E2EE" text-anchor="end">Project: AISync Demo Project   User: Agustin E.</text>
+</g>
+<g id="Controls Bar">
+<rect x="0" y="54" width="1600" height="86" rx="0" fill="#F7FAFC" stroke="none" stroke-width="1"/>
+<text x="24" y="92" font-family="Inter,Arial,sans-serif" font-size="20" font-weight="700" fill="#10233D" text-anchor="start">TEAMS MAP</text>
+<text x="24" y="113" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#64748B" text-anchor="start">OPERATIONAL ELASTICITY VIEW</text>
+<text x="250" y="96" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700" fill="#64748B" text-anchor="start">PROJECT:</text>
+<rect x="320" y="73" width="170" height="40" rx="8" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="338" y="98" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="600" fill="#10233D" text-anchor="start">All Projects (5)</text>
+<text x="520" y="88" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="400" fill="#2563EB" text-anchor="start">How to use Teams Map (click here)</text>
+<text x="520" y="110" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="400" fill="#2563EB" text-anchor="start">How to create Teams (click here)</text>
+<rect x="1035" y="75" width="120" height="36" rx="18" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="1038" y="78" width="57" height="30" rx="15" fill="#071A35" stroke="none" stroke-width="1"/>
+<text x="1066" y="98" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle">Map</text>
+<text x="1126" y="98" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="400" fill="#64748B" text-anchor="middle">Tree</text>
+<rect x="1170" y="75" width="150" height="36" rx="8" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="1245" y="98" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#10233D" text-anchor="middle">Teams 26 / Workers 60</text>
+<rect x="1340" y="75" width="42" height="36" rx="8" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="1361.0" y="98" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#10233D" text-anchor="middle">+</text>
+<rect x="1384" y="75" width="42" height="36" rx="8" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="1405.0" y="98" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#10233D" text-anchor="middle">−</text>
+<rect x="1428" y="75" width="64" height="36" rx="8" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="1460.0" y="98" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#10233D" text-anchor="middle">Reset</text>
+<rect x="1500" y="75" width="86" height="36" rx="8" fill="#071A35" stroke="#D7E2EE" stroke-width="1"/>
+<text x="1543.0" y="98" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#FFFFFF" text-anchor="middle">+ Add Team</text>
+</g>
+<g id="Floating Controls">
+<rect x="20" y="165" width="34" height="34" rx="8" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="37" y="187" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="500" fill="#10233D" text-anchor="middle">↕</text>
+<rect x="20" y="205" width="34" height="34" rx="8" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="37" y="227" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="500" fill="#10233D" text-anchor="middle">+</text>
+<rect x="20" y="245" width="34" height="34" rx="8" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="37" y="267" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="500" fill="#10233D" text-anchor="middle">−</text>
+<rect x="20" y="285" width="34" height="34" rx="8" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="37" y="307" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="500" fill="#10233D" text-anchor="middle">□</text>
+<rect x="20" y="325" width="34" height="34" rx="8" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="37" y="347" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="500" fill="#10233D" text-anchor="middle">🔒</text>
+</g>
+<g id="AI Strategy &amp; Operations">
+<rect x="695" y="155" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="695" y="155" width="210" height="54" rx="16" fill="#071A35" stroke="none" stroke-width="1"/>
+<rect x="695" y="193" width="210" height="16" rx="0" fill="#071A35" stroke="none" stroke-width="1"/>
+<text x="709" y="173" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">GENERAL MANAGER</text>
+<text x="709" y="192" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">AI Strategy &amp; Operations</text>
+<rect x="863" y="165" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="877" y="176" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="709" y="233" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="709" y="243" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="739.5" y="257" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="776" y="243" width="51" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="801.5" y="257" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">GM-1000</text>
+<rect x="833" y="243" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="873.5" y="257" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="709" y="281" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Oversees all projects and drives</text>
+<text x="709" y="295" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">strategic AI alignment.</text>
+<line x1="709" y1="317" x2="891" y2="317" stroke="#D7E2EE"/>
+<rect x="709" y="323" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="755" y="336" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="809" y="323" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="850" y="336" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="PROJECT 1 — Client Strategy">
+<rect x="100" y="380" width="1400" height="355" rx="16" fill="#F7FAFC" stroke="#8E4CC666" stroke-width="1.2"/>
+<text x="120" y="408" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700" fill="#8E4CC6" text-anchor="start">PROJECT 1 — Client Strategy</text>
+<rect x="1320" y="392" width="70" height="22" rx="11" fill="#FFFFFF" stroke="#8E4CC644" stroke-width="1"/>
+<text x="1355" y="407" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#8E4CC6" text-anchor="middle">3 Teams</text>
+<rect x="1400" y="392" width="80" height="22" rx="11" fill="#FFFFFF" stroke="#8E4CC644" stroke-width="1"/>
+<text x="1440" y="407" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#8E4CC6" text-anchor="middle">8 Workers</text>
+<path d="M800,605 L800,512 L390,512 L390,530" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M800,605 L800,512 L695,512 L695,530" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M800,605 L800,512 L1000,512 L1000,530" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M390,720 L390,617 L535,617 L535,635" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M695,720 L695,617 L840,617 L840,635" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<g id="Client Strategy Lead">
+<rect x="695" y="415" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="695" y="415" width="210" height="54" rx="16" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<rect x="695" y="453" width="210" height="16" rx="0" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<text x="709" y="433" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">PROJECT MANAGER</text>
+<text x="709" y="452" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Client Strategy Lead</text>
+<rect x="863" y="425" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="877" y="436" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="709" y="493" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="709" y="503" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="739.5" y="517" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="776" y="503" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="798.0" y="517" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P1-00</text>
+<rect x="826" y="503" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="866.5" y="517" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="709" y="541" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Leads the project and coordinates</text>
+<text x="709" y="555" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">its operating structure.</text>
+<line x1="709" y1="577" x2="891" y2="577" stroke="#D7E2EE"/>
+<rect x="709" y="583" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="755" y="596" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="809" y="583" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="850" y="596" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Market Analyst">
+<rect x="285" y="530" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="285" y="530" width="210" height="54" rx="16" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<rect x="285" y="568" width="210" height="16" rx="0" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<text x="299" y="548" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="299" y="567" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Market Analyst</text>
+<rect x="453" y="540" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="467" y="551" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="299" y="608" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="299" y="618" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="329.5" y="632" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="366" y="618" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="388.0" y="632" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P1-01</text>
+<rect x="416" y="618" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="456.5" y="632" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="299" y="656" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="299" y="670" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="299" y1="692" x2="481" y2="692" stroke="#D7E2EE"/>
+<rect x="299" y="698" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="345" y="711" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="399" y="698" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="440" y="711" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Client Insights">
+<rect x="590" y="530" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="590" y="530" width="210" height="54" rx="16" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<rect x="590" y="568" width="210" height="16" rx="0" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<text x="604" y="548" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="604" y="567" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Client Insights</text>
+<rect x="758" y="540" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="772" y="551" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="604" y="608" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="604" y="618" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="634.5" y="632" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="671" y="618" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="693.0" y="632" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P1-02</text>
+<rect x="721" y="618" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="761.5" y="632" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="604" y="656" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="604" y="670" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="604" y1="692" x2="786" y2="692" stroke="#D7E2EE"/>
+<rect x="604" y="698" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="650" y="711" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="704" y="698" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="745" y="711" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Competitive Intel">
+<rect x="895" y="530" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="895" y="530" width="210" height="54" rx="16" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<rect x="895" y="568" width="210" height="16" rx="0" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<text x="909" y="548" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">SUB-MANAGER</text>
+<text x="909" y="567" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Competitive Intel</text>
+<rect x="1063" y="540" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="1077" y="551" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="909" y="608" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="909" y="618" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="939.5" y="632" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="976" y="618" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="998.0" y="632" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P1-03</text>
+<rect x="1026" y="618" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="1066.5" y="632" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="909" y="656" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="909" y="670" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="909" y1="692" x2="1091" y2="692" stroke="#D7E2EE"/>
+<rect x="909" y="698" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="955" y="711" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="1009" y="698" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="1050" y="711" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Competitor Intel">
+<rect x="430" y="635" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="430" y="635" width="210" height="54" rx="16" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<rect x="430" y="673" width="210" height="16" rx="0" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<text x="444" y="653" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="444" y="672" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Competitor Intel</text>
+<rect x="598" y="645" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="612" y="656" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="444" y="713" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="444" y="723" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="474.5" y="737" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="511" y="723" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="533.0" y="737" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P1-W1</text>
+<rect x="561" y="723" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="601.5" y="737" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="444" y="761" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes focused tasks and returns</text>
+<text x="444" y="775" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">compact operational updates.</text>
+<line x1="444" y1="797" x2="626" y2="797" stroke="#D7E2EE"/>
+<rect x="444" y="803" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="490" y="816" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="544" y="803" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="585" y="816" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Benchmarking">
+<rect x="735" y="635" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="735" y="635" width="210" height="54" rx="16" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<rect x="735" y="673" width="210" height="16" rx="0" fill="#8E4CC6" stroke="none" stroke-width="1"/>
+<text x="749" y="653" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="749" y="672" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Benchmarking</text>
+<rect x="903" y="645" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="917" y="656" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="749" y="713" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="749" y="723" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="779.5" y="737" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="816" y="723" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="838.0" y="737" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P1-W2</text>
+<rect x="866" y="723" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="906.5" y="737" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="749" y="761" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes focused tasks and returns</text>
+<text x="749" y="775" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">compact operational updates.</text>
+<line x1="749" y1="797" x2="931" y2="797" stroke="#D7E2EE"/>
+<rect x="749" y="803" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="795" y="816" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="849" y="803" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="890" y="816" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+</g>
+<g id="PROJECT 2 — Product Development">
+<rect x="100" y="770" width="1400" height="355" rx="16" fill="#F7FAFC" stroke="#2F78C466" stroke-width="1.2"/>
+<text x="120" y="798" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700" fill="#2F78C4" text-anchor="start">PROJECT 2 — Product Development</text>
+<rect x="1320" y="782" width="70" height="22" rx="11" fill="#FFFFFF" stroke="#2F78C444" stroke-width="1"/>
+<text x="1355" y="797" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#2F78C4" text-anchor="middle">3 Teams</text>
+<rect x="1400" y="782" width="80" height="22" rx="11" fill="#FFFFFF" stroke="#2F78C444" stroke-width="1"/>
+<text x="1440" y="797" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#2F78C4" text-anchor="middle">8 Workers</text>
+<path d="M800,995 L800,902 L390,902 L390,920" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M800,995 L800,902 L695,902 L695,920" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M800,995 L800,902 L1000,902 L1000,920" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M390,1110 L390,1007 L535,1007 L535,1025" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M695,1110 L695,1007 L840,1007 L840,1025" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<g id="Product Dev Lead">
+<rect x="695" y="805" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="695" y="805" width="210" height="54" rx="16" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<rect x="695" y="843" width="210" height="16" rx="0" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<text x="709" y="823" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">PROJECT MANAGER</text>
+<text x="709" y="842" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Product Dev Lead</text>
+<rect x="863" y="815" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="877" y="826" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="709" y="883" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="709" y="893" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="739.5" y="907" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="776" y="893" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="798.0" y="907" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P2-00</text>
+<rect x="826" y="893" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="866.5" y="907" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="709" y="931" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Leads the project and coordinates</text>
+<text x="709" y="945" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">its operating structure.</text>
+<line x1="709" y1="967" x2="891" y2="967" stroke="#D7E2EE"/>
+<rect x="709" y="973" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="755" y="986" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="809" y="973" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="850" y="986" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Engineering">
+<rect x="285" y="920" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="285" y="920" width="210" height="54" rx="16" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<rect x="285" y="958" width="210" height="16" rx="0" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<text x="299" y="938" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="299" y="957" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Engineering</text>
+<rect x="453" y="930" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="467" y="941" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="299" y="998" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="299" y="1008" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="329.5" y="1022" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="366" y="1008" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="388.0" y="1022" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P2-01</text>
+<rect x="416" y="1008" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="456.5" y="1022" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="299" y="1046" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="299" y="1060" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="299" y1="1082" x2="481" y2="1082" stroke="#D7E2EE"/>
+<rect x="299" y="1088" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="345" y="1101" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="399" y="1088" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="440" y="1101" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="QA &amp; Testing">
+<rect x="590" y="920" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="590" y="920" width="210" height="54" rx="16" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<rect x="590" y="958" width="210" height="16" rx="0" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<text x="604" y="938" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="604" y="957" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">QA &amp; Testing</text>
+<rect x="758" y="930" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="772" y="941" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="604" y="998" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="604" y="1008" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="634.5" y="1022" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="671" y="1008" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="693.0" y="1022" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P2-02</text>
+<rect x="721" y="1008" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="761.5" y="1022" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="604" y="1046" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="604" y="1060" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="604" y1="1082" x2="786" y2="1082" stroke="#D7E2EE"/>
+<rect x="604" y="1088" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="650" y="1101" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="704" y="1088" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="745" y="1101" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="DevOps">
+<rect x="895" y="920" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="895" y="920" width="210" height="54" rx="16" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<rect x="895" y="958" width="210" height="16" rx="0" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<text x="909" y="938" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">SUB-MANAGER</text>
+<text x="909" y="957" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">DevOps</text>
+<rect x="1063" y="930" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="1077" y="941" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="909" y="998" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="909" y="1008" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="939.5" y="1022" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="976" y="1008" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="998.0" y="1022" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P2-03</text>
+<rect x="1026" y="1008" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="1066.5" y="1022" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="909" y="1046" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="909" y="1060" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="909" y1="1082" x2="1091" y2="1082" stroke="#D7E2EE"/>
+<rect x="909" y="1088" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="955" y="1101" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="1009" y="1088" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="1050" y="1101" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="CI/CD Automation">
+<rect x="430" y="1025" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="430" y="1025" width="210" height="54" rx="16" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<rect x="430" y="1063" width="210" height="16" rx="0" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<text x="444" y="1043" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="444" y="1062" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">CI/CD Automation</text>
+<rect x="598" y="1035" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="612" y="1046" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="444" y="1103" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="444" y="1113" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="474.5" y="1127" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="511" y="1113" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="533.0" y="1127" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P2-W1</text>
+<rect x="561" y="1113" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="601.5" y="1127" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="444" y="1151" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes focused tasks and returns</text>
+<text x="444" y="1165" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">compact operational updates.</text>
+<line x1="444" y1="1187" x2="626" y2="1187" stroke="#D7E2EE"/>
+<rect x="444" y="1193" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="490" y="1206" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="544" y="1193" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="585" y="1206" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Infra Integrations">
+<rect x="735" y="1025" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="735" y="1025" width="210" height="54" rx="16" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<rect x="735" y="1063" width="210" height="16" rx="0" fill="#2F78C4" stroke="none" stroke-width="1"/>
+<text x="749" y="1043" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="749" y="1062" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Infra Integrations</text>
+<rect x="903" y="1035" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="917" y="1046" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="749" y="1103" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="749" y="1113" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="779.5" y="1127" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="816" y="1113" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="838.0" y="1127" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P2-W2</text>
+<rect x="866" y="1113" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="906.5" y="1127" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="749" y="1151" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes focused tasks and returns</text>
+<text x="749" y="1165" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">compact operational updates.</text>
+<line x1="749" y1="1187" x2="931" y2="1187" stroke="#D7E2EE"/>
+<rect x="749" y="1193" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="795" y="1206" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="849" y="1193" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="890" y="1206" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+</g>
+<g id="PROJECT 3 — Research Ops">
+<rect x="100" y="1160" width="1400" height="355" rx="16" fill="#F7FAFC" stroke="#2F9C5B66" stroke-width="1.2"/>
+<text x="120" y="1188" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700" fill="#2F9C5B" text-anchor="start">PROJECT 3 — Research Ops</text>
+<rect x="1320" y="1172" width="70" height="22" rx="11" fill="#FFFFFF" stroke="#2F9C5B44" stroke-width="1"/>
+<text x="1355" y="1187" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#2F9C5B" text-anchor="middle">3 Teams</text>
+<rect x="1400" y="1172" width="80" height="22" rx="11" fill="#FFFFFF" stroke="#2F9C5B44" stroke-width="1"/>
+<text x="1440" y="1187" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#2F9C5B" text-anchor="middle">8 Workers</text>
+<path d="M800,1385 L800,1292 L390,1292 L390,1310" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M800,1385 L800,1292 L695,1292 L695,1310" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M800,1385 L800,1292 L1000,1292 L1000,1310" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M390,1500 L390,1397 L535,1397 L535,1415" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M695,1500 L695,1397 L840,1397 L840,1415" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<g id="Research Ops Lead">
+<rect x="695" y="1195" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="695" y="1195" width="210" height="54" rx="16" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<rect x="695" y="1233" width="210" height="16" rx="0" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<text x="709" y="1213" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">PROJECT MANAGER</text>
+<text x="709" y="1232" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Research Ops Lead</text>
+<rect x="863" y="1205" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="877" y="1216" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="709" y="1273" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="709" y="1283" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="739.5" y="1297" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="776" y="1283" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="798.0" y="1297" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P3-00</text>
+<rect x="826" y="1283" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="866.5" y="1297" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="709" y="1321" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Leads the project and coordinates</text>
+<text x="709" y="1335" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">its operating structure.</text>
+<line x1="709" y1="1357" x2="891" y2="1357" stroke="#D7E2EE"/>
+<rect x="709" y="1363" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="755" y="1376" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="809" y="1363" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="850" y="1376" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Data Analysis">
+<rect x="285" y="1310" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="285" y="1310" width="210" height="54" rx="16" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<rect x="285" y="1348" width="210" height="16" rx="0" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<text x="299" y="1328" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="299" y="1347" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Data Analysis</text>
+<rect x="453" y="1320" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="467" y="1331" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="299" y="1388" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="299" y="1398" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="329.5" y="1412" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="366" y="1398" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="388.0" y="1412" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P3-01</text>
+<rect x="416" y="1398" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="456.5" y="1412" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="299" y="1436" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="299" y="1450" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="299" y1="1472" x2="481" y2="1472" stroke="#D7E2EE"/>
+<rect x="299" y="1478" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="345" y="1491" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="399" y="1478" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="440" y="1491" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Reporting">
+<rect x="590" y="1310" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="590" y="1310" width="210" height="54" rx="16" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<rect x="590" y="1348" width="210" height="16" rx="0" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<text x="604" y="1328" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="604" y="1347" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Reporting</text>
+<rect x="758" y="1320" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="772" y="1331" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="604" y="1388" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="604" y="1398" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="634.5" y="1412" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="671" y="1398" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="693.0" y="1412" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P3-02</text>
+<rect x="721" y="1398" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="761.5" y="1412" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="604" y="1436" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="604" y="1450" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="604" y1="1472" x2="786" y2="1472" stroke="#D7E2EE"/>
+<rect x="604" y="1478" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="650" y="1491" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="704" y="1478" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="745" y="1491" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Methodology Mgmt">
+<rect x="895" y="1310" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="895" y="1310" width="210" height="54" rx="16" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<rect x="895" y="1348" width="210" height="16" rx="0" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<text x="909" y="1328" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">SUB-MANAGER</text>
+<text x="909" y="1347" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Methodology Mgmt</text>
+<rect x="1063" y="1320" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="1077" y="1331" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="909" y="1388" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="909" y="1398" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="939.5" y="1412" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="976" y="1398" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="998.0" y="1412" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P3-03</text>
+<rect x="1026" y="1398" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="1066.5" y="1412" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="909" y="1436" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="909" y="1450" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="909" y1="1472" x2="1091" y2="1472" stroke="#D7E2EE"/>
+<rect x="909" y="1478" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="955" y="1491" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="1009" y="1478" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="1050" y="1491" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Study Design">
+<rect x="430" y="1415" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="430" y="1415" width="210" height="54" rx="16" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<rect x="430" y="1453" width="210" height="16" rx="0" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<text x="444" y="1433" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="444" y="1452" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Study Design</text>
+<rect x="598" y="1425" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="612" y="1436" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="444" y="1493" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="444" y="1503" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="474.5" y="1517" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="511" y="1503" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="533.0" y="1517" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P3-W1</text>
+<rect x="561" y="1503" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="601.5" y="1517" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="444" y="1541" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes focused tasks and returns</text>
+<text x="444" y="1555" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">compact operational updates.</text>
+<line x1="444" y1="1577" x2="626" y2="1577" stroke="#D7E2EE"/>
+<rect x="444" y="1583" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="490" y="1596" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="544" y="1583" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="585" y="1596" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Data Modeling">
+<rect x="735" y="1415" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="735" y="1415" width="210" height="54" rx="16" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<rect x="735" y="1453" width="210" height="16" rx="0" fill="#2F9C5B" stroke="none" stroke-width="1"/>
+<text x="749" y="1433" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="749" y="1452" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Data Modeling</text>
+<rect x="903" y="1425" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="917" y="1436" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="749" y="1493" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="749" y="1503" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="779.5" y="1517" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="816" y="1503" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="838.0" y="1517" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P3-W2</text>
+<rect x="866" y="1503" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="906.5" y="1517" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="749" y="1541" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes focused tasks and returns</text>
+<text x="749" y="1555" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">compact operational updates.</text>
+<line x1="749" y1="1577" x2="931" y2="1577" stroke="#D7E2EE"/>
+<rect x="749" y="1583" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="795" y="1596" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="849" y="1583" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="890" y="1596" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+</g>
+<g id="PROJECT 4 — Legal Review">
+<rect x="100" y="1550" width="1400" height="355" rx="16" fill="#F7FAFC" stroke="#E66A0066" stroke-width="1.2"/>
+<text x="120" y="1578" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700" fill="#E66A00" text-anchor="start">PROJECT 4 — Legal Review</text>
+<rect x="1320" y="1562" width="70" height="22" rx="11" fill="#FFFFFF" stroke="#E66A0044" stroke-width="1"/>
+<text x="1355" y="1577" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#E66A00" text-anchor="middle">3 Teams</text>
+<rect x="1400" y="1562" width="80" height="22" rx="11" fill="#FFFFFF" stroke="#E66A0044" stroke-width="1"/>
+<text x="1440" y="1577" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#E66A00" text-anchor="middle">8 Workers</text>
+<path d="M800,1775 L800,1682 L390,1682 L390,1700" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M800,1775 L800,1682 L695,1682 L695,1700" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M800,1775 L800,1682 L1000,1682 L1000,1700" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M390,1890 L390,1787 L535,1787 L535,1805" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M695,1890 L695,1787 L840,1787 L840,1805" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<g id="Legal Review Lead">
+<rect x="695" y="1585" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="695" y="1585" width="210" height="54" rx="16" fill="#E66A00" stroke="none" stroke-width="1"/>
+<rect x="695" y="1623" width="210" height="16" rx="0" fill="#E66A00" stroke="none" stroke-width="1"/>
+<text x="709" y="1603" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">PROJECT MANAGER</text>
+<text x="709" y="1622" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Legal Review Lead</text>
+<rect x="863" y="1595" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="877" y="1606" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="709" y="1663" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="709" y="1673" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="739.5" y="1687" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="776" y="1673" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="798.0" y="1687" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P4-00</text>
+<rect x="826" y="1673" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="866.5" y="1687" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="709" y="1711" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Leads the project and coordinates</text>
+<text x="709" y="1725" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">its operating structure.</text>
+<line x1="709" y1="1747" x2="891" y2="1747" stroke="#D7E2EE"/>
+<rect x="709" y="1753" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="755" y="1766" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="809" y="1753" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="850" y="1766" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Contract Review">
+<rect x="285" y="1700" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="285" y="1700" width="210" height="54" rx="16" fill="#E66A00" stroke="none" stroke-width="1"/>
+<rect x="285" y="1738" width="210" height="16" rx="0" fill="#E66A00" stroke="none" stroke-width="1"/>
+<text x="299" y="1718" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="299" y="1737" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Contract Review</text>
+<rect x="453" y="1710" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="467" y="1721" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="299" y="1778" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="299" y="1788" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="329.5" y="1802" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="366" y="1788" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="388.0" y="1802" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P4-01</text>
+<rect x="416" y="1788" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="456.5" y="1802" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="299" y="1826" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="299" y="1840" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="299" y1="1862" x2="481" y2="1862" stroke="#D7E2EE"/>
+<rect x="299" y="1868" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="345" y="1881" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="399" y="1868" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="440" y="1881" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Compliance Check">
+<rect x="590" y="1700" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="590" y="1700" width="210" height="54" rx="16" fill="#E66A00" stroke="none" stroke-width="1"/>
+<rect x="590" y="1738" width="210" height="16" rx="0" fill="#E66A00" stroke="none" stroke-width="1"/>
+<text x="604" y="1718" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="604" y="1737" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Compliance Check</text>
+<rect x="758" y="1710" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="772" y="1721" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="604" y="1778" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="604" y="1788" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="634.5" y="1802" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="671" y="1788" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="693.0" y="1802" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P4-02</text>
+<rect x="721" y="1788" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="761.5" y="1802" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="604" y="1826" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="604" y="1840" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="604" y1="1862" x2="786" y2="1862" stroke="#D7E2EE"/>
+<rect x="604" y="1868" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="650" y="1881" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="704" y="1868" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="745" y="1881" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Regulatory Affairs">
+<rect x="895" y="1700" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="895" y="1700" width="210" height="54" rx="16" fill="#E66A00" stroke="none" stroke-width="1"/>
+<rect x="895" y="1738" width="210" height="16" rx="0" fill="#E66A00" stroke="none" stroke-width="1"/>
+<text x="909" y="1718" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">SUB-MANAGER</text>
+<text x="909" y="1737" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Regulatory Affairs</text>
+<rect x="1063" y="1710" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="1077" y="1721" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="909" y="1778" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="909" y="1788" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="939.5" y="1802" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="976" y="1788" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="998.0" y="1802" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P4-03</text>
+<rect x="1026" y="1788" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="1066.5" y="1802" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="909" y="1826" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="909" y="1840" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="909" y1="1862" x2="1091" y2="1862" stroke="#D7E2EE"/>
+<rect x="909" y="1868" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="955" y="1881" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="1009" y="1868" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="1050" y="1881" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Regulatory Research">
+<rect x="430" y="1805" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="430" y="1805" width="210" height="54" rx="16" fill="#E66A00" stroke="none" stroke-width="1"/>
+<rect x="430" y="1843" width="210" height="16" rx="0" fill="#E66A00" stroke="none" stroke-width="1"/>
+<text x="444" y="1823" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="444" y="1842" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Regulatory Research</text>
+<rect x="598" y="1815" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="612" y="1826" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="444" y="1883" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="444" y="1893" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="474.5" y="1907" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="511" y="1893" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="533.0" y="1907" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P4-W1</text>
+<rect x="561" y="1893" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="601.5" y="1907" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="444" y="1931" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes focused tasks and returns</text>
+<text x="444" y="1945" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">compact operational updates.</text>
+<line x1="444" y1="1967" x2="626" y2="1967" stroke="#D7E2EE"/>
+<rect x="444" y="1973" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="490" y="1986" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="544" y="1973" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="585" y="1986" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Document Prep">
+<rect x="735" y="1805" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="735" y="1805" width="210" height="54" rx="16" fill="#E66A00" stroke="none" stroke-width="1"/>
+<rect x="735" y="1843" width="210" height="16" rx="0" fill="#E66A00" stroke="none" stroke-width="1"/>
+<text x="749" y="1823" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="749" y="1842" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Document Prep</text>
+<rect x="903" y="1815" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="917" y="1826" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="749" y="1883" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="749" y="1893" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="779.5" y="1907" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="816" y="1893" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="838.0" y="1907" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P4-W2</text>
+<rect x="866" y="1893" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="906.5" y="1907" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="749" y="1931" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes focused tasks and returns</text>
+<text x="749" y="1945" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">compact operational updates.</text>
+<line x1="749" y1="1967" x2="931" y2="1967" stroke="#D7E2EE"/>
+<rect x="749" y="1973" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="795" y="1986" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="849" y="1973" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="890" y="1986" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+</g>
+<g id="PROJECT 5 — Commercial Expansion">
+<rect x="100" y="1940" width="1400" height="355" rx="16" fill="#F7FAFC" stroke="#D62E6866" stroke-width="1.2"/>
+<text x="120" y="1968" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700" fill="#D62E68" text-anchor="start">PROJECT 5 — Commercial Expansion</text>
+<rect x="1320" y="1952" width="70" height="22" rx="11" fill="#FFFFFF" stroke="#D62E6844" stroke-width="1"/>
+<text x="1355" y="1967" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#D62E68" text-anchor="middle">3 Teams</text>
+<rect x="1400" y="1952" width="80" height="22" rx="11" fill="#FFFFFF" stroke="#D62E6844" stroke-width="1"/>
+<text x="1440" y="1967" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#D62E68" text-anchor="middle">8 Workers</text>
+<path d="M800,2165 L800,2072 L390,2072 L390,2090" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M800,2165 L800,2072 L695,2072 L695,2090" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M800,2165 L800,2072 L1000,2072 L1000,2090" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M390,2280 L390,2177 L535,2177 L535,2195" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<path d="M695,2280 L695,2177 L840,2177 L840,2195" fill="none" stroke="#9AA9B8" stroke-width="1.4"/>
+<g id="Commercial Lead">
+<rect x="695" y="1975" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="695" y="1975" width="210" height="54" rx="16" fill="#D62E68" stroke="none" stroke-width="1"/>
+<rect x="695" y="2013" width="210" height="16" rx="0" fill="#D62E68" stroke="none" stroke-width="1"/>
+<text x="709" y="1993" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">PROJECT MANAGER</text>
+<text x="709" y="2012" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Commercial Lead</text>
+<rect x="863" y="1985" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="877" y="1996" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="709" y="2053" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="709" y="2063" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="739.5" y="2077" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="776" y="2063" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="798.0" y="2077" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P5-00</text>
+<rect x="826" y="2063" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="866.5" y="2077" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="709" y="2101" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Leads the project and coordinates</text>
+<text x="709" y="2115" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">its operating structure.</text>
+<line x1="709" y1="2137" x2="891" y2="2137" stroke="#D7E2EE"/>
+<rect x="709" y="2143" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="755" y="2156" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="809" y="2143" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="850" y="2156" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Market Expansion">
+<rect x="285" y="2090" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="285" y="2090" width="210" height="54" rx="16" fill="#D62E68" stroke="none" stroke-width="1"/>
+<rect x="285" y="2128" width="210" height="16" rx="0" fill="#D62E68" stroke="none" stroke-width="1"/>
+<text x="299" y="2108" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="299" y="2127" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Market Expansion</text>
+<rect x="453" y="2100" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="467" y="2111" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="299" y="2168" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="299" y="2178" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="329.5" y="2192" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="366" y="2178" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="388.0" y="2192" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P5-01</text>
+<rect x="416" y="2178" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="456.5" y="2192" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="299" y="2216" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="299" y="2230" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="299" y1="2252" x2="481" y2="2252" stroke="#D7E2EE"/>
+<rect x="299" y="2258" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="345" y="2271" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="399" y="2258" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="440" y="2271" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Sales Enablement">
+<rect x="590" y="2090" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="590" y="2090" width="210" height="54" rx="16" fill="#D62E68" stroke="none" stroke-width="1"/>
+<rect x="590" y="2128" width="210" height="16" rx="0" fill="#D62E68" stroke="none" stroke-width="1"/>
+<text x="604" y="2108" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="604" y="2127" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Sales Enablement</text>
+<rect x="758" y="2100" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="772" y="2111" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="604" y="2168" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="604" y="2178" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="634.5" y="2192" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="671" y="2178" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="693.0" y="2192" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P5-02</text>
+<rect x="721" y="2178" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="761.5" y="2192" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="604" y="2216" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="604" y="2230" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="604" y1="2252" x2="786" y2="2252" stroke="#D7E2EE"/>
+<rect x="604" y="2258" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="650" y="2271" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="704" y="2258" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="745" y="2271" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Partner Management">
+<rect x="895" y="2090" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="895" y="2090" width="210" height="54" rx="16" fill="#D62E68" stroke="none" stroke-width="1"/>
+<rect x="895" y="2128" width="210" height="16" rx="0" fill="#D62E68" stroke="none" stroke-width="1"/>
+<text x="909" y="2108" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">SUB-MANAGER</text>
+<text x="909" y="2127" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Partner Management</text>
+<rect x="1063" y="2100" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="1077" y="2111" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="909" y="2168" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="909" y="2178" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="939.5" y="2192" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="976" y="2178" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="998.0" y="2192" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P5-03</text>
+<rect x="1026" y="2178" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="1066.5" y="2192" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="909" y="2216" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes or coordinates the assigned</text>
+<text x="909" y="2230" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">operating lane.</text>
+<line x1="909" y1="2252" x2="1091" y2="2252" stroke="#D7E2EE"/>
+<rect x="909" y="2258" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="955" y="2271" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="1009" y="2258" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="1050" y="2271" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Partner Outreach">
+<rect x="430" y="2195" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="430" y="2195" width="210" height="54" rx="16" fill="#D62E68" stroke="none" stroke-width="1"/>
+<rect x="430" y="2233" width="210" height="16" rx="0" fill="#D62E68" stroke="none" stroke-width="1"/>
+<text x="444" y="2213" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="444" y="2232" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Partner Outreach</text>
+<rect x="598" y="2205" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="612" y="2216" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="444" y="2273" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="444" y="2283" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="474.5" y="2297" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="511" y="2283" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="533.0" y="2297" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P5-W1</text>
+<rect x="561" y="2283" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="601.5" y="2297" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="444" y="2321" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes focused tasks and returns</text>
+<text x="444" y="2335" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">compact operational updates.</text>
+<line x1="444" y1="2357" x2="626" y2="2357" stroke="#D7E2EE"/>
+<rect x="444" y="2363" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="490" y="2376" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="544" y="2363" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="585" y="2376" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+<g id="Partner Analytics">
+<rect x="735" y="2195" width="210" height="190" rx="16" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<rect x="735" y="2195" width="210" height="54" rx="16" fill="#D62E68" stroke="none" stroke-width="1"/>
+<rect x="735" y="2233" width="210" height="16" rx="0" fill="#D62E68" stroke="none" stroke-width="1"/>
+<text x="749" y="2213" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#DCE6F3" text-anchor="start">WORKER</text>
+<text x="749" y="2232" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">Partner Analytics</text>
+<rect x="903" y="2205" width="28" height="16" rx="8" fill="#FFFFFF" stroke="none" stroke-width="1"/>
+<text x="917" y="2216" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="700" fill="#334155" text-anchor="middle">SAT</text>
+<text x="749" y="2273" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" fill="#10233D" text-anchor="start">Elastic branch coordination</text>
+<rect x="749" y="2283" width="61" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="779.5" y="2297" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Anthropic</text>
+<rect x="816" y="2283" width="44" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="838.0" y="2297" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">P5-W2</text>
+<rect x="866" y="2283" width="81" height="20" rx="10" fill="#EAF2FB" stroke="#C8D8EA" stroke-width="1"/>
+<text x="906.5" y="2297" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="600" fill="#507090" text-anchor="middle">Promoted lane</text>
+<text x="749" y="2321" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">Executes focused tasks and returns</text>
+<text x="749" y="2335" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#475569" text-anchor="start">compact operational updates.</text>
+<line x1="749" y1="2357" x2="931" y2="2357" stroke="#D7E2EE"/>
+<rect x="749" y="2363" width="92" height="18" rx="6" fill="#0B4B78" stroke="none" stroke-width="1"/>
+<text x="795" y="2376" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open</text>
+<rect x="849" y="2363" width="82" height="18" rx="6" fill="#FFFFFF" stroke="#D7E2EE" stroke-width="1"/>
+<text x="890" y="2376" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" fill="#334155" text-anchor="middle">Edit</text>
+</g>
+</g>
+<g id="Bottom Ribbon">
+<rect x="0" y="2426" width="1600" height="74" rx="0" fill="#071A35" stroke="none" stroke-width="1"/>
+<text x="85" y="2470" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#C6D2E1" text-anchor="middle">Dashboard</text>
+<rect x="180" y="2436" width="120" height="54" rx="10" fill="#12345A" stroke="none" stroke-width="1"/>
+<text x="240" y="2470" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#FFFFFF" text-anchor="middle">Teams Map</text>
+<text x="395" y="2470" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#C6D2E1" text-anchor="middle">Audit Log</text>
+<text x="550" y="2470" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#C6D2E1" text-anchor="middle">Main Workspace</text>
+<text x="705" y="2470" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#C6D2E1" text-anchor="middle">Cross Verification</text>
+<text x="860" y="2470" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#C6D2E1" text-anchor="middle">Documentation Mode</text>
+<text x="1015" y="2470" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#C6D2E1" text-anchor="middle">Prompts Library</text>
+<text x="1170" y="2470" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#C6D2E1" text-anchor="middle">Settings</text>
+<text x="1325" y="2470" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#C6D2E1" text-anchor="middle">Advanced</text>
+<text x="1480" y="2470" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#C6D2E1" text-anchor="middle">Contact Us</text>
+</g>
+</svg>
